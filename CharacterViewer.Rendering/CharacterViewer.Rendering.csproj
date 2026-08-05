@@ -15,9 +15,9 @@
          in CharacterViewerRendering.cs — hosts compare against that constant
          for staleness checks. Bump together: Major = breaking, Minor =
          additive, Patch = bugfix. This is also the published NuGet version. -->
-    <Version>2.6.6</Version>
-    <AssemblyVersion>2.6.1.0</AssemblyVersion>
-    <FileVersion>2.6.1.0</FileVersion>
+    <Version>2.7.0</Version>
+    <AssemblyVersion>2.7.0.0</AssemblyVersion>
+    <FileVersion>2.7.0.0</FileVersion>
   </PropertyGroup>
 
   <!-- NuGet packaging metadata. Produced with `dotnet pack -c Release`; not packed

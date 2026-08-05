@@ -272,7 +272,35 @@ public class VM_CharacterViewer : ViewerVm
     private bool _currentSceneVanillaLooseOverridesModLoose;
 
     private readonly CharacterPreviewCache _previewCache;
-    private readonly IRenderThreadMarshaller _renderThread;
+    private IRenderThreadMarshaller _renderThread;
+
+    /// <summary>
+    /// The marshaller that reaches the thread + GL context owning this viewer's
+    /// scene. Seeded from the constructor argument; settable so a host can
+    /// install a per-viewer one once it knows which GL surface this instance
+    /// draws into.
+    ///
+    /// <para><b>Why a host would replace it:</b> GL object names are
+    /// per-context, and two freshly-created contexts hand out the SAME low
+    /// integers for the same allocation sequence. A host that keeps more than
+    /// one viewer alive at a time (NPC2's 3D-preview popups — each GLWpfControl
+    /// mints its own private context) therefore needs every GL call this VM
+    /// makes outside the render callback to land in ITS context, not whichever
+    /// sibling rendered most recently. A marshaller that makes the owning
+    /// context current before running the action supplies that guarantee;
+    /// a plain dispatch-to-UI-thread marshaller does not.</para>
+    /// </summary>
+    public IRenderThreadMarshaller RenderThreadMarshaller
+    {
+        get => _renderThread;
+        set => _renderThread = value ?? new InlineRenderThreadMarshaller();
+    }
+
+    /// <summary>True when this viewer defers its GL work to a host render
+    /// callback rather than owning a dedicated render thread. Interactive
+    /// hosts (WPF) do; the offscreen renderer and tests run inline on the
+    /// thread that already holds the context.</summary>
+    private bool DefersGlToRenderCallback => _renderThread is not InlineRenderThreadMarshaller;
 
     // ═══════════════════════════════════════════════════════════════════════
     //  PUBLIC HOST-EXTENSION SURFACE
@@ -287,6 +315,16 @@ public class VM_CharacterViewer : ViewerVm
     /// scene-ready state — SynthEbdViewerHostState uses this to apply a
     /// queued ApplyBodySlide once the body NIF disk path is cached.</summary>
     public event Action? SceneCommitted;
+
+    /// <summary>Fired after a <see cref="ApplyMeshOverrides"/> set has actually
+    /// been installed into the scene. Hosts that derive UI state from the apply
+    /// result (NPC2 mirrors <see cref="MeshOverrideWarningDetails"/> onto its
+    /// attire warning badge) must refresh here rather than on return from
+    /// ApplyMeshOverrides: for interactive hosts that call is a queue, and the
+    /// GL work runs one render tick later. Unlike <see cref="SceneCommitted"/>
+    /// this fires for override-only changes with no scene rebuild — the attire
+    /// toggle case.</summary>
+    public event Action? MeshOverridesApplied;
 
     /// <summary>Fired when a property that affects how the camera should
     /// frame the scene changes — currently <see cref="FieldOfView"/>. Hosts
@@ -3973,6 +4011,22 @@ public class VM_CharacterViewer : ViewerVm
                 _sceneInstall.TotalShapes + " shapes)");
         }
 
+        // ── 1b. Quiescent-scene override drain. ApplyMeshOverrides queues instead
+        //       of applying when the host defers GL to this callback (see its
+        //       remarks), so a narrow toggle — attire / headgear, no reload —
+        //       has no scene commit to ride in on. Drain it here, where this
+        //       viewer's context is current, rather than only at step 3.
+        //
+        //       Gated on a committed, quiescent scene: with an install in flight
+        //       or a rebuild pending, the meshes these overrides would attach to
+        //       are about to be destroyed, and step 3 re-drains after the commit.
+        if (_sceneInstall == null && _pendingMeshOverrides != null && CanApplyMeshOverrides)
+        {
+            var quiescentOverrides = _pendingMeshOverrides;
+            _pendingMeshOverrides = null;
+            ApplyMeshOverridesCore(quiescentOverrides);
+        }
+
         // ── 2. Per-tick install loop: pop shapes until the budget is spent or
         //       the queue is empty. Each shape upload is the same work the
         //       single-frame install used to do inline.
@@ -4037,11 +4091,15 @@ public class VM_CharacterViewer : ViewerVm
         // already been routed.
         // Still inside this method's PushScopes bracket, so the override NIF /
         // skeleton resolve with the load's scope chain.
-        if (_pendingMeshOverrides != null)
+        // Straight to the core: the public entry point would re-queue this on a
+        // host that defers GL to the render callback, and we ARE that callback.
+        // The readiness re-check preserves the old behavior of leaving the set
+        // queued when the freshly-committed scene has nothing to attach to.
+        if (_pendingMeshOverrides != null && CanApplyMeshOverrides)
         {
             var meshOverrides = _pendingMeshOverrides;
             _pendingMeshOverrides = null;
-            ApplyMeshOverrides(meshOverrides);
+            ApplyMeshOverridesCore(meshOverrides);
         }
 
         // Notify host-side queues (e.g. SynthEbdViewerHostState's pending
@@ -5275,6 +5333,25 @@ public class VM_CharacterViewer : ViewerVm
     /// override set (so selecting a different subgroup / toggling a feature
     /// re-applies cleanly), exactly like <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.
     /// NPC Plugin Chooser 2 (and any future host) calls this directly.
+    ///
+    /// <para><b>Deferred for interactive hosts.</b> Installing an override set
+    /// is GL work — it deletes the previous set's VAOs/VBOs/textures and uploads
+    /// the new ones. GL object names are per-context, so that work is only safe
+    /// where THIS viewer's context is current, and for a host that drives the
+    /// scene from a render callback the only such place is that callback. So
+    /// when <see cref="RenderThreadMarshaller"/> says we defer to one, this
+    /// method only queues; <see cref="ProcessPendingScene"/> drains it on the
+    /// next tick and raises <see cref="MeshOverridesApplied"/>. Callers that
+    /// read <see cref="MeshOverrideWarningDetails"/> must wait for that event.
+    /// The offscreen renderer (inline marshaller, dedicated thread, single
+    /// context) still applies synchronously, which is why
+    /// <paramref name="ct"/> remains meaningful there.</para>
+    ///
+    /// <para>Before the deferral this ran inline on the caller's thread. With
+    /// two NPC2 preview popups open — private context each, both rendering from
+    /// the WPF UI thread — an attire toggle in one window deleted the OTHER
+    /// window's meshes and textures by ID collision, because the context current
+    /// on that thread belonged to whichever popup rendered most recently.</para>
     /// </summary>
     public void ApplyMeshOverrides(IEnumerable<MeshOverride> overrides, CancellationToken ct = default)
     {
@@ -5285,20 +5362,40 @@ public class VM_CharacterViewer : ViewerVm
         _lastRequestedMeshOverrides = overrideList;
         RaiseSceneInputsChanged();
 
-        // Queue when the scene isn't ready, the texture manager isn't up, a
-        // rebuild is in flight, or no base mesh paths are cached yet (we need
-        // the skeleton path off them). Mirrors ApplyTextureOverrides' gate.
-        if (_meshesByBodyPart.Count == 0 || TextureManager == null
-            || _sceneRebuildPending || _cachedMeshPaths == null)
+        if (!CanApplyMeshOverrides || DefersGlToRenderCallback)
         {
             LogVerbose("CharacterViewer: ApplyMeshOverrides queuing " + overrideList.Count +
-                " override(s); meshes=" + _meshesByBodyPart.Count +
+                " override(s); reason=" + (CanApplyMeshOverrides ? "render-callback-deferred" : "scene-not-ready") +
+                ", meshes=" + _meshesByBodyPart.Count +
                 ", texMgr=" + (TextureManager != null) +
                 ", rebuildPending=" + _sceneRebuildPending +
                 ", meshPaths=" + (_cachedMeshPaths != null));
             _pendingMeshOverrides = overrideList;
             return;
         }
+
+        ApplyMeshOverridesCore(overrideList, ct);
+    }
+
+    /// <summary>Scene state <see cref="ApplyMeshOverridesCore"/> needs in place
+    /// before it can install anything: a committed scene with meshes, an up
+    /// texture manager, no rebuild in flight (those meshes are about to be
+    /// destroyed), and cached base paths — the skeleton path comes off them.
+    /// Mirrors <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>'s
+    /// gate plus the mesh-paths term.</summary>
+    private bool CanApplyMeshOverrides =>
+        _meshesByBodyPart.Count > 0 && TextureManager != null
+        && !_sceneRebuildPending && _cachedMeshPaths != null;
+
+    /// <summary>The GL half of <see cref="ApplyMeshOverrides"/>. MUST run with
+    /// this viewer's GL context current — i.e. either inline on a host that
+    /// owns its render thread, or from <see cref="ProcessPendingScene"/>.
+    /// Callers are responsible for <see cref="CanApplyMeshOverrides"/>.</summary>
+    private void ApplyMeshOverridesCore(List<MeshOverride> overrideList, CancellationToken ct = default)
+    {
+        // Re-checked rather than assumed: a queued set drains a tick or more
+        // after it was requested, and the scene can have been torn down since.
+        if (_cachedMeshPaths == null) return;
 
         LogVerbose("CharacterViewer: ApplyMeshOverrides applying " + overrideList.Count + " override(s)");
 
@@ -5353,6 +5450,11 @@ public class VM_CharacterViewer : ViewerVm
         // armature on a free slot collides with nothing, so this is a no-op for
         // that case.
         ResolveSlotVisibility();
+
+        // The apply is complete — hosts can now read MeshOverrideWarningDetails
+        // and the installed shape set. Fires on both drain paths (post-commit
+        // and quiescent-scene) as well as the inline offscreen path.
+        MeshOverridesApplied?.Invoke();
     }
 
     /// <summary>Loads, skins, textures, and registers one mesh override's
@@ -6454,12 +6556,16 @@ public class VM_CharacterViewer : ViewerVm
     /// in turn happens when its grandparent (e.g. a BodyGen config being swapped) is
     /// torn down.
     ///
-    /// GL delete calls must ideally run while the GL context is current. When the
-    /// owning UserControl has already been unloaded, the context may no longer be
-    /// current on this thread; in that case GL.DeleteBuffer / DeleteTexture on most
-    /// drivers are silent no-ops (the resources are reclaimed when the context itself
-    /// is destroyed). We wrap in try/catch so a stray driver throw doesn't propagate
-    /// out of the dispose chain and bring down the settings load.
+    /// GL delete calls must run while THIS viewer's context is current, so the
+    /// teardown goes through <see cref="RenderThreadMarshaller"/>. "No context
+    /// current => silent no-op" only holds while a single GL context exists in
+    /// the process: with two live viewers the names collide, and deleting under
+    /// a sibling's context destroys the sibling's shaders / VAOs / textures
+    /// instead of ours. A host with concurrent viewers must therefore install a
+    /// context-pinning marshaller (NPC2 does); hosts with one viewer keep the
+    /// plain dispatch marshaller and are unaffected. We wrap in try/catch so a
+    /// stray driver throw doesn't propagate out of the dispose chain and bring
+    /// down the settings load.
     /// </summary>
     public override void Dispose()
     {
@@ -6498,10 +6604,13 @@ public class VM_CharacterViewer : ViewerVm
         {
             if (IsGlInitialized)
             {
-                TextureManager?.Dispose();
-                TextureManager = null;
-                Renderer.Dispose();
-                IsGlInitialized = false;
+                _renderThread.Invoke(() =>
+                {
+                    TextureManager?.Dispose();
+                    TextureManager = null;
+                    Renderer.Dispose();
+                    IsGlInitialized = false;
+                });
             }
         }
         catch (Exception ex)
