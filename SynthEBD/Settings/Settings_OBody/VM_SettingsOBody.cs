@@ -246,8 +246,9 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         BodyTypeProfileEditorUI.CopyInViewModelFromModel(model);
 
-        // Profiles + the FirstOrDefault selection are now populated. Kick off the non-blocking
-        // detection of the installed default body so the editor opens on the matching profile.
+        // Profiles + the initial selection (last session's profile when saved, else FirstOrDefault)
+        // are now populated. Kick off the non-blocking detection of the installed default body so
+        // the editor opens on the matching profile — it no-ops when a saved selection was restored.
         BodyTypeProfileEditorUI.BeginAutoSelectProfileFromInstalledBody();
 
         AnnotatorUI.CopyInFromModel();
@@ -303,6 +304,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         BodyTypeProfileEditorUI.DumpViewModelToModel(model);
 
         model.BodySlideClassificationRules = AnnotatorUI.DumpToModel();
+
+        model.LastSelectedSliderAnnotationBodyType = AnnotatorUI.LastSelectedBodyTypeGroup;
 
         model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
         return model;

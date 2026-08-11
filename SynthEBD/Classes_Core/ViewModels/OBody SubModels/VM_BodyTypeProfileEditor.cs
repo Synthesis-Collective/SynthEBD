@@ -59,6 +59,11 @@ public class VM_BodyTypeProfileEditor : VM
     // in the SelectedProfile PropertyChanged handler.
     private VM_BodyTypeProfile? _watchedProfile;
 
+    // True when CopyInViewModelFromModel restored last session's selected profile (by saved Id).
+    // BeginAutoSelectProfileFromInstalledBody skips in that case so the installed-body detection
+    // can't override the profile the user was last working on.
+    private bool _restoredLastSessionProfileSelection;
+
     private void OnWatchedProfilePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(VM_BodyTypeProfile.BodyTypeName))
@@ -713,7 +718,15 @@ public class VM_BodyTypeProfileEditor : VM
             }
         }
 
-        SelectedProfile = Profiles.FirstOrDefault();
+        // Reopen on the profile the user was last working on (persisted by Id via
+        // LastSelectedBodyTypeProfileId); fall back to the first profile when nothing was saved
+        // or the saved profile no longer exists. A successful restore also suppresses
+        // BeginAutoSelectProfileFromInstalledBody so the remembered choice isn't clobbered.
+        var savedProfile = model.LastSelectedBodyTypeProfileId.IsNullOrWhitespace()
+            ? null
+            : Profiles.FirstOrDefault(p => p.Id == model.LastSelectedBodyTypeProfileId);
+        _restoredLastSessionProfileSelection = savedProfile != null;
+        SelectedProfile = savedProfile ?? Profiles.FirstOrDefault();
     }
 
     public void DumpViewModelToModel(Settings_OBody model)
@@ -724,6 +737,7 @@ public class VM_BodyTypeProfileEditor : VM
         {
             model.BodyTypeProfiles.Add(vm.DumpToModel());
         }
+        model.LastSelectedBodyTypeProfileId = SelectedProfile?.Id ?? "";
     }
 
     /// <summary>
@@ -731,7 +745,8 @@ public class VM_BodyTypeProfileEditor : VM
     /// vanilla body NIF topology (no rendering), then auto-selects the <see cref="BodyTypeProfile"/>
     /// whose captured fingerprint matches. The female body wins the single selection; the male body
     /// is a fallback. Only replaces the load-time <c>FirstOrDefault</c> default — if the user clicks
-    /// a different profile while the background survey runs, that choice is preserved. Runs only when
+    /// a different profile while the background survey runs, that choice is preserved, and when
+    /// load restored last session's selected profile the survey is skipped entirely. Runs only when
     /// BodyShape assignment is set to BodySlide (OBody / AutoBody). Best-effort: never throws.
     /// </summary>
     public void BeginAutoSelectProfileFromInstalledBody()
@@ -742,6 +757,11 @@ public class VM_BodyTypeProfileEditor : VM
         if (mode != BodyShapeSelectionMode.BodySlide)
         {
             _logger?.LogMessage($"InstalledBodyTypeDetector: skipped — 'Apply Body Shapes via' is {mode}, not BodySlide. Set it to BodySlide to enable auto-selection.");
+            return;
+        }
+        if (_restoredLastSessionProfileSelection)
+        {
+            _logger?.LogMessage($"InstalledBodyTypeDetector: skipped — reopened on last session's selected profile '{SelectedProfile?.Name ?? "?"}'.");
             return;
         }
         if (_bodyTypeDetector == null || Profiles.Count == 0)

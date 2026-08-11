@@ -118,6 +118,19 @@ public class Settings_OBody
     /// </summary>
     public OBodyPreviewNpcSettings PreviewNpcs { get; set; } = new();
 
+    /// <summary>
+    /// Body type (e.g. "CBBE 3BA") most recently selected in the Label by Sliders menu, so the
+    /// menu reopens on it next session instead of starting unselected. Empty = never selected.
+    /// </summary>
+    public string LastSelectedSliderAnnotationBodyType { get; set; } = "";
+
+    /// <summary>
+    /// <see cref="BodyTypeProfile.Id"/> of the profile most recently selected in the Label by
+    /// Measurements editor, so the editor reopens on it next session instead of the first profile
+    /// (or the installed-body auto-detection result). Empty = never selected.
+    /// </summary>
+    public string LastSelectedBodyTypeProfileId { get; set; } = "";
+
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 

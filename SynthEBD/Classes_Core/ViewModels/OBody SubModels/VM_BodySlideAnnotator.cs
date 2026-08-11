@@ -80,6 +80,14 @@ public class VM_BodySlideAnnotator : VM
         {
             if (args.PropertyName == nameof(DisplayedRuleSet))
             {
+                // Remember the selection for next session (persisted via
+                // Settings_OBody.LastSelectedSliderAnnotationBodyType). Deselection (null) keeps
+                // the previous value so a transient clear can't wipe the remembered body type.
+                if (DisplayedRuleSet != null)
+                {
+                    LastSelectedBodyTypeGroup = DisplayedRuleSet.BodyTypeGroup;
+                }
+
                 PreviewPanel.SetBodyType(DisplayedRuleSet?.BodyTypeGroup, DisplayedRuleSet?.AvailableSliderNames);
 
                 // Follow the selected body type's ShowPresetOnlySliders toggle so the preview
@@ -104,6 +112,12 @@ public class VM_BodySlideAnnotator : VM
     public ObservableCollection<VM_SliderClassificationRulesByBodyType> AnnotationRules { get; set; } = new();
 
     public VM_SliderClassificationRulesByBodyType DisplayedRuleSet { get; set; }
+
+    /// <summary>Body type of the most recently displayed rule set. Round-trips through
+    /// <see cref="Settings_OBody.LastSelectedSliderAnnotationBodyType"/> so the menu reopens on
+    /// the body type the user last worked on; retains the loaded value when that body type isn't
+    /// currently listed (e.g. its registry entry was removed) so it isn't lost on save.</summary>
+    public string LastSelectedBodyTypeGroup { get; private set; } = "";
 
     /// <summary>The right-rail preview panel: preset list, slider readout, CharacterViewer, and NPC-at-weight search.</summary>
     public VM_SliderAnnotatorPreviewPanel PreviewPanel { get; }
@@ -336,6 +350,19 @@ public class VM_BodySlideAnnotator : VM
             foreach (var name in ruleSetVM.AvailableSliderNames.Where(x => !knownNames.Contains(x)))
             {
                 _logger.LogMessage("Slider-name provenance: " + ruleSetVM.BodyTypeGroup + ": slider '" + name + "' is offered only because a saved annotation rule references it.");
+            }
+        }
+
+        // Reopen on the body type the user was last working on. The saved value is kept even when
+        // no current rule set matches it, so it survives a save while the body type is absent.
+        var savedBodyType = _patcherState.OBodySettings.LastSelectedSliderAnnotationBodyType;
+        if (!savedBodyType.IsNullOrWhitespace())
+        {
+            LastSelectedBodyTypeGroup = savedBodyType;
+            var savedRuleSet = AnnotationRules.FirstOrDefault(x => string.Equals(x.BodyTypeGroup, savedBodyType, StringComparison.OrdinalIgnoreCase));
+            if (savedRuleSet != null)
+            {
+                DisplayedRuleSet = savedRuleSet;
             }
         }
     }
