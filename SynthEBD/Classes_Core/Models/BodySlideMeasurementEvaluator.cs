@@ -310,8 +310,8 @@ public static class BodySlideMeasurementEvaluator
     /// the aggregator-visibility of defaults moved earlier in the pass.</para>
     ///
     /// <para><paramref name="externalDescriptors"/> (optional) seeds the matched set with descriptors
-    /// from sources senior to the classifier — labels derived live from the Label-by-Sliders rules
-    /// for the evaluated (preset, weight), plus the preset's stored Manual / Library annotations
+    /// from sources senior to the classifier — labels a Label-by-Sliders rule <b>matched</b> for the
+    /// evaluated (preset, weight), plus the preset's stored Manual / Library annotations
     /// (see <see cref="CollectExternalDescriptors"/>). Seeds exist before any rule runs, so every
     /// DescriptorRef condition sees them regardless of dependency order, positive or negated. A
     /// seeded Category also counts as <b>covered</b> for default handling: its configured default is
@@ -319,6 +319,13 @@ public static class BodySlideMeasurementEvaluator
     /// a value from a senior source (a slider-labeled Belly:Muscular preset must not ALSO fall to
     /// the measurement side's Belly:Normal). Seeds themselves are never emitted as output — they
     /// only gate; the classifier's output remains rule matches + (unsuppressed) defaults.</para>
+    ///
+    /// <para>Because coverage is that strong, the seed must carry only positive labels. The slider
+    /// side's per-category <i>default</i> is not one, and is filtered out upstream by
+    /// <see cref="CollectExternalDescriptors"/>: it holds the same value as the measurement-side
+    /// default (<see cref="DescriptorDefaultSynchronizer"/> enforces one default per body type +
+    /// category), so seeding it would suppress the very default it duplicates and leave the category
+    /// with no descriptor at all. Callers assembling this set by hand must apply the same rule.</para>
     /// </summary>
     public static List<BodyShapeDescriptor.LabelSignature> RunClassifierRules(
         IReadOnlyList<MeasurementRule> eligibleRules,
@@ -519,7 +526,14 @@ public static class BodySlideMeasurementEvaluator
     /// stored RulesBased entries (written by since-edited rules) never leak into the seed. Only when
     /// no rule set is supplied (null) do stored RulesBased entries seed instead, as a legacy fallback.
     /// <paramref name="descriptorUniverse"/> is the descriptor catalog the slider engine gates on
-    /// (only known (Category, Value)s are ever assigned); null skips that filtering.</para>
+    /// (only known (Category, Value)s are ever assigned); null skips that filtering.
+    /// <b>Slider-side per-category DEFAULTS are deliberately excluded</b>
+    /// (<c>includeCategoryDefaults: false</c>) — only values a slider rule actually matched seed. A
+    /// default is the catch-all a category falls to, not a positive label from a senior source, and
+    /// because <see cref="DescriptorDefaultSynchronizer"/> keeps the two menus' defaults identical,
+    /// seeding it would suppress the measurement-side default of the same value and leave the
+    /// category unlabeled. The measurement side materializes and emits that default instead, so
+    /// DescriptorRef conditions still see it.</para>
     ///
     /// <para><b>Stored annotations.</b> Manual and Library entries, read from the slot keyed exactly
     /// at <paramref name="weight"/> when the preset has one (an existing-but-empty slot means
@@ -577,7 +591,9 @@ public static class BodySlideMeasurementEvaluator
 
         if (haveLiveRules)
         {
-            foreach (var sig in BodySlideAnnotator.DeriveDescriptorsForSlot(preset, sliderClassificationRules!, descriptorUniverse, weight))
+            foreach (var sig in BodySlideAnnotator.DeriveDescriptorsForSlot(
+                         preset, sliderClassificationRules!, descriptorUniverse, weight,
+                         includeCategoryDefaults: false))
             {
                 if (sig == null || string.IsNullOrEmpty(sig.Category) || string.IsNullOrEmpty(sig.Value)) continue;
                 result.Add((sig.Category, sig.Value));

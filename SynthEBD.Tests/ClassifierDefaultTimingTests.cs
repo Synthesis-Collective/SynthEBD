@@ -22,6 +22,11 @@ namespace SynthEBD.Tests;
 /// Label-by-Sliders rule set by <see cref="BodySlideAnnotator.DeriveDescriptorsForSlot"/> (no
 /// "apply annotations" pass required — see the end-to-end test); stored Manual/Library annotations
 /// seed via <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/>'s slot policy.
+///
+/// <para>Only slider-rule MATCHES seed — the slider side's per-category default does not, because it
+/// duplicates the (synchronized) measurement-side default and would suppress it. That pairing is
+/// pinned by <c>SliderCategoryDefault_IsNotSeeded_SoMeasurementDefaultStillEmits</c> and
+/// <c>SliderRuleMatch_StillSeeds_ButSliderDefaultDoesNot</c>.</para>
 /// </summary>
 public class ClassifierDefaultTimingTests
 {
@@ -452,12 +457,13 @@ public class ClassifierDefaultTimingTests
             .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
         BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 75, rules, universe)
             .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
-        // Below the threshold the category default fills, exactly like an applied annotation pass.
+        // Below the threshold no slider rule matched, so nothing seeds — the category default is
+        // NOT a senior-source label (see SliderCategoryDefault_IsNotSeeded_SoMeasurementDefaultStillEmits).
         BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Belly", "Normal") });
+            .Should().BeEmpty();
         // Arbitrary off-slot weight: interpolation runs at the exact weight (37 -> 29.6 < 60).
         BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 37, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Belly", "Normal") });
+            .Should().BeEmpty();
 
         // The derivation is a pure query — the preset's stored slots stay untouched.
         preset.EnumerateAllDescriptors().Should().BeEmpty();
@@ -580,5 +586,85 @@ public class ClassifierDefaultTimingTests
         at0.Should().Contain(("Belly", "Chubby"));
         at0.Should().Contain(("Belly", "Fat"));
         at0.Should().NotContain(("Build", "Powerful"));
+    }
+
+    // ---------- Slider-side category defaults must not suppress the measurement-side default ----------
+
+    /// <summary>The reported bug, end to end. Label by Sliders has an Arms classifier with NO rules and
+    /// the default "Medium"; Label by Measurements has Arms:Small / Arms:Large rules that this preset
+    /// misses and the same "Medium" default (the two are kept identical by
+    /// DescriptorDefaultSynchronizer). Seeding the slider default marked Arms covered, so the
+    /// measurement default was suppressed and the preset came out with NO Arms descriptor — and
+    /// clearing the slider default did not help, because the synchronizer cleared the measurement
+    /// default with it. Excluding slider defaults from the seed is what breaks that loop.</summary>
+    [Fact]
+    public void SliderCategoryDefault_IsNotSeeded_SoMeasurementDefaultStillEmits()
+    {
+        var preset = MakeSliderPreset(("MuscleAbs", 0, 40));
+        var sliderRules = SliderRules("Arms", defaultValue: "Medium"); // default only, no rules
+        var universe = SliderUniverse("Arms", "Small", "Medium", "Large");
+
+        var seeds = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, sliderRules, universe);
+        seeds.Should().BeEmpty("a category default is a catch-all, not a senior-source label");
+
+        var measurementRules = new List<MeasurementRule>
+        {
+            Rule("Arms", "Small", Meas("Arm_Volume", MeasurementComparator.LessThan, 220f)),
+            Rule("Arms", "Large", Meas("Arm_Volume", MeasurementComparator.GreaterThanOrEqual, 350f)),
+        };
+        var defaults = new Dictionary<string, string> { ["Arms"] = "Medium" };
+        var meas = new Dictionary<string, float> { ["Arm_Volume"] = 260f }; // between the two rules
+
+        var (matches, defs) = Run(measurementRules, meas, defaults, seeds);
+
+        matches.Should().BeEmpty();
+        defs.Should().Contain(("Arms", "Medium"));
+    }
+
+    /// <summary>The other half of the invariant: a slider RULE match still seeds and still suppresses,
+    /// so a slider-labeled preset never also collects the measurement default. Same preset, same rule
+    /// set, two weights — above the threshold the rule fires and covers the category; below it nothing
+    /// seeds and the measurement default fills.</summary>
+    [Fact]
+    public void SliderRuleMatch_StillSeeds_ButSliderDefaultDoesNot()
+    {
+        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
+        var sliderRules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
+        var universe = SliderUniverse("Belly", "Muscular", "Normal");
+        var defaults = new Dictionary<string, string> { ["Belly"] = "Normal" };
+        var noRules = new List<MeasurementRule>();
+        var noMeas = new Dictionary<string, float>();
+
+        // Weight 100: MuscleAbs = 80 >= 60 -> the rule matched -> seeds and suppresses the default.
+        var seedsAt100 = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, sliderRules, universe);
+        seedsAt100.Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
+        var (_, defsAt100) = Run(noRules, noMeas, defaults, seedsAt100);
+        defsAt100.Should().NotContain(("Belly", "Normal"));
+
+        // Weight 0: no rule matched -> the slider default does NOT seed -> measurement default emits.
+        var seedsAt0 = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, sliderRules, universe);
+        seedsAt0.Should().BeEmpty();
+        var (_, defsAt0) = Run(noRules, noMeas, defaults, seedsAt0);
+        defsAt0.Should().Contain(("Belly", "Normal"));
+    }
+
+    [Fact]
+    public void DeriveDescriptorsForSlot_IncludeCategoryDefaults_TogglesOnlyTheDefaultFill()
+    {
+        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
+        var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
+        var universe = SliderUniverse("Belly", "Muscular", "Normal");
+
+        // A matched rule is returned either way — the flag never touches rule output.
+        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, 100, includeCategoryDefaults: false)
+            .Select(d => (d.Category, d.Value))
+            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
+
+        // No rule matched: the default fills only when asked for (true is the annotate-pass default).
+        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, 0)
+            .Select(d => (d.Category, d.Value))
+            .Should().BeEquivalentTo(new[] { ("Belly", "Normal") });
+        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, 0, includeCategoryDefaults: false)
+            .Should().BeEmpty();
     }
 }

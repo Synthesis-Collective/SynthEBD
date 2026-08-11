@@ -134,12 +134,21 @@ public class BodySlideAnnotator
     /// so Label-by-Measurements DescriptorRef conditions read slider labels live from the CURRENT rule
     /// set — drafting or revising a slider rule is visible to measurement rules immediately, with no
     /// "apply annotations" step in between.
+    ///
+    /// <para><paramref name="includeCategoryDefaults"/> = false drops the per-category default fill and
+    /// returns ONLY the values a slider rule actually matched. The classifier seed passes false: a
+    /// category default is a catch-all, not a positive label, and
+    /// <see cref="BodySlideMeasurementEvaluator.RunClassifierRules"/> treats every seed as covering its
+    /// category — so seeding the slider default would suppress the (synchronized, therefore identical)
+    /// measurement-side default and leave the category with no descriptor at all. Callers that want the
+    /// annotate pass's exact output (the default-fill included) leave it true.</para>
     /// </summary>
     public static List<BodyShapeDescriptor.LabelSignature> DeriveDescriptorsForSlot(
         BodySlideSetting bodySlide,
         Dictionary<string, SliderClassificationRulesByBodyType> bodySlideClassificationRules,
         HashSet<BodyShapeDescriptor.LabelSignature>? currentDescriptors,
-        int weightSlot)
+        int weightSlot,
+        bool includeCategoryDefaults = true)
     {
         var result = new List<BodyShapeDescriptor.LabelSignature>();
         if (bodySlide?.SliderGroup == null || bodySlide.SliderValues == null) return result;
@@ -183,7 +192,8 @@ public class BodySlideAnnotator
                 }
             }
 
-            if (!anyMatched
+            if (includeCategoryDefaults
+                && !anyMatched
                 && !ruleSet.DefaultDescriptorValue.IsNullOrWhitespace()
                 && (currentValues == null || currentValues.Contains(ruleSet.DefaultDescriptorValue)))
             {

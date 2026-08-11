@@ -9,10 +9,17 @@ namespace SynthEBD;
 /// that both own one: Label by Sliders (<see cref="VM_DescriptorClassificationRuleSet.DefaultDescriptorValue"/>,
 /// per (body type, category)) and Label by Measurements (<see cref="VM_BodyTypeProfile"/> defaults,
 /// per (profile, category), joined on <c>BodyTypeName</c> ↔ <c>BodyTypeGroup</c>, case-insensitive).
-/// With DescriptorRef seeding, the slider-side default is the operative one at evaluation time
-/// (its seed suppresses the measurement-side default), so divergence would leave the measurement
-/// menu displaying a default that silently never fires — this service enforces the invariant
-/// <b>one default per (body type, category), whichever menu edits it</b>.
+/// Both menus label the same presets, so two different catch-all values for one category would mean
+/// a preset's descriptor depended on which menu last touched it — this service enforces the
+/// invariant <b>one default per (body type, category), whichever menu edits it</b>.
+///
+/// <para>The two defaults being identical is precisely why
+/// <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/> keeps the slider-side
+/// default OUT of the classifier's external-descriptor seed. Seeds mark a category covered by a
+/// senior source and suppress its measurement-side default; seeding a value that duplicates that
+/// default would cancel it and leave the category unlabeled. Slider <i>rule matches</i> still seed
+/// and still suppress — only the default is exempt. Keep that exemption in place if this
+/// synchronizer's policy ever changes.</para>
 ///
 /// <para><b>Live edits</b> propagate unconditionally and immediately in both directions
 /// (<see cref="PushFromSliderRuleSet"/> / <see cref="PushFromMeasurementProfile"/>), fanning out to
