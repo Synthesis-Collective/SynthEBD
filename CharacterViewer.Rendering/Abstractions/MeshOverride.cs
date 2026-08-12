@@ -135,6 +135,16 @@ public sealed record MeshOverride
     /// ranks them by load order so the fallback reproduces what the game would
     /// pick rather than whichever archive was indexed first.</para></summary>
     public bool AllowLoadOrderFallback { get; init; }
+
+    /// <summary>Whether the source ArmorAddon has its weight slider enabled for
+    /// the rendered sex — i.e. whether the engine morphs this piece between the
+    /// <c>_0.nif</c> / <c>_1.nif</c> pair. When false the engine loads exactly
+    /// <see cref="MeshPath"/> and no sibling file is expected to exist (many
+    /// pieces — hats, jewelry, some clothes — ship a single weight file with the
+    /// slider off). Hosts use this to decide whether a missing weight-pair
+    /// counterpart is a real defect. Default false: absent record knowledge,
+    /// nothing may be assumed about sibling files.</summary>
+    public bool HasWeightVariants { get; init; }
 }
 
 /// <summary>
