@@ -972,6 +972,7 @@ public class VM_BodyTypeProfileEditor : VM
     {
         if (_filterFactory == null || oBodyVM == null) return;
         DescriptorFilter = _filterFactory(oBodyVM.DescriptorUI, raceGroupingVMs, oBodyVM, true, DescriptorMatchMode.All, false);
+        DescriptorFilter.IsEditorExpanded = true; // Match Presets filter starts expanded so the descriptor picker is immediately visible
 
         // Re-run the filter whenever the user's selection changes. The selector fires its
         // Header string off every selection/match-mode change, so subscribing to it is a
