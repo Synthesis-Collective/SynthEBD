@@ -14,6 +14,7 @@ using nifly;
 //   NifLab transplant --target T --donor D --donor-shape S=NewName [...] --strip Name [...] --out O
 //   NifLab normalize --target T --shape Name [...] --part-id 131 --out O
 //   NifLab setflags  --target T --shape Name=Flags [...] --out O
+//   NifLab strip     --target T --shape Name [...] --out O
 //
 // Every command loads, mutates in memory, and saves to --out (never in place).
 
@@ -24,6 +25,7 @@ return args.Length == 0 ? Usage() : args[0] switch
     "normalize" => Normalize(args),
     "setflags" => SetFlags(args),
     "setroot" => SetRoot(args),
+    "strip" => Strip(args),
     _ => Usage(),
 };
 
@@ -201,6 +203,21 @@ static int SetRoot(string[] args)
         skinInst.targetRef.index = nodeId;
     }
 
+    Save(target, opts["out"][0]);
+    return 0;
+}
+
+// ── strip: delete named shapes without transplanting anything ───────────────
+static int Strip(string[] args)
+{
+    var opts = ParseOpts(args);
+    using var target = LoadNif(opts["target"][0]);
+    foreach (var name in opts["shape"])
+    {
+        var victim = FindShape(target, name);
+        target.DeleteShape(victim);
+        Console.WriteLine($"stripped '{name}'");
+    }
     Save(target, opts["out"][0]);
     return 0;
 }
