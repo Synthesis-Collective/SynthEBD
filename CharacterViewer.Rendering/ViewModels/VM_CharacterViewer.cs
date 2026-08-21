@@ -270,6 +270,7 @@ public class VM_CharacterViewer : ViewerVm
     private IReadOnlyList<string>? _currentSceneFolders;
     private bool _currentSceneVanillaLooseOverridesBsa = true;
     private bool _currentSceneVanillaLooseOverridesModLoose;
+    private bool _currentSceneAllowLoadOrderFallback;
 
     private readonly CharacterPreviewCache _previewCache;
     private IRenderThreadMarshaller _renderThread;
@@ -690,6 +691,16 @@ public class VM_CharacterViewer : ViewerVm
     /// non-FaceGen paths. Default false.
     /// </summary>
     public bool VanillaLooseOverridesModLoose { get; set; } = false;
+
+    /// <summary>
+    /// Counterpart to <see cref="Offscreen.OffscreenRenderRequest.AllowLoadOrderFallback"/>
+    /// for the live preview path: engine-order resolution for EVERY asset in
+    /// the scene (base meshes and textures included), not just overrides that
+    /// carry <see cref="MeshOverride.AllowLoadOrderFallback"/>. Snapshotted at
+    /// <see cref="LoadAsync"/> entry and pushed to the resolver alongside
+    /// <see cref="AdditionalScopes"/>. Default false.
+    /// </summary>
+    public bool AllowLoadOrderFallback { get; set; } = false;
 
     public VM_CharacterViewer(
         BodySlideDeformer bodySlideDeformer,
@@ -1120,7 +1131,8 @@ public class VM_CharacterViewer : ViewerVm
             AdditionalScopes: AdditionalScopes,
             AdditionalDataFolders: AdditionalDataFolders,
             VanillaLooseOverridesBsa: VanillaLooseOverridesBsa,
-            VanillaLooseOverridesModLoose: VanillaLooseOverridesModLoose);
+            VanillaLooseOverridesModLoose: VanillaLooseOverridesModLoose,
+            AllowLoadOrderFallback: AllowLoadOrderFallback);
     }
 
     /// <summary>Verbose checkpoint formatter for the NPC-load pipeline. Prefixes the
@@ -3939,7 +3951,8 @@ public class VM_CharacterViewer : ViewerVm
         using var __scopes = _assetResolver.PushScopes(
             _currentSceneScopes, _currentSceneFolders,
             _currentSceneVanillaLooseOverridesBsa,
-            _currentSceneVanillaLooseOverridesModLoose);
+            _currentSceneVanillaLooseOverridesModLoose,
+            _currentSceneAllowLoadOrderFallback);
 
         // Head-only rebuild (P2) is independent of full-scene setup and runs
         // without touching Body/Hands/Feet. Drain it here so the render callback
@@ -4470,6 +4483,7 @@ public class VM_CharacterViewer : ViewerVm
         _currentSceneFolders = additionalFolders;
         _currentSceneVanillaLooseOverridesBsa = VanillaLooseOverridesBsa;
         _currentSceneVanillaLooseOverridesModLoose = VanillaLooseOverridesModLoose;
+        _currentSceneAllowLoadOrderFallback = AllowLoadOrderFallback;
 
         IsLoading = true;
         StatusText = "Loading meshes...";
@@ -4507,7 +4521,8 @@ public class VM_CharacterViewer : ViewerVm
             List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> loadResults;
             using (_assetResolver.PushScopes(additionalScopes, additionalFolders,
                        _currentSceneVanillaLooseOverridesBsa,
-                       _currentSceneVanillaLooseOverridesModLoose))
+                       _currentSceneVanillaLooseOverridesModLoose,
+                       _currentSceneAllowLoadOrderFallback))
             {
                 // Offscreen renderer (inline marshaller): we're already on a
                 // dedicated render thread, not the WPF UI thread, so the Task.Run
@@ -5412,7 +5427,8 @@ public class VM_CharacterViewer : ViewerVm
         using var __scopes = _assetResolver.PushScopes(
             _currentSceneScopes, _currentSceneFolders,
             _currentSceneVanillaLooseOverridesBsa,
-            _currentSceneVanillaLooseOverridesModLoose);
+            _currentSceneVanillaLooseOverridesModLoose,
+            _currentSceneAllowLoadOrderFallback);
 
         nifly.NifFile? skeletonNif = null;
         string? skelDiskPath = null;
@@ -5471,7 +5487,10 @@ public class VM_CharacterViewer : ViewerVm
         // than the resolve below: the weight-0 companion mesh and every texture this
         // override binds (ApplyTexturesToGlMesh, further down) come from the same
         // out-of-scope mod, and all of them run synchronously on this flow.
-        using var __loadOrderFallback = _assetResolver.PushLoadOrderFallback(ov.AllowLoadOrderFallback);
+        // ORed with the scene-level flag: a scene running engine-order resolution
+        // must not have an un-flagged override RESET the ambient value to false.
+        using var __loadOrderFallback = _assetResolver.PushLoadOrderFallback(
+            ov.AllowLoadOrderFallback || _currentSceneAllowLoadOrderFallback);
 
         var source = _assetResolver.ResolveAssetSource(ov.MeshPath);
         if (source.ResolvedDiskPath == null)
@@ -6389,7 +6408,8 @@ public class VM_CharacterViewer : ViewerVm
         {
             using (_assetResolver.PushScopes(_currentSceneScopes, _currentSceneFolders,
                        _currentSceneVanillaLooseOverridesBsa,
-                       _currentSceneVanillaLooseOverridesModLoose))
+                       _currentSceneVanillaLooseOverridesModLoose,
+                       _currentSceneAllowLoadOrderFallback))
             {
                 meshes = await Task.Run(() => _meshBuilder.BuildFromFile(headNifPath, skeletonNif: null), ct);
             }

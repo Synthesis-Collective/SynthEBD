@@ -33,4 +33,5 @@ public sealed record SceneInputsSnapshot(
     IReadOnlyList<RenderScope>? AdditionalScopes,
     IReadOnlyList<string>? AdditionalDataFolders,
     bool VanillaLooseOverridesBsa,
-    bool VanillaLooseOverridesModLoose);
+    bool VanillaLooseOverridesModLoose,
+    bool AllowLoadOrderFallback = false);

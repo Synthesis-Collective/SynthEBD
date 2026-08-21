@@ -168,6 +168,32 @@ public sealed class OffscreenRenderRequest
     public IReadOnlyList<RenderScope>? AdditionalScopes { get; init; }
 
     /// <summary>
+    /// Engine-order resolution mode (2.8.0+). When true, every asset in this
+    /// render — base meshes, FaceGen and TXST textures, NIF-embedded texture
+    /// paths, skeletons, and mesh overrides alike — resolves in the order the
+    /// game will actually use once the host's generated output is in place:
+    /// <list type="number">
+    /// <item>the non-vanilla <see cref="AdditionalScopes"/> (per-scope
+    /// loose-then-own-BSAs blocks, last-to-first) — these assets are destined
+    /// to be copied into the output, which deploys loose and wins;</item>
+    /// <item>the vanilla scope's loose folder (under a mod manager's VFS,
+    /// every enabled mod's loose files);</item>
+    /// <item>the broadcast archive tier
+    /// (<see cref="IBsaArchiveProvider.TryLocateInBsa"/>), provider-ranked —
+    /// NPC Plugin Chooser 2 restricts it to data-folder archives of enabled
+    /// plugins and ranks by load order;</item>
+    /// <item>scopes flagged <see cref="RenderScope.DeprioritizeBelowDataFolder"/>,
+    /// as a last resort.</item>
+    /// </list>
+    /// Default false preserves the strict two-phase walk (miss = NotFound),
+    /// which depicts ONE mod's contribution without cross-mod bleed — the
+    /// right mode when no generated output will exist to justify the wider
+    /// view. The per-override <see cref="MeshOverride.AllowLoadOrderFallback"/>
+    /// still widens individual overrides when this is off.
+    /// </summary>
+    public bool AllowLoadOrderFallback { get; init; }
+
+    /// <summary>
     /// Optional output collection. If non-null, the renderer appends each
     /// host-expected mesh game-path that the asset resolver could not
     /// locate during this render (loose scopes + scoped BSAs all missed).

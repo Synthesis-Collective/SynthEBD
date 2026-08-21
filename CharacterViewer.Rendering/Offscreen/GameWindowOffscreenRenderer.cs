@@ -219,7 +219,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     request.AdditionalScopes,
                     request.AdditionalDataFolders,
                     request.VanillaLooseOverridesBsa,
-                    request.VanillaLooseOverridesModLoose);
+                    request.VanillaLooseOverridesModLoose,
+                    request.AllowLoadOrderFallback);
 
                 var paths = request.MeshPaths;
                 if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
@@ -395,7 +396,8 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             request.AdditionalScopes,
             request.AdditionalDataFolders,
             request.VanillaLooseOverridesBsa,
-            request.VanillaLooseOverridesModLoose);
+            request.VanillaLooseOverridesModLoose,
+            request.AllowLoadOrderFallback);
         var vm = new VM_CharacterViewer(
             _bodySlideDeformer, _bsdParser, _triParser, _assets,
             _settings, _previewCache, _logGate, _logger
@@ -409,6 +411,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             vm.AdditionalDataFolders = request.AdditionalDataFolders;
             vm.VanillaLooseOverridesBsa = request.VanillaLooseOverridesBsa;
             vm.VanillaLooseOverridesModLoose = request.VanillaLooseOverridesModLoose;
+            vm.AllowLoadOrderFallback = request.AllowLoadOrderFallback;
             // Granular cancellation for the install/texture path — lets a host
             // cancel abort partway through a heavy shape's texture loads rather
             // than only at the coarser phase boundaries in LoadAndRender.
