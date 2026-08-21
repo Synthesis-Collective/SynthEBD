@@ -33,6 +33,18 @@ public sealed record AssetSource(
 {
     public static AssetSource NotFound(string gamePath) =>
         new(AssetOriginKind.NotFound, gamePath, null, null, null, null);
+
+    /// <summary>
+    /// True when engine-order resolution (<see cref="Offscreen.OffscreenRenderRequest.AllowLoadOrderFallback"/>)
+    /// satisfied this asset from the data folder rather than the render's mod
+    /// scopes — Tier 2 (data-folder loose) or Tier 3 (broadcast archives of
+    /// enabled plugins). Such an asset is a runtime dependency of the depicted
+    /// mod: the render only looks right while whichever mod supplies it stays
+    /// activated. Mod-scope hits, demoted-scope hits, and the
+    /// VanillaLooseOverridesModLoose preempt stay false. Rides the cached
+    /// <see cref="AssetSource"/>, so warm resolves report identically to cold ones.
+    /// </summary>
+    public bool ViaDataFolderFallback { get; init; }
 }
 
 /// <summary>
@@ -185,6 +197,29 @@ public class GameAssetResolver
     /// <see cref="AsyncLocal{T}"/> for the same flow-isolation reasons as
     /// the fields above.</summary>
     private readonly AsyncLocal<bool> _allowLoadOrderFallback = new();
+
+    /// <summary>Per-flow observer for data-folder-fallback resolutions.
+    /// When non-null, every scope-chain resolve whose result carries
+    /// <see cref="AssetSource.ViaDataFolderFallback"/> reports the asset's
+    /// GamePath here — including <see cref="_scopedResolveCache"/> hits, so a
+    /// warm render reports the same set as the cold one that populated the
+    /// cache. Pushed via <see cref="PushDataFolderFallbackSink"/>; AsyncLocal
+    /// for the same flow-isolation reasons as the scope fields above.</summary>
+    private readonly AsyncLocal<Action<string>?> _dataFolderFallbackSink = new();
+
+    /// <summary>When true, flagged resolves are NOT reported to
+    /// <see cref="_dataFolderFallbackSink"/> (the <see cref="AssetSource"/>
+    /// still carries its flag — only the reporting is muted). Pushed via
+    /// <see cref="PushDataFolderFallbackReportSuppression"/> around work done
+    /// ON BEHALF OF a NIF that was itself resolved via data-folder fallback:
+    /// such a NIF is the load order's global baseline (a body/skin replacer,
+    /// not the depicted mod's contribution), so the textures and physics XMLs
+    /// it references are that baseline's own internals, not dependencies OF
+    /// THE MOD. The depicted-mod dependency, when there is one, is the parent
+    /// NIF itself — reported by the resolve that preceded the suppression
+    /// bracket. Without this, every tile whose mod ships no body badged the
+    /// user's body replacer's internal texture names (femalebody_etc_v2_*).</summary>
+    private readonly AsyncLocal<bool> _suppressDataFolderFallbackReports = new();
 
     public GameAssetResolver(
         IDataFolderProvider dataFolder,
@@ -353,6 +388,80 @@ public class GameAssetResolver
         bool prev = _allowLoadOrderFallback.Value;
         _allowLoadOrderFallback.Value = value;
         return new LoadOrderFallbackToken(this, prev);
+    }
+
+    /// <summary>
+    /// Pushes a per-flow observer that receives the game-relative path of every
+    /// asset the engine-order walk resolves from the data folder (Tier 2 loose /
+    /// Tier 3 broadcast — see <see cref="AssetSource.ViaDataFolderFallback"/>).
+    /// Returns a token restoring the prior sink on dispose. The sink may be
+    /// invoked from any thread the resolver runs on (render thread, prewarm
+    /// pool workers) — callers must hand in a thread-safe collector.
+    /// </summary>
+    public IDisposable PushDataFolderFallbackSink(Action<string>? sink)
+    {
+        var prev = _dataFolderFallbackSink.Value;
+        _dataFolderFallbackSink.Value = sink;
+        return new DataFolderFallbackSinkToken(this, prev);
+    }
+
+    /// <summary>
+    /// Suppresses data-folder-fallback REPORTING (not flagging) for the current
+    /// flow until the returned token is disposed. Push this around the texture /
+    /// physics-XML processing of a NIF whose own resolution came back with
+    /// <see cref="AssetSource.ViaDataFolderFallback"/> set — see
+    /// <see cref="_suppressDataFolderFallbackReports"/> for the semantics.
+    /// Nested pushes are fine; each token restores the prior value.
+    /// </summary>
+    public IDisposable PushDataFolderFallbackReportSuppression()
+    {
+        bool prev = _suppressDataFolderFallbackReports.Value;
+        _suppressDataFolderFallbackReports.Value = true;
+        return new FallbackReportSuppressionToken(this, prev);
+    }
+
+    /// <summary>Restores the captured <see cref="_suppressDataFolderFallbackReports"/>
+    /// value on <see cref="Dispose"/>. Idempotent, like <see cref="ScopeToken"/>.</summary>
+    private sealed class FallbackReportSuppressionToken : IDisposable
+    {
+        private readonly GameAssetResolver _owner;
+        private readonly bool _prev;
+        private bool _disposed;
+
+        public FallbackReportSuppressionToken(GameAssetResolver owner, bool prev)
+        {
+            _owner = owner;
+            _prev = prev;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _owner._suppressDataFolderFallbackReports.Value = _prev;
+        }
+    }
+
+    /// <summary>Restores the captured <see cref="_dataFolderFallbackSink"/> value
+    /// on <see cref="Dispose"/>. Idempotent, like <see cref="ScopeToken"/>.</summary>
+    private sealed class DataFolderFallbackSinkToken : IDisposable
+    {
+        private readonly GameAssetResolver _owner;
+        private readonly Action<string>? _prev;
+        private bool _disposed;
+
+        public DataFolderFallbackSinkToken(GameAssetResolver owner, Action<string>? prev)
+        {
+            _owner = owner;
+            _prev = prev;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _owner._dataFolderFallbackSink.Value = _prev;
+        }
     }
 
     /// <summary>Restores the captured <see cref="_allowLoadOrderFallback"/> value
@@ -695,7 +804,7 @@ public class GameAssetResolver
             // extraction cleared since caching — else fall through to re-resolve.
             if (cachedScoped.Kind == AssetOriginKind.NotFound) return cachedScoped;
             if (cachedScoped.ResolvedDiskPath != null && File.Exists(cachedScoped.ResolvedDiskPath))
-                return cachedScoped;
+                return ReportDataFolderFallback(cachedScoped);
         }
 
         var resolvedScoped = ResolveViaScopesUncached(
@@ -703,7 +812,34 @@ public class GameAssetResolver
             toggleVanillaOverridesBsa, toggleVanillaOverridesModLoose,
             toggleLoadOrderFallback);
         _scopedResolveCache[cacheKey] = resolvedScoped;
-        return resolvedScoped;
+        return ReportDataFolderFallback(resolvedScoped);
+    }
+
+    /// <summary>Single reporting point for data-folder-fallback hits: both the
+    /// fresh-resolve and <see cref="_scopedResolveCache"/>-hit paths of
+    /// <see cref="ResolveViaScopes"/> route through here, and the flag rides
+    /// the cached <see cref="AssetSource"/>, so warm renders report the same
+    /// paths as the cold render that populated the cache. Reporting (never the
+    /// flag itself) is muted inside a
+    /// <see cref="PushDataFolderFallbackReportSuppression"/> bracket — the
+    /// referencer-scoping rule that keeps a fallback-resolved baseline NIF's
+    /// internal references out of the host's dependency list.</summary>
+    private AssetSource ReportDataFolderFallback(AssetSource source)
+    {
+        if (source.ViaDataFolderFallback && !_suppressDataFolderFallbackReports.Value)
+        {
+            if (_dataFolderFallbackSink.Value is { } sink)
+            {
+                // Verbose-gated breadcrumb: interleaves with the surrounding
+                // resolve lines in the per-render log, so a surprising badge
+                // entry can be traced to the code path that requested it
+                // (the referencer context) without extra instrumentation.
+                LogVerbose("CharacterViewer: data-folder dependency REPORTED '" +
+                    source.GamePath + "'");
+                sink(source.GamePath);
+            }
+        }
+        return source;
     }
 
     private AssetSource ResolveViaScopesUncached(string relativeGamePath, string normalized,
@@ -841,22 +977,24 @@ public class GameAssetResolver
 
         // Tier 2: data-folder loose. Same skip conditions as the strict
         // walk's vanilla-scope rules (FaceGen / toggle 1 / toggle-2 fast
-        // path already probed it).
+        // path already probed it). Flagged ViaDataFolderFallback: the render's
+        // mod scopes did NOT supply this asset — it only resolves while the
+        // data folder does.
         if (scopes.Count > 0 && toggleVanillaOverridesBsa && !isFaceGen && !vanillaLooseAlreadyChecked)
         {
             var vanillaHit = TryResolveScopeLoose(scopes[0], relativeGamePath, normalized, "data-folder");
-            if (vanillaHit != null) return vanillaHit;
+            if (vanillaHit != null) return vanillaHit with { ViaDataFolderFallback = true };
         }
 
         // Tier 3: broadcast archive lookup (provider-ranked; includes the
-        // vanilla archives at their natural rank).
+        // vanilla archives at their natural rank). Flagged like Tier 2.
         var broadcast = TryResolveFromBsa(relativeGamePath, normalized);
         if (broadcast.Kind != AssetOriginKind.NotFound)
         {
             LogVerbose("CharacterViewer: Resolved '" + relativeGamePath +
                 "' -> broadcast archive tier at '" + broadcast.ResolvedDiskPath +
                 "' (from '" + broadcast.BsaPath + "')");
-            return broadcast;
+            return broadcast with { ViaDataFolderFallback = true };
         }
 
         // Tier 4: demoted scopes as a last resort (FaceGen already ran in tier 1).

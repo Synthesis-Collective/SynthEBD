@@ -768,8 +768,16 @@ public class CharacterPreviewCache
         if (ov == null || string.IsNullOrWhiteSpace(ov.MeshPath)) return;
         ct.ThrowIfCancellationRequested();
 
-        string? diskPath = _assetResolver.ResolveAssetPath(ov.MeshPath);
+        var meshSource = _assetResolver.ResolveAssetSource(ov.MeshPath);
+        string? diskPath = meshSource.ResolvedDiskPath;
         if (diskPath == null) return;
+
+        // Referencer scoping mirror of ApplyOneMeshOverride — see PrewarmPart's
+        // comment. The override NIF reported itself above; its weight-0
+        // companion and texture warms below are its internals.
+        using var __fallbackReportMute = meshSource.ViaDataFolderFallback
+            ? _assetResolver.PushDataFolderFallbackReportSuppression()
+            : null;
 
         // null bipedBodyPart matches ApplyOneMeshOverride (an override NIF is the
         // source for one slot; keep all its shapes — no dismember filter) so the
@@ -855,8 +863,20 @@ public class CharacterPreviewCache
         if (string.IsNullOrWhiteSpace(gamePath)) return;
         ct.ThrowIfCancellationRequested();
 
-        string? diskPath = _assetResolver.ResolveAssetPath(gamePath);
+        var meshSource = _assetResolver.ResolveAssetSource(gamePath);
+        string? diskPath = meshSource.ResolvedDiskPath;
         if (diskPath == null) return;
+
+        // Referencer scoping for the data-folder-fallback report, mirroring
+        // VM_CharacterViewer.InstallOneShape: a fallback-resolved part NIF (the
+        // user's body/skin baseline) reported itself above; the textures it
+        // references are its own internals, so mute their reports here too.
+        // Prewarm and render feed ONE shared per-request set, so without this
+        // mirror the prewarm flow would re-report exactly what the render
+        // suppresses. Null token (no-op) for in-scope NIFs.
+        using var __fallbackReportMute = meshSource.ViaDataFolderFallback
+            ? _assetResolver.PushDataFolderFallbackReportSuppression()
+            : null;
 
         // Parse the weight-1 NIF — warms the parsed-NIF LRU keyed on
         // (path, mtime, skeletonPath, mtime, bodyPart), the same key the render's

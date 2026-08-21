@@ -4202,6 +4202,23 @@ public class VM_CharacterViewer : ViewerVm
         // Cheap pre-shape bail: avoids creating a GL mesh we'd only tear down.
         RenderCancellation.ThrowIfCancellationRequested();
 
+        // Referencer scoping for the data-folder-fallback report: when this
+        // shape's source NIF was itself resolved from the data folder (the
+        // user's global body/skin baseline, not the depicted mod's file), the
+        // textures it references are that baseline's internals — mute their
+        // fallback reports so they don't read as dependencies of the mod. The
+        // NIF's own resolve (before this method) still reported, so a genuine
+        // out-of-scope mesh keeps its dependency line. A conditional using:
+        // null (no-op) for in-scope NIFs, whose out-of-scope textures must
+        // keep reporting (the Modpocalypse-KS case). MUST precede the
+        // collision-proxy check below — IsFullyTransparent resolves + decodes
+        // the shape's slot-0 diffuse, which for a fallback body NIF's extra
+        // shapes is exactly the baseline-internal texture this bracket exists
+        // to keep out of the badge (femalebody_etc_v2_1.dds leaked this way).
+        using var __fallbackReportMute = shape.MeshSource?.ViaDataFolderFallback == true
+            ? _assetResolver.PushDataFolderFallbackReportSuppression()
+            : null;
+
         // Cull invisible physics/collision proxies before the geometry upload. The
         // diffuse is read straight from the NIF texture set: these proxies are
         // ShaderType 0, so the ShaderType-5-only TXST skin overrides applied later
@@ -5503,6 +5520,16 @@ public class VM_CharacterViewer : ViewerVm
             return;
         }
 
+        // Referencer scoping for the data-folder-fallback report: a fallback-
+        // resolved override NIF already reported ITSELF (the resolve above);
+        // everything requested on its behalf below — the weight-0 companion,
+        // every texture bind, the linked physics XMLs — is that NIF's internal
+        // reference set, so mute those reports. In-scope override NIFs (null
+        // token) keep reporting their out-of-scope textures as dependencies.
+        using var __fallbackReportMute = source.ViaDataFolderFallback
+            ? _assetResolver.PushDataFolderFallbackReportSuppression()
+            : null;
+
         // bipedBodyPart: null disables the dismember-partition slot filter — an
         // auxiliary NIF is the source for exactly one slot and we want all its
         // shapes, not just those carrying a particular partition id.
@@ -6708,6 +6735,15 @@ public class VM_CharacterViewer : ViewerVm
                     _missingMeshPaths.Add(gamePath);
                     return;
                 }
+                // Referencer scoping for the data-folder-fallback report (see
+                // InstallOneShape, which brackets the texture installs of the
+                // same NIF): a fallback-resolved part reported itself above;
+                // its weight-0 companion resolve and the verbose NIF dump
+                // inside BuildFromFile (which re-resolves every referenced
+                // texture when render logging is on) are its internals.
+                using var __fallbackReportMute = source.ViaDataFolderFallback
+                    ? _assetResolver.PushDataFolderFallbackReportSuppression()
+                    : null;
                 var meshes = _meshBuilder.BuildFromFile(source.ResolvedDiskPath, skeletonNif, skelDiskPath, bodyPart, ct, LoadSkeleton);
                 string shapeSummary = meshes.Count == 0 ? "" :
                     " [" + string.Join(", ", meshes.Select(m =>

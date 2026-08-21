@@ -226,6 +226,32 @@ public sealed class OffscreenRenderRequest
     public List<string>? MissingTexturePathsOut { get; init; }
 
     /// <summary>
+    /// Optional output collection. If non-null and
+    /// <see cref="AllowLoadOrderFallback"/> is on, the renderer appends the
+    /// game-relative path of every asset that engine-order resolution
+    /// satisfied from the DATA FOLDER rather than the render's mod scopes —
+    /// Tier 2 (data-folder loose) and Tier 3 (broadcast archives of enabled
+    /// plugins) hits; see <see cref="AssetSource.ViaDataFolderFallback"/>.
+    /// Each such asset is a runtime dependency of the depicted mod: the
+    /// render (and the post-patch game) only shows it while whichever mod
+    /// supplies it stays activated. Deduplicated case-insensitively and
+    /// sorted; hits from a preceding <see cref="IOffscreenRenderer.PrewarmAsync"/>
+    /// on the same request instance are included, since the render may
+    /// consume the prewarmed result without re-resolving.
+    /// <para><b>Referencer-scoped:</b> only assets whose REFERENCE originates
+    /// in-scope are listed. When a NIF is itself resolved via the data-folder
+    /// fallback (typically the user's global body/skin baseline standing in
+    /// for a body the mod doesn't ship), that NIF appears here but the
+    /// textures / physics XMLs it references do not — they are the baseline's
+    /// own internals, and the parent NIF's line already carries the
+    /// keep-activated dependency. Textures referenced by the mod's own
+    /// in-scope NIFs (FaceGen, shipped attire) always report.</para>
+    /// <para>Pass a <c>new List&lt;string&gt;()</c> to opt in; leave null to
+    /// skip tracking. Independent of the missing-* collections.</para>
+    /// </summary>
+    public List<string>? DataFolderFallbackPathsOut { get; init; }
+
+    /// <summary>
     /// Optional output collection. If non-null and <see cref="MeshOverrides"/>
     /// were supplied, the renderer appends every texture game-path that FIRST
     /// went missing while the mesh-override (attire) shapes were being built —

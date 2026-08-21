@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenTK.Graphics.OpenGL4;
@@ -86,6 +88,15 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     // its lifetime so we never migrate context across threads.
     private readonly Thread _renderThread;
     private readonly BlockingCollection<RenderJob> _renderQueue = new();
+
+    // Per-request accumulator for data-folder-fallback hits, shared between the
+    // prewarm flow (thread-pool worker) and the render flow (render thread) —
+    // both push a resolver sink adding into the SAME set for a given request
+    // instance, because a fully prewarmed render may consume cached parse/decode
+    // results without re-resolving those paths. Weakly keyed so completed
+    // requests don't accumulate.
+    private readonly ConditionalWeakTable<OffscreenRenderRequest, ConcurrentDictionary<string, byte>>
+        _dataFolderFallbackHits = new();
 
     // A job is either a render (Request set) or a maintenance action (Maintenance
     // set) — both run on the render thread with the context current, preserving
@@ -221,6 +232,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     request.VanillaLooseOverridesBsa,
                     request.VanillaLooseOverridesModLoose,
                     request.AllowLoadOrderFallback);
+                // Capture data-folder-fallback hits made during the prewarm
+                // parse/decode too — the render may hit the warm caches and
+                // never re-resolve these paths (see _dataFolderFallbackHits).
+                using var fallbackSink = PushDataFolderFallbackSinkIfRequested(request);
 
                 var paths = request.MeshPaths;
                 if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
@@ -398,6 +413,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             request.VanillaLooseOverridesBsa,
             request.VanillaLooseOverridesModLoose,
             request.AllowLoadOrderFallback);
+        // Same per-request accumulator as the prewarm flow's push — resolves
+        // the prewarm didn't cover (evicted parts, override paths) land in
+        // the same set and are copied out once below.
+        using var fallbackSink = PushDataFolderFallbackSinkIfRequested(request);
         var vm = new VM_CharacterViewer(
             _bodySlideDeformer, _bsdParser, _triParser, _assets,
             _settings, _previewCache, _logGate, _logger
@@ -424,6 +443,18 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             _residentTextures?.BeginRenderPass();
             LoadAndRender(vm, request);
             long tDrawDone = Stopwatch.GetTimestamp();
+
+            // Copy the deduped data-folder-fallback hits (prewarm + render
+            // flows combined) into the request's opt-in out-list. Sorted for
+            // deterministic host-side presentation/persistence.
+            if (request.DataFolderFallbackPathsOut != null &&
+                _dataFolderFallbackHits.TryGetValue(request, out var fallbackHits) &&
+                !fallbackHits.IsEmpty)
+            {
+                var fallbackPaths = new List<string>(fallbackHits.Keys);
+                fallbackPaths.Sort(StringComparer.OrdinalIgnoreCase);
+                request.DataFolderFallbackPathsOut.AddRange(fallbackPaths);
+            }
 
             // Resolve the multisampled draw target into the single-sample
             // resolve FBO so glReadPixels gets a correctly-AA'd image.
@@ -519,6 +550,19 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             // GameAssetResolver.ClearExtractedFiles() at quiescence (e.g. on
             // shutdown) instead.
         }
+    }
+
+    /// <summary>Pushes a resolver sink that records data-folder-fallback hits
+    /// into the request's shared accumulator (see <see cref="_dataFolderFallbackHits"/>).
+    /// Null when the request didn't opt in via
+    /// <see cref="OffscreenRenderRequest.DataFolderFallbackPathsOut"/> —
+    /// callers hold the result in a <c>using var</c>, which tolerates null.</summary>
+    private IDisposable? PushDataFolderFallbackSinkIfRequested(OffscreenRenderRequest request)
+    {
+        if (request.DataFolderFallbackPathsOut == null) return null;
+        var hits = _dataFolderFallbackHits.GetValue(request,
+            _ => new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase));
+        return _assets.PushDataFolderFallbackSink(p => hits.TryAdd(p, 0));
     }
 
     /// <summary>A rendered frame's read-back pixels (RGBA8, top-left origin,
