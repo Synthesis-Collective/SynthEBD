@@ -360,8 +360,10 @@ public class BodySlideAnnotator
 
     /// <summary>
     /// Compares a slider value against a threshold using the rule's comparator (=, !=, &lt;=, &gt;=, &lt;, &gt;).
-    /// Endpoint values are whole numbers, so they compare exactly; an interpolated value can be fractional,
-    /// so = and != compare against the nearest whole slider value (halves round away from zero: 2.5 "equals" 3).
+    /// Thresholds are whole numbers but slider values need not be -- an interpolated value is fractional by
+    /// construction, and authored endpoints can be too (BodySlide writes values like 26.28). So = and !=
+    /// compare against the nearest whole slider value (halves round away from zero: 2.5 "equals" 3), while
+    /// the ordering comparators use the exact value.
     /// </summary>
     private static bool EvaluateExpression(float sliderValue, int thresholdValue, string comparator)
     {

@@ -539,10 +539,10 @@ public class VM_AnnotatorPresetRow : VM
     public string Label => PlaceHolder.Label ?? "";
 
     /// <summary>Chosen slider's authored weight-0 value; null when the preset lacks the slider.</summary>
-    public int? Low { get; private set; }
+    public float? Low { get; private set; }
 
     /// <summary>Chosen slider's authored weight-100 value; null when the preset lacks the slider.</summary>
-    public int? High { get; private set; }
+    public float? High { get; private set; }
 
     /// <summary>Chosen slider's linear blend at the panel's preview weight; null when the preset lacks the slider.</summary>
     public float? Interpolated { get; private set; }
@@ -584,8 +584,8 @@ public class VM_AnnotatorSliderValueRow : VM
     }
 
     public string SliderName { get; }
-    public int Low { get; }
-    public int High { get; }
+    public float Low { get; }
+    public float High { get; }
     public float Interpolated { get; private set; }
 
     /// <summary>Recomputes <see cref="Interpolated"/> when the panel's preview weight changes.</summary>

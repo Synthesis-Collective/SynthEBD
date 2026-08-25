@@ -388,13 +388,16 @@ public class TrainerExportDTO
 
                 if (bodySlide.SliderValues.ContainsKey(sliderName))
                 {
+                    // Rounded at the boundary: this legacy export's feature vector is int[,] and
+                    // changing it would change the training-data schema. Slider values themselves
+                    // are float since the parser fix.
                     switch (type)
                     {
                         case BodySliderType.Big:
-                            SliderValues[i, j] = bodySlide.SliderValues[sliderName].Big;
+                            SliderValues[i, j] = (int)Math.Round(bodySlide.SliderValues[sliderName].Big, MidpointRounding.AwayFromZero);
                             break;
                         case BodySliderType.Small:
-                            SliderValues[i, j] = bodySlide.SliderValues[sliderName].Small;
+                            SliderValues[i, j] = (int)Math.Round(bodySlide.SliderValues[sliderName].Small, MidpointRounding.AwayFromZero);
                             break;
                     }
                 }
@@ -439,13 +442,14 @@ public class TrainerExportLearningDTO
             {
                 if (bodySlide.SliderValues.ContainsKey(sliderName))
                 {
+                    // Rounded at the boundary -- see the note in the other export path; BodyslideData.Sliders is int[].
                     switch (type)
                     {
                         case BodySliderType.Big:
-                            sliderValues.Add(bodySlide.SliderValues[sliderName].Big);
+                            sliderValues.Add((int)Math.Round(bodySlide.SliderValues[sliderName].Big, MidpointRounding.AwayFromZero));
                             break;
                         case BodySliderType.Small:
-                            sliderValues.Add(bodySlide.SliderValues[sliderName].Small);
+                            sliderValues.Add((int)Math.Round(bodySlide.SliderValues[sliderName].Small, MidpointRounding.AwayFromZero));
                             break;
                     }
                 }

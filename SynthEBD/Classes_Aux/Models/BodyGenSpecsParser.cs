@@ -128,8 +128,10 @@ public static class BodyGenSpecsParser
             // final = deltaHigh * (w/100) + deltaLow * ((100-w)/100)
             // At w=100 this yields delta*high; at w=0 delta*low. For single values (low==high)
             // the result collapses to delta*V regardless of weight.
-            int big = (int)Math.Round(high * 100f);
-            int small = (int)Math.Round(low * 100f);
+            // Kept exact: BodySlideSlider is float, so there is no longer any reason to round a
+            // BodyGen multiplier to a whole slider value (0.005 used to collapse to 0 or 1).
+            float big = high * 100f;
+            float small = low * 100f;
 
             preset.SliderValues[name] = new BodySlideSlider
             {

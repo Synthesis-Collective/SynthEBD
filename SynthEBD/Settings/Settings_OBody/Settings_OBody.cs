@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Xml.Linq;
 
 namespace SynthEBD;
@@ -134,6 +135,29 @@ public class Settings_OBody
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 
+    /// <summary>Parses one <c>&lt;SetSlider value="..."&gt;</c> attribute.
+    /// <para><b>Float, and invariant culture, both deliberately.</b> BodySlide writes fractional
+    /// values routinely ("26.282051") and always with a '.' decimal separator. This used to be
+    /// <c>int.TryParse</c>, which returns false for anything with a decimal point -- the whole
+    /// SetSlider was then skipped and the slider silently stayed at 0, mangling ~20% of installed
+    /// presets for both the measurement pipeline and the 3D preview. Parsing with the *current*
+    /// culture would reintroduce exactly that silent drop on comma-decimal locales, so the culture
+    /// is pinned. Out-of-range values (200, -160) parse fine and are applied literally, matching
+    /// the deformer -- see <c>SLIDER_FIDELITY_PLAN.md</c> before changing that.</para></summary>
+    public static bool TryParseSliderValue(string raw, out float value)
+    {
+        // Non-finite values are rejected rather than stored: "NaN" / "Infinity" satisfy
+        // float.TryParse (int.TryParse did not), and a NaN slider value propagates through the
+        // deformer into every vertex that slider touches, silently corrupting the whole mesh.
+        if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && float.IsFinite(value))
+        {
+            return true;
+        }
+
+        value = 0f;
+        return false;
+    }
+
     public void ImportBodySlides(List<BodyShapeDescriptorShell> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
     {
         logger.LogStartupEventStart("Detecting currently installed BodySlides");
@@ -258,7 +282,8 @@ public class Settings_OBody
                             var size = slider.Attribute("size");
                             var value = slider.Attribute("value");
 
-                            if (sliderName != null && size != null && value != null && int.TryParse(value.Value, out int iValue))
+                            if (sliderName != null && size != null && value != null
+                                && TryParseSliderValue(value.Value, out float sliderValue))
                             {
                                 BodySlideSlider currentSlider;
                                 if (currentPreset.SliderValues.ContainsKey(sliderName.Value))
@@ -273,11 +298,11 @@ public class Settings_OBody
                                 
                                 if (size.Value.Equals("big", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    currentSlider.Big = iValue;
+                                    currentSlider.Big = sliderValue;
                                 }
                                 else if (size.Value.Equals("small", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    currentSlider.Small = iValue;
+                                    currentSlider.Small = sliderValue;
                                 }
                             }
                         }
@@ -463,11 +488,18 @@ public class OBodyPreviewNpcSettings
 }
 
 [DebuggerDisplay("{SliderName}: {Small} / {Big}")]
+/// <summary>One BodySlide slider's authored endpoint values: <see cref="Small"/> at NPC weight 0
+/// and <see cref="Big"/> at weight 100, on BodySlide's 0-100 scale.
+/// <para><b>These are float, not int, and both facts matter.</b> BodySlide writes fractional values
+/// ("26.282051") routinely, so an integer type silently discarded them. Values also legitimately
+/// fall outside 0-100 -- preset authors push sliders past the UI limits and SynthEBD applies them
+/// literally, matching the deformer. Whether the game clamps them is an open question tracked in
+/// <c>SLIDER_FIDELITY_PLAN.md</c>; do not add a clamp here without settling that first.</para></summary>
 public class BodySlideSlider
 {
     public string SliderName { get; set; }
-    public int Big { get; set; }
-    public int Small { get; set; }
+    public float Big { get; set; }
+    public float Small { get; set; }
 }
 
 

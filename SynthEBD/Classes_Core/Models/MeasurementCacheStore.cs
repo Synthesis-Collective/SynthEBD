@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Newtonsoft.Json;
@@ -262,7 +263,12 @@ public static class MeasurementCacheStore
     /// dictionary. Sliders are emitted in ordinal-sorted name order so the hash is stable
     /// regardless of insertion order. Empty dictionaries get a fixed sentinel hash so
     /// (a) callers never see a blank string for valid inputs, (b) two empty presets share
-    /// a hash and reuse cache entries.</summary>
+    /// a hash and reuse cache entries.
+    /// <para>Values are formatted round-trip with the invariant culture, so the hash never
+    /// depends on the user's locale. Whole values still render as "45", so hashes computed
+    /// before <see cref="BodySlideSlider"/> became float are unchanged for any preset whose
+    /// values were integers -- only presets that were previously mis-parsed re-hash, which is
+    /// what invalidates exactly their stale cache entries.</para></summary>
     public static string ComputePresetSliderHash(BodySlideSetting? preset)
     {
         var sb = new StringBuilder();
@@ -273,9 +279,9 @@ public static class MeasurementCacheStore
                 var s = kv.Value;
                 sb.Append(kv.Key);
                 sb.Append('=');
-                sb.Append(s?.Big ?? 0);
+                sb.Append((s?.Big ?? 0f).ToString("R", CultureInfo.InvariantCulture));
                 sb.Append('/');
-                sb.Append(s?.Small ?? 0);
+                sb.Append((s?.Small ?? 0f).ToString("R", CultureInfo.InvariantCulture));
                 sb.Append(';');
             }
         }
