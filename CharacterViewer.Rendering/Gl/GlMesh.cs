@@ -243,6 +243,14 @@ public class GlMesh : IDisposable
         }
     }
 
+    /// <summary>Drops the cached <see cref="LocalCenter"/> so the next access
+    /// recomputes from <see cref="CpuPositions"/>. For hosts that rewrite a
+    /// mesh's vertex data in place after install (e.g. houseCARL's viewprobe
+    /// baking a character into a world placement) — without this the alpha-pass
+    /// distance sort keeps sorting by the pre-rewrite centroid. Additive;
+    /// nothing in SynthEBD/NPC2 calls it, so their behaviour is unchanged.</summary>
+    public void InvalidateLocalCenter() => _localCenter = null;
+
     // CPU-side per-vertex skin weights. Both arrays are flat with 4 entries per
     // vertex (CpuBoneIndices[vi*4 + k] is the k-th bone for vertex vi, with
     // CpuBoneWeights[vi*4 + k] the corresponding weight). Populated from the
