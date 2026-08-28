@@ -327,6 +327,46 @@ public class NifMeshBuilder
         public uint ShaderFlags2 { get; init; }
         public uint ShaderType { get; init; }
 
+        /// <summary>
+        /// True when this shape's shader property is a <c>BSEffectShaderProperty</c> rather than
+        /// a <c>BSLightingShaderProperty</c> — the EFFECT pipeline: fire, smoke, mist, refraction
+        /// warps, light cones, usually animated by a <c>BSEffectShaderPropertyFloatController</c>.
+        /// <para>This builder reads material values off BSLightingShaderProperty ONLY, so an
+        /// effect-shader shape arrives with every shader field at its default — opaque, unflagged,
+        /// fully lit — and therefore draws as solid geometry instead of the additive, scrolling
+        /// thing the engine draws. That is not a value a host can compensate for after the fact:
+        /// the material was never read. A host that cannot shade effects should SKIP these shapes
+        /// rather than draw them wrong. Reported, never acted on here — the normal render path is
+        /// unchanged.</para>
+        /// <para>Per SHAPE, not per file: a burning-fireplace NIF is typically part solid
+        /// (logs, coals, ash on lighting shaders) and part effect (flames, smoke, heat warp), so
+        /// the distinction cannot be made at the file level without deleting real geometry.</para>
+        /// </summary>
+        public bool HasEffectShader { get; init; }
+
+        /// <summary>
+        /// <c>BSEffectShaderProperty.baseColor</c> RGB and <c>.baseColorScale</c> — the tint and
+        /// intensity the engine multiplies the effect's source texture by
+        /// (<c>colour = source * baseColor * baseColorScale</c>), with
+        /// <see cref="EffectBaseColorAlpha"/> carrying <c>baseColor.a</c>.
+        /// <para>Effect atlases are commonly GREYSCALE — a fire atlas is white flame shapes and
+        /// the orange lives entirely in <c>baseColor</c> — so without these a host drawing an
+        /// effect shape gets a white ghost, however it scales the brightness.</para>
+        /// <para>Separate fields rather than folding into <see cref="EmissiveColor"/> /
+        /// <see cref="EmissiveMultiple"/> / <see cref="MaterialAlpha"/> deliberately: those carry
+        /// BSLightingShaderProperty values, and overloading them would change what every existing
+        /// consumer sees for an effect-shader shape. Defaults are the identity (white x1, opaque),
+        /// so a shape with no effect shader is unaffected. Meaningful only when
+        /// <see cref="HasEffectShader"/> is true.</para>
+        /// </summary>
+        public Vector3 EffectBaseColor { get; init; } = Vector3.One;
+
+        /// <inheritdoc cref="EffectBaseColor"/>
+        public float EffectBaseColorScale { get; init; } = 1f;
+
+        /// <inheritdoc cref="EffectBaseColor"/>
+        public float EffectBaseColorAlpha { get; init; } = 1f;
+
         /// <summary>NIF-side <c>BSLightingShaderProperty.skinTintAlpha</c>.
         /// Always 0.0 in the vanilla / modder-authored sample we surveyed,
         /// but read so the SkinTintAlpha-weighted operator in the debug
@@ -1126,6 +1166,10 @@ public class NifMeshBuilder
         ShaderFlags1 = b.ShaderFlags1,
         ShaderFlags2 = b.ShaderFlags2,
         ShaderType = b.ShaderType,
+        HasEffectShader = b.HasEffectShader,
+        EffectBaseColor = b.EffectBaseColor,
+        EffectBaseColorScale = b.EffectBaseColorScale,
+        EffectBaseColorAlpha = b.EffectBaseColorAlpha,
         SkinTintAlpha = b.SkinTintAlpha,
     };
 
@@ -1812,6 +1856,9 @@ public class NifMeshBuilder
 
         // Extract shader flags and material properties
         bool isModelSpaceNormals = false;
+        bool hasEffectShader = false;
+        Vector3 effectBaseColor = Vector3.One;
+        float effectBaseColorScale = 1f, effectBaseColorAlpha = 1f;
         bool isHairTintShader = false;
         (float R, float G, float B)? hairTintColor = null;
         float glossiness = 80f;
@@ -1836,6 +1883,25 @@ public class NifMeshBuilder
             if (shaderRef != null && !shaderRef.IsEmpty())
             {
                 NiObject shaderObj = header.GetBlockById(shaderRef.index);
+                // Recorded before the BSLSP branch, because it is precisely the shapes that do
+                // NOT take that branch whose material never gets read (see BuiltMesh.HasEffectShader).
+                hasEffectShader = shaderObj is BSEffectShaderProperty;
+                if (shaderObj is BSEffectShaderProperty besp)
+                {
+                    // Read as its OWN fields (see BuiltMesh.EffectBaseColor) — not folded into the
+                    // lighting-shader material, so no existing consumer's view of this shape moves.
+                    try
+                    {
+                        var bc = besp.baseColor;
+                        if (bc != null)
+                        {
+                            effectBaseColor = new Vector3(bc.r, bc.g, bc.b);
+                            effectBaseColorAlpha = bc.a;
+                        }
+                        effectBaseColorScale = besp.baseColorScale;
+                    }
+                    catch { }
+                }
                 if (shaderObj is BSLightingShaderProperty bslsp)
                 {
                     shaderFlags1 = bslsp.shaderFlags1;
@@ -2162,6 +2228,10 @@ public class NifMeshBuilder
             ShaderFlags1 = shaderFlags1,
             ShaderFlags2 = shaderFlags2,
             ShaderType = shaderType,
+            HasEffectShader = hasEffectShader,
+            EffectBaseColor = effectBaseColor,
+            EffectBaseColorScale = effectBaseColorScale,
+            EffectBaseColorAlpha = effectBaseColorAlpha,
             SkinTintAlpha = skinTintAlpha,
         };
     }
