@@ -2511,6 +2511,12 @@ public class VM_BodyTypeProfileEditor : VM
                 if (scoringMetric == MarginScoreMode.StdDevNormalized)
                     stdDevs = ComputePopulationStdDevs(profile, siblingRules);
 
+                // Snapshot of every rule on the profile, for DescriptorRef tunneling inside
+                // the scorer — an aggregator rule (e.g. Build) is scored via the rules of the
+                // descriptor it references, which can live in any category, not just the
+                // filtered one.
+                var allRules = profile.Rules.ToList();
+
                 foreach (var row in staged)
                 {
                     if (!profile.MeasurementCache.TryGetValue(
@@ -2519,14 +2525,20 @@ public class VM_BodyTypeProfileEditor : VM
                     double? best = null;
                     foreach (var rule in matchingRules)
                     {
-                        double? rs = ScoreRuleAgainstMeasurements(rule, entry.Measurements, scoringMetric, stdDevs);
+                        // Gender-scoped rules only score rows they'd fire for at scan time
+                        // (mirrors BodySlideMeasurementEvaluator.FilterEligibleRules) —
+                        // otherwise a Male-only variant's margins leak into Female rows'
+                        // badges through the max below.
+                        if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, row.Gender)) continue;
+                        double? rs = ScoreRuleAgainstMeasurements(
+                            rule, entry.Measurements, scoringMetric, stdDevs, allRules, row.Gender);
                         if (rs.HasValue && (!best.HasValue || rs.Value > best.Value))
                             best = rs;
                     }
                     row.Score = best;
                     row.ScoreDisplay = FormatScore(best, scoringMetric);
                     row.SiblingScoresTooltip = BuildSiblingScoresTooltip(
-                        cat, siblingRules, entry.Measurements, scoringMetric, stdDevs);
+                        cat, siblingRules, entry.Measurements, scoringMetric, stdDevs, allRules, row.Gender);
                 }
 
                 // Sort: highest score first, scored rows ahead of unscored ones, ties broken
@@ -2700,16 +2712,51 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Welford-style single-pass std-dev across the profile's full
     /// <see cref="VM_BodyTypeProfile.MeasurementCache"/> for every measurement name that
-    /// appears in any continuous (≤, &lt;, ≥, &gt;) condition inside <paramref name="rules"/>.
-    /// Names referenced only by Equal/NotEqual/DescriptorRef conditions are omitted because
-    /// the scorer skips those — including them would still be safe, just wasted work.
+    /// appears in any continuous (≤, &lt;, ≥, &gt;) condition inside <paramref name="rules"/>
+    /// — or inside any rule reachable from them through DescriptorRef conditions, since the
+    /// scorer tunnels into referenced rules and their measurements need sigmas from the same
+    /// table (a missing name would silently drop that condition to the %-of-threshold
+    /// fallback, mixing units within one score). Names referenced only by Equal/NotEqual
+    /// conditions are omitted because the scorer skips those — including them would still be
+    /// safe, just wasted work.
     /// <para>Std-dev is computed as sample std-dev (n−1 denominator); 0 or fewer than two
     /// samples returns 0.0 which the scorer treats as the fallback signal.</para></summary>
     private static Dictionary<string, double> ComputePopulationStdDevs(
         VM_BodyTypeProfile profile, List<VM_MeasurementRule> rules)
     {
+        // Expand the input set to its DescriptorRef closure. Eligibility (gender/draft) is
+        // deliberately ignored here — a superset only costs a few extra Welford passes, and
+        // sigma is a population statistic per measurement name regardless of which rule
+        // asked for it.
+        var closure = new List<VM_MeasurementRule>();
+        var seen = new HashSet<VM_MeasurementRule>();
+        foreach (var r in rules)
+        {
+            if (r != null && seen.Add(r)) closure.Add(r);
+        }
+        for (int i = 0; i < closure.Count; i++)
+        {
+            foreach (var group in closure[i].Groups)
+            {
+                if (group?.Conditions == null) continue;
+                foreach (var cond in group.Conditions)
+                {
+                    if (cond == null || cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
+                    if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue)) continue;
+                    foreach (var producer in profile.Rules)
+                    {
+                        if (producer == null) continue;
+                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal)
+                            || !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
+                            continue;
+                        if (seen.Add(producer)) closure.Add(producer);
+                    }
+                }
+            }
+        }
+
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var rule in rules)
+        foreach (var rule in closure)
         {
             foreach (var group in rule.Groups)
             {
@@ -2755,11 +2802,25 @@ public class VM_BodyTypeProfileEditor : VM
         || cmp == MeasurementComparator.GreaterThanOrEqual;
 
     /// <summary>Computes a single rule's match-strength score against a row's cached
-    /// measurements. Score = max over OR-groups of (min over continuous conditions in that
-    /// group of normalized margin). Groups containing only DescriptorRef / Equal / NotEqual
-    /// conditions score 0.0 (passed but un-rankable). Returns null when no group is fully
-    /// satisfied — typically only happens when rules were edited after the last scan and the
-    /// cache is now stale.</summary>
+    /// measurements. Score = max over OR-groups of (min over scorable conditions in that
+    /// group of normalized margin) — soft-logic composition (max = OR, min = AND, sign flip
+    /// = NOT) so the score stays in the chosen unit (σ or fraction-of-threshold) at every
+    /// nesting level.
+    /// <para>DescriptorRef conditions are scored by <b>tunneling</b>: the referenced
+    /// (Category, Value)'s own rules — the gender-eligible producers in
+    /// <paramref name="allRules"/> — are scored recursively and their best result becomes
+    /// this condition's margin (negated refs flip the sign, so "must NOT be X" is satisfied
+    /// exactly as strongly as X fails). This is what lets aggregator rules like
+    /// Build:Powerful (pure DescriptorRef groups) produce real margins instead of the flat
+    /// 0.0 they scored before. A ref with no producer rules at all (e.g. a per-Category
+    /// default value) keeps the old binary treatment: it contributes nothing to the min and
+    /// the scan's verdict is trusted. Producers that exist but can't be scored (stale cache,
+    /// cycle) make the group un-scorable, mirroring the missing-measurement path.</para>
+    /// <para>Groups whose scorable set is empty (only Equal/NotEqual/producer-less refs)
+    /// score 0.0 (passed but un-rankable). Disabled groups are skipped, matching
+    /// <see cref="MeasurementMath.RuleMatches"/> — a muted branch must not feed the badge.
+    /// Returns null when no group is fully scorable — typically only happens when rules were
+    /// edited after the last scan and the cache is now stale.</para></summary>
     /// <param name="rule">Rule to evaluate. Must already have a matching descriptor; caller
     /// filters by descriptor before calling.</param>
     /// <param name="measurements">Row's cached values, keyed by measurement name. Float?
@@ -2767,20 +2828,45 @@ public class VM_BodyTypeProfileEditor : VM
     /// <param name="mode">Normalization choice. <see cref="MarginScoreMode.Off"/> returns
     /// null — caller is expected to gate on Off itself, this is just defensive.</param>
     /// <param name="stdDevs">Population std-dev per measurement name. Required when mode is
-    /// StdDevNormalized; ignored when PercentOfThreshold.</param>
+    /// StdDevNormalized; ignored when PercentOfThreshold. Computed over the DescriptorRef
+    /// closure (see <see cref="ComputePopulationStdDevs"/>) so tunneled conditions find
+    /// their sigmas here too.</param>
+    /// <param name="allRules">Every rule on the profile — the resolution set for
+    /// DescriptorRef tunneling.</param>
+    /// <param name="rowGender">Gender of the row being scored. Referenced rules whose
+    /// <see cref="VM_MeasurementRule.Gender"/> excludes it are not tunneled into (mirrors
+    /// <see cref="BodySlideMeasurementEvaluator.RuleGenderMatches"/> at scan time).</param>
+    /// <param name="activeRules">Recursion stack — rules currently being scored up-chain.
+    /// A ref that loops back into one of these returns null instead of recursing (the
+    /// editor blocks cycles, but hand-edited JSON can still author one). Leave null at the
+    /// top-level call.</param>
     private static double? ScoreRuleAgainstMeasurements(
         VM_MeasurementRule rule,
         IReadOnlyDictionary<string, float?> measurements,
         MarginScoreMode mode,
-        Dictionary<string, double> stdDevs)
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        Gender rowGender,
+        HashSet<VM_MeasurementRule> activeRules = null)
     {
         if (mode == MarginScoreMode.Off) return null;
         if (rule == null || rule.Groups.Count == 0) return null;
 
+        // Cycle guard: if this rule is already on the recursion stack, the DescriptorRef
+        // chain loops — bail with "un-scorable" rather than recursing forever. Add/Remove
+        // (rather than a copied set) keeps the guard allocation-free per condition; the
+        // finally guarantees the stack unwinds even if a condition read throws.
+        activeRules ??= new HashSet<VM_MeasurementRule>();
+        if (!activeRules.Add(rule)) return null;
+        try
+        {
         double? best = null;
         foreach (var group in rule.Groups)
         {
             if (group?.Conditions == null || group.Conditions.Count == 0) continue;
+            // Muted OR-branch: the evaluator ignores it (MeasurementMath.RuleMatches), so
+            // its margins must not raise the score either.
+            if (group.IsDisabled) continue;
 
             double? groupMin = null;
             bool hasScoredCondition = false;
@@ -2789,9 +2875,39 @@ public class VM_BodyTypeProfileEditor : VM
             foreach (var cond in group.Conditions)
             {
                 if (cond == null) { groupValid = false; break; }
-                // Binary conditions (DescriptorRef + Equal/NotEqual) don't contribute a
-                // numeric margin. We still trust the upstream scan's verdict on whether
-                // the group as a whole matched — only continuous conditions feed the min.
+
+                if (cond.Kind == MeasurementConditionKind.DescriptorRef)
+                {
+                    // Tunnel into the referenced descriptor: best score across its
+                    // gender-eligible producer rules becomes this condition's margin.
+                    // Malformed refs (blank Category/Value) keep the old binary skip.
+                    if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue))
+                        continue;
+                    double? refScore = null;
+                    bool anyProducer = false;
+                    foreach (var producer in allRules)
+                    {
+                        if (producer == null) continue;
+                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal)
+                            || !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
+                            continue;
+                        if (!BodySlideMeasurementEvaluator.RuleGenderMatches(producer.Gender, rowGender)) continue;
+                        anyProducer = true;
+                        double? s = ScoreRuleAgainstMeasurements(
+                            producer, measurements, mode, stdDevs, allRules, rowGender, activeRules);
+                        if (s.HasValue && (!refScore.HasValue || s.Value > refScore.Value)) refScore = s;
+                    }
+                    if (!anyProducer) continue; // ref to a rule-less value (Category default): binary as before
+                    if (!refScore.HasValue) { groupValid = false; break; }
+                    double margin = cond.Negate ? -refScore.Value : refScore.Value;
+                    if (!groupMin.HasValue || margin < groupMin.Value) groupMin = margin;
+                    hasScoredCondition = true;
+                    continue;
+                }
+
+                // Binary Equal/NotEqual conditions don't contribute a numeric margin. We
+                // still trust the upstream scan's verdict on whether the group as a whole
+                // matched — only continuous conditions feed the min.
                 if (cond.Kind != MeasurementConditionKind.Measurement) continue;
                 if (!IsContinuousComparator(cond.Comparator)) continue;
                 if (string.IsNullOrEmpty(cond.MeasurementName)) continue;
@@ -2846,6 +2962,11 @@ public class VM_BodyTypeProfileEditor : VM
             if (!best.HasValue || groupScore > best.Value) best = groupScore;
         }
         return best;
+        }
+        finally
+        {
+            activeRules.Remove(rule);
+        }
     }
 
     /// <summary>Builds the per-row tooltip text listing this row's margin score against
@@ -2865,12 +2986,18 @@ public class VM_BodyTypeProfileEditor : VM
     /// <param name="stdDevs">Population sigmas (StdDevNormalized only). Caller must compute
     /// these against <paramref name="siblingRules"/> so every value's score uses the same
     /// per-measurement sigma.</param>
+    /// <param name="allRules">Every rule on the profile, for DescriptorRef tunneling — same
+    /// set the primary score uses.</param>
+    /// <param name="rowGender">Gender of the row the tooltip belongs to; gender-scoped
+    /// sibling rules that exclude it are skipped, matching the badge score.</param>
     private static string BuildSiblingScoresTooltip(
         string category,
         List<VM_MeasurementRule> siblingRules,
         IReadOnlyDictionary<string, float?> measurements,
         MarginScoreMode mode,
-        Dictionary<string, double> stdDevs)
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        Gender rowGender)
     {
         if (siblingRules == null || siblingRules.Count == 0) return null;
 
@@ -2881,7 +3008,8 @@ public class VM_BodyTypeProfileEditor : VM
         {
             var v = rule.DescriptorValue ?? "";
             if (string.IsNullOrEmpty(v)) continue;
-            double? s = ScoreRuleAgainstMeasurements(rule, measurements, mode, stdDevs);
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, rowGender)) continue;
+            double? s = ScoreRuleAgainstMeasurements(rule, measurements, mode, stdDevs, allRules, rowGender);
             if (!s.HasValue) continue;
             if (!byValue.TryGetValue(v, out var existing) || !existing.HasValue || s.Value > existing.Value)
                 byValue[v] = s;
