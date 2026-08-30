@@ -78,6 +78,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
             {
                 Category = categoryVM.Category,
                 CategoryDescription = categoryVM.CategoryDescription,
+                IsRulesOnly = categoryVM.IsRulesOnly,
             };
             foreach (var descriptor in categoryVM.Descriptors)
             {
@@ -110,6 +111,7 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
                     {
                         Category = categoryVM.Category,
                         CategoryDescription = categoryVM.CategoryDescription,
+                        IsRulesOnly = categoryVM.IsRulesOnly,
                     };
                 }
                 shell.Descriptors.Add(descriptor.DumpViewModelToModel());
@@ -137,6 +139,10 @@ public class VM_BodyShapeDescriptorCreationMenu : VM
                 shell = _descriptorCreator.CreateNewShell(TemplateDescriptors, _generalSettings.RaceGroupingEditor.RaceGroupings, _parentConfig, ResponseToChange, ResponseToValueDeletion);
                 shell.Category = shellModel.Category;
                 shell.CategoryDescription = shellModel.CategoryDescription;
+                // A category that arrives rules-only stays rules-only. An existing shell keeps its
+                // own flag: the merge modes are about rules, and silently hiding a category the user
+                // already distributes on would break their asset packs.
+                shell.IsRulesOnly = shellModel.IsRulesOnly;
                 TemplateDescriptors.Add(shell);
             }
             else if (string.IsNullOrEmpty(shell.CategoryDescription) && !string.IsNullOrEmpty(shellModel.CategoryDescription))

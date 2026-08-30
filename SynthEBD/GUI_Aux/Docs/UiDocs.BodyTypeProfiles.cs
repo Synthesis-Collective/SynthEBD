@@ -237,7 +237,7 @@ public static partial class UiDocs
 
         Add("BodyTypeProfiles.ConditionRefCategory",
             layperson: "The category of the label that this condition checks for. The label can come from another rule here, from the Label by Sliders rules, or from a manual annotation.",
-            technical: "Bound to RefCategory; options come from GetSafeDescriptorRefsForCondition, which offers the full descriptor catalog minus any choice that would create a circular dependency between rules referencing each other's output. A descriptor no measurement rule produces is always cycle-safe and resolves at evaluation against the live Label by Sliders rule output and the preset's manual/library annotations.",
+            technical: "Bound to RefCategory; options come from GetSafeDescriptorRefsForCondition, which offers the full descriptor catalog minus any choice that would create a circular dependency between rules referencing each other's output. Categories flagged Rules only (BodyShapeDescriptorShell.IsRulesOnly) are deliberately INCLUDED here - that flag hides a category from the distribution pickers only, so intermediate categories authored purely to be referenced by other rules remain fully available to this dropdown. A descriptor no measurement rule produces is always cycle-safe and resolves at evaluation against the live Label by Sliders rule output and the preset's manual/library annotations.",
             motivation: "Cycle-safe options at the source prevent authoring reference chains the topological evaluator could never order.");
 
         Add("BodyTypeProfiles.ConditionRefValue",

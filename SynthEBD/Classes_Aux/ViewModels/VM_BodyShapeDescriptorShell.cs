@@ -38,6 +38,12 @@ public class VM_BodyShapeDescriptorShell : VM
 
     public string Category { get; set; } = "";
     public string CategoryDescription { get; set; } = "";
+
+    /// <summary>Mirrors <see cref="BodyShapeDescriptorShell.IsRulesOnly"/>: keep this category in the
+    /// Body Type Profile editor (Rules tree + DescriptorRef pickers) but hide it from the
+    /// distribution-facing descriptor pickers used by asset-pack subgroups and BodyGen templates.</summary>
+    public bool IsRulesOnly { get; set; } = false;
+
     public ObservableCollection<VM_BodyShapeDescriptor> Descriptors { get; set; } = new();
     public ObservableCollection<VM_BodyShapeDescriptorShell> ParentCollection { get; set; }
     public RelayCommand AddTemplateDescriptorValue { get; }

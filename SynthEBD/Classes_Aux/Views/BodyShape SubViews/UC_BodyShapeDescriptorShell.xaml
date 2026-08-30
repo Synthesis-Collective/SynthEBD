@@ -17,6 +17,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center">Value</TextBlock>
@@ -33,5 +34,10 @@
         <Border Grid.Row="3" Grid.Column="1" Margin="0 10 0 0"  BorderBrush="MediumAquamarine" BorderThickness="1">
             <TextBox Text="{Binding CategoryDescription, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" />
         </Border>
+
+        <CheckBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0 8 0 0"
+                  IsChecked="{Binding IsRulesOnly}"
+                  local:DocTooltip.Key="OBody.DescriptorRulesOnly"
+                  Content="Rules only (hide from distribution menus)"/>
     </Grid>
 </UserControl>

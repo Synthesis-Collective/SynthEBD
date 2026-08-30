@@ -43,6 +43,10 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         {
             foreach (var Descriptor in TrackedMenu.TemplateDescriptors)
             {
+                // Rules-only categories exist to feed Label by Measurements rules, not to be
+                // distributed on. They stay in TemplateDescriptors (so the Body Type Profile
+                // editor keeps them) but never reach a distribution picker.
+                if (Descriptor.IsRulesOnly) continue;
                 DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
             TrackedMenu.TemplateDescriptors.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateShellList()).DisposeWith(this);
@@ -162,6 +166,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             bool found = false;
             foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
             {
+                if (sourceShell.IsRulesOnly) continue; // newly hidden -> treat as removed
                 if (DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
                 {
                     found = true;
@@ -178,6 +183,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         // add new shells
         foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
         {
+            if (sourceShell.IsRulesOnly) continue;
             bool found = false;
             foreach (var destShell in DescriptorShells)
             {

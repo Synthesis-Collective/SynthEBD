@@ -852,6 +852,19 @@ https://user-images.githubusercontent.com/63175798/154865378-730d3eb2-0c45-4fba-
 
 Body Shape Descriptors are Category: Value pairs that describe a given body shape. They are used to ensure that assets are correctly paired with body shapes. The Descriptor Menus are located within BodyGen Configs and the patcher's (O/Auto)Body Integration menu. The descriptors are synced with the currently installed Asset Config Plugin Files, which can reference them as Allowed or Disallowed descriptors for any particular asset. For example, an Asset Subgroup containing highly muscular body normal maps might want to list "Build: Chubby" as a *Disallowed Body Shape Descriptor* so that less fit NPCs don't get assigned highly muscular textures and experience a visual mismatch. In addition to controlling Asset / Shape pairing, these descriptors can also come with their own Distribution Rules. If a BodyGen morph or BodySlide is tagged with a descriptor, it combines the descriptor's Distribution Rules with its own sub-rules. This provides a centralized way to control the distribution of large groups of Body Shapes.
 
+#### Rules-Only ("Pseudo-Descriptor") Categories
+
+Each descriptor category has a **Rules only (hide from distribution menus)** checkbox. When it is ticked, the category disappears from every menu where you hand descriptors out - Asset Subgroups, BodyGen morphs, and per-BodySlide distribution rules - but stays fully available to the *Label by Measurements* rule editor, which can still produce it and still read it in a *Descriptor Reference* condition.
+
+This exists for categories that are **stepping stones rather than labels**. Label by Measurements rules can reference each other, so a rule is often clearer when an intermediate judgement gets its own category: instead of repeating a raw measurement threshold inside a broad rule like `Build: Powerful`, you define a small category such as `BicepBulge: Pronounced` or `ShoulderWidth: Wide` and have the bigger rule reference it by name. That keeps each threshold in exactly one place, and changing it updates every rule that reads it.
+
+Without the checkbox, every one of those helper categories would also land in the descriptor list a config author picks from, burying the handful of labels that actually describe a body. Ticking **Rules only** keeps the category real and editable while hiding it where it would just be noise.
+
+Two things to keep in mind:
+
+- A rules-only category is still assigned to presets, and still visible on them. Only the *pickers* are filtered, so nothing you have already set up stops working.
+- Do not instead delete the category from this menu to hide it. Its rules keep evaluating, but the Label by Measurements editor only builds its rule tree from categories that exist here, so those rules become orphans - still running, but no longer visible or editable anywhere in the UI.
+
 ### Known Issues
 
 - Slow startup when BodyGen configs are installed. This is likely to be fixed in a future update.

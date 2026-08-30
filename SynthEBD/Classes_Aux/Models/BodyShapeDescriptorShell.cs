@@ -23,6 +23,21 @@ public class BodyShapeDescriptorShell : IHasLabel
     public string CategoryDescription { get; set; } = "";
     public List<BodyShapeDescriptor> Descriptors { get; set; } = new();
 
+    /// <summary>When true this category is a <b>rules-only</b> ("pseudo-descriptor") category: it stays
+    /// fully available to the Body Type Profile / Label by Measurements editor — its rules appear in the
+    /// Rules tree and its values can be picked in <c>DescriptorRef</c> conditions — but it is hidden from
+    /// the distribution-facing pickers (<see cref="VM_BodyShapeDescriptorSelectionMenu"/>), so asset-pack
+    /// subgroups and BodyGen templates never see it.
+    /// <para>The point is intermediate categories that exist only to feed other rules. A classifier rule
+    /// can gate on <c>[ShoulderWidth:Wide]</c> without <c>ShoulderWidth</c> cluttering the descriptor list
+    /// a config author picks from. Before this flag the only way to get that was to omit the category from
+    /// <c>TemplateDescriptors</c> entirely, which still evaluates correctly but <i>orphans</i> the rules —
+    /// <c>RebuildRuleTree</c> only builds nodes for catalog-backed pairs, so they become invisible and
+    /// unreachable in the editor.</para>
+    /// <para>Defaults to false, so existing settings deserialize with every category distribution-facing
+    /// exactly as before.</para></summary>
+    public bool IsRulesOnly { get; set; } = false;
+
     /// <summary>IHasLabel implementation so the existing duplicate-detection plumbing
     /// (<see cref="OnLoadValidator.CheckGroupDuplicates"/>) can dedupe shells by Category.</summary>
     [JsonIgnore]
