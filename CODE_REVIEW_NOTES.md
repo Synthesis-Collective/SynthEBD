@@ -770,6 +770,32 @@ Progress tracker for the behavior-fix pass that follows this catalogue (branch
   ("B48LocalOnly", absent from General) referenced by a subgroup; the subgroup must restrict to that grouping's races
   rather than match all (fails pre-Option-B). Passes for real (SE installed). Suite 217 / 1 skipped / 0 failed.
 
+- **B63 — measurement-cache body-mesh hash no longer keyed to the whole preview NPC (fixed).**
+  `MeasurementCacheStore.ComputeBodyMeshHash` hashed `viewer.GetCurrentShapeVertexCounts()` verbatim, and that
+  returns **every renderable mesh** -- body, head, hands, hair, and whatever outfit the preview NPC is wearing. The
+  hash is the guard that decides whether a hydrated measurement cache is valid for this session
+  ([VM_BodyTypeProfileEditor.cs:1330](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_BodyTypeProfileEditor.cs#L1330)
+  stage 1, [:1599](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_BodyTypeProfileEditor.cs#L1599) stage 2); on
+  mismatch it does `MeasurementCache.Clear()` and re-adds **every** (preset, gender, weight) as a full-scan target.
+  So previewing a different NPC than the one loaded when the cache was built invalidated the entire cache even though
+  the measured body mesh was byte-identical -- a 25,470-row rescan for nothing. Confirmed on the live cache: the stored
+  hash `7b68d5ef` is not the hash of the profile's own body shape set `{3BA: 18436}` (`443ab614`), i.e. it had a whole
+  NPC baked in.
+  **Fix:** new `GetMeasuredShapeNames(profile)` (key-vertex `ShapeName`s union region `ShapeName`s) and a
+  `ComputeBodyMeshHash(counts, profile)` overload that filters to those shapes before hashing, so the hash means
+  "did the mesh this profile measures change?". Mirrors the profile->viewer direction
+  `BodySlideMeasurementEvaluator.ShapeCountsMatch` already uses for the topology fingerprint (extra viewer shapes
+  ignored). Three call sites moved to the overload -- both validators **and the writer**
+  ([:2153](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_BodyTypeProfileEditor.cs#L2153)); fixing only the
+  validators would have left every scan re-anchoring to a whole-NPC hash and the mismatch would recur. Keys come from
+  the profile's authored names, not the viewer's, so viewer-side casing drift cannot shift the hash. The overload
+  returns `""` when none of the measured shapes are loaded and both validators now skip on empty -- previously an
+  unloaded body would have hashed to `SHA256("")` and read as a mismatch, wiping the cache for the opposite reason.
+  No migration: nothing has shipped, and the one existing cache was re-anchored in place.
+  *Test:* new `MeasurementCacheBodyMeshHashTests` (7 cases) -- extra NPC shapes don't move the hash, a real body-mesh
+  swap still does, absent/empty/null -> `""`, casing drift stable, regions count as measured shapes. Suite 437 / 1
+  skipped / 0 failed. **Left open as B63b:** `GetOrResolveRegion` still hashes unfiltered viewer counts.
+
 ### M1 — MatureFace label rename + backward-compat migration (release-gated; version NOT bumped).
 
 - **M1 — `DefaultAttributeGroups.MatureFace` "Mildy"->"Mildly" rename + version-gated migration + config-install rewrite (fixed; dormant until 1.0.7.0).**
@@ -1278,6 +1304,22 @@ comments. (Each inline heading gets a "-- already fixed in Bucket N" tick when i
 ---
 
 ## 🆕 Added during remediation (not in the original catalogue)
+
+### 🔧 B63b — `GetOrResolveRegion` still keys its session cache on the whole preview NPC — OPEN
+
+Companion to the resolved B63. `VM_BodyTypeProfileEditor.GetOrResolveRegion`
+([:6028](SynthEBD/Classes_Core/ViewModels/OBody%20SubModels/VM_BodyTypeProfileEditor.cs#L6028)) uses
+`ComputeBodyMeshHash(viewer.GetCurrentShapeVertexCounts())` -- the unfiltered single-argument overload -- as the
+invalidation token for its baked `ResolvedRegion` session cache. Same root cause as B63: changing the preview NPC
+changes the hash and forces every region to re-bake even though the region's own shape is unchanged.
+
+**Why it was left:** unlike B63 this is a **performance nit, not a correctness bug** -- the re-bake produces the same
+region, costs a few seconds, and is session-only (nothing persists). It was deliberately excluded to keep the B63
+change scoped to the cache-wipe defect.
+
+**Fix when convenient:** pass the region's own `ShapeName` (or the profile) so the token covers only the shape being
+resolved. Note `GetOrResolveRegion` has no profile model in scope today, so it needs either a parameter or a small
+helper overload taking a single shape name.
 
 ### ✅ M1 — `MatureFace` label rename + backward-compat migration — 🐞 compat RESOLVED (rename + dormant 1.0.7.0 migration + config-install rewrite; version NOT bumped) — see Resolved §M1
 

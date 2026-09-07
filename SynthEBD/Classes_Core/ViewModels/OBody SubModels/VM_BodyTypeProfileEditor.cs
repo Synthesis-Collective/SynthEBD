@@ -1312,6 +1312,10 @@ public class VM_BodyTypeProfileEditor : VM
             //      below runs. (ComputeBodyMeshHash on an empty shape-counts dict returns
             //      SHA256("") = e3b0c442..., which would false-positive every cold scan.)
             //   2. After preview-NPC auto-load further down, if stage 1 was skipped.
+            // Dumped up front: the stage-1 body-mesh check below needs the profile to know
+            // which shapes it actually measures.
+            var profileModel = profile.DumpToModel();
+
             bool bodyMeshValidated = false;
             var viewerShapesAtStart = viewer.GetCurrentShapeVertexCounts();
             if (viewerShapesAtStart != null && viewerShapesAtStart.Count > 0)
@@ -1319,8 +1323,13 @@ public class VM_BodyTypeProfileEditor : VM
                 bodyMeshValidated = true;
                 if (!string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
                 {
-                    var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewerShapesAtStart);
-                    if (!string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
+                    // Hash only the shapes this profile measures. The viewer renders the whole
+                    // preview NPC, so hashing every loaded shape made the cache valid only while
+                    // the same NPC was previewed. An empty hash means none of the measured shapes
+                    // are loaded -- cannot validate, so leave the cache alone.
+                    var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewerShapesAtStart, profileModel);
+                    if (!string.IsNullOrEmpty(currentBodyMeshHash)
+                        && !string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
                     {
                         _logger?.LogMessage(
                             "MeasurementCache: in-memory cache was scanned under body mesh "
@@ -1332,8 +1341,6 @@ public class VM_BodyTypeProfileEditor : VM
                     }
                 }
             }
-
-            var profileModel = profile.DumpToModel();
 
             // Per-entry PresetSliderHash validation: drop cached entries whose preset's
             // sliders have changed since the entry was scanned (preset author update,
@@ -1589,8 +1596,9 @@ public class VM_BodyTypeProfileEditor : VM
                 if (viewerShapesAfterLoad != null && viewerShapesAfterLoad.Count > 0
                     && !string.IsNullOrEmpty(profile.LoadedBodyMeshHash))
                 {
-                    var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewerShapesAfterLoad);
-                    if (!string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
+                    var currentBodyMeshHash = MeasurementCacheStore.ComputeBodyMeshHash(viewerShapesAfterLoad, profileModel);
+                    if (!string.IsNullOrEmpty(currentBodyMeshHash)
+                        && !string.Equals(currentBodyMeshHash, profile.LoadedBodyMeshHash, StringComparison.Ordinal))
                     {
                         _logger?.LogMessage(
                             "MeasurementCache: in-memory cache was scanned under body mesh "
@@ -2142,7 +2150,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         var bodyMeshHash = !string.IsNullOrEmpty(overrideBodyMeshHash)
             ? overrideBodyMeshHash!
-            : MeasurementCacheStore.ComputeBodyMeshHash(CharacterViewer?.GetCurrentShapeVertexCounts());
+            : MeasurementCacheStore.ComputeBodyMeshHash(CharacterViewer?.GetCurrentShapeVertexCounts(), profileModel);
 
         var snapshot = new MeshSnapshot
         {

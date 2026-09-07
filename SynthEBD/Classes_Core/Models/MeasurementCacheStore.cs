@@ -288,12 +288,69 @@ public static class MeasurementCacheStore
         return Sha256Hex(sb.ToString());
     }
 
-    /// <summary>SHA256 of the current loaded mesh's topology. Input is the
-    /// (ShapeName, vertex count) pairs from <c>viewer.GetCurrentShapeVertexCounts()</c>,
-    /// ordinal-sorted. Topology changes (vertex count delta, shape add/remove) shift the
-    /// hash; pure morph-target adjustments that preserve vertex layout don't — that's the
-    /// intended granularity, since topology-preserving morphs are typically intentional
-    /// preset edits handled by <see cref="ComputePresetSliderHash"/>.</summary>
+    /// <summary>The distinct mesh shapes a profile actually reads geometry from: the
+    /// <see cref="NamedKeyVertex.ShapeName"/> of every key vertex plus the
+    /// <see cref="NamedRegion.ShapeName"/> of every region (RegionVolume measurements integrate
+    /// against a region's shape). Everything else the viewer happens to be rendering — head,
+    /// hands, hair, whatever outfit the preview NPC is wearing — is irrelevant to the numbers
+    /// this profile produces.</summary>
+    public static HashSet<string> GetMeasuredShapeNames(BodyTypeProfile? profile)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (profile == null) return names;
+        if (profile.KeyVertices != null)
+        {
+            foreach (var kv in profile.KeyVertices)
+            {
+                if (!string.IsNullOrWhiteSpace(kv?.ShapeName)) names.Add(kv.ShapeName);
+            }
+        }
+        if (profile.Regions != null)
+        {
+            foreach (var rg in profile.Regions)
+            {
+                if (!string.IsNullOrWhiteSpace(rg?.ShapeName)) names.Add(rg.ShapeName);
+            }
+        }
+        return names;
+    }
+
+    /// <summary>SHA256 of the topology of the shapes <paramref name="profile"/> measures, taken
+    /// from <c>viewer.GetCurrentShapeVertexCounts()</c>. Use this overload for cache validation.
+    /// <para>The viewer renders a whole preview NPC, so the raw counts dictionary carries head,
+    /// hands, hair and outfit shapes that vary with whichever NPC happens to be loaded. Hashing
+    /// all of it made the cache valid only while the *same NPC* was previewed: changing the
+    /// preview NPC invalidated every cached row even though the body mesh — the only thing the
+    /// measurements read — was identical. Filtering to <see cref="GetMeasuredShapeNames"/> makes
+    /// the hash mean what it says: "did the mesh this profile measures change?". This mirrors the
+    /// profile-to-viewer direction <c>BodySlideMeasurementEvaluator.ShapeCountsMatch</c> already
+    /// uses for the topology fingerprint, where extra viewer shapes are likewise ignored.</para>
+    /// <para>Keys come from the profile's authored names (stable, edited once) rather than the
+    /// viewer's, so viewer-side casing drift cannot shift the hash. Returns "" when none of the
+    /// measured shapes are loaded — callers must treat that as "cannot validate" and skip the
+    /// comparison rather than reading it as a mismatch.</para></summary>
+    public static string ComputeBodyMeshHash(
+        IReadOnlyDictionary<string, int>? shapeVertexCounts, BodyTypeProfile? profile)
+    {
+        var measured = GetMeasuredShapeNames(profile);
+        if (shapeVertexCounts == null || measured.Count == 0) return "";
+        var filtered = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var name in measured)
+        {
+            if (shapeVertexCounts.TryGetValue(name, out int count)) filtered[name] = count;
+        }
+        if (filtered.Count == 0) return "";
+        return ComputeBodyMeshHash(filtered);
+    }
+
+    /// <summary>SHA256 of a (ShapeName, vertex count) set, ordinal-sorted. Topology changes
+    /// (vertex count delta, shape add/remove) shift the hash; pure morph-target adjustments that
+    /// preserve vertex layout don't — that's the intended granularity, since topology-preserving
+    /// morphs are typically intentional preset edits handled by
+    /// <see cref="ComputePresetSliderHash"/>.
+    /// <para>Prefer the <see cref="ComputeBodyMeshHash(IReadOnlyDictionary{string, int}, BodyTypeProfile)"/>
+    /// overload for cache validation — passing raw viewer counts here hashes the entire preview
+    /// NPC, not just the measured body.</para></summary>
     public static string ComputeBodyMeshHash(IReadOnlyDictionary<string, int>? shapeVertexCounts)
     {
         var sb = new StringBuilder();
