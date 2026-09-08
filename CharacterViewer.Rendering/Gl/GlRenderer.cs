@@ -2132,12 +2132,16 @@ public class GlRenderer : IDisposable
         GL.Disable(EnableCap.CullFace);
         GL.LineWidth(1.0f);
 
-        // Two color groups. Update the uniform only on transition to keep
-        // GL state-change traffic minimal even though the per-shape branch
-        // is checked unconditionally.
-        bool currentIsFallback = false;
-        _wireframeShader.SetVector3("u_color",
-            WireframeColor.X, WireframeColor.Y, WireframeColor.Z);
+        // Three color sources, in precedence order: the mesh's own
+        // WireframeColorOverride (guest overlay), else the missing-texture color
+        // for fallback shapes, else the classifier overlay color. Tracked as
+        // loose floats rather than a Vector3 because GlMesh works in
+        // System.Numerics while this file works in OpenTK.Mathematics — the same
+        // reason every other per-mesh color reaches the shader component-wise.
+        // The uniform is updated only when the color actually changes, so a run
+        // of same-colored meshes still costs one SetVector3.
+        float curR = WireframeColor.X, curG = WireframeColor.Y, curB = WireframeColor.Z;
+        _wireframeShader.SetVector3("u_color", curR, curG, curB);
 
         foreach (var mesh in _meshes)
         {
@@ -2146,14 +2150,24 @@ public class GlRenderer : IDisposable
             bool wantOverlay = mesh.ShowWireframe;
             if (!wantFallback && !wantOverlay) continue;
 
-            // Fallback shapes ALWAYS draw in the missing-texture color, even
-            // when ShowWireframe is also true — the missing-texture state is
-            // the more important diagnostic.
-            if (wantFallback != currentIsFallback)
+            // Absent an explicit override, fallback shapes ALWAYS draw in the
+            // missing-texture color even when ShowWireframe is also true — the
+            // missing-texture state is the more important diagnostic.
+            float wantR, wantG, wantB;
+            if (mesh.WireframeColorOverride is { } ov)
             {
-                var c = wantFallback ? MissingTextureWireframeColor : WireframeColor;
-                _wireframeShader.SetVector3("u_color", c.X, c.Y, c.Z);
-                currentIsFallback = wantFallback;
+                wantR = ov.X; wantG = ov.Y; wantB = ov.Z;
+            }
+            else
+            {
+                var group = wantFallback ? MissingTextureWireframeColor : WireframeColor;
+                wantR = group.X; wantG = group.Y; wantB = group.Z;
+            }
+
+            if (wantR != curR || wantG != curG || wantB != curB)
+            {
+                _wireframeShader.SetVector3("u_color", wantR, wantG, wantB);
+                curR = wantR; curG = wantG; curB = wantB;
             }
 
             GL.BindVertexArray(mesh.Vao);

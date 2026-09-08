@@ -34,9 +34,10 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [Overlay channels](#overlay-channels)
    - [Region overlay (BodySlide classifier)](#region-overlay-bodyslide-classifier)
 5. [Part 4 — Comparison with NifSkope and Outfit Studio](#part-4--comparison-with-nifskope-and-outfit-studio)
-6. [Appendix A — Shader flag inventory table](#appendix-a--shader-flag-inventory-table)
-7. [Appendix B — BSLightingShaderProperty field inventory](#appendix-b--bslightingshaderproperty-field-inventory)
-8. [Appendix C — Texture slot inventory](#appendix-c--texture-slot-inventory)
+6. [Part 5 — Concurrent viewers & GL context ownership](#part-5--concurrent-viewers--gl-context-ownership)
+7. [Appendix A — Shader flag inventory table](#appendix-a--shader-flag-inventory-table)
+8. [Appendix B — BSLightingShaderProperty field inventory](#appendix-b--bslightingshaderproperty-field-inventory)
+9. [Appendix C — Texture slot inventory](#appendix-c--texture-slot-inventory)
 
 ---
 
@@ -817,6 +818,77 @@ The shorter both reference shaders are reflects their narrower scope: NifSkope p
 - **Skin desaturates at high SSS strength.** With `SubsurfaceStrength` at 0 (the current default), skin tones render correctly across all races — Imperials warm, Redguards distinctly dark, Orcs saturated green. Raising it toward the prior default of 2.0 globally desaturates skin (Imperials pale, Redguards Mediterranean, Orcs olive), washing race-distinguishing character toward neutral. The tint pipeline itself is engine-faithful at all SSS strengths — Pegtop + color-shift, QNAM passthrough, and gamma-space rendering all match the CS source byte-for-byte (per the [engine-source cross-check](#engine-source-cross-check-verified-against-cs)) — so the desaturation almost certainly originates in the SSS shader stage or a lighting-interaction issue rather than the tint pipeline. The [skin saturation boost](#stage-1c-skin-saturation-boost) is the user-facing compensation dial; SSS shader audit is a separate follow-up. Causes eliminated during the investigation that traced this back to SSS: NIF `skinTintColor` (always (1,1,1) per render logs), Pegtop math, the color-shift constant, QNAM source/passthrough, color-space mismatch (sRGB-vs-gamma explicitly tested and falsified).
 
 - **TODO — hair-gap fade misses non-HAIRTINT hair; stale eye-AO comment.** The SSAO hair-gap fade in [basic.frag](Shaders/basic.frag) keys on `is_hair_tint` (BSLSP_HAIRTINT, ShaderType 6). Hair authored as DEFAULT/ENVMAP with alpha blending (occasionally seen in pre-colored hair packs that don't want engine tinting) misses the fade, so background-surface AO shades its strands — the same classification-gap class as the FoxGlove ENVMAP eyeballs that motivated `ResolvedNpcMeshPaths.EyeShapeNames`. If a real specimen shows up: add an "is hair geometry" flag fed by host head-part data (HeadPart types Hair / FacialHair / Eyebrows — the EyeShapeNames plumbing is the template) plus `BodyPart == "Hair"` for ARMA wigs, and apply it to the gap fade ONLY. Hair *tinting* must stay keyed on ShaderType 6, which is engine-faithful. While in there, fix the stale comment in basic.frag's `is_eye` AO opt-out block: it still claims lashes pass the prepass gate and write a depth step over the eyeball, but `GlRenderer.RenderDepthPrepass` has since been changed to skip ALL alpha-blend and alpha-test geometry, so that rationale no longer describes current behavior (the opt-out itself remains correct — eyeballs sit in the socket concavity and gain nothing from diffuse AO).
+
+---
+
+## Part 5 — Concurrent viewers & GL context ownership
+
+Every `GLWpfControl` mints its **own private GL context**. GL object names (buffers, textures, VAOs, shader programs) are per-context, and two freshly-created contexts hand out the *same low integers* for the same allocation sequence. So with two viewers alive, viewer B's VBO #7 and viewer A's VBO #7 are different objects that are indistinguishable by name — a GL call issued for B while A's context is current silently reads or destroys A's object.
+
+For most of this pipeline that is a non-issue by construction: **all GL work is deferred to the owning control's `Render` callback**, where that control's context is guaranteed current.
+
+```
+off-thread                        UI thread, OUTSIDE render callback      UI thread, INSIDE render callback
+──────────                        ────────────────────────────────       ─────────────────────────────────
+NIF parse, CPU skinning,     ──▶  _renderThread.Invoke(() =>        ──▶  GlControl.Render
+DDS decode, deformation           {  _pendingScene = ...; })              ├─ VM.ProcessPendingScene()   ← all uploads
+                                     ^ queues data only, no GL            └─ Renderer.Render(...)       ← all draws
+```
+
+Two paths escape that discipline and are the reason a **context-pinning marshaller** is mandatory once a host shows more than one viewer:
+
+| Escape hatch | What it does | Why it can't simply be deferred |
+| --- | --- | --- |
+| `VM_CharacterViewer.ApplyMorphSet` | `GlMesh.UpdateVertexData` — re-uploads deformed vertices after a BodySlide preset/weight change | Callers (`VM_BodySlideSetting.RefreshPreview`, the Compare panes) apply a preset and immediately read back `CpuPositions` to measure/classify; deferring to the next frame would race those readers |
+| `VM_CharacterViewer.Dispose` | deletes shaders, VAOs, VBOs, textures | The control stops rendering the moment its window closes, so a queued teardown would never drain — it would leak the whole scene |
+
+### The contract
+
+`VM_CharacterViewer.RenderThreadMarshaller` is settable precisely so a host can supply an implementation that makes the owning context current before running the action:
+
+- **Single-viewer hosts** keep the plain dispatch-to-UI-thread marshaller (`WpfDispatcherMarshaller`). The only context the UI thread ever has current is that viewer's, so pinning is a no-op.
+- **Multi-viewer hosts must install a pinning marshaller.** SynthEBD's is [`GlControlPinningMarshaller`](../SynthEBD/CharacterViewerHost/Adapters/GlControlPinningMarshaller.cs), installed by `UC_CharacterViewer` in `TryStartGl` (first context) and again on every `DataContextChanged` (a control serves many VMs over its life, and each arrives holding the DI-registered dispatcher marshaller). It calls `GLWpfControl.Context.MakeCurrent()` **inside** the dispatched action — `IGraphicsContext.MakeCurrent` is only safe on the thread the control runs on, never from the caller's thread.
+
+`ApplyMorphSet` batches its uploads into a single marshalled block rather than marshalling per shape, so a preset change costs one `MakeCurrent`, not one per body part.
+
+**SynthEBD reaches three concurrent viewers** whenever the BodySlide **Compare** window is open: the embedded OBody-menu viewer plus the window's two panes. Before that feature the app was single-viewer and the hazard was latent.
+
+> **When adding a new GL call to `VM_CharacterViewer`:** if it can run outside `ProcessPendingScene` / `Renderer.Render`, it must go through `_renderThread.Invoke`. Anything else is a correctness bug that only reproduces with two viewers on screen.
+
+### Guest overlay scene ("superimpose")
+
+`VM_CharacterViewer.GuestScene.cs` installs a **complete second scene** alongside the primary one, at the same origin, so two BodySlide presets can be compared directly. SynthEBD's Compare window uses it to draw pane B's model inside pane A.
+
+The guest is loaded **by the host VM**, not transplanted from the other viewer. That follows directly from the context rule above: the other pane's `GlMesh` handles name objects in *its* context and are meaningless here. So the guest runs the same pipeline as the primary scene — this VM's `LoadAllMeshParts`, `CreateGlMesh`, `ApplyTexturesToGlMesh`, this VM's `GlTextureManager`, this VM's context — and is installed into a separate `_guestMeshes` list that the primary scene's bookkeeping (`_meshesByBodyPart`, `_cachedBodyMeshes`, `_builtMeshesByBodyPart`) never sees.
+
+```
+LoadGuestAsync(identity, morphs, weight, osd)
+  ├─ resolve paths + LoadAllMeshParts        (off-thread, under the PRIMARY scene's scope chain)
+  └─ _renderThread.Invoke → _guestRequest, _guestInstallPending = true
+                                    │
+ProcessPendingScene (render callback)
+  └─ ProcessPendingGuestScene()     ← step 0, before the primary drain
+       ├─ bail unless the primary scene is quiescent
+       │  (_sceneInstall == null && _pendingScene == null && !_sceneRebuildPending)
+       └─ InstallGuestScene: CreateGlMesh → textures → DeformShape → ApplyGuestStyle → AddMesh
+```
+
+Four points that are easy to get wrong:
+
+- **The guest resolves under the primary scene's scope chain.** It is being composited into this viewer's world, so `LoadGuestAsync` re-pushes `_currentSceneScopes` / `_currentSceneFolders`. Resolving it under a default chain would silently fall back to the vanilla data folder for its textures.
+- **`ClearScene` destroys the guest too.** `Renderer.ClearMeshes()` disposes *every* mesh in the renderer. `ClearScene` therefore calls `NotifyGuestMeshesDestroyed`, which drops the dangling references and re-arms the install so the overlay comes back once the incoming primary scene commits. That is what makes the host pane free to change its own preset without losing the overlay.
+- **Geometry is shared, not duplicated.** Both scenes deform through the same `DeformShape` helper, so the two panes' bodies are produced by identical math. The guest probes its *own* body NIF's sibling `.tri` — it may be a different body mod entirely from the primary's.
+- **The guest takes no part in slot occupancy.** `BipedSlots` and `HidesSlots` are forced to 0: it is a comparison overlay, not gear worn by the primary NPC, so it must neither hide the primary model's shapes nor be hidden by them.
+
+**Draw styles** are expressed purely through existing per-mesh `GlMesh` material fields — the guest adds **no new render pass**:
+
+| `GuestOverlayStyle` | How it is expressed | Pass it lands in |
+| --- | --- | --- |
+| `Textured` | untouched after the texture pass | whichever pass its own `NiAlphaProperty` implies |
+| `Translucent` | `HasAlphaBlend`, `MaterialAlpha < 1`, `DepthWrite = false`, flat `TintColor` | alpha-blend (never occludes the primary model) |
+| `Wireframe` | `RenderAsWireframeFallback` + `WireframeColorOverride` | wireframe overlay only; solid passes skip it |
+
+`WireframeColorOverride` exists specifically so the guest can borrow the missing-texture fallback's *draw behavior* without inheriting its *color* — that green means "this shape's diffuse failed to decode", and a guest drawn in it would read as a texture error.
 
 ---
 

@@ -63,7 +63,8 @@ public class VM_SliderAnnotatorPreviewPanel : VM
         IEnvironmentStateProvider environmentProvider,
         Func<VM_CharacterViewer> characterViewerFactory,
         PreviewNpcResolver previewNpcResolver,
-        VM_BodySlidesMenu bodySlideMenu)
+        VM_BodySlidesMenu bodySlideMenu,
+        Func<VM_BodySlideCompare> compareFactory)
     {
         _logger = logger;
         _patcherState = patcherState;
@@ -72,6 +73,15 @@ public class VM_SliderAnnotatorPreviewPanel : VM
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
+
+        // Compare button on the viewer toolbar, seeded from this rail's current state.
+        CharacterViewer.ShowCompareButton = true;
+        CharacterViewer.CompareCommand = BodySlideCompareLauncher.CreateCommand(
+            compareFactory,
+            () => new BodySlideCompareSeed(
+                PreviewGender, PreviewWeight, PreviewNpcOverride,
+                SelectedPresetRow?.PlaceHolder.AssociatedModel),
+            logger);
         // Lock the model scale like the Body Type Profile editor does: this rail exists to
         // compare body shapes across presets/weights, so the preview NPC's record Height
         // scaling would only add noise between NPC swaps.

@@ -9,19 +9,67 @@ namespace CharacterViewer.Rendering;
 /// </summary>
 public class OrbitCamera
 {
+    /// <summary>
+    /// Raised whenever one of the five view-defining properties (<see cref="Azimuth"/>,
+    /// <see cref="Elevation"/>, <see cref="Distance"/>, <see cref="Target"/>,
+    /// <see cref="FieldOfView"/>) actually changes value.
+    ///
+    /// <para>Exists for the BodySlide Compare window's "Lock camera" mode, which mirrors one
+    /// pane's view onto the other. Raising from the setters rather than from the mouse
+    /// handlers means programmatic reframes — <c>MeshAwareCameraFitter.ApplyTo</c> after an
+    /// NPC load, the FOV spinner — propagate too, which is what a locked pair should do.</para>
+    ///
+    /// <para>Mirror the change with <see cref="CopyViewFrom"/>, never by assigning the
+    /// properties directly: it suppresses the event on the receiving camera, without which
+    /// two locked cameras would echo each other into an infinite loop.</para>
+    /// </summary>
+    public event Action? ViewChanged;
+
+    /// <summary>Non-zero while <see cref="CopyViewFrom"/> is applying a mirrored view; gates
+    /// <see cref="RaiseViewChanged"/>. A counter rather than a bool so nested/re-entrant
+    /// applies can't clear the guard early.</summary>
+    private int _suppressViewChanged;
+
+    private void RaiseViewChanged()
+    {
+        if (_suppressViewChanged > 0) return;
+        ViewChanged?.Invoke();
+    }
+
+    private float _azimuth = 180f;
+    private float _elevation = 15f;
+    private float _distance = 200f;
+    private Vector3 _target = new Vector3(0, 85, 0); // roughly chest height
+
     /// <summary>Horizontal angle in degrees. 180 = camera placed at -Z looking toward
     /// +Z, which shows the character's front (the character is oriented to face -Z_world
     /// after the NIF Z-up to Y-up R_X(-90) conversion).</summary>
-    public float Azimuth { get; set; } = 180f;
+    public float Azimuth
+    {
+        get => _azimuth;
+        set { if (_azimuth == value) return; _azimuth = value; RaiseViewChanged(); }
+    }
 
     /// <summary>Vertical angle in degrees. 0 = horizontal, positive = looking down.</summary>
-    public float Elevation { get; set; } = 15f;
+    public float Elevation
+    {
+        get => _elevation;
+        set { if (_elevation == value) return; _elevation = value; RaiseViewChanged(); }
+    }
 
     /// <summary>Distance from the target point.</summary>
-    public float Distance { get; set; } = 200f;
+    public float Distance
+    {
+        get => _distance;
+        set { if (_distance == value) return; _distance = value; RaiseViewChanged(); }
+    }
 
     /// <summary>The point the camera orbits around (Y-up world space).</summary>
-    public Vector3 Target { get; set; } = new Vector3(0, 85, 0); // roughly chest height
+    public Vector3 Target
+    {
+        get => _target;
+        set { if (_target == value) return; _target = value; RaiseViewChanged(); }
+    }
 
     /// <summary>Minimum zoom distance.</summary>
     public float MinDistance { get; set; } = 5f;
@@ -35,10 +83,41 @@ public class OrbitCamera
     /// <summary>Far clip plane distance.</summary>
     public float FarPlane { get; set; } = 10000f;
 
+    private float _fieldOfView = 25f;
+
     /// <summary>Vertical field of view in degrees. Default 25° matches NPC
     /// Portrait Creator, which gives a flatter, more natural perspective for
     /// portrait framing than the wider 45° gameplay-style default.</summary>
-    public float FieldOfView { get; set; } = 25f;
+    public float FieldOfView
+    {
+        get => _fieldOfView;
+        set { if (_fieldOfView == value) return; _fieldOfView = value; RaiseViewChanged(); }
+    }
+
+    /// <summary>
+    /// Copies the five view-defining properties from <paramref name="source"/> without
+    /// raising <see cref="ViewChanged"/> on this camera. The suppression is the whole point:
+    /// mirroring by plain assignment would make each locked camera re-notify its partner and
+    /// spin forever. No-ops on a null or self source.
+    /// </summary>
+    public void CopyViewFrom(OrbitCamera source)
+    {
+        if (source == null || ReferenceEquals(source, this)) return;
+
+        _suppressViewChanged++;
+        try
+        {
+            Azimuth = source.Azimuth;
+            Elevation = source.Elevation;
+            Distance = source.Distance;
+            Target = source.Target;
+            FieldOfView = source.FieldOfView;
+        }
+        finally
+        {
+            _suppressViewChanged--;
+        }
+    }
 
     // Mouse interaction state
     private float _lastMouseX, _lastMouseY;

@@ -1,0 +1,171 @@
+﻿<Window x:Class="SynthEBD.Window_BodySlideCompare"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SynthEBD"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=local:VM_BodySlideCompare}"
+        Title="Compare BodySlide Presets"
+        Height="820" Width="1280" MinHeight="520" MinWidth="900"
+        Style="{DynamicResource ThemedWindowStyle}">
+
+    <i:Interaction.Behaviors>
+        <local:TitleBarThemingBehavior/>
+    </i:Interaction.Behaviors>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- One pane. Instantiated twice against PaneA / PaneB, so the two sides are
+             guaranteed identical in layout and behavior. The viewer fills the remaining
+             height below the input stack; note the DockPanel children are declared
+             top-docked FIRST so the viewer (LastChildFill) takes what is left. -->
+        <DataTemplate x:Key="ComparePaneTemplate" DataType="{x:Type local:VM_BodySlideComparePane}">
+            <DockPanel Margin="4">
+                <Border DockPanel.Dock="Top" Background="{DynamicResource SecondaryBackground}"
+                        Padding="6,4" Margin="0,0,0,4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Row 0: pane letter + gender. The letter matters because the
+                             Superimpose overlay is always "B drawn inside A". -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PaneLabel}"
+                                   FontWeight="Bold" FontSize="15" Margin="0,0,10,3"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,3"
+                                  ItemsSource="{Binding Genders}"
+                                  SelectedItem="{Binding PreviewGender}"
+                                  local:DocTooltip.Key="BodySlideCompare.Gender"/>
+
+                        <!-- Row 1: preset filter -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Margin="0,0,5,3"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
+                                 Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
+                                 local:DocTooltip.Key="BodySlideCompare.PresetFilter"/>
+
+                        <!-- Row 2: the searchable preset dropdown. IsTextSearchEnabled +
+                             TextSearch.TextPath lets typing jump within the (already
+                             filtered) list, matching the Label by Measurements rail. -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Preset:" Margin="0,0,5,3"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
+                                  ItemsSource="{Binding FilteredPresets}"
+                                  SelectedItem="{Binding SelectedPreset}"
+                                  DisplayMemberPath="Label"
+                                  IsTextSearchEnabled="True"
+                                  TextSearch.TextPath="Label"
+                                  MaxDropDownHeight="400"
+                                  local:DocTooltip.Key="BodySlideCompare.Preset"/>
+
+                        <!-- Row 3: weight. Drives both the morph and, on a throttle, which
+                             NPCs the picker below offers. -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Weight:" Margin="0,0,5,3"
+                                   VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                                    Orientation="Horizontal" Margin="0,0,0,3">
+                            <xctk:IntegerUpDown MinWidth="70"
+                                                Value="{Binding Weight}" Minimum="0" Maximum="100"
+                                                local:DocTooltip.Key="BodySlideCompare.Weight"/>
+                            <!-- The scan walks every NPC record, so say when it is running
+                                 rather than leaving the picker looking momentarily wrong. -->
+                            <TextBlock Text="finding NPCs at this weight..." Margin="8,0,0,0"
+                                       VerticalAlignment="Center" FontStyle="Italic" Opacity="0.7"
+                                       Visibility="{Binding IsFindingNpcs, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+
+                        <!-- Row 4: preview NPC. CandidateFormKeys narrows the suggestion list to
+                             NPCs at the current weight; a typed or pasted FormKey outside that
+                             set is still accepted, and snaps the weight box to its NPC. -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="NPC:" Margin="0,0,5,0"
+                                   VerticalAlignment="Center"/>
+                        <local:UC_NamedFormKeyPicker Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                                                     FormKey="{Binding PreviewNpc, Mode=TwoWay}"
+                                                     LinkCache="{Binding lk}"
+                                                     ScopedTypes="{Binding NPCPickerFormKeys}"
+                                                     CandidateFormKeys="{Binding WeightFilteredNpcs}"
+                                                     MaxHeight="180"
+                                                     local:DocTooltip.Key="BodySlideCompare.PreviewNpc"/>
+                    </Grid>
+                </Border>
+
+                <local:UC_CharacterViewer DataContext="{Binding CharacterViewer}" MinHeight="260"/>
+            </DockPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Cross-pane controls. These act on the pair, not on either side, so they live
+             above both rather than being duplicated into each pane. -->
+        <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" Padding="8,5">
+            <WrapPanel Orientation="Horizontal">
+                <CheckBox Content="Lock camera" IsChecked="{Binding LockCamera}"
+                          VerticalAlignment="Center" Margin="0,0,20,0"
+                          local:DocTooltip.Key="BodySlideCompare.LockCamera"/>
+
+                <CheckBox Content="Superimpose" IsChecked="{Binding Superimpose}"
+                          VerticalAlignment="Center" Margin="0,0,10,0"
+                          FontWeight="Bold"
+                          local:DocTooltip.Key="BodySlideCompare.Superimpose"/>
+
+                <!-- Style + scope only mean anything while the overlay is on, so they grey
+                     out with it rather than disappearing (keeps the toolbar from reflowing). -->
+                <TextBlock Text="Style:" VerticalAlignment="Center" Margin="0,0,5,0"
+                           IsEnabled="{Binding Superimpose}"/>
+                <ComboBox Width="120" VerticalAlignment="Center" Margin="0,0,12,0"
+                          ItemsSource="{Binding SuperimposeStyles}"
+                          SelectedItem="{Binding SuperimposeStyle}"
+                          IsEnabled="{Binding Superimpose}"
+                          local:DocTooltip.Key="BodySlideCompare.SuperimposeStyle"/>
+
+                <CheckBox Content="Body only" IsChecked="{Binding SuperimposeBodyOnly}"
+                          VerticalAlignment="Center" Margin="0,0,20,0"
+                          IsEnabled="{Binding Superimpose}"
+                          local:DocTooltip.Key="BodySlideCompare.SuperimposeBodyOnly"/>
+
+                <TextBlock VerticalAlignment="Center" FontStyle="Italic" Opacity="0.75"
+                           Text="B is drawn inside A"
+                           Visibility="{Binding Superimpose, Converter={StaticResource BoolToVis}}"/>
+            </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="320"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*" MinWidth="320"/>
+            </Grid.ColumnDefinitions>
+
+            <ContentControl Grid.Column="0" Content="{Binding PaneA}"
+                            ContentTemplate="{StaticResource ComparePaneTemplate}"/>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch" Background="{DynamicResource BorderBrush}"
+                          ResizeBehavior="PreviousAndNext" ResizeDirection="Columns"
+                          ShowsPreview="True"/>
+
+            <ContentControl Grid.Column="2" Content="{Binding PaneB}"
+                            ContentTemplate="{StaticResource ComparePaneTemplate}"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -67,6 +67,64 @@ public partial class UC_NamedFormKeyPicker : UserControl
         set => SetValue(ScopedTypesProperty, value);
     }
 
+    public static readonly DependencyProperty CandidateFormKeysProperty = DependencyProperty.Register(
+        nameof(CandidateFormKeys), typeof(IEnumerable<FormKey>), typeof(UC_NamedFormKeyPicker),
+        new PropertyMetadata(null, (d, _) => ((UC_NamedFormKeyPicker)d).OnCandidatesChanged()));
+
+    /// <summary>
+    /// Optional allow-list restricting which records the suggestion popup offers. Null (the
+    /// default) offers everything in scope, which is how every pre-existing caller behaves.
+    ///
+    /// <para>This narrows SUGGESTIONS only. The display of the current
+    /// <see cref="FormKey"/> still resolves against the full index, and a typed or pasted
+    /// parseable FormKey is still accepted outright — so a caller can restrict the browse
+    /// list without preventing the user from naming a record outside it.</para>
+    ///
+    /// <para>Used by the BodySlide Compare window to narrow the preview-NPC picker to NPCs at
+    /// the pane's chosen weight.</para>
+    /// </summary>
+    public IEnumerable<FormKey> CandidateFormKeys
+    {
+        get => (IEnumerable<FormKey>)GetValue(CandidateFormKeysProperty);
+        set => SetValue(CandidateFormKeysProperty, value);
+    }
+
+    /// <summary>
+    /// Tracks the bound candidate collection's own change notifications. Callers typically bind
+    /// a long-lived <see cref="ObservableCollection{T}"/> that they REFILL — the property never
+    /// changes instance, so the DP callback alone would only ever see the collection's initial
+    /// (usually empty) state. Without this the picker would silently offer nothing.
+    /// </summary>
+    private System.Collections.Specialized.INotifyCollectionChanged? _observedCandidates;
+
+    private void OnCandidatesChanged()
+    {
+        if (_observedCandidates != null)
+        {
+            _observedCandidates.CollectionChanged -= CandidateCollectionChanged;
+            _observedCandidates = null;
+        }
+
+        if (CandidateFormKeys is System.Collections.Specialized.INotifyCollectionChanged observable)
+        {
+            _observedCandidates = observable;
+            _observedCandidates.CollectionChanged += CandidateCollectionChanged;
+        }
+
+        RefreshIfBrowsing();
+    }
+
+    private void CandidateCollectionChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => RefreshIfBrowsing();
+
+    /// <summary>Re-filters in place only while the popup is open, so a candidate set that
+    /// arrives or changes mid-browse doesn't leave stale entries on screen. When it's closed
+    /// there is nothing to update — the next open reads the collection fresh.</summary>
+    private void RefreshIfBrowsing()
+    {
+        if (SuggestionPopup.IsOpen) _ = RefreshSuggestionsAsync();
+    }
+
     /// <summary>Shows the resolved display string for the current FormKey in the search box
     /// (without opening the suggestion popup).</summary>
     private async void RefreshDisplayFromFormKey()
@@ -116,6 +174,17 @@ public partial class UC_NamedFormKeyPicker : UserControl
 
         Suggestions.Clear();
         IEnumerable<RecordDisplayData> matches = index.Values;
+        // Allow-list first: it is a set lookup and typically cuts the candidate pool by
+        // orders of magnitude, so the per-record text match below runs over far less.
+        // Snapshotted per refresh rather than cached on the property-changed callback, because
+        // the bound collection is refilled in place (see _observedCandidates) and a cached set
+        // would freeze at whatever it held when the binding first attached.
+        var candidates = CandidateFormKeys;
+        if (candidates != null)
+        {
+            var candidateSet = candidates as IReadOnlySet<FormKey> ?? new HashSet<FormKey>(candidates);
+            matches = matches.Where(x => candidateSet.Contains(x.FormKey));
+        }
         if (!string.IsNullOrWhiteSpace(searchText))
         {
             matches = matches.Where(x => Matches(x, searchText));

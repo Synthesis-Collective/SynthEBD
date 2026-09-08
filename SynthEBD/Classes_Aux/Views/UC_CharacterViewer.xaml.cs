@@ -228,9 +228,44 @@ public partial class UC_CharacterViewer : UserControl
             // steal the live control's controller callbacks.
             if (_glFailed && _fallbackActive && IsLoaded)
                 RebindFallbackToVm(_vm);
+
+            // A single control serves many VMs over its life (see above), and each new VM
+            // arrives holding the DI-registered dispatcher marshaller. Re-pin every rebind
+            // so the incoming VM's out-of-render-callback GL calls land in THIS control's
+            // context rather than a sibling viewer's.
+            PinMarshallerToThisControl();
         }
 
         TryStartGl();
+    }
+
+    /// <summary>
+    /// Replaces the bound VM's render-thread marshaller with one that makes THIS control's
+    /// GL context current before dispatching. Required once more than one viewer can be
+    /// alive at a time (the BodySlide Compare window puts three on screen): GL object names
+    /// are per-context and collide across contexts, so a plain dispatch-to-UI-thread
+    /// marshaller lets one viewer's vertex upload or teardown hit a sibling's objects.
+    /// See <see cref="GlControlPinningMarshaller"/> and the contract on
+    /// <see cref="VM_CharacterViewer.RenderThreadMarshaller"/>.
+    ///
+    /// <para>No-ops until GL has actually started — before that there is no context to pin
+    /// to, and the software-fallback path makes no GL calls at all.</para>
+    /// </summary>
+    private void PinMarshallerToThisControl()
+    {
+        if (_vm == null || !_glStarted || _glFailed) return;
+        // Already pinned to THIS control — nothing to do. A marshaller pinned to a
+        // different control (the VM migrated when WPF recreated the control on
+        // navigation) must still be replaced, hence the identity check rather than a
+        // bare type check.
+        if (_vm.RenderThreadMarshaller is GlControlPinningMarshaller existing
+            && ReferenceEquals(existing.Control, GlControl)) return;
+
+        _vm.RenderThreadMarshaller = new GlControlPinningMarshaller(
+            GlControl,
+            msg => _vm?.LogViewerDiagnostic("UC #" + _instanceId + " " + msg));
+        _vm.LogViewerDiagnostic("UC #" + _instanceId
+            + " installed GlControlPinningMarshaller on VM #" + _vm.GetHashCode().ToString("X"));
     }
 
     /// <summary>Reflects an external selection request (e.g., user picked a KeyVertex in the
@@ -347,6 +382,11 @@ public partial class UC_CharacterViewer : UserControl
         }
 
         _glStarted = true;
+
+        // The control now owns a GL context, so the bound VM's GL calls can be pinned to
+        // it. Must happen here as well as in OnDataContextChanged: the DataContext is
+        // usually set before the control has a context, and that earlier attempt no-ops.
+        PinMarshallerToThisControl();
 
         // GLWpfControl bug: Start() registers CompositionTarget.Rendering only
         // inside IsVisibleChanged, but if the control is already visible when
@@ -668,6 +708,29 @@ public partial class UC_CharacterViewer : UserControl
     private void GlControl_OnRender(TimeSpan delta)
     {
         _vm ??= DataContext as VM_CharacterViewer;
+        if (_vm == null) return;
+
+        // GLWpfControl has already made this control's context current before raising Render,
+        // so any GL work reached from inside this callback (ProcessPendingScene draining a
+        // queued morph, for instance) needs no further pinning. Flag it for the duration so
+        // the marshaller skips a redundant MakeCurrent, and clear it in the finally below so
+        // an exception mid-frame can't leave the pinning disabled for later calls.
+        var pinner = _vm.RenderThreadMarshaller as GlControlPinningMarshaller;
+        if (pinner != null) pinner.ContextAlreadyCurrent = true;
+        try
+        {
+            RenderFrame();
+        }
+        finally
+        {
+            if (pinner != null) pinner.ContextAlreadyCurrent = false;
+        }
+    }
+
+    /// <summary>The body of <see cref="GlControl_OnRender"/>, split out so the caller can
+    /// bracket it with the marshaller's already-current flag in a try/finally.</summary>
+    private void RenderFrame()
+    {
         if (_vm == null) return;
 
         // Zombie-render diagnostic: if OnRender fires after Unloaded, this UC's

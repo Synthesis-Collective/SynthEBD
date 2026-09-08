@@ -112,6 +112,13 @@ public static partial class UiDocs
             technical: "Fires the region pick channel and clears the pending box; the Criterion is ignored for regions. The box (stored in sliders-0 space) clips a surface patch whose boundary loops are capped into a watertight solid, and the RegionVolume measurement integrates that solid's volume against each preset's deformed vertices. The region appears as a new row on the profile's Regions tab.",
             motivation: "Some body traits are about mass rather than any single landmark's position; volume integration over a stable patch captures them where key-vertex distances cannot.");
 
+        // ---------- Compare ----------
+
+        Add("CharacterViewer.Compare",
+            layperson: "Opens a separate window with two 3D previews side by side, so you can look at two BodySlide presets at the same time instead of switching back and forth. Each side picks its own preset, preview NPC and weight, and there is an option to draw one body on top of the other.",
+            technical: "Opens Window_BodySlideCompare with a VM_BodySlideCompare seeded from this menu's current gender / weight / preview NPC / preset. Shown only on the three OBody-menu viewer hosts (see VM_CharacterViewer.ShowCompareButton) and only when a live GL viewport exists, since the window hosts two more of them.",
+            motivation: "Body shape differences between two presets are usually small and are very hard to judge from memory across a tab switch; side by side (or superimposed) makes them obvious.");
+
         // ---------- Viewport overlays ----------
 
         Add("CharacterViewer.AxisGizmo",

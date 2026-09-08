@@ -281,7 +281,13 @@ UI-SCREENSHOT OPTIONS:
   --invoke <menu.command>  After flipping to a menu that matches <menu> (same matching as --menu),
                            execute the named ICommand property on its view model before capturing —
                            reaches inner tabs the nav panel can't (e.g.
-                           SettingsOBody.ClickAnnotationMenu). Repeatable.
+                           SettingsOBody.ClickAnnotationMenu). Repeatable, and applied in the order
+                           given, so an earlier --invoke can open the tab a later one acts on.
+                           The part after the FIRST dot is a property PATH, so commands on nested
+                           view models are reachable too (e.g.
+                           SettingsOBody.DisplayedUI.PreviewPanel.CharacterViewer.CompareCommand).
+                           Any window an --invoke opens is captured as well, to
+                           <menu>-window-<title>.png, and then closed.
   --scroll-to <dockey>     Scroll the element carrying this DocTooltip.Key (e.g.
                            General.AttributeGroups) to the top of its ScrollViewer before capturing,
                            so below-the-fold controls on long settings pages land in the shot.

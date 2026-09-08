@@ -111,8 +111,53 @@
             </WrapPanel>
         </Border>
 
-        <!-- Toolbar row 2: classifier-only toggles + Verbose Log -->
+        <!-- Toolbar row 2: classifier-only toggles + Verbose Log, with Compare pinned right.
+             DockPanel (not a bare WrapPanel) so the Compare button can right-align: it docks
+             Right FIRST, then the WrapPanel fills the remaining width. Docking order matters —
+             a Right-docked child declared after the fill child gets no space. When the toolbar
+             wraps to multiple lines the button stays pinned to the top-right corner. -->
         <Border Grid.Row="1" Background="#FF2A2A2A" Padding="6 2" BorderBrush="#FF1A1A1A" BorderThickness="0,1,0,0">
+          <DockPanel LastChildFill="True">
+            <!-- Compare: opens the two-pane BodySlide comparison window. Deliberately tinted
+                 differently from its neighbours so it reads as a "goes somewhere else" action
+                 rather than another inline toggle. The colors are hard-coded rather than
+                 DynamicResource theme brushes because this whole toolbar is intentionally dark
+                 on every theme (see the spinner-style note in UserControl.Resources) - a theme
+                 brush would render light-on-light. Only shown for hosts that wired a
+                 CompareCommand; see VM_CharacterViewer.CompareButtonAvailable. -->
+            <Button DockPanel.Dock="Right" Content="Compare" FontSize="10"
+                    Margin="12,0,0,0" Padding="10 1" VerticalAlignment="Center"
+                    Command="{Binding CompareCommand}"
+                    Visibility="{Binding CompareButtonAvailable, Converter={StaticResource BoolToVis}}"
+                    local:DocTooltip.Key="CharacterViewer.Compare">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="#FF3A3260"/>
+                        <Setter Property="Foreground" Value="#FFB79CED"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                            BorderBrush="#FF6B5BA8" BorderThickness="1" CornerRadius="2"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#FF4B4080"/>
+                                            <Setter TargetName="bd" Property="BorderBrush" Value="#FF9A86D6"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="bd" Property="Background" Value="#FF2E2850"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Button.Style>
+            </Button>
+
             <WrapPanel Orientation="Horizontal">
                 <CheckBox Content="Wireframe" FontSize="11" Foreground="#FF33E6D0"
                           Margin="10,0,0,0" VerticalAlignment="Center"
@@ -291,6 +336,7 @@
                         Padding="6 1" VerticalAlignment="Center"
                         Click="LogLightingButton_Click"/>
             </WrapPanel>
+          </DockPanel>
         </Border>
 
         <!-- Toolbar row 3: shared lighting panel (presets / ambient / per-light editor).

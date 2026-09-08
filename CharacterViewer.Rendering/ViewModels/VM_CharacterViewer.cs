@@ -36,8 +36,13 @@ public enum ViewerMode
 /// <summary>
 /// ViewModel for the 3D character viewer. Manages the OpenGL rendering scene,
 /// loaded mesh data, textures, and user interaction.
+///
+/// <para>Partial: the guest-overlay ("superimpose") scene lives in
+/// <c>VM_CharacterViewer.GuestScene.cs</c>. That is a self-contained second scene
+/// installed alongside the primary one, so keeping it out of this file avoids
+/// interleaving it with the primary scene's install pipeline.</para>
 /// </summary>
-public class VM_CharacterViewer : ViewerVm
+public partial class VM_CharacterViewer : ViewerVm
 {
     /// <summary>Composite for reactive subscriptions added via
     /// <see cref="System.Reactive.Disposables.DisposableMixins.DisposeWith{T}"/>.
@@ -977,6 +982,34 @@ public class VM_CharacterViewer : ViewerVm
     /// input changes, so the controls hide the moment GL start fails.
     /// </summary>
     public bool ClassifierControlsAvailable => ShowClassifierControls && !RenderingUnavailable;
+
+    /// <summary>
+    /// Master toggle for the viewer toolbar's right-aligned "Compare" button. Hidden by
+    /// default and flipped on only by hosts that supply a <see cref="CompareCommand"/> —
+    /// in SynthEBD, the three OBody-menu preview hosts (BodySlides, Label by Measurements,
+    /// Label by Sliders). Kept separate from the command itself so a host can gate
+    /// visibility independently of whether the command happens to be executable.
+    /// </summary>
+    public bool ShowCompareButton { get; set; } = false;
+
+    /// <summary>
+    /// Invoked by the toolbar's "Compare" button. Deliberately typed as the framework's
+    /// <see cref="ICommand"/> rather than a host type: this VM lives in the rendering tier
+    /// and must not reference SynthEBD (or NPC2) models. SynthEBD points it at the command
+    /// that opens <c>Window_BodySlideCompare</c>, seeded from the host menu's current
+    /// preset / NPC / weight. Null when no host wired one up.
+    /// </summary>
+    public ICommand? CompareCommand { get; set; }
+
+    /// <summary>
+    /// True when the Compare button should actually show: the host enabled it, wired a
+    /// command, and a live GL viewport exists. The software fallback preview
+    /// (<see cref="RenderingUnavailable"/>) can't host the side-by-side viewers the button
+    /// opens, so it hides there for the same reason the classifier controls do.
+    /// PropertyChanged.Fody re-raises this whenever any input changes.
+    /// </summary>
+    public bool CompareButtonAvailable =>
+        ShowCompareButton && CompareCommand != null && !RenderingUnavailable;
 
     /// <summary>One-line summary of the most recent vertex pick for the classifier
     /// pick-info panel. Empty when no picks in the current session.</summary>
@@ -3964,6 +3997,12 @@ public class VM_CharacterViewer : ViewerVm
 
         if (!IsGlInitialized) return;
 
+        // ── 0. Guest overlay ("superimpose"). Drains its own queue and no-ops unless a
+        //       guest is pending and the primary scene is quiescent — the guard lives in
+        //       ProcessPendingGuestScene, which also re-installs the overlay after a primary
+        //       ClearScene has torn its meshes down along with everything else.
+        ProcessPendingGuestScene();
+
         // ── 1. First tick of a new scene: drain _pendingScene into a per-shape
         //       install queue. If a previous install is still in flight, abandon
         //       it — ClearScene tears down the partially-uploaded GL meshes so
@@ -6296,6 +6335,17 @@ public class VM_CharacterViewer : ViewerVm
                            || (_cachedOsdFiles != null && _cachedOsdFiles.Count > 0);
             if (!haveDeltas) return;
 
+            // GL uploads are collected here and issued in one marshalled block after the
+            // CPU pass below. ApplyMorphSet runs on the host's UI thread, OUTSIDE the
+            // control's render callback, so it is the one hot-path place where this VM
+            // touches GL without the owning context being current by construction. With a
+            // single viewer that was harmless; with concurrent viewers (the BodySlide
+            // Compare window) buffer names collide across contexts and an unpinned
+            // UpdateVertexData writes into a sibling viewer's VBO. Batching keeps it to one
+            // MakeCurrent per apply instead of one per shape. See the contract on
+            // RenderThreadMarshaller.
+            var pendingUploads = new List<(GlMesh Mesh, float[] VertexData)>();
+
             foreach (var kvp in _cachedBodyMeshes)
             {
                 string shapeName = kvp.Key;
@@ -6315,54 +6365,30 @@ public class VM_CharacterViewer : ViewerVm
                 // to the prior behavior of sourcing directly from BindPosePositions,
                 // which carries the load-time blend that matches whatever weight the
                 // NPC was loaded at — so the head/body neck stays aligned.
-                var basePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
-                var positions = new Vector3[basePositions.Length];
-                var w0 = originalMesh.Weight0BindPosePositions;
-                var w1 = originalMesh.Weight1BindPosePositions;
-                if (w0 != null && w1 != null
-                    && w0.Length == basePositions.Length
-                    && w1.Length == basePositions.Length)
-                {
-                    float t = NpcWeight / 100f;
-                    for (int i = 0; i < basePositions.Length; i++)
-                    {
-                        positions[i] = Vector3.Lerp(w0[i], w1[i], t);
-                    }
-                }
-                else
-                {
-                    Array.Copy(basePositions, positions, basePositions.Length);
-                }
+                var (positions, normals) = DeformShape(
+                    originalMesh, shapeName, morphs, NpcWeight, _cachedBodyTri, _cachedOsdFiles);
 
-                // Apply deformation -- prefer .tri (topology-matched, no LCP stripping),
-                // fall back to OSD for meshes without "Build Morphs" output.
-                if (_cachedBodyTri != null)
-                {
-                    _bodySlideDeformer.ApplyDeformationFromTri(positions, morphs, NpcWeight, _cachedBodyTri, shapeName);
-                }
-                else
-                {
-                    _bodySlideDeformer.ApplyDeformation(positions, morphs, NpcWeight, _cachedOsdFiles!, shapeName);
-                }
-
-                // Recalculate normals
-                var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
-                var normals = new Vector3[sourceNormals.Length];
-                Array.Copy(sourceNormals, normals, sourceNormals.Length);
-                BodySlideDeformer.RecalculateNormals(positions, originalMesh.Indices, normals);
-
-                // Re-apply skinning
-                if (originalMesh.Skinning != null)
-                    NifMeshBuilder.ApplySkinning(positions, normals, originalMesh.Skinning, positions, normals);
-
-                // Re-upload vertex data to GPU
+                // Queue the GPU re-upload; issued together below under the owning context.
                 var vertexData = BuildInterleavedVertexData(positions, normals,
                     originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents,
                     originalMesh.VertexColors);
-                glMesh.UpdateVertexData(vertexData);
+                pendingUploads.Add((glMesh, vertexData));
 
-                // Update CPU-side positions for hit testing
+                // Update CPU-side positions for hit testing (no GL involved, so it stays
+                // out of the marshalled block — pick/measure code reads it immediately
+                // after ApplyMorphSet returns).
                 glMesh.CpuPositions = positions;
+            }
+
+            if (pendingUploads.Count > 0)
+            {
+                _renderThread.Invoke(() =>
+                {
+                    foreach (var (mesh, data) in pendingUploads)
+                    {
+                        mesh.UpdateVertexData(data);
+                    }
+                });
             }
         }
         catch (Exception ex)
@@ -6562,6 +6588,11 @@ public class VM_CharacterViewer : ViewerVm
     public void ClearScene()
     {
         Renderer.ClearMeshes();
+        // ClearMeshes disposes EVERY mesh in the renderer, guest-overlay shapes included.
+        // Tell the guest scene its meshes are gone so it drops the dangling references and
+        // re-arms its install — the overlay is meant to survive the host swapping its own
+        // preset/NPC, and that swap goes through here.
+        NotifyGuestMeshesDestroyed();
         // Drop the per-VM GL texture cache with the scene. It is keyed on
         // game-RELATIVE paths, and a long-lived live-preview VM can load
         // successive scenes under DIFFERENT resolution scope chains where the
@@ -6638,6 +6669,13 @@ public class VM_CharacterViewer : ViewerVm
         _pendingMorphSet = null;
         _pendingMeshOverrides = null;
         _pendingHeadReplace = null;
+        // Guest overlay: drop the retained request (it pins a full set of BuiltMeshes) and
+        // the mesh references. The GL objects themselves are released by Renderer.Dispose
+        // below along with every other mesh, so there is nothing to delete individually.
+        _guestRequest = null;
+        _guestBodyTri = null;
+        _guestInstallPending = false;
+        _guestMeshes.Clear();
         _meshesByBodyPart.Clear();
         _builtMeshesByBodyPart.Clear();
         _cachedBodyMeshes.Clear();
@@ -6882,6 +6920,76 @@ public class VM_CharacterViewer : ViewerVm
     /// <summary>
     /// Creates a GlMesh from a BuiltMesh, uploading interleaved vertex data and indices.
     /// </summary>
+    /// <summary>
+    /// Pure geometry step of a BodySlide apply: takes one shape's bind-pose data and returns
+    /// freshly allocated deformed positions + normals. Does no GL work and touches no VM
+    /// state, so both the primary scene (<see cref="ApplyMorphSet"/>) and the guest overlay
+    /// (<c>VM_CharacterViewer.GuestScene.cs</c>) can share it — the two differ only in which
+    /// mesh set, .tri/OSD context and weight they feed in.
+    ///
+    /// <para>The steps, in order: lerp the <c>_0</c>/<c>_1</c> companion snapshots at
+    /// <paramref name="weight"/> (the game's "armor weight morph", reproduced per call so
+    /// changing weight without reloading still picks the right base body); apply the slider
+    /// deltas, preferring the topology-matched <paramref name="bodyTri"/> over
+    /// <paramref name="osdFiles"/>; recalculate normals against the deformed positions;
+    /// re-apply skinning.</para>
+    ///
+    /// <para>Shapes with no cached <c>_0</c>/<c>_1</c> pair (FaceGen head, hair, or any shape
+    /// whose <c>_0</c> didn't pair by name + vertex count) source directly from
+    /// <c>BindPosePositions</c>, which carries the load-time blend matching the weight the
+    /// NPC was loaded at — that is what keeps the head/body neck seam aligned.</para>
+    /// </summary>
+    private (Vector3[] Positions, Vector3[] Normals) DeformShape(
+        NifMeshBuilder.BuiltMesh originalMesh,
+        string shapeName,
+        MorphSet morphs,
+        int weight,
+        BodyTriFile? bodyTri,
+        List<OsdFile>? osdFiles)
+    {
+        var basePositions = originalMesh.BindPosePositions ?? originalMesh.Positions;
+        var positions = new Vector3[basePositions.Length];
+        var w0 = originalMesh.Weight0BindPosePositions;
+        var w1 = originalMesh.Weight1BindPosePositions;
+        if (w0 != null && w1 != null
+            && w0.Length == basePositions.Length
+            && w1.Length == basePositions.Length)
+        {
+            float t = weight / 100f;
+            for (int i = 0; i < basePositions.Length; i++)
+            {
+                positions[i] = Vector3.Lerp(w0[i], w1[i], t);
+            }
+        }
+        else
+        {
+            Array.Copy(basePositions, positions, basePositions.Length);
+        }
+
+        // Apply deformation -- prefer .tri (topology-matched, no LCP stripping),
+        // fall back to OSD for meshes without "Build Morphs" output.
+        if (bodyTri != null)
+        {
+            _bodySlideDeformer.ApplyDeformationFromTri(positions, morphs, weight, bodyTri, shapeName);
+        }
+        else if (osdFiles != null && osdFiles.Count > 0)
+        {
+            _bodySlideDeformer.ApplyDeformation(positions, morphs, weight, osdFiles, shapeName);
+        }
+
+        // Recalculate normals
+        var sourceNormals = originalMesh.BindPoseNormals ?? originalMesh.Normals;
+        var normals = new Vector3[sourceNormals.Length];
+        Array.Copy(sourceNormals, normals, sourceNormals.Length);
+        BodySlideDeformer.RecalculateNormals(positions, originalMesh.Indices, normals);
+
+        // Re-apply skinning
+        if (originalMesh.Skinning != null)
+            NifMeshBuilder.ApplySkinning(positions, normals, originalMesh.Skinning, positions, normals);
+
+        return (positions, normals);
+    }
+
     private GlMesh CreateGlMesh(NifMeshBuilder.BuiltMesh built)
     {
         var vertexData = BuildInterleavedVertexData(

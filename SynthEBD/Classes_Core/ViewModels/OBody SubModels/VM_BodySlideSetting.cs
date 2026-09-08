@@ -34,7 +34,7 @@ public class VM_BodySlideSetting : VM
     private readonly Logger _logger;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier, Func<VM_BodySlideCompare> compareFactory)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -57,6 +57,18 @@ public class VM_BodySlideSetting : VM
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
         CharacterViewer.DisposeWith(this);
+
+        // Compare button on the viewer toolbar, seeded with THIS preset on pane A so the
+        // window opens on the preset the user was already editing.
+        CharacterViewer.ShowCompareButton = true;
+        CharacterViewer.CompareCommand = BodySlideCompareLauncher.CreateCommand(
+            compareFactory,
+            () => new BodySlideCompareSeed(
+                ResolveGender(),
+                SelectedWeightSlot?.Weight ?? 50,
+                PreviewNpcOverride,
+                AssociatedPlaceHolder?.AssociatedModel),
+            logger);
 
         AllowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);
         DisallowedRaceGroupings = new VM_RaceGroupingCheckboxList(raceGroupingVMs);

@@ -81,7 +81,8 @@ public class VM_BodyTypeProfileEditor : VM
         VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory,
         SynthEBDPaths paths,
         InstalledBodyTypeDetector bodyTypeDetector,
-        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer)
+        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer,
+        Func<VM_BodySlideCompare> compareFactory)
     {
         _logger = logger;
         _oBodyVM = oBodyVM;
@@ -113,6 +114,15 @@ public class VM_BodyTypeProfileEditor : VM
         // HeightOverride null so they can still honor per-NPC heights.
         CharacterViewer.HeightOverride = 1.0f;
         CharacterViewer.DisposeWith(this);
+
+        // Compare button on the viewer toolbar, seeded from this editor's right-rail preview.
+        CharacterViewer.ShowCompareButton = true;
+        CharacterViewer.CompareCommand = BodySlideCompareLauncher.CreateCommand(
+            compareFactory,
+            () => new BodySlideCompareSeed(
+                PreviewGender, PreviewWeight, PreviewNpcOverride,
+                SelectedPreset?.AssociatedModel),
+            logger);
 
         // ApplyBodySlide may defer to _pendingBodySlide when the scene isn't yet rebuilt
         // (LoadNpcAsync returns before ProcessPendingScene runs on the GL thread). The

@@ -112,6 +112,44 @@ internal sealed class SynthEbdViewerHostState
     }
 
     // ───────────────────────────────────────────────────────────────────
+    //  LoadGuestNpcAsync (superimpose)
+    // ───────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// SynthEBD wrapper around <see cref="VM_CharacterViewer.LoadGuestAsync"/>: resolves the
+    /// OSD morph context for <paramref name="preset"/>, translates it to a neutral
+    /// <see cref="MorphSet"/>, and asks the viewer to overlay <paramref name="npcFormKey"/>
+    /// on top of its current scene.
+    ///
+    /// <para>Unlike <see cref="ApplyBodySlide"/> this does NOT queue on scene readiness. The
+    /// guest install already waits for a quiescent primary scene inside
+    /// <c>ProcessPendingGuestScene</c> and re-arms itself after a primary <c>ClearScene</c>,
+    /// so a guest requested mid-load lands on its own once the host scene commits.</para>
+    /// </summary>
+    internal Task LoadGuestNpcAsync(FormKey npcFormKey, BodySlideSetting? preset, int weight)
+    {
+        List<OsdFile>? osdFiles = null;
+        if (preset?.SliderGroup != null)
+        {
+            try
+            {
+                // Loaded unconditionally, same as ApplyBodySlide: whether the guest's body NIF
+                // has a sibling .tri isn't knowable here, and the deformer prefers .tri when
+                // one turns up.
+                osdFiles = _osdLoader.LoadForSliderGroup(preset.SliderGroup);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("CharacterViewer: guest OSD pre-load failed for preset '"
+                    + (preset.Label ?? "?") + "': " + ExceptionLogger.GetExceptionStack(ex));
+            }
+        }
+
+        var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
+        return _vm.LoadGuestAsync(identity, preset != null ? ToMorphSet(preset) : null, weight, osdFiles);
+    }
+
+    // ───────────────────────────────────────────────────────────────────
     //  ApplyBodyGen
     // ───────────────────────────────────────────────────────────────────
 

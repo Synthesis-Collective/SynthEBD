@@ -84,6 +84,24 @@ public static class CharacterViewerSynthEbdExtensions
         SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).ApplyBodySlide(preset, weight);
     }
 
+    /// <summary>
+    /// SynthEBD-facing guest overlay ("superimpose"): draws <paramref name="npcFormKey"/>
+    /// wearing <paramref name="preset"/> at <paramref name="weight"/> on top of whatever
+    /// <paramref name="viewer"/> is already showing. Used by the BodySlide Compare window so
+    /// pane B's model can be overlaid on pane A's.
+    ///
+    /// <para><paramref name="linkCache"/> is accepted for symmetry with
+    /// <see cref="LoadNpcAsync"/> and is likewise unused — the viewer's preview-cache adapter
+    /// holds its own reference. Pass a null <paramref name="preset"/> to overlay the NPC's
+    /// undeformed body.</para>
+    /// </summary>
+    public static Task LoadGuestNpcAsync(this VM_CharacterViewer viewer,
+        FormKey npcFormKey, ILinkCache linkCache, BodySlideSetting? preset, int weight)
+    {
+        return SynthEbdViewerHostStateRegistry.GetOrCreate(viewer)
+            .LoadGuestNpcAsync(npcFormKey, preset, weight);
+    }
+
     /// <summary>SynthEBD-facing BodyGen application. Stacks
     /// <paramref name="templates"/>' Specs additively, builds a virtual
     /// <see cref="BodySlideSetting"/>, and routes through

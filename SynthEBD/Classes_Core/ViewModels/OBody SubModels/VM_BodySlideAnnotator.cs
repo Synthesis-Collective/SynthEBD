@@ -1,4 +1,4 @@
-using DynamicData;
+﻿using DynamicData;
 using DynamicData.Binding;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
@@ -44,7 +44,7 @@ public class VM_BodySlideAnnotator : VM
     /// <summary>Autofac factory delegate for <see cref="VM_BodySlideAnnotator"/>.</summary>
     public delegate VM_BodySlideAnnotator Factory(VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu);
     /// <summary>Wires up the ApplyAnnotations command and the preview rail, routing the selected body type into the rail's preset list.</summary>
-    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver, SynthEBDPaths paths, DescriptorDefaultSynchronizer descriptorDefaultSynchronizer)
+    public VM_BodySlideAnnotator(PatcherState patcherState, VM_BodyShapeDescriptorCreationMenu oBodyDescriptorMenu, VM_BodySlidesMenu bodySlideMenu, VM_OBodyMiscSettings miscMenu, BodySlideAnnotator bodySlideAnnotator, Logger logger, IEnvironmentStateProvider environmentProvider, Func<VM_CharacterViewer> characterViewerFactory, PreviewNpcResolver previewNpcResolver, SynthEBDPaths paths, DescriptorDefaultSynchronizer descriptorDefaultSynchronizer, Func<VM_BodySlideCompare> compareFactory)
     {
         _patcherState = patcherState;
         _oBodyDescriptorMenu = oBodyDescriptorMenu;
@@ -55,7 +55,7 @@ public class VM_BodySlideAnnotator : VM
         DefaultSynchronizer = descriptorDefaultSynchronizer;
         descriptorDefaultSynchronizer.RegisterAnnotator(this);
 
-        PreviewPanel = new VM_SliderAnnotatorPreviewPanel(logger, patcherState, environmentProvider, characterViewerFactory, previewNpcResolver, bodySlideMenu);
+        PreviewPanel = new VM_SliderAnnotatorPreviewPanel(logger, patcherState, environmentProvider, characterViewerFactory, previewNpcResolver, bodySlideMenu, compareFactory);
         PreviewPanel.DisposeWith(this);
         _displayedRuleSetSliderNamesSub.DisposeWith(this);
 

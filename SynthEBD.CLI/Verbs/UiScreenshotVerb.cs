@@ -115,7 +115,11 @@ public static class UiScreenshotVerb
                         // capture shows a tab the top-level nav flip can't reach.
                         foreach (var invoke in options.Invokes)
                         {
-                            int dot = invoke.LastIndexOf('.');
+                            // Split on the FIRST dot: everything before it names the menu, everything
+                            // after is a property path on that menu's VM. The path may be nested
+                            // ("CharacterViewer.CompareCommand") to reach a command on a child VM —
+                            // menu names never contain dots, so first-dot is unambiguous.
+                            int dot = invoke.IndexOf('.');
                             string targetMenu = invoke.Substring(0, dot);
                             string commandProperty = invoke.Substring(dot + 1);
                             if (!targetMenu.Equals(menuName, StringComparison.OrdinalIgnoreCase)
@@ -125,12 +129,9 @@ public static class UiScreenshotVerb
                             }
 
                             var displayedVm = displayedItem.DisplayedViewModel;
-                            var commandProp = displayedVm?.GetType().GetProperty(commandProperty, BindingFlags.Public | BindingFlags.Instance);
-                            if (displayedVm != null && commandProp != null
-                                && typeof(ICommand).IsAssignableFrom(commandProp.PropertyType)
-                                && commandProp.GetValue(displayedVm) is ICommand subCommand)
+                            if (TryResolveCommand(displayedVm, commandProperty, out var subCommand))
                             {
-                                subCommand.Execute(null);
+                                subCommand!.Execute(null);
                                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
                             }
                             else
@@ -171,6 +172,12 @@ public static class UiScreenshotVerb
                         Console.Error.WriteLine("ui-screenshot: captured " + theme + "\\" + mode + "\\" + fileName);
                         resultWriter.WriteLine(filePath);
                         captured++;
+
+                        // Any dialog / tool window an --invoke opened (e.g. BodySlide Compare) is a
+                        // separate visual tree the main-window capture above cannot reach.
+                        captured += await CaptureAndCloseExtraWindowsAsync(
+                            window, options.OutPath!, theme, mode.ToString(), menuName,
+                            options.SettleMs, resultWriter);
                     }
                 }
             }
@@ -185,6 +192,68 @@ public static class UiScreenshotVerb
             Console.Error.WriteLine("ui-screenshot: " + captured + " screenshot(s) written to " + options.OutPath);
             return captured > 0 ? 0 : 1;
         }
+    }
+
+    /// <summary>
+    /// Walks a dotted property path from <paramref name="root"/> and returns the
+    /// <see cref="ICommand"/> it ends at. A single segment ("ClickMiscMenu") reads a command
+    /// straight off the menu VM; multiple segments ("CharacterViewer.CompareCommand") step
+    /// through child VMs first, which is how commands on embedded controls are reachable.
+    /// Returns false — never throws — if any segment is missing or null, or the final value
+    /// isn't a command.
+    /// </summary>
+    private static bool TryResolveCommand(object? root, string propertyPath, out ICommand? command)
+    {
+        command = null;
+        object? current = root;
+
+        foreach (var segment in propertyPath.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (current == null) return false;
+            var prop = current.GetType().GetProperty(segment, BindingFlags.Public | BindingFlags.Instance);
+            if (prop == null) return false;
+            current = prop.GetValue(current);
+        }
+
+        command = current as ICommand;
+        return command != null;
+    }
+
+    /// <summary>
+    /// Captures every window the app has open besides <paramref name="mainWindow"/> — dialogs and
+    /// tool windows an --invoke opened, which <see cref="WpfCapture.SaveWindowPngAsync"/> would
+    /// otherwise never see because it only ever renders the main window's visual tree.
+    ///
+    /// <para>Each is closed after capture so the next menu in the sweep starts from a clean desktop
+    /// and a window holding GL contexts (the BodySlide Compare window holds two) doesn't accumulate
+    /// across the run.</para>
+    /// </summary>
+    private static async Task<int> CaptureAndCloseExtraWindowsAsync(
+        Window mainWindow, string outDir, string theme, string mode, string menuName,
+        int settleMs, TextWriter resultWriter)
+    {
+        var extras = System.Windows.Application.Current?.Windows
+            .OfType<Window>()
+            .Where(w => !ReferenceEquals(w, mainWindow) && w.IsVisible)
+            .ToList() ?? new List<Window>();
+
+        int captured = 0;
+        foreach (var extra in extras)
+        {
+            string safeTitle = string.Concat((extra.Title ?? extra.GetType().Name)
+                .Split(Path.GetInvalidFileNameChars()));
+            string fileName = menuName + "-window-" + safeTitle + ".png";
+            string filePath = Path.Combine(outDir, theme, mode, fileName);
+
+            await extra.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+            await WpfCapture.SaveWindowPngAsync(extra, filePath, settleMs);
+            Console.Error.WriteLine("ui-screenshot: captured " + theme + "\\" + mode + "\\" + fileName);
+            resultWriter.WriteLine(filePath);
+            captured++;
+
+            extra.Close();
+        }
+        return captured;
     }
 
     /// <summary>

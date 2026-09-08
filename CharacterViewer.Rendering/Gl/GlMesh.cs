@@ -149,6 +149,17 @@ public class GlMesh : IDisposable
     // visual cue and lines up with the host's missing-texture overlay.
     public bool RenderAsWireframeFallback { get; set; } = false;
 
+    // Per-mesh wireframe color, overriding both group colors
+    // (GlRenderer.WireframeColor / MissingTextureWireframeColor) for this mesh.
+    // Null = use the group color as before.
+    //
+    // Exists so the guest-overlay ("superimpose") scene can reuse
+    // RenderAsWireframeFallback's draw behavior -- skip the solid passes, draw
+    // edges only -- WITHOUT inheriting its color, which specifically means
+    // "this shape's diffuse failed to decode". A guest drawn in that green
+    // would read as a texture error rather than as the other model.
+    public Vector3? WireframeColorOverride { get; set; }
+
     // Material properties
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;

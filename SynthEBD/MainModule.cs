@@ -142,6 +142,11 @@ public class MainModule : Autofac.Module
         builder.RegisterType<CharacterPreviewCache>().AsSelf().SingleInstance();
         builder.RegisterType<VM_CharacterViewer>().AsSelf();
 
+        // BodySlide Compare window VM. Transient (NOT SingleInstance): each Compare window
+        // owns two live VM_CharacterViewer instances with their own GL contexts and disposes
+        // them on close, so a shared instance would hand a second window two dead viewers.
+        builder.RegisterType<VM_BodySlideCompare>().AsSelf();
+
         // SynthEBD-side helpers for the viewer-host extension methods
         // (CharacterViewerSynthEbdExtensions). SynthEbdOsdLoader replaces the
         // viewer's old LoadOsdFilesForGroup; SynthEbdViewerHostStateRegistry
