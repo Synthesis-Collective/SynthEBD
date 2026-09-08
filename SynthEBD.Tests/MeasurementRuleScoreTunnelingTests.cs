@@ -66,13 +66,14 @@ public class MeasurementRuleScoreTunnelingTests
         IReadOnlyList<VM_MeasurementRule> allRules,
         Gender rowGender,
         MarginScoreMode mode = MarginScoreMode.PercentOfThreshold,
-        Dictionary<string, double>? stdDevs = null)
+        Dictionary<string, double>? stdDevs = null,
+        IReadOnlyDictionary<string, string>? defaultsByCategory = null)
     {
         var mi = typeof(VM_BodyTypeProfileEditor).GetMethod(
             "ScoreRuleAgainstMeasurements", BindingFlags.NonPublic | BindingFlags.Static);
         mi.Should().NotBeNull("the scorer should still exist under this name — update the test if it was renamed");
         return (double?)mi!.Invoke(
-            null, new object?[] { rule, measurements, mode, stdDevs, allRules, rowGender, null });
+            null, new object?[] { rule, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, null });
     }
 
     // ---------- tunneling ----------
@@ -195,13 +196,31 @@ public class MeasurementRuleScoreTunnelingTests
     }
 
     [Fact]
-    public void RefOnlyRuleWithNoProducer_ScoresZeroLikeBefore()
+    public void RefOnlyRuleWithNoProducer_IsUnscorable()
     {
         var rule = MakeRule("Build", "X", RuleGender.Either, Grp(Ref("Ghost", "Nope")));
         var all = new List<VM_MeasurementRule> { rule };
 
-        // Nothing scorable in the group at all: the legacy "passed but un-rankable" 0.0.
-        Score(rule, new Dictionary<string, float?>(), all, Gender.Female).Should().Be(0.0);
+        // Nothing scorable in the group at all → no margin information. This used to score a
+        // flat 0.0 ("passed but un-rankable"), which is indistinguishable from "exactly on
+        // the boundary" and — negated into a Category-default margin — would read as "barely
+        // default". The group now drops out of the max and the rule is unscored.
+        Score(rule, new Dictionary<string, float?>(), all, Gender.Female).Should().BeNull();
+    }
+
+    [Fact]
+    public void BinaryOnlyGroup_DropsOutOfTheMax_InsteadOfScoringZero()
+    {
+        // Group 1: a real numeric margin (negative). Group 2: only an Equal condition, which
+        // carries no margin. The old 0.0 sentinel for group 2 would have won the max and hidden
+        // the -0.5 signal; now group 2 is skipped and the numeric margin is reported.
+        var rule = MakeRule("Cat", "V", RuleGender.Either,
+            Grp(Meas("A", MeasurementComparator.GreaterThanOrEqual, 2f)),
+            Grp(Meas("B", MeasurementComparator.EqualTo, 1f)));
+        var all = new List<VM_MeasurementRule> { rule };
+        var measurements = new Dictionary<string, float?> { ["A"] = 1f, ["B"] = 1f };
+
+        Score(rule, measurements, all, Gender.Female)!.Value.Should().BeApproximately(-0.5, 0.001);
     }
 
     [Fact]

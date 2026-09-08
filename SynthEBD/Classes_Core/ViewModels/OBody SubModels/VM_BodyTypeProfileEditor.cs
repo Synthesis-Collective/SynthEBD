@@ -2516,7 +2516,16 @@ public class VM_BodyTypeProfileEditor : VM
             var siblingRules = profile.Rules
                 .Where(r => string.Equals(r.DescriptorCategory, cat, StringComparison.Ordinal))
                 .ToList();
-            if (matchingRules.Count > 0)
+            // Per-Category defaults (BodyTypeProfile.DefaultDescriptorValuesByCategory). A
+            // value that is its Category's default is scorable even with no rule of its own:
+            // the scorer synthesizes the default's margin as the negation of every sibling
+            // rule (see ScoreCategoryDefault). So the gate is "has rules OR is the default",
+            // not just "has rules" — otherwise the (typically largest) default-assigned
+            // population would sit unscored at the bottom of the list.
+            var defaultsByCategory = profile.GetDefaultValuesByCategory();
+            bool scoredValueIsDefault = defaultsByCategory.TryGetValue(cat, out var categoryDefault)
+                                        && string.Equals(categoryDefault, scoredValue, StringComparison.Ordinal);
+            if (matchingRules.Count > 0 || (scoredValueIsDefault && siblingRules.Count > 0))
             {
                 // Std-dev normalization needs population statistics across the full cache.
                 // Compute once per refresh (not per row) so the cost is O(presets × names)
@@ -2524,10 +2533,11 @@ public class VM_BodyTypeProfileEditor : VM
                 // matchingRules) so sibling-score normalization uses the same sigmas as the
                 // primary score — otherwise σ values per measurement would shift between
                 // badge and tooltip whenever a sibling rule references a measurement the
-                // primary rule doesn't.
+                // primary rule doesn't. The default's own score is built from those same
+                // siblings, so it needs no extra names.
                 Dictionary<string, double> stdDevs = null;
                 if (scoringMetric == MarginScoreMode.StdDevNormalized)
-                    stdDevs = ComputePopulationStdDevs(profile, siblingRules);
+                    stdDevs = ComputePopulationStdDevs(profile, siblingRules, defaultsByCategory);
 
                 // Snapshot of every rule on the profile, for DescriptorRef tunneling inside
                 // the scorer — an aggregator rule (e.g. Build) is scored via the rules of the
@@ -2540,23 +2550,27 @@ public class VM_BodyTypeProfileEditor : VM
                     if (!profile.MeasurementCache.TryGetValue(
                             (row.PresetLabel, row.Gender, row.Weight), out var entry))
                         continue;
-                    double? best = null;
-                    foreach (var rule in matchingRules)
-                    {
-                        // Gender-scoped rules only score rows they'd fire for at scan time
-                        // (mirrors BodySlideMeasurementEvaluator.FilterEligibleRules) —
-                        // otherwise a Male-only variant's margins leak into Female rows'
-                        // badges through the max below.
-                        if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, row.Gender)) continue;
-                        double? rs = ScoreRuleAgainstMeasurements(
-                            rule, entry.Measurements, scoringMetric, stdDevs, allRules, row.Gender);
-                        if (rs.HasValue && (!best.HasValue || rs.Value > best.Value))
-                            best = rs;
-                    }
+                    // Gender-scoped rules only score rows they'd fire for at scan time
+                    // (mirrors BodySlideMeasurementEvaluator.FilterEligibleRules) — the
+                    // per-value scorer applies the same filter the old per-rule loop did,
+                    // and folds in the Category-default margin when the scored value is the
+                    // default. viaDefault tells the badge which of the two won so the
+                    // number can be labelled honestly (a rule's score is depth inside its
+                    // own region; the default's is distance from the nearest rival).
+                    // One scoring context per row: the badge and the tooltip share its memo,
+                    // so every rule reachable from this Category is scored at most once per
+                    // row however many values (and the default's rivals) ask for it. Matters
+                    // for reference-heavy Categories like Build, whose values all tunnel into
+                    // the same Arms/Belly/Realism producers.
+                    var ctx = new RuleScoreContext();
+                    double? best = ScoreDescriptorValue(
+                        cat, scoredValue, entry.Measurements, scoringMetric, stdDevs,
+                        allRules, defaultsByCategory, row.Gender, ctx, out bool viaDefault);
                     row.Score = best;
-                    row.ScoreDisplay = FormatScore(best, scoringMetric);
+                    row.ScoreDisplay = FormatScore(best, scoringMetric, viaDefault);
                     row.SiblingScoresTooltip = BuildSiblingScoresTooltip(
-                        cat, siblingRules, entry.Measurements, scoringMetric, stdDevs, allRules, row.Gender);
+                        cat, siblingRules, entry.Measurements, scoringMetric, stdDevs, allRules,
+                        defaultsByCategory, row.Gender, ctx);
                 }
 
                 // Sort: highest score first, scored rows ahead of unscored ones, ties broken
@@ -2593,9 +2607,10 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Rebuilds <see cref="SimilarityTargetOptions"/> from the current filter state.
     /// The available targets are every descriptor value in the filter's category that has at
-    /// least one rule on the active profile, minus the filter's own selected value (a
-    /// "Similarity to self" comparison is a no-op compared to the existing Match-strength
-    /// sort, so we exclude it to keep the dropdown short).
+    /// least one rule on the active profile — plus the category's default value, which is
+    /// scorable without rules via the synthesized default margin (<see cref="ScoreCategoryDefault"/>)
+    /// — minus the filter's own selected value (a "Similarity to self" comparison is a no-op
+    /// compared to the existing Match-strength sort, so we exclude it to keep the dropdown short).
     /// <para>The previously-selected target survives the refresh when it's still valid;
     /// otherwise it falls back to the first available option. Called from the filter-change
     /// subscription and the ScoreSortMode property-changed branch so the list tracks both
@@ -2613,9 +2628,16 @@ public class VM_BodyTypeProfileEditor : VM
         // Distinct sibling values, ordinal-sorted for stable display. Excludes the filter's
         // own value because comparing it to itself yields the same scores as the existing
         // Match-strength sort modes.
-        var siblings = profile.Rules
+        // The category default is appended as a candidate even when it has no rule of its
+        // own: the scorer gives it a synthesized margin (negation of every sibling rule), so
+        // "how close is this Athletic row to falling back to Medium" is a valid question.
+        var siblingValues = profile.Rules
             .Where(r => string.Equals(r.DescriptorCategory, cat, StringComparison.Ordinal))
-            .Select(r => r.DescriptorValue)
+            .Select(r => r.DescriptorValue);
+        string categoryDefault = profile.GetDefaultValueForCategory(cat);
+        if (!string.IsNullOrEmpty(categoryDefault))
+            siblingValues = siblingValues.Append(categoryDefault);
+        var siblings = siblingValues
             .Where(v => !string.IsNullOrEmpty(v) && !string.Equals(v, selectedVal, StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
@@ -2740,7 +2762,8 @@ public class VM_BodyTypeProfileEditor : VM
     /// <para>Std-dev is computed as sample std-dev (n−1 denominator); 0 or fewer than two
     /// samples returns 0.0 which the scorer treats as the fallback signal.</para></summary>
     private static Dictionary<string, double> ComputePopulationStdDevs(
-        VM_BodyTypeProfile profile, List<VM_MeasurementRule> rules)
+        VM_BodyTypeProfile profile, List<VM_MeasurementRule> rules,
+        IReadOnlyDictionary<string, string> defaultsByCategory = null)
     {
         // Expand the input set to its DescriptorRef closure. Eligibility (gender/draft) is
         // deliberately ignored here — a superset only costs a few extra Welford passes, and
@@ -2761,11 +2784,18 @@ public class VM_BodyTypeProfileEditor : VM
                 {
                     if (cond == null || cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
                     if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue)) continue;
+                    // A ref to the referenced Category's *default* value tunnels into the
+                    // synthesized default margin, which is built from every rival rule in
+                    // that Category (ScoreCategoryDefault) — so the whole Category joins the
+                    // closure, not just the rules that produce the referenced value.
+                    bool refIsDefault = IsCategoryDefault(cond.RefCategory, cond.RefValue, defaultsByCategory);
                     foreach (var producer in profile.Rules)
                     {
                         if (producer == null) continue;
-                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal)
-                            || !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
+                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal))
+                            continue;
+                        if (!refIsDefault
+                            && !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
                             continue;
                         if (seen.Add(producer)) closure.Add(producer);
                     }
@@ -2830,15 +2860,23 @@ public class VM_BodyTypeProfileEditor : VM
     /// this condition's margin (negated refs flip the sign, so "must NOT be X" is satisfied
     /// exactly as strongly as X fails). This is what lets aggregator rules like
     /// Build:Powerful (pure DescriptorRef groups) produce real margins instead of the flat
-    /// 0.0 they scored before. A ref with no producer rules at all (e.g. a per-Category
-    /// default value) keeps the old binary treatment: it contributes nothing to the min and
-    /// the scan's verdict is trusted. Producers that exist but can't be scored (stale cache,
-    /// cycle) make the group un-scorable, mirroring the missing-measurement path.</para>
-    /// <para>Groups whose scorable set is empty (only Equal/NotEqual/producer-less refs)
-    /// score 0.0 (passed but un-rankable). Disabled groups are skipped, matching
-    /// <see cref="MeasurementMath.RuleMatches"/> — a muted branch must not feed the badge.
-    /// Returns null when no group is fully scorable — typically only happens when rules were
-    /// edited after the last scan and the cache is now stale.</para></summary>
+    /// 0.0 they scored before. The referenced value is scored via
+    /// <see cref="ScoreDescriptorValue"/>, so a ref to a Category's <b>default</b> value
+    /// (e.g. [Belly:Normal]) tunnels into the synthesized default margin
+    /// (<see cref="ScoreCategoryDefault"/>) even when that value has no live rule of its
+    /// own. A ref to a value that is unreachable — neither a gender-eligible producer nor a
+    /// default with at least one rival — keeps the old binary treatment: it contributes
+    /// nothing to the min and the scan's verdict is trusted. A reachable value that can't be
+    /// scored (stale cache, cycle) makes the group un-scorable, mirroring the
+    /// missing-measurement path.</para>
+    /// <para>Groups with no scorable condition at all (only Equal/NotEqual or unreachable
+    /// refs) carry no margin information and drop out of the max — they used to score a
+    /// flat 0.0, which is indistinguishable from "exactly on the boundary" and, once negated
+    /// into a default margin, would read as "barely default" instead of "unknown". Disabled
+    /// groups are skipped, matching <see cref="MeasurementMath.RuleMatches"/> — a muted
+    /// branch must not feed the badge. Returns null when no group is scorable — a stale
+    /// cache, an all-disabled rule (how the live profiles park a default value's legacy
+    /// rule), or a rule made only of binary conditions.</para></summary>
     /// <param name="rule">Rule to evaluate. Must already have a matching descriptor; caller
     /// filters by descriptor before calling.</param>
     /// <param name="measurements">Row's cached values, keyed by measurement name. Float?
@@ -2851,31 +2889,44 @@ public class VM_BodyTypeProfileEditor : VM
     /// their sigmas here too.</param>
     /// <param name="allRules">Every rule on the profile — the resolution set for
     /// DescriptorRef tunneling.</param>
+    /// <param name="defaultsByCategory">The profile's per-Category default values
+    /// (<see cref="VM_BodyTypeProfile.GetDefaultValuesByCategory"/>). Lets a ref to a
+    /// default value tunnel into the synthesized default margin. Null disables that path
+    /// (every default-valued ref then falls back to the producer-only rules).</param>
     /// <param name="rowGender">Gender of the row being scored. Referenced rules whose
     /// <see cref="VM_MeasurementRule.Gender"/> excludes it are not tunneled into (mirrors
     /// <see cref="BodySlideMeasurementEvaluator.RuleGenderMatches"/> at scan time).</param>
-    /// <param name="activeRules">Recursion stack — rules currently being scored up-chain.
-    /// A ref that loops back into one of these returns null instead of recursing (the
-    /// editor blocks cycles, but hand-edited JSON can still author one). Leave null at the
-    /// top-level call.</param>
+    /// <param name="ctx">Per-row scoring context (<see cref="RuleScoreContext"/>): the
+    /// DescriptorRef recursion stack — a ref that loops back into a rule on it returns null
+    /// instead of recursing (the editor blocks cycles, but hand-edited JSON can still author
+    /// one) — plus a memo of finished rule scores, so shared sub-rules (Build's rivals all
+    /// tunnel into the same Arms/Belly producers) are scored once per row. Null at a
+    /// one-off call creates a private context; callers scoring several values of one row
+    /// should share one.</param>
     private static double? ScoreRuleAgainstMeasurements(
         VM_MeasurementRule rule,
         IReadOnlyDictionary<string, float?> measurements,
         MarginScoreMode mode,
         Dictionary<string, double> stdDevs,
         IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
         Gender rowGender,
-        HashSet<VM_MeasurementRule> activeRules = null)
+        RuleScoreContext ctx = null)
     {
         if (mode == MarginScoreMode.Off) return null;
         if (rule == null || rule.Groups.Count == 0) return null;
 
+        ctx ??= new RuleScoreContext();
+        if (ctx.Memo.TryGetValue(rule, out var memoized)) return memoized;
+
         // Cycle guard: if this rule is already on the recursion stack, the DescriptorRef
         // chain loops — bail with "un-scorable" rather than recursing forever. Add/Remove
         // (rather than a copied set) keeps the guard allocation-free per condition; the
-        // finally guarantees the stack unwinds even if a condition read throws.
-        activeRules ??= new HashSet<VM_MeasurementRule>();
-        if (!activeRules.Add(rule)) return null;
+        // finally guarantees the stack unwinds even if a condition read throws. The hit is
+        // counted so the rules above it know their result is stack-dependent (see the memo
+        // write at the bottom).
+        if (!ctx.Active.Add(rule)) { ctx.CycleHits++; return null; }
+        int cycleHitsAtEntry = ctx.CycleHits;
         try
         {
         double? best = null;
@@ -2896,26 +2947,20 @@ public class VM_BodyTypeProfileEditor : VM
 
                 if (cond.Kind == MeasurementConditionKind.DescriptorRef)
                 {
-                    // Tunnel into the referenced descriptor: best score across its
-                    // gender-eligible producer rules becomes this condition's margin.
-                    // Malformed refs (blank Category/Value) keep the old binary skip.
+                    // Tunnel into the referenced descriptor value: its badge-equivalent
+                    // score (best gender-eligible producer rule, or the synthesized
+                    // Category-default margin when the value is its Category's default)
+                    // becomes this condition's margin. Malformed refs (blank Category/Value)
+                    // keep the old binary skip.
                     if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue))
                         continue;
-                    double? refScore = null;
-                    bool anyProducer = false;
-                    foreach (var producer in allRules)
-                    {
-                        if (producer == null) continue;
-                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal)
-                            || !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
-                            continue;
-                        if (!BodySlideMeasurementEvaluator.RuleGenderMatches(producer.Gender, rowGender)) continue;
-                        anyProducer = true;
-                        double? s = ScoreRuleAgainstMeasurements(
-                            producer, measurements, mode, stdDevs, allRules, rowGender, activeRules);
-                        if (s.HasValue && (!refScore.HasValue || s.Value > refScore.Value)) refScore = s;
-                    }
-                    if (!anyProducer) continue; // ref to a rule-less value (Category default): binary as before
+                    // Unreachable value (no eligible producer, and not a default with a
+                    // rival to measure against): binary as before — trust the scan.
+                    if (!IsReachableDescriptorValue(cond.RefCategory, cond.RefValue, allRules, defaultsByCategory, rowGender))
+                        continue;
+                    double? refScore = ScoreDescriptorValue(
+                        cond.RefCategory, cond.RefValue, measurements, mode, stdDevs,
+                        allRules, defaultsByCategory, rowGender, ctx, out _);
                     if (!refScore.HasValue) { groupValid = false; break; }
                     double margin = cond.Negate ? -refScore.Value : refScore.Value;
                     if (!groupMin.HasValue || margin < groupMin.Value) groupMin = margin;
@@ -2976,21 +3021,202 @@ public class VM_BodyTypeProfileEditor : VM
             }
 
             if (!groupValid) continue;
-            double groupScore = hasScoredCondition ? groupMin!.Value : 0.0;
+            // No continuous or tunneled condition in this group → no margin information.
+            // Drop it from the max rather than feeding a 0.0 sentinel that would read as
+            // "exactly on the boundary" (and, negated into a default margin, as "barely
+            // default"). The scan's verdict on whether the group *matched* is unaffected —
+            // this only decides whether the badge gets a number.
+            if (!hasScoredCondition) continue;
+            double groupScore = groupMin!.Value;
             if (!best.HasValue || groupScore > best.Value) best = groupScore;
         }
+        // Memoize only cycle-free results: a subtree that never tripped the guard was
+        // evaluated exactly as it would be from an empty stack, so its score is a pure
+        // function of the rule for this row. A cycle-truncated null is not — it depends on
+        // which rules happened to be up-chain — and is recomputed on the next visit.
+        if (ctx.CycleHits == cycleHitsAtEntry) ctx.Memo[rule] = best;
         return best;
         }
         finally
         {
-            activeRules.Remove(rule);
+            ctx.Active.Remove(rule);
         }
+    }
+
+    /// <summary>Per-row scratch state threaded through the recursive scorer. Everything a
+    /// rule's score depends on besides the rule itself — measurements, mode, sigmas, gender,
+    /// defaults — is fixed for one row, so within a row a rule's score is a pure function
+    /// of the rule and can be memoized. One instance per row; never reuse across rows.</summary>
+    private sealed class RuleScoreContext
+    {
+        /// <summary>Rules currently being scored up-chain — the DescriptorRef recursion
+        /// stack the cycle guard checks.</summary>
+        public readonly HashSet<VM_MeasurementRule> Active = new();
+
+        /// <summary>Finished, cycle-free rule scores for this row (null = unscorable).</summary>
+        public readonly Dictionary<VM_MeasurementRule, double?> Memo = new();
+
+        /// <summary>How many times the cycle guard has fired. A rule compares the count
+        /// before and after its own evaluation to decide whether its result may be memoized.</summary>
+        public int CycleHits;
+    }
+
+    /// <summary>True when <paramref name="value"/> is the configured default for
+    /// <paramref name="category"/> in <paramref name="defaultsByCategory"/>. Null-safe on
+    /// every argument so the scorer can be called without a defaults map (tests, or a
+    /// caller that wants producer-only tunneling).</summary>
+    private static bool IsCategoryDefault(
+        string category, string value, IReadOnlyDictionary<string, string> defaultsByCategory)
+    {
+        if (defaultsByCategory == null || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(value)) return false;
+        return defaultsByCategory.TryGetValue(category, out var d)
+               && string.Equals(d, value, StringComparison.Ordinal);
+    }
+
+    /// <summary>Whether a (Category, Value) can produce a margin at all for a row of
+    /// <paramref name="rowGender"/>: it has at least one gender-eligible rule of its own, or
+    /// it is its Category's default and the Category has at least one gender-eligible rival
+    /// rule to measure the default against. A default in a rule-less Category is <i>not</i>
+    /// reachable — it always fires, carries no information, and a ref to it should stay
+    /// binary rather than making its group un-scorable.</summary>
+    private static bool IsReachableDescriptorValue(
+        string category, string value,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender rowGender)
+    {
+        if (allRules == null || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(value)) return false;
+        bool isDefault = IsCategoryDefault(category, value, defaultsByCategory);
+        foreach (var rule in allRules)
+        {
+            if (rule == null) continue;
+            if (!string.Equals(rule.DescriptorCategory, category, StringComparison.Ordinal)) continue;
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, rowGender)) continue;
+            // An own-value rule is a producer; for the default, any other rule in the
+            // Category is a rival the default margin can be measured against.
+            if (isDefault || string.Equals(rule.DescriptorValue, value, StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Scores a (Category, Value) the way the Match Presets badge does — the single
+    /// entry point the row loop, the sibling tooltip and DescriptorRef tunneling all share,
+    /// so a value scores identically wherever it is looked at.
+    /// <para>Score = max of (a) the best margin across the value's gender-eligible rules
+    /// (<see cref="ScoreRuleAgainstMeasurements"/>) and (b), when the value is its Category's
+    /// configured default, the synthesized default margin
+    /// (<see cref="ScoreCategoryDefault"/>). The max is the soft-OR of the two ways a row
+    /// can hold the value: its own rule fires, or every rival fails and the default steps
+    /// in. The sign is therefore right in every combination — negative exactly when the own
+    /// rules fail <i>and</i> some rival matches, i.e. when the row does not carry the value.
+    /// A default value whose legacy rule is fully disabled (how the live profiles park it)
+    /// scores purely via (b).</para></summary>
+    /// <param name="viaDefault">True when the returned number is the default margin (b)
+    /// rather than an own-rule margin (a). Callers label the number differently: a rule's
+    /// score is depth inside its own region, the default's is distance from the nearest
+    /// rival. Same units and decision surface, so ranking across the two stays valid.</param>
+    /// <returns>Null when nothing is scorable — no eligible rule and no scorable rival.</returns>
+    private static double? ScoreDescriptorValue(
+        string category,
+        string value,
+        IReadOnlyDictionary<string, float?> measurements,
+        MarginScoreMode mode,
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender rowGender,
+        RuleScoreContext ctx,
+        out bool viaDefault)
+    {
+        viaDefault = false;
+        if (mode == MarginScoreMode.Off) return null;
+        if (allRules == null || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(value)) return null;
+
+        double? best = null;
+        foreach (var rule in allRules)
+        {
+            if (rule == null) continue;
+            if (!string.Equals(rule.DescriptorCategory, category, StringComparison.Ordinal)
+                || !string.Equals(rule.DescriptorValue, value, StringComparison.Ordinal))
+                continue;
+            // Gender-scoped rules only score rows they'd fire for at scan time (mirrors
+            // BodySlideMeasurementEvaluator.FilterEligibleRules) — otherwise a Male-only
+            // variant's margins would leak into Female rows through the max.
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, rowGender)) continue;
+            double? s = ScoreRuleAgainstMeasurements(
+                rule, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, ctx);
+            if (s.HasValue && (!best.HasValue || s.Value > best.Value)) best = s;
+        }
+
+        if (IsCategoryDefault(category, value, defaultsByCategory))
+        {
+            double? d = ScoreCategoryDefault(
+                category, value, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, ctx);
+            if (d.HasValue && (!best.HasValue || d.Value > best.Value))
+            {
+                best = d;
+                viaDefault = true;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>Margin for a Category-<b>default</b> assignment — the pseudo-rule "no other
+    /// rule in this Category fires". The scan emits the default exactly when no sibling rule
+    /// matches (<see cref="BodySlideMeasurementEvaluator.ComputeDefaultDescriptors"/>), and
+    /// a rule matches exactly when its score is positive, so
+    /// <c>score(default) = −max over gender-eligible rival rules of score(rule)</c>.
+    /// Positive exactly when the default fires; the magnitude is how far (in the mode's
+    /// unit) the row would have to move to escape the default through its nearest rival.
+    /// <para>No CNF blow-up: negating an OR-of-ANDs only distributes in boolean logic. The
+    /// scorer's aggregation is already a lattice (max = OR, min = AND), where De Morgan on
+    /// the outer max collapses to one sign flip. Cost is O(rivals), each scored with the
+    /// full tunneling machinery — so a pure-DescriptorRef Category like Build gets a real
+    /// number for its default: the distance to the nearest measurement change that flips a
+    /// descriptor that flips Build.</para>
+    /// <para>Own-value rules (a legacy rule for the default value itself) are not rivals —
+    /// matching one keeps the value rather than escaping it — so they are excluded here and
+    /// folded in by <see cref="ScoreDescriptorValue"/> instead. A rival that can't be scored
+    /// (stale cache, all-disabled, binary-only, cycle) drops out of the max instead of
+    /// contributing a sentinel; when <i>no</i> rival is scorable the result is null
+    /// (unscored), not +∞.</para></summary>
+    private static double? ScoreCategoryDefault(
+        string category,
+        string defaultValue,
+        IReadOnlyDictionary<string, float?> measurements,
+        MarginScoreMode mode,
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender rowGender,
+        RuleScoreContext ctx = null)
+    {
+        if (mode == MarginScoreMode.Off) return null;
+        if (allRules == null || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(defaultValue)) return null;
+
+        double? nearestRival = null;
+        foreach (var rule in allRules)
+        {
+            if (rule == null) continue;
+            if (!string.Equals(rule.DescriptorCategory, category, StringComparison.Ordinal)) continue;
+            if (string.Equals(rule.DescriptorValue, defaultValue, StringComparison.Ordinal)) continue;
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, rowGender)) continue;
+            double? s = ScoreRuleAgainstMeasurements(
+                rule, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, ctx);
+            if (s.HasValue && (!nearestRival.HasValue || s.Value > nearestRival.Value)) nearestRival = s;
+        }
+        return nearestRival.HasValue ? -nearestRival.Value : null;
     }
 
     /// <summary>Builds the per-row tooltip text listing this row's margin score against
     /// every descriptor value in the selected Category, sorted closest-to-matching first.
     /// Lets the user see at a glance whether a barely-matched row is "almost Rectangle" or
     /// "almost Hourglass" without re-selecting each descriptor in turn.
+    /// <para>The Category's default value gets a line too, even when it has no rule of its
+    /// own — its synthesized margin (<see cref="ScoreCategoryDefault"/>) is what "how close
+    /// is this row to falling back to Medium" reads off directly. That line is suffixed
+    /// <c>(default)</c> whenever the number shown is the default margin rather than an
+    /// own-rule margin.</para>
     /// <para>Returns null when there are no sibling rules to report (the selected category
     /// has only one descriptor with a rule, so the tooltip would just repeat the badge). WPF
     /// suppresses null tooltips rather than rendering an empty box.</para></summary>
@@ -3006,8 +3232,13 @@ public class VM_BodyTypeProfileEditor : VM
     /// per-measurement sigma.</param>
     /// <param name="allRules">Every rule on the profile, for DescriptorRef tunneling — same
     /// set the primary score uses.</param>
+    /// <param name="defaultsByCategory">The profile's per-Category defaults — same map the
+    /// primary score uses, so the default line and the badge agree.</param>
     /// <param name="rowGender">Gender of the row the tooltip belongs to; gender-scoped
     /// sibling rules that exclude it are skipped, matching the badge score.</param>
+    /// <param name="ctx">The row's scoring context, shared with the badge so rules already
+    /// scored for it are not scored again here (and the default's rivals — the very values
+    /// listed above it — are free). Null creates a private one for this tooltip.</param>
     private static string BuildSiblingScoresTooltip(
         string category,
         List<VM_MeasurementRule> siblingRules,
@@ -3015,42 +3246,60 @@ public class VM_BodyTypeProfileEditor : VM
         MarginScoreMode mode,
         Dictionary<string, double> stdDevs,
         IReadOnlyList<VM_MeasurementRule> allRules,
-        Gender rowGender)
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender rowGender,
+        RuleScoreContext ctx = null)
     {
         if (siblingRules == null || siblingRules.Count == 0) return null;
+        ctx ??= new RuleScoreContext();
 
-        // Collapse multiple rules per value to one entry via max-score, matching the primary
-        // score's behavior so the tooltip line for the selected value lines up with the badge.
-        var byValue = new Dictionary<string, double?>(StringComparer.Ordinal);
+        // One line per distinct value in the Category: every value with a rule, plus the
+        // Category default (scorable without a rule of its own). ScoreDescriptorValue
+        // collapses multiple rules per value via max-score and folds in the default margin,
+        // matching the badge so the tooltip line for the selected value lines up with it.
+        var values = new List<string>();
+        var seenValues = new HashSet<string>(StringComparer.Ordinal);
         foreach (var rule in siblingRules)
         {
-            var v = rule.DescriptorValue ?? "";
-            if (string.IsNullOrEmpty(v)) continue;
-            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, rowGender)) continue;
-            double? s = ScoreRuleAgainstMeasurements(rule, measurements, mode, stdDevs, allRules, rowGender);
-            if (!s.HasValue) continue;
-            if (!byValue.TryGetValue(v, out var existing) || !existing.HasValue || s.Value > existing.Value)
-                byValue[v] = s;
+            var v = rule?.DescriptorValue ?? "";
+            if (v.Length == 0) continue;
+            if (seenValues.Add(v)) values.Add(v);
         }
-        if (byValue.Count == 0) return null;
+        if (defaultsByCategory != null
+            && defaultsByCategory.TryGetValue(category, out var categoryDefault)
+            && !string.IsNullOrEmpty(categoryDefault)
+            && seenValues.Add(categoryDefault))
+        {
+            values.Add(categoryDefault);
+        }
+
+        var scored = new List<(string Value, double Score, bool ViaDefault)>();
+        foreach (var v in values)
+        {
+            double? s = ScoreDescriptorValue(
+                category, v, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, ctx,
+                out bool viaDefault);
+            if (s.HasValue) scored.Add((v, s.Value, viaDefault));
+        }
+        if (scored.Count == 0) return null;
 
         // Sort closest-to-matching first. Within the tooltip a near-miss (-0.1σ) is just as
         // interesting as the actual match (+0.3σ); the descending sort puts both at the top
         // and pushes the truly-far-from-matching siblings to the bottom.
-        var ordered = byValue
-            .Where(kv => kv.Value.HasValue)
-            .OrderByDescending(kv => kv.Value.Value)
-            .ToList();
+        var ordered = scored.OrderByDescending(x => x.Score).ToList();
 
         // No column padding — WPF's default ToolTip renders in a proportional font, so
         // PadRight'd spaces wouldn't line up anyway. One descriptor per line is enough
         // structure for the reader to map value → score.
         var sb = new System.Text.StringBuilder();
         sb.Append(category).Append(" — sibling scores (closest first):");
-        foreach (var kv in ordered)
+        foreach (var x in ordered)
         {
-            sb.Append('\n').Append("  ").Append(kv.Key).Append(": ");
-            sb.Append(FormatScoreNumber(kv.Value, mode));
+            sb.Append('\n').Append("  ").Append(x.Value);
+            // The default's number is distance from the nearest rival, not depth inside a
+            // region of its own — same units, different reading, so say so.
+            if (x.ViaDefault) sb.Append(" (default)");
+            sb.Append(": ").Append(FormatScoreNumber(x.Score, mode));
         }
         return sb.ToString();
     }
@@ -3058,13 +3307,17 @@ public class VM_BodyTypeProfileEditor : VM
     /// <summary>Pre-formats <paramref name="score"/> for the row's <c>ScoreDisplay</c>
     /// property — i.e., the badge next to the preset name. Wraps <see cref="FormatScoreNumber"/>
     /// with a per-mode label prefix ("score" for the rule-margin modes, "value" for the
-    /// MeasurementValue mode) so the badge reads as a complete sentence. Returns empty string
-    /// when score is null so the binding renders no extra line.</summary>
-    private static string FormatScore(double? score, MarginScoreMode mode)
+    /// MeasurementValue mode) so the badge reads as a complete sentence, and a
+    /// <c>(default)</c> suffix when <paramref name="viaDefault"/> says the number is the
+    /// synthesized Category-default margin (distance from the nearest rival) rather than an
+    /// own-rule margin (depth inside the rule's region). Returns empty string when score is
+    /// null so the binding renders no extra line.</summary>
+    private static string FormatScore(double? score, MarginScoreMode mode, bool viaDefault = false)
     {
         var bare = FormatScoreNumber(score, mode);
         if (bare.Length == 0) return "";
-        return mode == MarginScoreMode.MeasurementValue ? "value " + bare : "score " + bare;
+        string labelled = mode == MarginScoreMode.MeasurementValue ? "value " + bare : "score " + bare;
+        return viaDefault ? labelled + " (default)" : labelled;
     }
 
     /// <summary>Pre-formats just the numeric portion of a score (e.g. <c>"+0.03σ"</c>,
