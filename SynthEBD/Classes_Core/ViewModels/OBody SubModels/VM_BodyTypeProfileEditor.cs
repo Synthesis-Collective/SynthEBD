@@ -358,6 +358,12 @@ public class VM_BodyTypeProfileEditor : VM
                 case nameof(ShowMatchPresetMeasurements):
                     RefreshMatchPresetMeasurementOverlay();
                     break;
+                case nameof(ShowMatchPresetClosestAssignment):
+                    // Row tooltips are baked into a closure per refresh, so flipping the
+                    // toggle has to restage the rows for the new factory to take. Same
+                    // in-memory walk as the name filter — no mesh or GL work.
+                    RefreshMatchingPresets();
+                    break;
                 case nameof(MatchPresetNameFilter):
                     // Re-filter the visible Match Presets rows on every keystroke. Cheap
                     // because RefreshMatchingPresets just re-walks the in-memory
@@ -570,6 +576,13 @@ public class VM_BodyTypeProfileEditor : VM
     /// fallback to <see cref="VM_BodyTypeProfile.SelectedMeasurement"/>. Refreshed when the
     /// filter selection or active profile changes.</summary>
     public bool ShowMatchPresetMeasurements { get; set; }
+
+    /// <summary>"Show Closest Assignment" toggle on the Match Presets tab. When on, each row's
+    /// tooltip adds a "next closest" line under every assigned descriptor: the runner-up value
+    /// in that Category and the margin gap to it. Off by default because the runner-up costs a
+    /// score for every rival value in every Category the row holds, where the assignment list
+    /// alone costs one score per assigned value.</summary>
+    public bool ShowMatchPresetClosestAssignment { get; set; }
 
     public string PresetFilterText { get; set; } = "";
     public VM_BodySlidePlaceHolder? SelectedPreset { get; set; }
@@ -2453,9 +2466,6 @@ public class VM_BodyTypeProfileEditor : VM
                     continue;
                 row.Score = vBox.Value;
                 row.ScoreDisplay = FormatScore(vBox.Value, MarginScoreMode.MeasurementValue);
-                // Tooltip helps the user remember which measurement they're looking at when
-                // skimming a long list; mirrors the sibling-scores tooltip slot on the badge.
-                row.SiblingScoresTooltip = $"{measurementName} = {vBox.Value.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)}";
             }
 
             staged = staged
@@ -2466,6 +2476,7 @@ public class VM_BodyTypeProfileEditor : VM
                 .ThenBy(r => r.Weight)
                 .ToList();
 
+            AssignRowTooltips(profile, staged);
             foreach (var row in staged) MatchingPresets.Add(row);
 
             if (previouslySelected != null)
@@ -2568,9 +2579,6 @@ public class VM_BodyTypeProfileEditor : VM
                         allRules, defaultsByCategory, row.Gender, ctx, out bool viaDefault);
                     row.Score = best;
                     row.ScoreDisplay = FormatScore(best, scoringMetric, viaDefault);
-                    row.SiblingScoresTooltip = BuildSiblingScoresTooltip(
-                        cat, siblingRules, entry.Measurements, scoringMetric, stdDevs, allRules,
-                        defaultsByCategory, row.Gender, ctx);
                 }
 
                 // Sort: highest score first, scored rows ahead of unscored ones, ties broken
@@ -2586,6 +2594,7 @@ public class VM_BodyTypeProfileEditor : VM
             }
         }
 
+        AssignRowTooltips(profile, staged);
         foreach (var row in staged) MatchingPresets.Add(row);
 
         // Try to re-select the same (preset, gender, weight) row if it still exists so the
@@ -2602,6 +2611,49 @@ public class VM_BodyTypeProfileEditor : VM
                     return;
                 }
             }
+        }
+    }
+
+    /// <summary>Hands every staged Match Presets row the closure that builds its tooltip —
+    /// the per-Category assignment readout (see <see cref="BuildRowDescriptorTooltip"/>).
+    /// <para>Deferred rather than computed here: the tooltip scores every descriptor value
+    /// the row's Categories can reach, and the row list is rebuilt on every keystroke of the
+    /// name filter. The factory runs when the ListBox realizes the row's container, so a
+    /// virtualized list only ever pays for the rows on screen, and the profile-wide sigma
+    /// table is itself deferred behind a memo that no row touches unless it needs a
+    /// number.</para></summary>
+    private void AssignRowTooltips(VM_BodyTypeProfile profile, List<VM_PresetScanRow> staged)
+    {
+        if (profile == null || staged == null) return;
+
+        bool includeClosest = ShowMatchPresetClosestAssignment;
+        var metric = ResolveClosestAssignmentMetric(ScoreSortMode);
+        var allRules = profile.Rules.ToList();
+        var defaultsByCategory = profile.GetDefaultValuesByCategory();
+
+        // One sigma table per refresh, shared by every row and built on first demand. Sigma
+        // is a population statistic per measurement name, so it's identical across rows —
+        // computing it per row would re-walk the whole measurement cache each time. The
+        // %-of-threshold metric needs no population statistics at all, so it never pays for
+        // the walk.
+        Dictionary<string, double> stdDevs = null;
+        bool built = false;
+        Dictionary<string, double> Sigmas()
+        {
+            if (!built)
+            {
+                stdDevs = metric == MarginScoreMode.StdDevNormalized
+                    ? ComputeStdDevsForAllRules(profile)
+                    : null;
+                built = true;
+            }
+            return stdDevs;
+        }
+
+        foreach (var row in staged)
+        {
+            row.DetailsTooltipFactory = r => BuildRowDescriptorTooltip(
+                r, profile, includeClosest, metric, Sigmas, allRules, defaultsByCategory);
         }
     }
 
@@ -3208,100 +3260,285 @@ public class VM_BodyTypeProfileEditor : VM
         return nearestRival.HasValue ? -nearestRival.Value : null;
     }
 
-    /// <summary>Builds the per-row tooltip text listing this row's margin score against
-    /// every descriptor value in the selected Category, sorted closest-to-matching first.
-    /// Lets the user see at a glance whether a barely-matched row is "almost Rectangle" or
-    /// "almost Hourglass" without re-selecting each descriptor in turn.
-    /// <para>The Category's default value gets a line too, even when it has no rule of its
-    /// own — its synthesized margin (<see cref="ScoreCategoryDefault"/>) is what "how close
-    /// is this row to falling back to Medium" reads off directly. That line is suffixed
-    /// <c>(default)</c> whenever the number shown is the default margin rather than an
-    /// own-rule margin.</para>
-    /// <para>Returns null when there are no sibling rules to report (the selected category
-    /// has only one descriptor with a rule, so the tooltip would just repeat the badge). WPF
-    /// suppresses null tooltips rather than rendering an empty box.</para></summary>
-    /// <param name="category">Descriptor Category of the currently-selected value. Used in
-    /// the tooltip header so the user remembers which axis they're looking at.</param>
-    /// <param name="siblingRules">Every rule with Descriptor.Category == <paramref name="category"/>.
-    /// Multiple rules per value are collapsed via max-score, mirroring the primary score's
-    /// max-across-matching-rules logic.</param>
-    /// <param name="measurements">Row's cached measurement values.</param>
-    /// <param name="mode">Same mode that drives the primary score so the units agree.</param>
-    /// <param name="stdDevs">Population sigmas (StdDevNormalized only). Caller must compute
-    /// these against <paramref name="siblingRules"/> so every value's score uses the same
-    /// per-measurement sigma.</param>
-    /// <param name="allRules">Every rule on the profile, for DescriptorRef tunneling — same
-    /// set the primary score uses.</param>
-    /// <param name="defaultsByCategory">The profile's per-Category defaults — same map the
-    /// primary score uses, so the default line and the badge agree.</param>
-    /// <param name="rowGender">Gender of the row the tooltip belongs to; gender-scoped
-    /// sibling rules that exclude it are skipped, matching the badge score.</param>
-    /// <param name="ctx">The row's scoring context, shared with the badge so rules already
-    /// scored for it are not scored again here (and the default's rivals — the very values
-    /// listed above it — are free). Null creates a private one for this tooltip.</param>
-    private static string BuildSiblingScoresTooltip(
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  "Closest assignment" readouts. Both the Rules tab's inline "Next closest match"
+    //  and the Match Presets row tooltip answer the same question for one (row,
+    //  Category): given the value the scan assigned, which *other* value in the Category
+    //  comes closest to taking it, and by how much? The gap is the assigned value's
+    //  margin minus the rival's, in the same unit the badge uses — so "0.73σ" reads as
+    //  "the row would have to move 0.73 standard deviations before that rival wins".
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Unit the closest-assignment readouts report in. Follows the Match Presets
+    /// sort mode when that mode is itself a margin metric (so the tooltip's numbers and the
+    /// blue badge agree), and falls back to std-dev normalization everywhere else — the
+    /// Rules tab has no sort selector at all, and the MeasurementValue / Off modes carry no
+    /// margin unit of their own. Never returns <see cref="MarginScoreMode.Off"/>, so callers
+    /// always get a scorable metric.</summary>
+    internal static MarginScoreMode ResolveClosestAssignmentMetric(MarginScoreMode sortMode)
+        => sortMode == MarginScoreMode.PercentOfThreshold
+           || sortMode == MarginScoreMode.SimilarityToPercentOfThreshold
+            ? MarginScoreMode.PercentOfThreshold
+            : MarginScoreMode.StdDevNormalized;
+
+    /// <summary>Public entry point for population sigmas over <i>every</i> rule on the
+    /// profile. The closest-assignment readouts score values across all Categories (the
+    /// tooltip) or a Category the caller doesn't pre-filter (the Rules tab), so the sigma
+    /// table has to cover every measurement any rule can reach rather than one descriptor's
+    /// closure. Computed once per list refresh — it's O(names × cache entries).</summary>
+    internal static Dictionary<string, double> ComputeStdDevsForAllRules(VM_BodyTypeProfile profile)
+        => profile == null
+            ? new Dictionary<string, double>(StringComparer.Ordinal)
+            : ComputePopulationStdDevs(
+                profile, profile.Rules.ToList(), profile.GetDefaultValuesByCategory());
+
+    /// <summary>Every value in <paramref name="category"/> that could carry a margin for a
+    /// row of <paramref name="rowGender"/>: each value with at least one gender-eligible
+    /// rule, plus the Category's configured default (scorable through the synthesized
+    /// default margin even with no rule of its own). Ordinal dedupe, insertion order —
+    /// callers rank or sort as they need.</summary>
+    private static List<string> CollectCategoryValues(
         string category,
-        List<VM_MeasurementRule> siblingRules,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender rowGender)
+    {
+        var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        if (allRules != null)
+        {
+            foreach (var rule in allRules)
+            {
+                if (rule == null) continue;
+                if (!string.Equals(rule.DescriptorCategory, category, StringComparison.Ordinal)) continue;
+                if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, rowGender)) continue;
+                var v = rule.DescriptorValue ?? "";
+                if (v.Length == 0) continue;
+                if (seen.Add(v)) values.Add(v);
+            }
+        }
+        if (defaultsByCategory != null
+            && defaultsByCategory.TryGetValue(category, out var categoryDefault)
+            && !string.IsNullOrEmpty(categoryDefault)
+            && seen.Add(categoryDefault))
+        {
+            values.Add(categoryDefault);
+        }
+        return values;
+    }
+
+    /// <summary>Highest-scoring value in <paramref name="category"/> other than
+    /// <paramref name="assignedValue"/>, with the margin gap separating the two.
+    /// <para><paramref name="gap"/> is <c>score(assigned) − score(rival)</c>. It is normally
+    /// positive (the scan assigned the value that scores highest), but it can come out
+    /// negative when the two disagree — a rule that fired on a descriptor seed the scorer
+    /// can't project, say — and the sign is reported honestly rather than clamped, since a
+    /// negative gap is exactly the "this row's label looks wrong" signal the readout exists
+    /// to surface. Null when the assigned value itself is unscorable; the rival name is still
+    /// returned in that case so the user sees *what* is close even when "how close" is
+    /// unknowable.</para></summary>
+    /// <param name="ctx">Row-scoped memo, shared across every Category on the same row so a
+    /// rule reachable from several Categories is scored once. Null creates a private one.</param>
+    /// <returns>False when the Category has no scorable rival at all (a single-value
+    /// Category, or every rival unscorable against this row's cached measurements).</returns>
+    private static bool TryGetClosestRival(
+        string category,
+        string assignedValue,
         IReadOnlyDictionary<string, float?> measurements,
         MarginScoreMode mode,
         Dictionary<string, double> stdDevs,
         IReadOnlyList<VM_MeasurementRule> allRules,
         IReadOnlyDictionary<string, string> defaultsByCategory,
         Gender rowGender,
-        RuleScoreContext ctx = null)
+        RuleScoreContext ctx,
+        out string closestValue,
+        out double? gap)
     {
-        if (siblingRules == null || siblingRules.Count == 0) return null;
+        closestValue = "";
+        gap = null;
+        if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(assignedValue)) return false;
         ctx ??= new RuleScoreContext();
 
-        // One line per distinct value in the Category: every value with a rule, plus the
-        // Category default (scorable without a rule of its own). ScoreDescriptorValue
-        // collapses multiple rules per value via max-score and folds in the default margin,
-        // matching the badge so the tooltip line for the selected value lines up with it.
-        var values = new List<string>();
-        var seenValues = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var rule in siblingRules)
+        double? bestRival = null;
+        foreach (var v in CollectCategoryValues(category, allRules, defaultsByCategory, rowGender))
         {
-            var v = rule?.DescriptorValue ?? "";
-            if (v.Length == 0) continue;
-            if (seenValues.Add(v)) values.Add(v);
-        }
-        if (defaultsByCategory != null
-            && defaultsByCategory.TryGetValue(category, out var categoryDefault)
-            && !string.IsNullOrEmpty(categoryDefault)
-            && seenValues.Add(categoryDefault))
-        {
-            values.Add(categoryDefault);
-        }
-
-        var scored = new List<(string Value, double Score, bool ViaDefault)>();
-        foreach (var v in values)
-        {
+            if (string.Equals(v, assignedValue, StringComparison.Ordinal)) continue;
             double? s = ScoreDescriptorValue(
                 category, v, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, ctx,
-                out bool viaDefault);
-            if (s.HasValue) scored.Add((v, s.Value, viaDefault));
+                out _);
+            if (!s.HasValue) continue;
+            if (!bestRival.HasValue || s.Value > bestRival.Value)
+            {
+                bestRival = s;
+                closestValue = v;
+            }
         }
-        if (scored.Count == 0) return null;
+        if (!bestRival.HasValue) return false;
 
-        // Sort closest-to-matching first. Within the tooltip a near-miss (-0.1σ) is just as
-        // interesting as the actual match (+0.3σ); the descending sort puts both at the top
-        // and pushes the truly-far-from-matching siblings to the bottom.
-        var ordered = scored.OrderByDescending(x => x.Score).ToList();
+        double? assigned = ScoreDescriptorValue(
+            category, assignedValue, measurements, mode, stdDevs, allRules, defaultsByCategory, rowGender, ctx,
+            out _);
+        if (assigned.HasValue) gap = assigned.Value - bestRival.Value;
+        return true;
+    }
 
-        // No column padding — WPF's default ToolTip renders in a proportional font, so
-        // PadRight'd spaces wouldn't line up anyway. One descriptor per line is enough
-        // structure for the reader to map value → score.
+    /// <summary>Formats a closest-rival pair as <c>"Rectangle (0.73σ)"</c> — the shared
+    /// rendering for the Rules-tab suffix and the tooltip's indented rival line. An
+    /// unscorable gap renders as an em dash rather than being dropped, so the rival's
+    /// identity still reaches the user. Returns empty string when there is no rival.</summary>
+    private static string FormatClosestRival(
+        string category,
+        string assignedValue,
+        IReadOnlyDictionary<string, float?> measurements,
+        MarginScoreMode mode,
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender rowGender,
+        RuleScoreContext ctx)
+    {
+        if (!TryGetClosestRival(
+                category, assignedValue, measurements, mode, stdDevs, allRules, defaultsByCategory,
+                rowGender, ctx, out string rival, out double? gap))
+            return "";
+        return rival + " (" + (gap.HasValue ? FormatGapNumber(gap.Value, mode) : "—") + ")";
+    }
+
+    /// <summary>Formats a margin <i>distance</i> (the closest-assignment gap) in the unit of
+    /// <paramref name="mode"/>. Unlike <see cref="FormatScoreNumber"/> there is no "+" on
+    /// positives: a gap is read as a separation, and the expected case is positive, so a
+    /// sign is only worth the ink when it's negative (the rival out-scores the value the row
+    /// actually holds).</summary>
+    private static string FormatGapNumber(double gap, MarginScoreMode mode)
+    {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        return mode == MarginScoreMode.PercentOfThreshold
+            ? (gap * 100.0).ToString("F0", inv) + "%"
+            : gap.ToString("F2", inv) + "σ";
+    }
+
+    /// <summary>Builds the Match Presets row tooltip: the slice's identity, then one block
+    /// per descriptor Category the scan assigned — Category, the assigned value and its
+    /// margin score, and (when <paramref name="includeClosest"/>) the runner-up value with
+    /// the gap to it. Categories are listed alphabetically so the same axis sits in the same
+    /// place on every row the user hovers.
+    /// <para>This is the whole per-row readout: the list itself shows only name / weight /
+    /// gender, so everything the old inline <c>Category:Value, Category:Value…</c> line
+    /// carried lives here, one Category per line instead of one long wrap.</para>
+    /// <para>A Category the scan assigned more than one value gets an <c>(N assigned)</c>
+    /// marker on each of its lines. Nothing forbids two rules in one Category both firing,
+    /// but it usually means their conditions overlap — and the pair reads as a duplicated
+    /// line without the marker, since each line names the same Category.</para>
+    /// <para>One <see cref="RuleScoreContext"/> spans every Category on the row, so a rule
+    /// several Categories tunnel into (the Arms/Belly producers behind Build, say) is scored
+    /// once per row however many times it is asked for.</para></summary>
+    private static string BuildRowDescriptorTooltip(
+        VM_PresetScanRow row,
+        VM_BodyTypeProfile profile,
+        bool includeClosest,
+        MarginScoreMode mode,
+        Func<Dictionary<string, double>> stdDevsFactory,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory)
+    {
+        if (row == null) return "";
+
         var sb = new System.Text.StringBuilder();
-        sb.Append(category).Append(" — sibling scores (closest first):");
-        foreach (var x in ordered)
+        sb.Append(row.Display);
+
+        var assignments = row.Matches
+            .Where(d => d != null && !string.IsNullOrEmpty(d.Category))
+            .Select(d => (Category: d.Category, Value: d.Value ?? ""))
+            .OrderBy(d => d.Category, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(d => d.Value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (assignments.Count == 0)
         {
-            sb.Append('\n').Append("  ").Append(x.Value);
-            // The default's number is distance from the nearest rival, not depth inside a
-            // region of its own — same units, different reading, so say so.
-            if (x.ViaDefault) sb.Append(" (default)");
-            sb.Append(": ").Append(FormatScoreNumber(x.Score, mode));
+            sb.Append("\n\n(no descriptors assigned)");
+            return sb.ToString();
+        }
+
+        // Categories the scan assigned more than one value — two rules in the same Category
+        // both fired. Legal (nothing stops it) but almost always a rule-overlap the author
+        // wants to know about, and without the marker the extra line just reads as a
+        // duplicate. Counted up front so every line of such a Category carries the marker,
+        // not only the first.
+        var perCategoryCount = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var a in assignments)
+            perCategoryCount[a.Category] = perCategoryCount.TryGetValue(a.Category, out int n) ? n + 1 : 1;
+
+        // No cached measurements means no margins — list the assignments bare rather than
+        // suppressing the tooltip, since the assignment set is the primary content and the
+        // scores are the annotation.
+        profile.MeasurementCache.TryGetValue((row.PresetLabel, row.Gender, row.Weight), out var entry);
+        var measurements = entry?.Measurements;
+
+        // Sigmas are only pulled when a line actually needs a number, so a row with no
+        // cached measurements never triggers the population pass.
+        Dictionary<string, double> stdDevs = null;
+        bool stdDevsResolved = false;
+        Dictionary<string, double> Sigmas()
+        {
+            if (!stdDevsResolved) { stdDevs = stdDevsFactory?.Invoke(); stdDevsResolved = true; }
+            return stdDevs;
+        }
+
+        var ctx = new RuleScoreContext();
+        sb.Append('\n');
+        foreach (var a in assignments)
+        {
+            sb.Append('\n').Append(a.Category);
+            if (perCategoryCount.TryGetValue(a.Category, out int assignedCount) && assignedCount > 1)
+                sb.Append(" (").Append(assignedCount).Append(" assigned)");
+            sb.Append(": ").Append(a.Value);
+            if (measurements == null) continue;
+
+            double? score = ScoreDescriptorValue(
+                a.Category, a.Value, measurements, mode, Sigmas(), allRules, defaultsByCategory,
+                row.Gender, ctx, out bool viaDefault);
+            if (score.HasValue)
+            {
+                sb.Append("  (").Append(FormatScoreNumber(score, mode));
+                // Same distinction the badge draws: the default's number is distance from
+                // the nearest rival, not depth inside a region of its own.
+                if (viaDefault) sb.Append(", default");
+                sb.Append(')');
+            }
+
+            if (!includeClosest) continue;
+            string rival = FormatClosestRival(
+                a.Category, a.Value, measurements, mode, Sigmas(), allRules, defaultsByCategory,
+                row.Gender, ctx);
+            // Stays on the Category's own line: one line per Category reads as a table, while
+            // an indented continuation line doubled the block's height and broke that scan.
+            if (rival.Length > 0) sb.Append("   next closest: ").Append(rival);
         }
         return sb.ToString();
+    }
+
+    /// <summary>Formats the Rules-tab inline suffix — <c>"Next closest match: Rectangle
+    /// (0.73σ)"</c> — for one (slice, Category, assigned value). Empty string when the
+    /// Category has no scorable rival or the slice has no cached measurements, so the row
+    /// simply renders without the suffix.
+    /// <para>Exposed to <see cref="VM_BodyTypeProfile"/> (which owns the Rules-tab list) as
+    /// the single entry point into the scorer, so both tabs' readouts can't drift.</para></summary>
+    internal static string BuildClosestAssignmentSuffix(
+        VM_BodyTypeProfile profile,
+        string category,
+        string assignedValue,
+        (string PresetLabel, Gender Gender, int Weight) slice,
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory)
+    {
+        if (profile == null || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(assignedValue)) return "";
+        if (!profile.MeasurementCache.TryGetValue(slice, out var entry) || entry?.Measurements == null) return "";
+
+        string rival = FormatClosestRival(
+            category, assignedValue, entry.Measurements, MarginScoreMode.StdDevNormalized, stdDevs,
+            allRules, defaultsByCategory, slice.Gender, ctx: null);
+        return rival.Length > 0 ? "Next closest match: " + rival : "";
     }
 
     /// <summary>Pre-formats <paramref name="score"/> for the row's <c>ScoreDisplay</c>
@@ -4833,6 +5070,19 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>Fody-invoked reaction to the Show Measurements toggle.</summary>
     private void OnShowRuleNodeMeasurementsChanged() => RefreshRuleNodeMeasurementOverlay();
+
+    /// <summary>"Show Closest Assignment" toggle for the Rules tab. When on, each row in the
+    /// matching-presets list gains a "Next closest match: {Value} ({gap}σ)" suffix naming the
+    /// runner-up value in the tree node's Category and how far the slice sits from it — the
+    /// inline counterpart of the Match Presets tooltip's per-Category rival line. Off by
+    /// default: the suffix costs a margin score for every rival value on every row, computed
+    /// eagerly because the readout is inline rather than hover-deferred.</summary>
+    public bool ShowRuleNodeClosestAssignment { get; set; }
+
+    /// <summary>Fody-invoked reaction to the Show Closest Assignment toggle. Rebuilds the list
+    /// (the suffix is baked into each row at build time, so an in-place refresh is the only
+    /// way to add or drop it).</summary>
+    private void OnShowRuleNodeClosestAssignmentChanged() => RefreshSelectedNodeMatchingPresets();
 
     /// <summary>Pushes the in-view rules' referenced measurements into the viewer overlay when
     /// <see cref="ShowRuleNodeMeasurements"/> is on; clears it (Measurements-grid fallback)
@@ -9706,6 +9956,20 @@ public class VM_BodyTypeProfile : VM
             }
         }
 
+        // Closest-assignment scoring context, resolved once for the whole list. The sigma
+        // table is a population statistic shared by every row, and the rule / defaults
+        // snapshots don't change mid-refresh. All three stay null while the toggle is off so
+        // the default path costs exactly what it did before.
+        Dictionary<string, double> closestStdDevs = null;
+        List<VM_MeasurementRule> closestAllRules = null;
+        IReadOnlyDictionary<string, string> closestDefaults = null;
+        if (ShowRuleNodeClosestAssignment)
+        {
+            closestStdDevs = VM_BodyTypeProfileEditor.ComputeStdDevsForAllRules(this);
+            closestAllRules = Rules.ToList();
+            closestDefaults = GetDefaultValuesByCategory();
+        }
+
         // Walk scan results in the same (Gender, Preset, Weight) order Match Presets uses so
         // the two lists feel consistent to navigate. Rows are staged in a list and handed to
         // PopulateMatchingPresets, which applies the user's chosen sort before display.
@@ -9719,12 +9983,18 @@ public class VM_BodyTypeProfile : VM
             var sigs = kv.Value;
             if (sigs == null || sigs.Count == 0) continue;
             bool descriptorPasses = false;
+            // Value the slice actually holds in the node's Category — the node's own value at
+            // Value level, but whichever value passed the Category-level predicate when the
+            // user selected a Category node, so the rival is measured against what this row
+            // really is rather than an arbitrary sibling.
+            string assignedValue = "";
             foreach (var d in sigs)
             {
                 if (d == null) continue;
                 if (!string.Equals(d.Category, nodeCategory, StringComparison.Ordinal)) continue;
                 if (isValueLevel && !string.Equals(d.Value, nodeValue, StringComparison.Ordinal)) continue;
                 descriptorPasses = true;
+                assignedValue = d.Value ?? "";
                 break;
             }
             if (!descriptorPasses) continue;
@@ -9753,7 +10023,14 @@ public class VM_BodyTypeProfile : VM
             }
 
             rows.Add(new VM_RuleNodeMatchRow(
-                kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, measurementsDisplay));
+                kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, measurementsDisplay)
+            {
+                ClosestAssignmentDisplay = ShowRuleNodeClosestAssignment
+                    ? VM_BodyTypeProfileEditor.BuildClosestAssignmentSuffix(
+                        this, nodeCategory, assignedValue, kv.Key, closestStdDevs,
+                        closestAllRules, closestDefaults)
+                    : "",
+            });
             matches++;
         }
 
@@ -9928,6 +10205,24 @@ public class VM_BodyTypeProfile : VM
         var union = new HashSet<(string PresetLabel, Gender Gender, int Weight)>(current);
         union.UnionWith(original);
 
+        // Closest-assignment context, scoped to the temp-edited rule's own descriptor (the
+        // node concept doesn't apply during a session). Resolved once for the whole list;
+        // left null while the toggle is off. Note the rivals are scored against the *saved*
+        // rules — the live edits aren't in Rules until the session is saved — so the suffix
+        // reads as "where this slice stood before the edit", which is the baseline the
+        // green/red diff is already showing it against.
+        Dictionary<string, double> closestStdDevs = null;
+        List<VM_MeasurementRule> closestAllRules = null;
+        IReadOnlyDictionary<string, string> closestDefaults = null;
+        string tempCategory = rule.DescriptorCategory ?? "";
+        string tempValue = rule.DescriptorValue ?? "";
+        if (ShowRuleNodeClosestAssignment)
+        {
+            closestStdDevs = VM_BodyTypeProfileEditor.ComputeStdDevsForAllRules(this);
+            closestAllRules = Rules.ToList();
+            closestDefaults = GetDefaultValuesByCategory();
+        }
+
         var rows = new List<VM_RuleNodeMatchRow>();
         int added = 0, removed = 0;
         foreach (var key in union
@@ -9964,7 +10259,14 @@ public class VM_BodyTypeProfile : VM
             }
 
             rows.Add(new VM_RuleNodeMatchRow(
-                key.PresetLabel, key.Gender, key.Weight, measurementsDisplay, state));
+                key.PresetLabel, key.Gender, key.Weight, measurementsDisplay, state)
+            {
+                ClosestAssignmentDisplay = ShowRuleNodeClosestAssignment
+                    ? VM_BodyTypeProfileEditor.BuildClosestAssignmentSuffix(
+                        this, tempCategory, tempValue, key, closestStdDevs,
+                        closestAllRules, closestDefaults)
+                    : "",
+            });
         }
 
         PopulateMatchingPresets(rows);
@@ -10036,7 +10338,10 @@ public class VM_BodyTypeProfile : VM
     /// content matches what's already displayed it leaves the collection untouched, so a refresh
     /// triggered by something that didn't change membership (e.g. loading a preset in the viewer)
     /// doesn't reset the ListBox's scroll position or drop its selection. Only when the content
-    /// actually differs does it rebuild, restoring the selection by (preset, gender, weight).</summary>
+    /// actually differs does it rebuild, restoring the selection by (preset, gender, weight).
+    /// <para>"Content" here is every field the row template draws — slice identity, diff state,
+    /// measurement readout, and the closest-assignment suffix — so a toggle that only changes
+    /// the suffix still repaints.</para></summary>
     private void PopulateMatchingPresets(List<VM_RuleNodeMatchRow> rows)
     {
         var sorted = SortRuleNodeRows(rows).ToList();
@@ -10073,6 +10378,7 @@ public class VM_BodyTypeProfile : VM
             if (cur.DiffState != nxt.DiffState) return false;
             if (!string.Equals(cur.PresetLabel, nxt.PresetLabel, StringComparison.Ordinal)) return false;
             if (!string.Equals(cur.MeasurementsDisplay, nxt.MeasurementsDisplay, StringComparison.Ordinal)) return false;
+            if (!string.Equals(cur.ClosestAssignmentDisplay, nxt.ClosestAssignmentDisplay, StringComparison.Ordinal)) return false;
         }
         return true;
     }
@@ -11343,8 +11649,11 @@ public class VM_PresetScanRow : VM
 
     public string Display => $"{PresetLabel}  (W{Weight}, {Gender})";
 
-    /// <summary>Comma-separated <c>Category:Value</c> list for this row's single weight.</summary>
-    public string MatchSummary => string.Join(", ", Matches.Select(d => d.Category + ":" + d.Value));
+    /// <summary>Builds <see cref="DetailsTooltip"/> on demand. Assigned by
+    /// <see cref="VM_BodyTypeProfileEditor.AssignRowTooltips"/> on every list refresh, which
+    /// is what captures the current toggle / sort state — a row built by an older refresh is
+    /// never reused, so the closure can't go stale.</summary>
+    internal Func<VM_PresetScanRow, string> DetailsTooltipFactory { get; set; }
 
     /// <summary>Margin-based "how strongly does this preset match the selected descriptor's
     /// rule" score, populated by <see cref="VM_BodyTypeProfileEditor.RefreshMatchingPresets"/>
@@ -11360,15 +11669,28 @@ public class VM_PresetScanRow : VM
     /// produced the number (σ vs %). Always written together with <see cref="Score"/>.</summary>
     public string ScoreDisplay { get; set; } = "";
 
-    /// <summary>Multi-line tooltip showing this row's margin score against every rule whose
-    /// Descriptor.Category matches the currently-selected descriptor's Category — i.e., the
-    /// selected value plus its siblings. Lets the user see at a glance whether a row that
-    /// barely matched the selected value is "almost Rectangle" or "almost Hourglass" without
-    /// re-selecting each descriptor in turn. Null when scoring isn't active (so WPF suppresses
-    /// the tooltip rather than rendering an empty box). Populated by
-    /// <see cref="VM_BodyTypeProfileEditor.RefreshMatchingPresets"/> alongside
-    /// <see cref="Score"/>.</summary>
-    public string SiblingScoresTooltip { get; set; }
+    /// <summary>Multi-line tooltip carrying this row's full descriptor readout: every
+    /// Category the scan assigned, alphabetically, with the assigned value's margin score and
+    /// — when "Show Closest Assignment" is on — the runner-up value and the gap to it. This is
+    /// where the row's detail lives; the list itself shows only name / weight / gender.
+    /// <para>Computed on first read (the WPF binding fires when the ListBox realizes the
+    /// container, so a virtualized list only pays for visible rows) and memoized, since a
+    /// tooltip re-opens on every hover. Empty string when no factory was assigned.</para></summary>
+    public string DetailsTooltip
+    {
+        get
+        {
+            if (!_detailsTooltipBuilt)
+            {
+                _detailsTooltip = DetailsTooltipFactory?.Invoke(this) ?? "";
+                _detailsTooltipBuilt = true;
+            }
+            return _detailsTooltip;
+        }
+    }
+
+    private string _detailsTooltip = "";
+    private bool _detailsTooltipBuilt;
 }
 
 /// <summary>Weight-filter toggle for the Match Presets tab. One per weight slot observed
@@ -11581,6 +11903,14 @@ public class VM_RuleNodeMatchRow : VM
     public Gender Gender { get; }
     public int Weight { get; }
     public string MeasurementsDisplay { get; }
+
+    /// <summary>"Next closest match: {Value} ({gap}σ)" for the tree node's Category, or empty
+    /// string when the Rules-tab "Show Closest Assignment" toggle is off, the Category has no
+    /// scorable rival, or the slice has no cached measurements. Rendered beside
+    /// <see cref="PrefixedDisplay"/>; an empty string collapses the TextBlock, so the row
+    /// looks exactly as it did before the feature. Set at row construction — see
+    /// <see cref="VM_BodyTypeProfileEditor.BuildClosestAssignmentSuffix"/>.</summary>
+    public string ClosestAssignmentDisplay { get; init; } = "";
 
     /// <summary>How this slice changed relative to the temp-edit baseline. <see cref="RuleMatchDiffState.Unchanged"/>
     /// for the normal (non-temp-edit) list and for slices that conform both before and after the edit.

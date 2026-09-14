@@ -1256,6 +1256,12 @@
                                             <CheckBox Content="Show Measurements" IsChecked="{Binding ShowRuleNodeMeasurements}"
                                                       VerticalAlignment="Center" Margin="20,0,0,0"
                                                       local:DocTooltip.Key="BodyTypeProfiles.RuleNodeShowMeasurements"/>
+                                            <!-- Appends "Next closest match: {Value} ({gap}sigma)" to every row below:
+                                                 the runner-up value in this node's Category and how far the slice sits
+                                                 from losing its label to it. -->
+                                            <CheckBox Content="Show Closest Assignment" IsChecked="{Binding ShowRuleNodeClosestAssignment}"
+                                                      VerticalAlignment="Center" Margin="20,0,0,0"
+                                                      local:DocTooltip.Key="BodyTypeProfiles.RuleNodeShowClosestAssignment"/>
                                         </StackPanel>
                                         <ListBox ItemsSource="{Binding SelectedNodeMatchingPresets}"
                                                  SelectedItem="{Binding SelectedNodeMatchRow}"
@@ -1265,6 +1271,7 @@
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type local:VM_RuleNodeMatchRow}">
                                                     <StackPanel Margin="2">
+                                                        <StackPanel Orientation="Horizontal">
                                                         <!-- PrefixedDisplay adds "+ "/"- " in temp-edit mode (empty otherwise).
                                                              DiffState drives the row color: green = newly conforming, red = no
                                                              longer conforming, default foreground = unchanged. -->
@@ -1282,6 +1289,13 @@
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
+                                                        <!-- Runner-up readout, empty (and therefore invisible) unless the
+                                                             "Show Closest Assignment" toggle above is on. Same calm blue as
+                                                             the Match Presets score badge - it's the same kind of number. -->
+                                                        <TextBlock Text="{Binding ClosestAssignmentDisplay}"
+                                                                   Margin="10,0,0,0" FontWeight="SemiBold"
+                                                                   Foreground="#FF1E88E5" VerticalAlignment="Center"/>
+                                                        </StackPanel>
                                                         <TextBlock Text="{Binding MeasurementsDisplay}" FontFamily="Consolas"
                                                                    FontSize="10" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap"/>
                                                     </StackPanel>
@@ -1465,16 +1479,6 @@
                                          Similarity / Measurement-value sub-pickers wrap to their own line when
                                          the splitter narrows the pane. -->
                                     <WrapPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,5">
-                                        <!-- "Show Measurements" pushes every measurement referenced by any rule whose
-                                             descriptor is currently checked in the filter above into the viewer's
-                                             measurement-line overlay (same channel the Measurements grid's
-                                             multi-selection uses). Replaces the Measurements-grid selection while
-                                             on; unchecking restores the fallback. Driven by both this toggle and
-                                             filter-selection changes. -->
-                                        <CheckBox Content="Show Measurements"
-                                                  IsChecked="{Binding DataContext.ShowMatchPresetMeasurements, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                  VerticalAlignment="Center" Margin="0,0,20,5"
-                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchShowMeasurements"/>
                                         <!-- Match-strength sort selector. Only meaningful when exactly one
                                              descriptor value is selected in the filter above; otherwise the
                                              list falls back to the default (Gender, Preset, Weight) order
@@ -1520,9 +1524,27 @@
                                              so the list re-filters on every keystroke; RefreshMatchingPresets
                                              is cheap (in-memory ScanResults walk, no mesh / GL work). -->
                                         <TextBlock Text="Filter:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,5"/>
-                                        <TextBox Width="200" VerticalAlignment="Center" Margin="0,0,10,5"
+                                        <TextBox Width="200" VerticalAlignment="Center" Margin="0,0,20,5"
                                                  Text="{Binding DataContext.MatchPresetNameFilter, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchNameFilter"/>
+
+                                        <!-- "Show Measurements" pushes every measurement referenced by any rule whose
+                                             descriptor is currently checked in the filter above into the viewer's
+                                             measurement-line overlay (same channel the Measurements grid's
+                                             multi-selection uses). Replaces the Measurements-grid selection while
+                                             on; unchecking restores the fallback. Driven by both this toggle and
+                                             filter-selection changes. -->
+                                        <CheckBox Content="Show Measurements"
+                                                  IsChecked="{Binding DataContext.ShowMatchPresetMeasurements, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  VerticalAlignment="Center" Margin="0,0,20,5"
+                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchShowMeasurements"/>
+                                        <!-- Adds the "next closest" rival line under every descriptor in the row
+                                             tooltips below. Costs a margin score per rival value per visible row, so
+                                             it's opt-in rather than always-on. -->
+                                        <CheckBox Content="Show Closest Assignment"
+                                                  IsChecked="{Binding DataContext.ShowMatchPresetClosestAssignment, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  VerticalAlignment="Center" Margin="0,0,10,5"
+                                                  local:DocTooltip.Key="BodyTypeProfiles.MatchShowClosestAssignment"/>
                                     </WrapPanel>
 
                                     <ListBox Grid.Row="5"
@@ -1533,27 +1555,37 @@
                                              local:DocTooltip.Key="BodyTypeProfiles.MatchResultsList">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate DataType="{x:Type local:VM_PresetScanRow}">
-                                                <StackPanel Margin="2">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
-                                                        <!-- Score badge: empty string when no sort is active so the
-                                                             TextBlock collapses; visible (and colored a calm blue
-                                                             so it doesn't compete with the "stale results" red)
-                                                             when ScoreSortMode is non-Off and a single descriptor
-                                                             is selected. ToolTip hosts the sibling-scores list
-                                                             (every value in the selected Category and how strongly
-                                                             this preset matches each — closest-to-matching first).
-                                                             SiblingScoresTooltip is null when there's nothing to
-                                                             show; WPF auto-suppresses string-typed tooltips on null,
-                                                             so no extra converter is needed. -->
-                                                        <TextBlock Text="{Binding ScoreDisplay}"
-                                                                   Margin="8,0,0,0"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="#FF1E88E5"
-                                                                   VerticalAlignment="Center"
-                                                                   ToolTip="{Binding SiblingScoresTooltip}"/>
-                                                    </StackPanel>
-                                                    <TextBlock Text="{Binding MatchSummary}" FontFamily="Consolas" FontSize="10" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap"/>
+                                                <!-- The row itself is just the slice identity; every assigned
+                                                     descriptor (and, with "Show Closest Assignment" on, its runner-up)
+                                                     lives in DetailsTooltip, one Category per line. Hovering beats a
+                                                     wrapped "Cat:Val, Cat:Val, ..." line that pushed rows apart and
+                                                     still wasn't readable. ToolTipService.ShowDuration keeps the block
+                                                     up long enough to actually read - WPF's default is 5 seconds. -->
+                                                <StackPanel Margin="2" Orientation="Horizontal"
+                                                            ToolTipService.ShowDuration="60000">
+                                                    <StackPanel.ToolTip>
+                                                        <!-- Bound through PlacementTarget rather than the inherited
+                                                             DataContext so the read happens when the tooltip opens:
+                                                             PlacementTarget is null until then, so DetailsTooltip (which
+                                                             scores the row on first access) is never computed for a row
+                                                             the user only scrolls past. -->
+                                                        <ToolTip MaxWidth="700">
+                                                            <TextBlock TextWrapping="Wrap"
+                                                                       Text="{Binding PlacementTarget.DataContext.DetailsTooltip, RelativeSource={RelativeSource AncestorType=ToolTip}}"/>
+                                                        </ToolTip>
+                                                    </StackPanel.ToolTip>
+                                                    <TextBlock Text="{Binding Display}" FontWeight="Bold"/>
+                                                    <!-- Score badge: empty string when no sort is active so the
+                                                         TextBlock collapses; visible (and colored a calm blue
+                                                         so it doesn't compete with the "stale results" red)
+                                                         when ScoreSortMode is non-Off and a single descriptor
+                                                         is selected. No tooltip of its own - the row tooltip
+                                                         now covers every Category, not just the filtered one. -->
+                                                    <TextBlock Text="{Binding ScoreDisplay}"
+                                                               Margin="8,0,0,0"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#FF1E88E5"
+                                                               VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
