@@ -1586,6 +1586,20 @@
                                                                FontWeight="SemiBold"
                                                                Foreground="#FF1E88E5"
                                                                VerticalAlignment="Center"/>
+                                                    <!-- Runner-up for the descriptor the badge scores:
+                                                         "Next closest: {Value} ({gap})", the gap in whichever
+                                                         unit the sort mode picked. Empty string (so it
+                                                         collapses to nothing) unless "Show Closest Assignment"
+                                                         is on AND the filter pins exactly one descriptor value
+                                                         - with 0 or 2+ checked there is no single subject to
+                                                         rank rivals against, and the row tooltip still carries
+                                                         the per-Category runner-ups. Muted rather than the
+                                                         badge's blue: it is the value this row did NOT get,
+                                                         so it should not read as the row's own score. -->
+                                                    <TextBlock Text="{Binding ClosestAssignmentDisplay}"
+                                                               Margin="12,0,0,0"
+                                                               Foreground="{DynamicResource SecondaryForeground}"
+                                                               VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>

@@ -2476,7 +2476,7 @@ public class VM_BodyTypeProfileEditor : VM
                 .ThenBy(r => r.Weight)
                 .ToList();
 
-            AssignRowTooltips(profile, staged);
+            AssignRowReadouts(profile, staged);
             foreach (var row in staged) MatchingPresets.Add(row);
 
             if (previouslySelected != null)
@@ -2594,7 +2594,7 @@ public class VM_BodyTypeProfileEditor : VM
             }
         }
 
-        AssignRowTooltips(profile, staged);
+        AssignRowReadouts(profile, staged);
         foreach (var row in staged) MatchingPresets.Add(row);
 
         // Try to re-select the same (preset, gender, weight) row if it still exists so the
@@ -2614,15 +2614,16 @@ public class VM_BodyTypeProfileEditor : VM
         }
     }
 
-    /// <summary>Hands every staged Match Presets row the closure that builds its tooltip —
-    /// the per-Category assignment readout (see <see cref="BuildRowDescriptorTooltip"/>).
-    /// <para>Deferred rather than computed here: the tooltip scores every descriptor value
-    /// the row's Categories can reach, and the row list is rebuilt on every keystroke of the
-    /// name filter. The factory runs when the ListBox realizes the row's container, so a
-    /// virtualized list only ever pays for the rows on screen, and the profile-wide sigma
-    /// table is itself deferred behind a memo that no row touches unless it needs a
-    /// number.</para></summary>
-    private void AssignRowTooltips(VM_BodyTypeProfile profile, List<VM_PresetScanRow> staged)
+    /// <summary>Hands every staged Match Presets row the closures that build its two deferred
+    /// readouts: the hover tooltip's per-Category assignment block (see
+    /// <see cref="BuildRowDescriptorTooltip"/>) and the inline "Next closest" runner-up shown
+    /// beside the score badge (see <see cref="BuildRowClosestAssignment"/>).
+    /// <para>Deferred rather than computed here: both readouts score descriptor values, and
+    /// the row list is rebuilt on every keystroke of the name filter. The factories run when
+    /// the ListBox realizes the row's container, so a virtualized list only ever pays for the
+    /// rows on screen, and the profile-wide sigma table is itself deferred behind a memo —
+    /// shared by both readouts — that no row touches unless it needs a number.</para></summary>
+    private void AssignRowReadouts(VM_BodyTypeProfile profile, List<VM_PresetScanRow> staged)
     {
         if (profile == null || staged == null) return;
 
@@ -2630,6 +2631,37 @@ public class VM_BodyTypeProfileEditor : VM
         var metric = ResolveClosestAssignmentMetric(ScoreSortMode);
         var allRules = profile.Rules.ToList();
         var defaultsByCategory = profile.GetDefaultValuesByCategory();
+
+        // Subject of the inline "Next closest" readout: the filter's own descriptor value,
+        // which (in both Any and All match modes, with exactly one value checked) is the value
+        // every surviving row actually carries. So the readout always answers "what would take
+        // this row's label away from it".
+        // Deliberately NOT the badge's subject in the Similarity modes. There the badge scores
+        // the "vs:" target instead, and pointing the rival search at the target makes the
+        // readout report the row's own value back at it — filter Belly:Flat vs Chubby names
+        // Flat as Chubby's closest rival on every row, which is both obvious and useless. The
+        // badge and this readout are different questions ("how close is this row to Chubby?"
+        // vs "what is closest to stealing Flat?"), so they take different subjects; only the
+        // unit is shared, via ResolveClosestAssignmentMetric.
+        // Stays empty when the filter doesn't pin exactly one value, which leaves every row's
+        // inline readout blank; the tooltip still covers every Category, so nothing is lost,
+        // there is just no one Category to put on the row.
+        string closestCategory = "";
+        string closestValue = "";
+        if (includeClosest)
+        {
+            var selectionKeys = (DescriptorFilter?.DumpToHashSet()
+                                 ?? new HashSet<BodyShapeDescriptor.LabelSignature>())
+                .Select(sig => (sig.Category, sig.Value))
+                .ToHashSet();
+            if (selectionKeys.Count == 1)
+            {
+                var (cat, val) = selectionKeys.First();
+                closestCategory = cat ?? "";
+                closestValue = val ?? "";
+            }
+        }
+        bool inlineClosestActive = closestCategory.Length > 0 && closestValue.Length > 0;
 
         // One sigma table per refresh, shared by every row and built on first demand. Sigma
         // is a population statistic per measurement name, so it's identical across rows —
@@ -2654,6 +2686,10 @@ public class VM_BodyTypeProfileEditor : VM
         {
             row.DetailsTooltipFactory = r => BuildRowDescriptorTooltip(
                 r, profile, includeClosest, metric, Sigmas, allRules, defaultsByCategory);
+            row.ClosestAssignmentFactory = inlineClosestActive
+                ? r => BuildRowClosestAssignment(
+                    r, profile, closestCategory, closestValue, metric, Sigmas, allRules, defaultsByCategory)
+                : null;
         }
     }
 
@@ -3515,6 +3551,43 @@ public class VM_BodyTypeProfileEditor : VM
             if (rival.Length > 0) sb.Append("   next closest: ").Append(rival);
         }
         return sb.ToString();
+    }
+
+    /// <summary>Builds the Match Presets row's inline runner-up readout — <c>"Next closest:
+    /// Rectangle (0.73σ)"</c> — for the descriptor value the row actually carries in the
+    /// filtered Category: how much margin it would have to give up before the best-scoring
+    /// rival in that Category took the label off it.
+    /// <para><paramref name="scoredValue"/> is the filter's value, not necessarily the one the
+    /// score badge reports — under a Similarity sort the badge scores the "vs:" target
+    /// instead. The two are different questions and the caller resolves each separately; what
+    /// they share is the unit.</para>
+    /// <para>That unit follows the sort mode via <see cref="ResolveClosestAssignmentMetric"/> —
+    /// percent-of-threshold when a %-normalized sort is active, standard deviations otherwise
+    /// (including the Off and Measurement sorts, which carry no margin unit of their own).
+    /// That is the same resolution the hover tooltip uses, so a row's inline gap and its
+    /// tooltip gap for the same Category always read in the same unit.</para>
+    /// <para>Empty string when the row has no cached measurements or the Category has no
+    /// scorable rival, so the row simply renders with the badge alone.</para></summary>
+    private static string BuildRowClosestAssignment(
+        VM_PresetScanRow row,
+        VM_BodyTypeProfile profile,
+        string category,
+        string scoredValue,
+        MarginScoreMode mode,
+        Func<Dictionary<string, double>> stdDevsFactory,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory)
+    {
+        if (row == null || profile == null) return "";
+        if (!profile.MeasurementCache.TryGetValue(
+                (row.PresetLabel, row.Gender, row.Weight), out var entry)
+            || entry?.Measurements == null)
+            return "";
+
+        string rival = FormatClosestRival(
+            category, scoredValue, entry.Measurements, mode, stdDevsFactory?.Invoke(),
+            allRules, defaultsByCategory, row.Gender, ctx: null);
+        return rival.Length > 0 ? "Next closest: " + rival : "";
     }
 
     /// <summary>Formats the Rules-tab inline suffix — <c>"Next closest match: Rectangle
@@ -11650,7 +11723,7 @@ public class VM_PresetScanRow : VM
     public string Display => $"{PresetLabel}  (W{Weight}, {Gender})";
 
     /// <summary>Builds <see cref="DetailsTooltip"/> on demand. Assigned by
-    /// <see cref="VM_BodyTypeProfileEditor.AssignRowTooltips"/> on every list refresh, which
+    /// <see cref="VM_BodyTypeProfileEditor.AssignRowReadouts"/> on every list refresh, which
     /// is what captures the current toggle / sort state — a row built by an older refresh is
     /// never reused, so the closure can't go stale.</summary>
     internal Func<VM_PresetScanRow, string> DetailsTooltipFactory { get; set; }
@@ -11689,8 +11762,39 @@ public class VM_PresetScanRow : VM
         }
     }
 
+    /// <summary>Builds <see cref="ClosestAssignmentDisplay"/> on demand. Assigned alongside
+    /// <see cref="DetailsTooltipFactory"/> by <see cref="VM_BodyTypeProfileEditor.AssignRowReadouts"/>,
+    /// so it captures the same refresh's toggle / filter / sort state. Left null - which
+    /// renders the readout empty - whenever that refresh had no single scored descriptor to
+    /// name a runner-up for.</summary>
+    internal Func<VM_PresetScanRow, string> ClosestAssignmentFactory { get; set; }
+
+    /// <summary>Inline "Next closest: {Value} ({gap})" readout for the value this row carries
+    /// in the filtered Category: the best-scoring value in that Category the row did <i>not</i>
+    /// receive, and the margin separating the two. Reads as "how far this row sits from losing
+    /// its label to that rival". Empty when "Show Closest Assignment" is off, when the filter
+    /// doesn't pin exactly one descriptor value (no single subject to rank rivals against), or
+    /// when the Category has no scorable rival.
+    /// <para>Computed on first read and memoized, exactly like <see cref="DetailsTooltip"/> -
+    /// the binding fires when the ListBox realizes the container, so a virtualized list pays
+    /// one rival-ranking pass per <i>visible</i> row rather than per staged row.</para></summary>
+    public string ClosestAssignmentDisplay
+    {
+        get
+        {
+            if (!_closestAssignmentBuilt)
+            {
+                _closestAssignment = ClosestAssignmentFactory?.Invoke(this) ?? "";
+                _closestAssignmentBuilt = true;
+            }
+            return _closestAssignment;
+        }
+    }
+
     private string _detailsTooltip = "";
     private bool _detailsTooltipBuilt;
+    private string _closestAssignment = "";
+    private bool _closestAssignmentBuilt;
 }
 
 /// <summary>Weight-filter toggle for the Match Presets tab. One per weight slot observed
