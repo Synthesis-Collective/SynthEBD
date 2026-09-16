@@ -2768,6 +2768,81 @@ public class VM_BodyTypeProfileEditor : VM
         }
     }
 
+    /// <summary>Measurement names that characterize one descriptor (<paramref name="category"/>,
+    /// <paramref name="value"/>): the union of every Measurement-kind condition name under the
+    /// rules that define it, in encounter order with an ordinal dedupe (so the viewer never draws
+    /// the same line twice when several rules share a measurement).
+    /// <para>A Category's <i>default</i> value is the case the fallback exists for. The default is
+    /// assigned precisely when no sibling rule fires, so it normally carries no rules — and
+    /// therefore no measurements — of its own, which left "Show Measurements" and the per-row
+    /// readouts blank for it. When the requested value is the Category's default and contributes
+    /// nothing itself, this returns the union across every <i>other</i> rule in the Category
+    /// instead: those are exactly the measurements whose failure to fire produced the default, so
+    /// they are the ones worth showing. This mirrors what the scorer already does with the
+    /// default's margin, which it synthesizes from the same sibling rules.</para>
+    /// <para>A non-default value with no rules is left empty on purpose — nothing defines it, so
+    /// there is nothing to draw. Pass an empty <paramref name="value"/> for a Category-level
+    /// request (every rule in the Category), where the fallback is a no-op.</para></summary>
+    internal static List<string> CollectDescriptorMeasurementNames(
+        IEnumerable<VM_MeasurementRule> allRules,
+        string category,
+        string value,
+        string categoryDefault)
+    {
+        var names = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        if (allRules == null || string.IsNullOrEmpty(category)) return names;
+
+        var categoryRules = allRules
+            .Where(r => r != null && string.Equals(r.DescriptorCategory, category, StringComparison.Ordinal))
+            .ToList();
+
+        if (string.IsNullOrEmpty(value))
+        {
+            AccumulateMeasurementNames(categoryRules, names, seen);
+            return names;
+        }
+
+        AccumulateMeasurementNames(
+            categoryRules.Where(r => string.Equals(r.DescriptorValue, value, StringComparison.Ordinal)),
+            names, seen);
+
+        if (names.Count == 0
+            && !string.IsNullOrEmpty(categoryDefault)
+            && string.Equals(value, categoryDefault, StringComparison.Ordinal))
+        {
+            AccumulateMeasurementNames(categoryRules, names, seen);
+        }
+        return names;
+    }
+
+    /// <summary>Appends each Measurement-kind condition's <c>MeasurementName</c> from
+    /// <paramref name="rules"/> into <paramref name="names"/>, skipping any already in
+    /// <paramref name="seen"/>. DescriptorRef conditions carry no measurement of their own and are
+    /// skipped — the overlay does not tunnel into referenced descriptors, matching what the
+    /// per-row measurement readouts show.</summary>
+    internal static void AccumulateMeasurementNames(
+        IEnumerable<VM_MeasurementRule> rules, List<string> names, HashSet<string> seen)
+    {
+        if (rules == null || names == null || seen == null) return;
+        foreach (var rule in rules)
+        {
+            if (rule?.Groups == null) continue;
+            foreach (var g in rule.Groups)
+            {
+                if (g?.Conditions == null) continue;
+                foreach (var c in g.Conditions)
+                {
+                    if (c == null) continue;
+                    if (c.Kind != MeasurementConditionKind.Measurement) continue;
+                    var n = c.MeasurementName;
+                    if (string.IsNullOrEmpty(n)) continue;
+                    if (seen.Add(n)) names.Add(n);
+                }
+            }
+        }
+    }
+
     /// <summary>Pushes the descriptor-derived measurement set into the active profile's
     /// viewer overlay channel when <see cref="ShowMatchPresetMeasurements"/> is on; clears
     /// the channel otherwise. The derivation walks every rule on the profile whose descriptor
@@ -2797,25 +2872,20 @@ public class VM_BodyTypeProfileEditor : VM
             return;
         }
 
-        // Collect every Measurement-kind condition name referenced by any rule whose
-        // descriptor matches one of the checked filter entries. Ordinal dedupe keeps the
-        // viewer from drawing the same line twice when multiple rules share a measurement.
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var rule in profile.Rules)
+        // Resolve each checked filter entry on its own rather than making one pass over every
+        // rule: CollectDescriptorMeasurementNames' Category-default fallback is a
+        // per-(Category, Value) decision, so a single membership test over all rules can't
+        // express it. Ordinal dedupe across entries keeps the viewer from drawing the same line
+        // twice when several checked descriptors share a measurement.
+        var allRules = profile.Rules.ToList();
+        var names = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (cat, val) in selectionKeys)
         {
-            if (rule == null) continue;
-            var key = (rule.DescriptorCategory ?? "", rule.DescriptorValue ?? "");
-            if (!selectionKeys.Contains(key)) continue;
-            foreach (var group in rule.Groups)
+            foreach (var n in CollectDescriptorMeasurementNames(
+                         allRules, cat, val, profile.GetDefaultValueForCategory(cat)))
             {
-                if (group?.Conditions == null) continue;
-                foreach (var cond in group.Conditions)
-                {
-                    if (cond == null) continue;
-                    if (cond.Kind != MeasurementConditionKind.Measurement) continue;
-                    if (string.IsNullOrEmpty(cond.MeasurementName)) continue;
-                    names.Add(cond.MeasurementName);
-                }
+                if (seen.Add(n)) names.Add(n);
             }
         }
 
@@ -5170,22 +5240,37 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
-        IEnumerable<VM_MeasurementRule> relevant =
-            TempEditBranch?.ParentRule is { } tempRule ? new[] { tempRule } : FilteredRules;
-
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var rule in relevant)
+        var names = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        if (TempEditBranch?.ParentRule is { } tempRule)
         {
-            if (rule?.Groups == null) continue;
-            foreach (var g in rule.Groups)
+            // Temp-edit session: the branch's own rule is the subject, so no descriptor-level
+            // resolution (and no Category-default fallback) applies — draw exactly what that one
+            // rule references, which is what the user is editing.
+            VM_BodyTypeProfileEditor.AccumulateMeasurementNames(new[] { tempRule }, names, seen);
+        }
+        else
+        {
+            // Selected tree node. Routed through the shared resolver so a node sitting on a
+            // Category's default value — which by construction has no rules, and so used to light
+            // up nothing at all — falls back to every other rule in the Category. A Category-level
+            // node already spans every rule, so the fallback is a no-op there.
+            string nodeCategory = "";
+            string nodeValue = "";
+            switch (SelectedRuleTreeNode)
             {
-                if (g?.Conditions == null) continue;
-                foreach (var c in g.Conditions)
-                {
-                    if (c == null || c.Kind != MeasurementConditionKind.Measurement) continue;
-                    if (string.IsNullOrEmpty(c.MeasurementName)) continue;
-                    names.Add(c.MeasurementName);
-                }
+                case VM_RuleTreeValueNode v:
+                    nodeCategory = v.Category ?? "";
+                    nodeValue = v.Value ?? "";
+                    break;
+                case VM_RuleTreeCategoryNode c:
+                    nodeCategory = c.Category ?? "";
+                    break;
+            }
+            foreach (var n in VM_BodyTypeProfileEditor.CollectDescriptorMeasurementNames(
+                         Rules, nodeCategory, nodeValue, GetDefaultValueForCategory(nodeCategory)))
+            {
+                if (seen.Add(n)) names.Add(n);
             }
         }
 
@@ -7847,7 +7932,25 @@ public class VM_BodyTypeProfile : VM
         {
             if (sel == null) continue;
 
-            string name = string.IsNullOrEmpty(sel.Name) ? "(unnamed)" : sel.Name;
+            string rawName = string.IsNullOrEmpty(sel.Name) ? "(unnamed)" : sel.Name;
+
+            // Hover labels lead with "what this is, and what it currently reads". The value is
+            // appended to the name rather than the end of the label so it stays next to the thing
+            // it belongs to, leaving any trailing role qualifier ("(X leg)", "(numerator: ...)")
+            // to say which part of a multi-leg decomposition the cursor is actually on. F4 /
+            // InvariantCulture deliberately matches the Measurements grid's Live column and the
+            // per-condition readout, so the same number is recognisable across all three (and at
+            // F2 a value of 1.1362 would render "1.14" yet fail a ">= 1.14" condition).
+            // <para>The number is the parent measurement's own scalar, not the length of the leg
+            // under the cursor. They coincide for PointDistance and for the leg annotated
+            // "measurement axis"; on a ratio's numerator / denominator legs the reported value is
+            // the ratio itself, which is what the threshold tests.</para>
+            // <para>Null LiveValue (no viewer loaded, or a key vertex that didn't resolve against
+            // this mesh) keeps the bare name instead of printing a placeholder.</para>
+            string name = sel.LiveValue.HasValue
+                ? rawName + " = " + sel.LiveValue.Value.ToString(
+                    "F4", System.Globalization.CultureInfo.InvariantCulture)
+                : rawName;
 
             var a = Resolve(sel.VertexRefA);
             var b = Resolve(sel.VertexRefB);
@@ -10010,24 +10113,13 @@ public class VM_BodyTypeProfile : VM
                 break;
         }
 
-        var displayNames = new List<string>();
-        var displayNameSet = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var rule in FilteredRules)
-        {
-            if (rule?.Groups == null) continue;
-            foreach (var g in rule.Groups)
-            {
-                if (g?.Conditions == null) continue;
-                foreach (var c in g.Conditions)
-                {
-                    if (c == null) continue;
-                    if (c.Kind != MeasurementConditionKind.Measurement) continue;
-                    var name = c.MeasurementName;
-                    if (string.IsNullOrEmpty(name)) continue;
-                    if (displayNameSet.Add(name)) displayNames.Add(name);
-                }
-            }
-        }
+        // Same resolution the "Show Measurements" overlay uses, so the lines drawn on the model
+        // and the "name=value" text under each row always name the same measurements — including
+        // on a Category-default node, whose own rule set is empty and which therefore falls back
+        // to every other rule in the Category.
+        var displayNames = VM_BodyTypeProfileEditor.CollectDescriptorMeasurementNames(
+            Rules, nodeCategory, isValueLevel ? nodeValue : "",
+            GetDefaultValueForCategory(nodeCategory));
 
         // Closest-assignment scoring context, resolved once for the whole list. The sigma
         // table is a population statistic shared by every row, and the rule / defaults
@@ -10263,17 +10355,8 @@ public class VM_BodyTypeProfile : VM
         // Measurement columns to display per row: union of every Measurement-kind condition name
         // across the rule's branches (same idea as the node-scoped list, scoped to this rule).
         var displayNames = new List<string>();
-        var displayNameSet = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var g in rule.Groups)
-        {
-            if (g?.Conditions == null) continue;
-            foreach (var c in g.Conditions)
-            {
-                if (c == null || c.Kind != MeasurementConditionKind.Measurement) continue;
-                if (string.IsNullOrEmpty(c.MeasurementName)) continue;
-                if (displayNameSet.Add(c.MeasurementName)) displayNames.Add(c.MeasurementName);
-            }
-        }
+        VM_BodyTypeProfileEditor.AccumulateMeasurementNames(
+            new[] { rule }, displayNames, new HashSet<string>(StringComparer.Ordinal));
 
         var union = new HashSet<(string PresetLabel, Gender Gender, int Weight)>(current);
         union.UnionWith(original);

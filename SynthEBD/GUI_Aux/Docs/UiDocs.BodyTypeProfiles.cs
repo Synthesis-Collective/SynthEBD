@@ -259,7 +259,7 @@ public static partial class UiDocs
 
         Add("BodyTypeProfiles.RuleNodeShowMeasurements",
             layperson: "Draws every measurement used by the selected rules as lines on the 3D preview, updating as you switch nodes or edit conditions.",
-            technical: "ShowRuleNodeMeasurements pushes the measurements referenced by the rules under the selected tree node (or by the temp-edited rule during a session) into the viewer's measurement-line overlay - the same channel the Measurements tab uses. While on, it overrides the Measurements-grid selection; unchecking restores it.",
+            technical: "ShowRuleNodeMeasurements pushes the measurements referenced by the rules under the selected tree node (or by the temp-edited rule during a session) into the viewer's measurement-line overlay - the same channel the Measurements tab uses. A node on a category's default value has no rules of its own, so it falls back to the union across every other rule in that category: those are the measurements whose failure to fire is what produced the default. While on, it overrides the Measurements-grid selection; unchecking restores it.",
             motivation: "Rules are abstract until you see which anatomy their measurements actually span on the loaded preset.");
 
         Add("BodyTypeProfiles.RuleNodeShowClosestAssignment",
@@ -291,7 +291,7 @@ public static partial class UiDocs
 
         Add("BodyTypeProfiles.MatchShowMeasurements",
             layperson: "Draws every measurement used by the rules of the descriptors you have checked above as lines on the 3D preview.",
-            technical: "ShowMatchPresetMeasurements pushes the measurements referenced by any rule whose descriptor is checked in the filter into the viewer's measurement-line overlay (the same channel the Measurements grid selection uses), refreshing as the filter selection changes. While on, it overrides the Measurements-tab selection; unchecking restores it.",
+            technical: "ShowMatchPresetMeasurements pushes the measurements referenced by any rule whose descriptor is checked in the filter into the viewer's measurement-line overlay (the same channel the Measurements grid selection uses), refreshing as the filter selection changes. A checked value that is its category's default has no rules of its own, so it falls back to the union across every other rule in that category: those are the measurements whose failure to fire is what produced the default. Hovering any drawn line names its measurement and reports the value currently evaluated against the loaded preset.",
             motivation: "When reviewing why filtered presets match, seeing the exact measured spans on the body beats cross-referencing rule text.");
 
         Add("BodyTypeProfiles.MatchShowClosestAssignment",
