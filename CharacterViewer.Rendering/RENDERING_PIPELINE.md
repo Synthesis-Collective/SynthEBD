@@ -19,6 +19,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [Override channels (textures + meshes)](#override-channels-textures--meshes)
 3. [Part 2 — Fragment shader pipeline](#part-2--fragment-shader-pipeline)
    - [Vertex shader (brief)](#vertex-shader-brief)
+   - [Section clip plane (Clip F / Clip B)](#section-clip-plane-clip-f--clip-b)
    - [Stage 1: base color & alpha test](#stage-1-base-color--alpha-test)
    - [Stage 1b: tint operations](#stage-1b-tint-operations)
    - [Stage 1c: skin saturation boost](#stage-1c-skin-saturation-boost)
@@ -330,8 +331,29 @@ The main fragment shader is [Shaders/basic.frag](Shaders/basic.frag). The vertex
 - `v_modelToViewNormalMatrix` — used by the model-space normal-map path.
 - `v_worldPos` — for shadow-map lookup in the fragment shader.
 - `v_worldNormal` — for the `DEBUG_VIZ_WORLD_NORMAL` debug branch.
+- `gl_ClipDistance[0]` — the section clip plane; see below.
 
 The `u_model` matrix is identity for the static character preview (the character is at the origin, the camera orbits around it). That assumption is leveraged by `DEBUG_VIZ_MSN_NORMAL` which treats model-space and world-space as interchangeable.
+
+### Section clip plane (Clip F / Clip B)
+
+A cutaway: one world-space plane hides either the half of the model in front of it (**Clip F** — look *into* a closed body) or the half behind it (**Clip B** — isolate the near surface from the far wall behind it). Armed from the two toggles under the axis gizmo in the viewport HUD.
+
+**Plane representation.** `GlRenderer.ClipPlane` is a `Vector4` packed as `(normal.xyz, -distance)`; a vertex survives when `dot(worldPos, plane) >= 0`. The disabled value is `(0,0,0,1)` — a constant `+1` for every vertex, so the uniform is inert even if a stray draw ever left `GL_CLIP_DISTANCE0` enabled. `GlRenderer.ClipEnabled` is the actual gate.
+
+**Axis is locked, not live.** `VM_CharacterViewer.ArmClipPlane` samples the camera's view direction **once**, picks whichever world axis it most nearly runs along (largest `|component|`), orients that axis *away* from the camera, and parks the plane at the camera's orbit target. So a front-on view yields the XY plane, a side view YZ, a top-down view XZ. The lock is deliberate: re-resolving the dominant axis per frame makes the cut snap to a different axis mid-orbit, and the depth the user scrolled to stops meaning what it meant a moment earlier. Toggling off and back on re-detects against the new view. Flipping **F → B** directly keeps the plane exactly where it is and only swaps the surviving half-space — both modes are expressed against the same stored `_clipNormal`, negated for Back.
+
+**Hardware clipping, not `discard`.** The cut is `gl_ClipDistance[0]`, written by **four** vertex shaders — [basic.vert](Shaders/basic.vert), [wireframe.vert](Shaders/wireframe.vert), [depth_only.vert](Shaders/depth_only.vert), [shadow_depth.vert](Shaders/shadow_depth.vert) — with `GL_CLIP_DISTANCE0` scoped around each of the four geometry passes by `BeginClipPass` / `EndClipPass`. A fragment `discard` in `basic.frag` would have been a one-line change but is *wrong here*: the SSAO depth/normal prepass and the shadow depth pass are separate renders of the same geometry, so clipped-away geometry would keep casting shadow onto — and keep ambient-occluding — the surfaces the user just uncovered. `shadow_depth.vert` clips in **world** space even though its `gl_Position` is in the light's clip space, precisely so both passes drop the same triangles.
+
+> **The scoping is load-bearing, not defensive.** While `GL_CLIP_DISTANCE0` is enabled, a vertex shader that leaves `gl_ClipDistance[0]` *unwritten* yields an **undefined** clip result — not an unclipped one. `debug.vert`, `heatmap.vert` and `fullscreen.vert` never write it, so the enable must be cleared before the bloom/SSAO full-screen quads and before the overlay pass. Every `BeginClipPass` scope is verified to contain no early `return`.
+
+**Overlays are never clipped.** Key-vertex markers, measurement lines, region wireframes and light arrows keep drawing on the hidden side, for the same reason they already draw with depth test off: a pick you made on a surface you have since cut away must stay visible.
+
+**Visualization.** With the **V** toggle on (default), `DrawClipPlaneVisual` draws the plane as a translucent quad with a 6×6 grid and a bright border, centred on the camera target's perpendicular projection onto the plane and sized from camera distance × FOV so it always spans the viewport (no scene bounds needed). The fill is depth-tested but writes **no** depth — otherwise it would z-reject the marker and measurement gizmos drawn after it — while border and grid draw with depth test off so the plane stays locatable behind the model. This required adding a `u_alpha` uniform to `debug.frag`; it defaults to `0` when unset, so **every** debug-shader caller now pushes it explicitly.
+
+**Moving it.** Ctrl+wheel in the viewport calls `NudgeClipPlane`, sliding the plane along its locked normal with a step of `max(0.03, Distance × 0.0025)` so one notch covers a comparable fraction of the screen at any zoom. The step is deliberately fine: positioning a section cut is an aiming task, where the useful travel is the few units around the surface being sliced, and a step coarse enough to cross the body in a handful of notches skips straight past it. Long traversals are covered by spinning the wheel. The plain wheel deliberately stays camera zoom.
+
+**Known limit.** Clipping is display-only — the CPU-side vertex ray-pick in `VM_CharacterViewer` knows nothing about the plane, so a left-click in Pick Vertex mode can still land on geometry the clip has hidden.
 
 ### Stage 1: base color & alpha test
 
@@ -717,6 +739,10 @@ Most overlay geometry is drawn through one shared VAO/VBO (`_debugVao` / `_debug
 The one exception is the **slider-morph heatmap** channel, which needs a *per-vertex* color (a `u_color` uniform can't express a gradient), so it has its own VAO/VBO (`_heatmapVao` / `_heatmapVbo`, layout = `position(3) + normal(3) + color(3)` = 9 floats) and shader pair ([Shaders/heatmap.vert](Shaders/heatmap.vert) + [heatmap.frag](Shaders/heatmap.frag)). `heatmap.frag` is **unlit** — it outputs the interpolated per-vertex color directly, because that color *is* the datum (morph magnitude); applying the debug pass's fake-sun shade would falsify the magnitudes. The normal is still carried in the layout for parity (and so a future lit variant needs no re-plumbing) but is unused by the fragment shader.
 
 Shared state for the whole pass: **depth test off**; markers + solid additionally enable **back-face cull** and `u_shaded=1`; lines use `u_shaded=0` and a per-channel `GL.LineWidth`. Buffers are uploaded per-draw with `BufferUsageHint.DynamicDraw` (the overlay changes every frame the user edits, so there's no value in static buffers).
+
+`debug.frag` also carries a `u_alpha` output-alpha uniform, added for the [section clip plane](#section-clip-plane-clip-f--clip-b)'s translucent fill. It is `1.0` for every overlay channel here — but an unset GLSL uniform is `0`, i.e. fully transparent, so **every** caller of the debug shader must push it rather than relying on a default. The clip-plane visualization is also the one debug-shader draw that enables blending and clears the depth mask; it restores both.
+
+The overlay pass runs with `GL_CLIP_DISTANCE0` **off**, so none of these channels are cut by an armed section clip: a pick marker on a surface the user has cut away stays visible, which is the same reasoning behind the pass's depth test being off.
 
 > **Same shader, two looks.** The "solid object visible through the body" effect needed for region Solid mode is *not* transparency — it's the lit debug geometry drawn with depth test off, exactly like the marker spheres. A flat single color reads as a 3D solid because `u_shaded=1` varies brightness with the face normal. This is why the region Solid view required no main-shader changes and no alpha/sort-order work.
 

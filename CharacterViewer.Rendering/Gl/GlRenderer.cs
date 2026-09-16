@@ -7,6 +7,23 @@ using OpenTK.Mathematics;
 namespace CharacterViewer.Rendering;
 
 /// <summary>
+/// Which half-space of the section-clip plane gets thrown away. "Front" and "Back"
+/// are relative to the camera at the moment the user armed the clip, not to the
+/// character's own facing.
+/// </summary>
+public enum ClipPlaneMode
+{
+    /// <summary>No clipping; the whole model draws.</summary>
+    None = 0,
+    /// <summary>Discard everything BETWEEN the camera and the plane, so the plane
+    /// becomes the nearest visible surface (cut away the chest to look into the torso).</summary>
+    Front = 1,
+    /// <summary>Discard everything BEYOND the plane, keeping only what sits between
+    /// the camera and it (isolate the near surface from the far side of the body).</summary>
+    Back = 2,
+}
+
+/// <summary>
 /// Core OpenGL renderer for the character viewer. Manages the shader program,
 /// draws all meshes with proper material uniforms, and handles lighting.
 /// </summary>
@@ -587,6 +604,69 @@ public class GlRenderer : IDisposable
     /// is applied in the model matrix rather than per-mesh.</summary>
     public float ModelScale { get; set; } = 1.0f;
 
+    // ===================================================================
+    //  SECTION CLIP PLANE
+    // ===================================================================
+
+    /// <summary>
+    /// The world-space section-clip plane, packed as (normal.xyz, -distance): a
+    /// vertex survives when <c>dot(worldPos, normal) - distance &gt;= 0</c>. The
+    /// identity value <c>(0,0,0,1)</c> is a constant +1 for every vertex, i.e. clip
+    /// nothing, and is what <see cref="ClipEnabled"/>=false leaves in the uniform.
+    ///
+    /// <para>Composed by the view model (<c>VM_CharacterViewer.PushClipPlaneToRenderer</c>),
+    /// not here: the axis is chosen once when the user arms Clip F / Clip B and then
+    /// stays locked while the camera orbits, which is a UI decision the renderer has no
+    /// business re-deriving per frame.</para>
+    /// </summary>
+    public Vector4 ClipPlane { get; set; } = new Vector4(0f, 0f, 0f, 1f);
+
+    /// <summary>
+    /// Whether <see cref="ClipPlane"/> is applied to scene geometry. Gates
+    /// <c>GL_CLIP_DISTANCE0</c> around the four geometry passes (main, wireframe
+    /// overlay, SSAO depth prepass, shadow depth) and nothing else.
+    ///
+    /// <para>Overlay gizmos — key-vertex markers, measurement lines, region
+    /// wireframes, light arrows — are deliberately never clipped, so a pick you made
+    /// on a now-hidden surface stays visible. They already draw with depth-test off
+    /// for the same reason.</para>
+    /// </summary>
+    public bool ClipEnabled { get; set; }
+
+    /// <summary>Draws the translucent quad + border marking where
+    /// <see cref="ClipPlane"/> cuts. Purely cosmetic: clipping itself is driven by
+    /// <see cref="ClipEnabled"/> and works with this off.</summary>
+    public bool ShowClipPlaneVisual { get; set; }
+
+    /// <summary>Fill / border color of the clip-plane visualization.</summary>
+    public Vector3 ClipPlaneVisualColor { get; set; } = new Vector3(0.20f, 0.85f, 1.0f);
+
+    /// <summary>Scratch buffer for the clip-plane quad (6 verts x 6 floats) and its
+    /// 4-segment border, reused each frame to keep the render loop allocation-free.</summary>
+    private readonly float[] _clipQuadScratch = new float[36];
+
+    /// <summary>
+    /// Enables GL_CLIP_DISTANCE0 for a geometry pass and pushes the plane onto the
+    /// pass's shader. Every vertex shader reached between this and
+    /// <see cref="EndClipPass"/> MUST write <c>gl_ClipDistance[0]</c> — a shader that
+    /// leaves it unwritten while the clip distance is enabled yields an undefined
+    /// clip result, not an unclipped one. Currently that means basic.vert,
+    /// wireframe.vert, depth_only.vert and shadow_depth.vert.
+    /// </summary>
+    private void BeginClipPass(GlShaderProgram shader)
+    {
+        shader.SetVector4("u_clipPlane", ClipEnabled ? ClipPlane : new Vector4(0f, 0f, 0f, 1f));
+        if (ClipEnabled) GL.Enable(EnableCap.ClipDistance0);
+    }
+
+    /// <summary>Disables GL_CLIP_DISTANCE0 after a geometry pass, so the overlay and
+    /// full-screen post-process shaders (debug.vert, heatmap.vert, fullscreen.vert)
+    /// — none of which write gl_ClipDistance — are never reached with it on.</summary>
+    private void EndClipPass()
+    {
+        GL.Disable(EnableCap.ClipDistance0);
+    }
+
     public GlRenderer()
     {
         // Default lighting: ambient + key + fill + rim
@@ -981,6 +1061,10 @@ public class GlRenderer : IDisposable
 
         _shader.SetVector3("u_backlightColor", BacklightColor.X, BacklightColor.Y, BacklightColor.Z);
 
+        // Arm the section-clip plane for the three geometry passes below. Cleared
+        // again after pass 2, before the bloom post-process and the overlay gizmos.
+        BeginClipPass(_shader);
+
         // Pass 0: Opaque meshes (no alpha test or blend)
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
@@ -1108,6 +1192,10 @@ public class GlRenderer : IDisposable
         }
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
+        // Geometry passes done. Clear the clip distance before the full-screen
+        // bloom quad and the overlay gizmos, which use shaders that never write
+        // gl_ClipDistance[0]; DrawWireframeOverlay re-arms it for itself.
+        EndClipPass();
 
         // Bloom post-process (off by default; needs tone-mapping for a
         // meaningful glow). Runs on the fully composited character scene but
@@ -1120,6 +1208,11 @@ public class GlRenderer : IDisposable
         // Wireframe overlay: drawn after alpha-blend so its lines layer on top
         // of the solid surface. Uses glPolygonOffset to avoid z-fighting.
         DrawWireframeOverlay(ref model, ref view, ref projection);
+
+        // Section-clip plane visualization. Drawn after the geometry it cuts but
+        // before the marker/line gizmos, which are depth-test-off and so stay on
+        // top of it.
+        DrawClipPlaneVisual(camera, ref view, ref projection);
 
         // Key-vertex marker gizmos (BodySlide classifier). Drawn with depth
         // test off so markers on the far side of the model remain visible to
@@ -1157,6 +1250,9 @@ public class GlRenderer : IDisposable
         _debugShader.SetMatrix4("u_view", ref view);
         _debugShader.SetMatrix4("u_projection", ref projection);
         _debugShader.SetFloat("u_shaded", 1f);
+        // Opaque. debug.frag gained u_alpha for the clip-plane fill; an unset
+        // uniform defaults to 0, so every caller must push it or draw invisible.
+        _debugShader.SetFloat("u_alpha", 1f);
 
         GL.BindVertexArray(_debugVao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
@@ -1306,6 +1402,7 @@ public class GlRenderer : IDisposable
         _debugShader.SetMatrix4("u_view", ref view);
         _debugShader.SetMatrix4("u_projection", ref projection);
         _debugShader.SetFloat("u_shaded", 0f);
+        _debugShader.SetFloat("u_alpha", 1f);
 
         GL.BindVertexArray(_debugVao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
@@ -1352,6 +1449,133 @@ public class GlRenderer : IDisposable
             _debugShader!.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
             GL.BufferData(BufferTarget.ArrayBuffer, buf.Length * sizeof(float), buf, BufferUsageHint.DynamicDraw);
             GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+        }
+    }
+
+    /// <summary>
+    /// Draws the section-clip plane as a translucent quad with a bright border and a
+    /// faint interior grid, so the user can see where the cut sits and which way the
+    /// wheel is about to push it. Cosmetic only - <see cref="ClipEnabled"/> alone does
+    /// the actual clipping, and this can be turned off independently.
+    ///
+    /// <para>The quad is centred on the camera target's perpendicular projection onto
+    /// the plane and sized from the camera's distance and vertical FOV, so it always
+    /// spans the viewport without the renderer needing scene bounds. The fill is
+    /// depth-tested so it composites against the model like a pane of glass, but never
+    /// writes depth (it would otherwise z-reject the marker and measurement-line
+    /// gizmos drawn after it); the border and grid draw with depth test off so the
+    /// plane stays locatable even when the model is in front of it.</para>
+    /// </summary>
+    private void DrawClipPlaneVisual(OrbitCamera camera, ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_debugShader == null) return;
+        if (!ClipEnabled || !ShowClipPlaneVisual) return;
+
+        // Plane is dot(p, n) + w = 0. The disabled/identity value (0,0,0,1) has a
+        // zero-length normal and no geometric meaning, so bail rather than divide.
+        var n = new Vector3(ClipPlane.X, ClipPlane.Y, ClipPlane.Z);
+        float nLen = n.Length;
+        if (nLen < 1e-6f) return;
+        n /= nLen;
+        float w = ClipPlane.W / nLen;
+
+        var target = camera.Target;
+        var center = target - n * (Vector3.Dot(target, n) + w);
+
+        // In-plane basis. n is axis-aligned in practice (the VM locks it to X, Y or
+        // Z), but the helper-vector construction stays correct for any normal.
+        var helper = MathF.Abs(n.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitX;
+        var u = Vector3.Normalize(Vector3.Cross(helper, n));
+        var v = Vector3.Cross(n, u);
+
+        float halfExtent = MathF.Max(10f, camera.Distance
+            * MathF.Tan(MathHelper.DegreesToRadians(camera.FieldOfView) * 0.5f) * 1.8f);
+        var du = u * halfExtent;
+        var dv = v * halfExtent;
+
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 0f);
+        _debugShader.SetVector3("u_color",
+            ClipPlaneVisualColor.X, ClipPlaneVisualColor.Y, ClipPlaneVisualColor.Z);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
+
+        GL.Disable(EnableCap.CullFace); // the plane is looked at from both sides
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        GL.DepthMask(false);
+
+        // ---- Translucent fill, depth-tested ----
+        GL.Enable(EnableCap.DepthTest);
+        var c00 = center - du - dv;
+        var c10 = center + du - dv;
+        var c11 = center + du + dv;
+        var c01 = center - du + dv;
+        int k = 0;
+        WriteVert(_clipQuadScratch, ref k, c00);
+        WriteVert(_clipQuadScratch, ref k, c10);
+        WriteVert(_clipQuadScratch, ref k, c11);
+        WriteVert(_clipQuadScratch, ref k, c00);
+        WriteVert(_clipQuadScratch, ref k, c11);
+        WriteVert(_clipQuadScratch, ref k, c01);
+        _debugShader.SetFloat("u_alpha", 0.13f);
+        GL.BufferData(BufferTarget.ArrayBuffer, _clipQuadScratch.Length * sizeof(float),
+            _clipQuadScratch, BufferUsageHint.DynamicDraw);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+
+        // ---- Interior grid then border, depth test off ----
+        GL.Disable(EnableCap.DepthTest);
+
+        const int Divisions = 6;
+        _debugShader.SetFloat("u_alpha", 0.30f);
+        GL.LineWidth(1.0f);
+        for (int i = 1; i < Divisions; i++)
+        {
+            float t = (i / (float)Divisions) * 2f - 1f; // -1..+1 across the quad
+            DrawSeg(center + du * t - dv, center + du * t + dv);
+            DrawSeg(center - du + dv * t, center + du + dv * t);
+        }
+
+        _debugShader.SetFloat("u_alpha", 0.95f);
+        GL.LineWidth(2.0f);
+        DrawSeg(c00, c10);
+        DrawSeg(c10, c11);
+        DrawSeg(c11, c01);
+        DrawSeg(c01, c00);
+        GL.LineWidth(1.0f);
+
+        // Restore whatever the caller had. u_alpha is left where this method put it,
+        // so every other debug-shader caller pushes its own (they all do).
+        GL.DepthMask(true);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest); else GL.Disable(EnableCap.DepthTest);
+        if (cullWasEnabled) GL.Enable(EnableCap.CullFace); else GL.Disable(EnableCap.CullFace);
+        if (blendWasEnabled) GL.Enable(EnableCap.Blend); else GL.Disable(EnableCap.Blend);
+        GL.BindVertexArray(0);
+
+        // Uploads one world-space segment through the already-bound debug VAO/VBO,
+        // reusing the head of the quad scratch buffer to stay allocation-free.
+        void DrawSeg(Vector3 a, Vector3 b)
+        {
+            int j = 0;
+            WriteVert(_clipQuadScratch, ref j, a);
+            WriteVert(_clipQuadScratch, ref j, b);
+            GL.BufferData(BufferTarget.ArrayBuffer, 12 * sizeof(float),
+                _clipQuadScratch, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+        }
+
+        // pos.xyz + normal.xyz; the normal is unused at u_shaded = 0.
+        static void WriteVert(float[] buf, ref int w, Vector3 p)
+        {
+            buf[w++] = p.X; buf[w++] = p.Y; buf[w++] = p.Z;
+            buf[w++] = 0f;  buf[w++] = 0f;  buf[w++] = 0f;
         }
     }
 
@@ -1543,6 +1767,7 @@ public class GlRenderer : IDisposable
         _shadowShader.Use();
         _shadowShader.SetMatrix4("u_model", ref model);
         _shadowShader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
+        BeginClipPass(_shadowShader);
 
         foreach (var mesh in _meshes)
         {
@@ -1573,6 +1798,7 @@ public class GlRenderer : IDisposable
         }
 
         GL.BindVertexArray(0);
+        EndClipPass();
         GL.CullFace(CullFaceMode.Back);
     }
 
@@ -1970,6 +2196,7 @@ public class GlRenderer : IDisposable
         _depthOnlyShader.SetMatrix4("u_view", ref view);
         _depthOnlyShader.SetMatrix4("u_projection", ref projection);
         _depthOnlyShader.SetMatrix3("u_normalMatrix", ref normalMatrix);
+        BeginClipPass(_depthOnlyShader);
 
         foreach (var mesh in _meshes)
         {
@@ -2006,6 +2233,9 @@ public class GlRenderer : IDisposable
                 DrawElementsType.UnsignedInt, 0);
         }
         GL.BindVertexArray(0);
+        // Must be cleared before ComputeSsao / BlurSsao, whose full-screen quad
+        // shaders never write gl_ClipDistance[0].
+        EndClipPass();
     }
 
     /// <summary>Runs the SSAO post-process: reads the depth prepass
@@ -2125,6 +2355,7 @@ public class GlRenderer : IDisposable
         _wireframeShader.SetMatrix4("u_model", ref model);
         _wireframeShader.SetMatrix4("u_view", ref view);
         _wireframeShader.SetMatrix4("u_projection", ref projection);
+        BeginClipPass(_wireframeShader);
 
         GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         GL.Enable(EnableCap.PolygonOffsetLine);
@@ -2176,6 +2407,7 @@ public class GlRenderer : IDisposable
         }
 
         GL.BindVertexArray(0);
+        EndClipPass();
         GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
         GL.Disable(EnableCap.PolygonOffsetLine);
         GL.Enable(EnableCap.CullFace);
@@ -2247,6 +2479,9 @@ public class GlRenderer : IDisposable
         _debugShader.SetMatrix4("u_view", ref view);
         _debugShader.SetMatrix4("u_projection", ref projection);
         _debugShader.SetFloat("u_shaded", 1f);
+        // Opaque. debug.frag gained u_alpha for the clip-plane fill; an unset
+        // uniform defaults to 0, so every caller must push it or draw invisible.
+        _debugShader.SetFloat("u_alpha", 1f);
 
         GL.BindVertexArray(_debugVao);
         GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);

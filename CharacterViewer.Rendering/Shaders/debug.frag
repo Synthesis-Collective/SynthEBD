@@ -5,6 +5,11 @@ out vec4 FragColor;
 
 uniform vec3 u_color;
 uniform float u_shaded; // 0 = flat (unshaded line), 1 = lit (3D arrow)
+// Constant output alpha. 1.0 for every historical caller (markers, measurement
+// lines, light arrows); the section-clip plane visualization draws its fill at a
+// low alpha so the model stays readable through it. Callers that never set it get
+// the GL default 0.0, so GlRenderer pushes it explicitly on every debug-shader use.
+uniform float u_alpha;
 
 void main()
 {
@@ -18,10 +23,10 @@ void main()
                    + max(dot(N, L2), 0.0) * 0.35;
         float fresnel = pow(1.0 - abs(N.z), 2.0) * 0.25;
         float shade = clamp(0.35 + lamb + fresnel, 0.0, 1.4);
-        FragColor = vec4(u_color * shade, 1.0);
+        FragColor = vec4(u_color * shade, u_alpha);
     }
     else
     {
-        FragColor = vec4(u_color, 1.0);
+        FragColor = vec4(u_color, u_alpha);
     }
 }

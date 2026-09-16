@@ -125,5 +125,20 @@ public static partial class UiDocs
             layperson: "A small compass showing which way the model's X (red), Y (green), and Z (blue) axes point from the current camera angle. Drag it anywhere convenient.",
             technical: "The three axis lines are recomputed from the camera's view matrix on every rendered frame, so they always reflect the current orbit; dragging repositions the widget on the overlay canvas without affecting the camera, and empty canvas areas pass clicks through to the viewport.",
             motivation: "Box editing and axis pairing constantly reference mesh-local axes; an always-correct orientation reference removes the guesswork after orbiting.");
+
+        Add("CharacterViewer.ClipFront",
+            layperson: "Slices the model with an invisible flat pane and hides everything between you and it, so you can look inside the body instead of at its surface. The pane is placed square-on to whichever direction you are currently viewing from, and stays put while you orbit. Hold Ctrl and scroll to push the cut deeper or pull it back; press again to turn it off.",
+            technical: "Sets VM_CharacterViewer.ClipMode to Front. Arming samples the camera's view direction once, locks the plane to whichever world axis it most nearly runs along, and parks it at the camera target; the plane is then handed to GlRenderer.ClipPlane and applied via gl_ClipDistance[0] across the main, wireframe, SSAO-prepass and shadow passes, so clipped geometry also stops casting shadows and occluding ambient light. Mutually exclusive with Clip B. Marker and measurement-line gizmos are never clipped.",
+            motivation: "Judging interior anatomy, body/armor intersections and how far a morph pushes a surface is impossible from outside a closed mesh; cutting away the near half shows the cross-section without hiding or unloading any shapes.");
+
+        Add("CharacterViewer.ClipBack",
+            layperson: "The other half of the same cut: keeps what is between you and the pane and hides everything beyond it. Useful for isolating the near surface from the far side of the body behind it. Hold Ctrl and scroll to move the pane.",
+            technical: "Sets VM_CharacterViewer.ClipMode to Back, i.e. the negated half-space of the same locked plane used by Clip F. Switching directly between Clip F and Clip B keeps the plane exactly where it is and only swaps which side survives; releasing both and re-arming re-detects the axis against the current camera.",
+            motivation: "When picking vertices on a near surface, the far wall of the body sits directly behind it and makes depth hard to read; dropping everything past the cut removes that confusion.");
+
+        Add("CharacterViewer.ClipPlaneVisual",
+            layperson: "Shows the cutting pane itself as a faint tinted square with a bright outline, so you can see where the cut is and which way it is about to move. The label beside it names the plane that got locked in (XY, XZ or YZ). Turning this off leaves the cut working, just unmarked.",
+            technical: "Sets GlRenderer.ShowClipPlaneVisual. The quad is centred on the camera target's projection onto the plane and sized from camera distance and FOV so it spans the viewport; the fill is depth-tested but writes no depth, while the border and grid draw with depth test off. Purely cosmetic - ClipEnabled drives the clipping, and Ctrl+wheel still moves the plane with this off.",
+            motivation: "A cut with no visible pane gives no clue how far the next scroll will travel or where the plane sits relative to the body, which makes positioning it a guessing game.");
     }
 }

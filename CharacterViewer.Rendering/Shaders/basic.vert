@@ -29,11 +29,20 @@ uniform mat4 u_projection;
 uniform vec2 u_uvScale;
 uniform vec2 u_uvOffset;
 
+// Section-clip plane in WORLD space, packed as (normal.xyz, -distance). A vertex
+// survives when dot(worldPos, normal) >= distance, i.e. when the clip distance
+// written below is non-negative. The renderer pushes (0,0,0,1) whenever clipping
+// is off, which yields a constant +1 and keeps every vertex, so this line is inert
+// unless GL_CLIP_DISTANCE0 is also enabled around the draw. See
+// GlRenderer.ClipPlaneMode / RENDERING_PIPELINE.md.
+uniform vec4 u_clipPlane;
+
 void main()
 {
     vec4 pos_worldSpace = u_model * vec4(aPos, 1.0);
 
     gl_Position = u_projection * u_view * pos_worldSpace;
+    gl_ClipDistance[0] = dot(pos_worldSpace, u_clipPlane);
     v_viewSpacePos = vec3(u_view * pos_worldSpace);
     v_worldPos = pos_worldSpace.xyz;
 

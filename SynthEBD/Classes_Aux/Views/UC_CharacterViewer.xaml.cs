@@ -86,9 +86,14 @@ public partial class UC_CharacterViewer : UserControl
             }
         };
 
-        // Place the axis gizmo in the bottom-left once the overlay Canvas has a real size.
-        // Only fires once so subsequent user drags are not clobbered by layout events.
+        // Place the gizmo cluster in the bottom-left once the overlay Canvas has a real
+        // size. Only fires once so subsequent user drags are not clobbered by layout
+        // events. Both sizes are listened to because the corner placement needs the
+        // cluster's own measured height, and a Canvas child inside a Canvas that never
+        // resizes again would otherwise be stranded at the top-left if its size settled
+        // after the Canvas's only SizeChanged.
         GizmoCanvas.SizeChanged += GizmoCanvas_SizeChanged;
+        GizmoCluster.SizeChanged += GizmoCanvas_SizeChanged;
 
         BuildBoxWireframeLines();
 
@@ -643,12 +648,15 @@ public partial class UC_CharacterViewer : UserControl
         RestartFallbackSettleTimer();   // settle → one full-res render
     }
 
+    /// <summary>Software-fallback twin of <see cref="GlControl_MouseWheel"/>: same
+    /// Ctrl+wheel clip-plane gesture, then a re-render request, since this path has no
+    /// continuous render loop to pick the change up on its own.</summary>
     private void FallbackImage_MouseWheel(object sender, MouseWheelEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
-        _vm.Camera.OnMouseWheel(e.Delta);
+        if (!TryNudgeClipPlane(e)) _vm.Camera.OnMouseWheel(e.Delta);
         RenderOptions.SetBitmapScalingMode(FallbackImage, BitmapScalingMode.LowQuality);
         RequestFallbackRender(lowRes: true);
         RestartFallbackSettleTimer();
@@ -929,32 +937,35 @@ public partial class UC_CharacterViewer : UserControl
         Canvas.SetTop(label, ey - 8);
     }
 
-    /// <summary>Places the axis-gizmo widget in the bottom-left corner the first time the overlay canvas gets a real size (only once, so later user drags stick).</summary>
+    /// <summary>Places the gizmo cluster (axis widget + clip controls) in the bottom-left
+    /// corner the first time the overlay canvas gets a real size (only once, so later user
+    /// drags stick). Positions GizmoCluster, not AxisGizmoBorder: the border is only the
+    /// drag handle, while the cluster is what actually carries Canvas.Left/Top.</summary>
     private void GizmoCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (_gizmoDefaultPositioned) return;
-        if (GizmoCanvas.ActualHeight <= 0 || AxisGizmoBorder.Height <= 0) return;
+        if (GizmoCanvas.ActualHeight <= 0 || GizmoCluster.ActualHeight <= 0) return;
 
-        Canvas.SetLeft(AxisGizmoBorder, 10);
-        Canvas.SetTop(AxisGizmoBorder, GizmoCanvas.ActualHeight - AxisGizmoBorder.Height - 10);
+        Canvas.SetLeft(GizmoCluster, 10);
+        Canvas.SetTop(GizmoCluster, GizmoCanvas.ActualHeight - GizmoCluster.ActualHeight - 10);
         _gizmoDefaultPositioned = true;
     }
 
-    /// <summary>Begins dragging the axis-gizmo widget, capturing the mouse and seeding the cursor-to-widget offset.</summary>
+    /// <summary>Begins dragging the gizmo cluster, capturing the mouse and seeding the cursor-to-widget offset.</summary>
     private void AxisGizmo_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _gizmoDragging = true;
         _gizmoDragStart = e.GetPosition(GizmoCanvas);
-        _gizmoStartLeft = Canvas.GetLeft(AxisGizmoBorder);
-        _gizmoStartTop = Canvas.GetTop(AxisGizmoBorder);
+        _gizmoStartLeft = Canvas.GetLeft(GizmoCluster);
+        _gizmoStartTop = Canvas.GetTop(GizmoCluster);
         if (double.IsNaN(_gizmoStartLeft)) _gizmoStartLeft = 10;
         if (double.IsNaN(_gizmoStartTop))
-            _gizmoStartTop = Math.Max(0, GizmoCanvas.ActualHeight - AxisGizmoBorder.Height - 10);
+            _gizmoStartTop = Math.Max(0, GizmoCanvas.ActualHeight - GizmoCluster.ActualHeight - 10);
         AxisGizmoBorder.CaptureMouse();
         e.Handled = true;
     }
 
-    /// <summary>While dragging, moves the axis-gizmo widget with the cursor, clamped inside the overlay canvas.</summary>
+    /// <summary>While dragging, moves the gizmo cluster with the cursor, clamped inside the overlay canvas.</summary>
     private void AxisGizmo_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_gizmoDragging) return;
@@ -962,13 +973,13 @@ public partial class UC_CharacterViewer : UserControl
         double newLeft = _gizmoStartLeft + (pos.X - _gizmoDragStart.X);
         double newTop  = _gizmoStartTop  + (pos.Y - _gizmoDragStart.Y);
 
-        double maxLeft = Math.Max(0, GizmoCanvas.ActualWidth  - AxisGizmoBorder.ActualWidth);
-        double maxTop  = Math.Max(0, GizmoCanvas.ActualHeight - AxisGizmoBorder.ActualHeight);
+        double maxLeft = Math.Max(0, GizmoCanvas.ActualWidth  - GizmoCluster.ActualWidth);
+        double maxTop  = Math.Max(0, GizmoCanvas.ActualHeight - GizmoCluster.ActualHeight);
         newLeft = Math.Clamp(newLeft, 0, maxLeft);
         newTop  = Math.Clamp(newTop,  0, maxTop);
 
-        Canvas.SetLeft(AxisGizmoBorder, newLeft);
-        Canvas.SetTop(AxisGizmoBorder, newTop);
+        Canvas.SetLeft(GizmoCluster, newLeft);
+        Canvas.SetTop(GizmoCluster, newTop);
     }
 
     /// <summary>Ends the axis-gizmo drag and releases mouse capture.</summary>
@@ -1182,14 +1193,33 @@ public partial class UC_CharacterViewer : UserControl
         GlControl.ReleaseMouseCapture();
     }
 
-    /// <summary>Zooms the camera by the wheel delta and hides any hover tooltip.</summary>
+    /// <summary>Zooms the camera by the wheel delta and hides any hover tooltip. With Ctrl
+    /// held and a section clip armed, the wheel slides the clip plane along its locked
+    /// normal instead. Zoom deliberately keeps the plain wheel — the clip is a transient
+    /// inspection aid, and silently stealing zoom from a viewport people orbit constantly
+    /// costs more than the modifier does.</summary>
     private void GlControl_MouseWheel(object sender, MouseWheelEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
         if (_vm == null) return;
 
         HideHoverTooltip();
+        if (TryNudgeClipPlane(e)) return;
         _vm.Camera.OnMouseWheel(e.Delta);
+    }
+
+    /// <summary>Routes a Ctrl+wheel to the section-clip plane. Returns true when it was
+    /// consumed, so the caller skips the camera zoom. No-ops (returns false, letting the
+    /// zoom happen) when no clip is armed, so Ctrl+wheel is never a dead gesture.</summary>
+    private bool TryNudgeClipPlane(MouseWheelEventArgs e)
+    {
+        if (_vm == null || !_vm.IsClipActive) return false;
+        if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return false;
+
+        // WPF reports 120 units per detent; NudgeClipPlane works in notches.
+        _vm.NudgeClipPlane(e.Delta / 120f);
+        e.Handled = true;
+        return true;
     }
 
     /// <summary>Hides the hover tooltip when the cursor leaves the GL control.</summary>

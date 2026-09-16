@@ -29,6 +29,36 @@
             <Setter Property="BorderBrush" Value="#FF555555"/>
             <Setter Property="CaretBrush" Value="#FFE0E0E0"/>
         </Style>
+
+        <!-- Toggle style for the section-clip buttons in the viewport gizmo cluster.
+             Explicitly templated, like the Add/Remove Verts toggles above, so the HUD
+             keeps its dark look on light themes instead of inheriting the app palette. -->
+        <Style x:Key="ClipToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#FF2B2B2B"/>
+            <Setter Property="Foreground" Value="#FF9AD8E8"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="5,1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" BorderBrush="#FF555555"
+                                BorderThickness="1" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF00838F"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#FF33E6D0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -594,27 +624,63 @@
              rebuilds the three line/label positions each GL frame from the camera's view
              matrix; dragging the Border moves the widget via Canvas.Left/Top. -->
         <Canvas Grid.Row="6" x:Name="GizmoCanvas" ClipToBounds="True">
-            <Border x:Name="AxisGizmoBorder"
-                    Canvas.Left="10"
-                    Width="80" Height="80"
-                    Background="#80101010"
-                    BorderBrush="#80A0A0A0" BorderThickness="1"
-                    CornerRadius="4"
-                    Cursor="SizeAll"
-                    local:DocTooltip.Key="CharacterViewer.AxisGizmo"
-                    MouseLeftButtonDown="AxisGizmo_MouseLeftButtonDown"
-                    MouseLeftButtonUp="AxisGizmo_MouseLeftButtonUp"
-                    MouseMove="AxisGizmo_MouseMove">
-                <Canvas>
-                    <Ellipse Canvas.Left="37" Canvas.Top="37" Width="6" Height="6" Fill="#FFCCCCCC"/>
-                    <Line x:Name="AxisX_Line" Stroke="#FFEB5757" StrokeThickness="2" StrokeEndLineCap="Round"/>
-                    <Line x:Name="AxisY_Line" Stroke="#FF57EB57" StrokeThickness="2" StrokeEndLineCap="Round"/>
-                    <Line x:Name="AxisZ_Line" Stroke="#FF57A0EB" StrokeThickness="2" StrokeEndLineCap="Round"/>
-                    <TextBlock x:Name="AxisX_Label" Text="X" Foreground="#FFEB5757" FontSize="11" FontWeight="Bold"/>
-                    <TextBlock x:Name="AxisY_Label" Text="Y" Foreground="#FF57EB57" FontSize="11" FontWeight="Bold"/>
-                    <TextBlock x:Name="AxisZ_Label" Text="Z" Foreground="#FF57A0EB" FontSize="11" FontWeight="Bold"/>
-                </Canvas>
-            </Border>
+            <!-- The gizmo and the clip-plane controls move as one cluster: GizmoCluster is
+                 what carries Canvas.Left/Top, while AxisGizmoBorder stays the drag handle
+                 (the buttons need their own clicks). Only the two Borders have a
+                 Background, so the StackPanel's own empty area is not hit-testable and
+                 clicks there still reach GlControl beneath. -->
+            <StackPanel x:Name="GizmoCluster" Canvas.Left="10" Orientation="Vertical"
+                        HorizontalAlignment="Left">
+                <Border x:Name="AxisGizmoBorder"
+                        Width="80" Height="80"
+                        HorizontalAlignment="Left"
+                        Background="#80101010"
+                        BorderBrush="#80A0A0A0" BorderThickness="1"
+                        CornerRadius="4"
+                        Cursor="SizeAll"
+                        local:DocTooltip.Key="CharacterViewer.AxisGizmo"
+                        MouseLeftButtonDown="AxisGizmo_MouseLeftButtonDown"
+                        MouseLeftButtonUp="AxisGizmo_MouseLeftButtonUp"
+                        MouseMove="AxisGizmo_MouseMove">
+                    <Canvas>
+                        <Ellipse Canvas.Left="37" Canvas.Top="37" Width="6" Height="6" Fill="#FFCCCCCC"/>
+                        <Line x:Name="AxisX_Line" Stroke="#FFEB5757" StrokeThickness="2" StrokeEndLineCap="Round"/>
+                        <Line x:Name="AxisY_Line" Stroke="#FF57EB57" StrokeThickness="2" StrokeEndLineCap="Round"/>
+                        <Line x:Name="AxisZ_Line" Stroke="#FF57A0EB" StrokeThickness="2" StrokeEndLineCap="Round"/>
+                        <TextBlock x:Name="AxisX_Label" Text="X" Foreground="#FFEB5757" FontSize="11" FontWeight="Bold"/>
+                        <TextBlock x:Name="AxisY_Label" Text="Y" Foreground="#FF57EB57" FontSize="11" FontWeight="Bold"/>
+                        <TextBlock x:Name="AxisZ_Label" Text="Z" Foreground="#FF57A0EB" FontSize="11" FontWeight="Bold"/>
+                    </Canvas>
+                </Border>
+
+                <!-- Section-clip controls. Clip F / Clip B are the two half-spaces of one
+                     plane and so are mutually exclusive (the VM's ClipMode enforces it).
+                     The V toggle and the locked plane name only appear once a clip is
+                     armed, since neither means anything otherwise. -->
+                <Border Background="#80101010" BorderBrush="#80A0A0A0" BorderThickness="1"
+                        CornerRadius="4" Margin="0,4,0,0" Padding="3,2"
+                        HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal">
+                        <ToggleButton Content="Clip F" Style="{StaticResource ClipToggleStyle}"
+                                      IsChecked="{Binding IsClipFront}"
+                                      local:DocTooltip.Key="CharacterViewer.ClipFront"/>
+                        <ToggleButton Content="Clip B" Style="{StaticResource ClipToggleStyle}"
+                                      Margin="3,0,0,0"
+                                      IsChecked="{Binding IsClipBack}"
+                                      local:DocTooltip.Key="CharacterViewer.ClipBack"/>
+                        <ToggleButton Content="V" Style="{StaticResource ClipToggleStyle}"
+                                      Margin="5,0,0,0" MinWidth="18"
+                                      IsChecked="{Binding ShowClipPlaneVisual}"
+                                      Visibility="{Binding IsClipActive, Converter={StaticResource BoolToVis}}"
+                                      local:DocTooltip.Key="CharacterViewer.ClipPlaneVisual"/>
+                        <TextBlock Text="{Binding ClipPlaneLabel}"
+                                   Foreground="#FF9AD8E8" FontSize="10" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="5,0,2,0"
+                                   Visibility="{Binding IsClipActive, Converter={StaticResource BoolToVis}}"
+                                   local:DocTooltip.Key="CharacterViewer.ClipPlaneVisual"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
         </Canvas>
 
         <!-- Busy overlay: the viewer's own loads (IsLoading, load→scene-commit) OR

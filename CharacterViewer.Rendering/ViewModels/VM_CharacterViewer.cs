@@ -2194,6 +2194,177 @@ public partial class VM_CharacterViewer : ViewerVm
     /// in XAML so non-classifier viewer usages don't see the option.</summary>
     public bool ShowBulgeBinOverlay { get; set; } = false;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    //  SECTION CLIP PLANE  (Clip F / Clip B / V)
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // A single world-space plane, always perpendicular to one of the three world
+    // axes, that hides either the half of the model in front of it or the half
+    // behind it. The axis is chosen ONCE, when the user arms a clip, as whichever
+    // world axis the camera is most nearly looking down — so a front-on view gives
+    // the XY plane, a side view YZ, a top-down view XZ — and then stays LOCKED while
+    // the camera orbits. Locked rather than live-resolved deliberately: re-picking it
+    // per frame makes the cut snap to a different axis mid-orbit, and the depth the
+    // user scrolled to stops meaning what it meant a moment earlier. Re-arm (toggle
+    // off, toggle on) to re-detect against the new view.
+    //
+    // The plane composed here is handed to GlRenderer.ClipPlane; the renderer does
+    // not re-derive it. See GlRenderer's SECTION CLIP PLANE region.
+
+    /// <summary>Which half-space the clip discards, or <see cref="ClipPlaneMode.None"/>.
+    /// Fody calls <see cref="OnClipModeChanged"/> on every change, which arms the plane
+    /// and pushes it to the renderer.</summary>
+    public ClipPlaneMode ClipMode { get; set; } = ClipPlaneMode.None;
+
+    /// <summary>"Clip F" toggle state. Setting true discards everything between the
+    /// camera and the plane; setting false clears the clip entirely. Paired with
+    /// <see cref="IsClipBack"/> as two mutually-exclusive toolbar toggles — they are
+    /// the two half-spaces of ONE plane, so arming both would discard the whole model.
+    /// Fody re-raises both when <see cref="ClipMode"/> changes, so pressing one
+    /// visually releases the other.</summary>
+    public bool IsClipFront
+    {
+        get => ClipMode == ClipPlaneMode.Front;
+        set => ClipMode = value ? ClipPlaneMode.Front : ClipPlaneMode.None;
+    }
+
+    /// <summary>"Clip B" toggle state: discards everything beyond the plane. See
+    /// <see cref="IsClipFront"/>.</summary>
+    public bool IsClipBack
+    {
+        get => ClipMode == ClipPlaneMode.Back;
+        set => ClipMode = value ? ClipPlaneMode.Back : ClipPlaneMode.None;
+    }
+
+    /// <summary>True while either clip is armed. Drives the visibility of the "V"
+    /// button and the plane-name caption in the viewport gizmo cluster.</summary>
+    public bool IsClipActive => ClipMode != ClipPlaneMode.None;
+
+    /// <summary>"V" toggle: draw the translucent plane marker. On by default, and
+    /// purely cosmetic — the clip keeps working with the marker hidden, and Ctrl+wheel
+    /// keeps moving the plane either way.</summary>
+    public bool ShowClipPlaneVisual { get; set; } = true;
+
+    /// <summary>Name of the locked plane ("XY", "XZ" or "YZ") for the caption under
+    /// the axis gizmo, or empty when no clip is armed. Axis names match the gizmo's
+    /// X/Y/Z lines, i.e. renderer world space, not NIF space.</summary>
+    public string ClipPlaneLabel { get; set; } = string.Empty;
+
+    /// <summary>The locked plane normal, oriented to point AWAY from the camera as it
+    /// stood when the clip was armed (i.e. along the view direction). Both clip modes
+    /// are expressed against this one vector, which is why flipping F to B leaves the
+    /// plane exactly where it is and only swaps which side survives.</summary>
+    private OpenTK.Mathematics.Vector3 _clipNormal = OpenTK.Mathematics.Vector3.UnitZ;
+
+    /// <summary>Signed position of the plane along <see cref="_clipNormal"/>, in world
+    /// units. Seeded to the camera target's coordinate on that axis when armed, then
+    /// moved by <see cref="NudgeClipPlane"/>.</summary>
+    private float _clipOffset;
+
+    /// <summary>Whether <see cref="_clipNormal"/> / <see cref="_clipOffset"/> currently
+    /// hold a live lock. Cleared when the clip is released, so the next arm re-detects
+    /// the axis against the camera as it stands then.</summary>
+    private bool _clipArmed;
+
+    /// <summary>Fody hook on <see cref="ClipMode"/>. Arms the plane on the None-to-armed
+    /// transition and pushes the result. Deliberately does NOT re-arm when flipping
+    /// Front to Back directly: that is the user asking to see the other half of a cut
+    /// they already positioned, not to start a new one.</summary>
+    private void OnClipModeChanged()
+    {
+        if (ClipMode == ClipPlaneMode.None)
+        {
+            _clipArmed = false;
+            ClipPlaneLabel = string.Empty;
+        }
+        else if (!_clipArmed)
+        {
+            ArmClipPlane();
+        }
+        PushClipPlaneToRenderer();
+    }
+
+    /// <summary>Fody hook on <see cref="ShowClipPlaneVisual"/>.</summary>
+    private void OnShowClipPlaneVisualChanged() => PushClipPlaneToRenderer();
+
+    /// <summary>
+    /// Picks the world axis the camera is most nearly looking down, orients it away
+    /// from the camera, and parks the plane at the camera's orbit target. Called once
+    /// per arming; the result then stays put until the clip is released.
+    /// </summary>
+    private void ArmClipPlane()
+    {
+        var forward = Camera.Target - Camera.GetEyePosition();
+        if (forward.LengthSquared < 1e-9f) forward = -OpenTK.Mathematics.Vector3.UnitZ;
+        forward = OpenTK.Mathematics.Vector3.Normalize(forward);
+
+        // Largest |component| of the view direction = the axis most nearly parallel to
+        // it = the plane most nearly face-on to the viewer. A plane is named for the two
+        // axes it CONTAINS, so the X axis yields the YZ plane, and so on.
+        float ax = MathF.Abs(forward.X), ay = MathF.Abs(forward.Y), az = MathF.Abs(forward.Z);
+        OpenTK.Mathematics.Vector3 axis;
+        if (ax >= ay && ax >= az) { axis = OpenTK.Mathematics.Vector3.UnitX; ClipPlaneLabel = "YZ"; }
+        else if (ay >= az) { axis = OpenTK.Mathematics.Vector3.UnitY; ClipPlaneLabel = "XZ"; }
+        else { axis = OpenTK.Mathematics.Vector3.UnitZ; ClipPlaneLabel = "XY"; }
+
+        _clipNormal = OpenTK.Mathematics.Vector3.Dot(forward, axis) < 0f ? -axis : axis;
+        _clipOffset = OpenTK.Mathematics.Vector3.Dot(Camera.Target, _clipNormal);
+        _clipArmed = true;
+
+        LogVerbose("CharacterViewer: clip plane armed on " + ClipPlaneLabel
+            + " (normal " + _clipNormal + ", offset " + _clipOffset.ToString("F2") + ")");
+    }
+
+    /// <summary>
+    /// Slides the clip plane along its locked normal. Positive <paramref name="notches"/>
+    /// pushes it away from the camera (deeper into the model), negative pulls it back
+    /// toward the camera. Bound to Ctrl+wheel in the viewport; the plain wheel is left
+    /// to camera zoom.
+    ///
+    /// <para>The step scales with camera distance, so one notch covers a comparable
+    /// fraction of the screen whether the user is framed on a whole body or zoomed into
+    /// a face. It is deliberately fine — roughly a quarter of a percent of the camera
+    /// distance — because positioning a section cut is an aiming task: the useful travel
+    /// is the few units around a surface the user is trying to slice through, and a step
+    /// coarse enough to cross the whole body in a handful of notches skips straight past
+    /// it. Spinning the wheel covers long distances perfectly well.</para>
+    /// </summary>
+    public void NudgeClipPlane(float notches)
+    {
+        if (ClipMode == ClipPlaneMode.None || notches == 0f) return;
+        float step = MathF.Max(0.03f, Camera.Distance * 0.0025f);
+        _clipOffset += notches * step;
+        PushClipPlaneToRenderer();
+    }
+
+    /// <summary>
+    /// Packs the current mode + locked normal + offset into the renderer's
+    /// (normal.xyz, -distance) plane vector.
+    ///
+    /// <para>Front keeps <c>dot(p, n) &gt;= offset</c> — everything at or beyond the
+    /// plane — discarding what lies between it and the camera. Back is that half-space
+    /// negated. Off pushes the identity plane (0,0,0,1), a constant +1 clip distance, so
+    /// the uniform stays harmless even if a stray draw left GL_CLIP_DISTANCE0 on.</para>
+    /// </summary>
+    private void PushClipPlaneToRenderer()
+    {
+        if (ClipMode == ClipPlaneMode.None || !_clipArmed)
+        {
+            Renderer.ClipEnabled = false;
+            Renderer.ShowClipPlaneVisual = false;
+            Renderer.ClipPlane = new OpenTK.Mathematics.Vector4(0f, 0f, 0f, 1f);
+            return;
+        }
+
+        bool front = ClipMode == ClipPlaneMode.Front;
+        var n = front ? _clipNormal : -_clipNormal;
+        float d = front ? _clipOffset : -_clipOffset;
+
+        Renderer.ClipPlane = new OpenTK.Mathematics.Vector4(n.X, n.Y, n.Z, -d);
+        Renderer.ClipEnabled = true;
+        Renderer.ShowClipPlaneVisual = ShowClipPlaneVisual;
+    }
+
     // ──────────────── Pending (pre-commit) box state ────────────────
     // After a BB drag the resulting AABB is parked here instead of firing immediately, so the
     // user can adjust per-axis min/max (most importantly the depth axis, to exclude things like
@@ -3871,6 +4042,10 @@ public partial class VM_CharacterViewer : ViewerVm
         // field values to the renderer now that it's initialized.
         PushAllLightsToRenderer();
         Renderer.ShowKeyLightVisualization = ShowLightControls;
+        // Same reason as the lights: a UC_CharacterViewer recreated by WPF navigation
+        // brings a fresh GL context but keeps this VM's clip state, so re-push it rather
+        // than relying on the renderer's defaults still matching.
+        PushClipPlaneToRenderer();
 
         IsGlInitialized = true;
 

@@ -21,9 +21,18 @@ uniform mat4 u_view;
 uniform mat4 u_projection;
 uniform mat3 u_normalMatrix;
 
+// Section-clip plane, world space, (normal.xyz, -distance). Clipping the SSAO
+// depth/normal prepass with the same plane as the main pass is what stops
+// clipped-away geometry from still occluding the surfaces it was hiding: SSAO
+// samples this G-buffer, so geometry left in here would darken the newly exposed
+// cut surface with ambient occlusion cast by something the user can no longer see.
+uniform vec4 u_clipPlane;
+
 void main()
 {
-    gl_Position = u_projection * u_view * u_model * vec4(aPos, 1.0);
+    vec4 pos_worldSpace = u_model * vec4(aPos, 1.0);
+    gl_Position = u_projection * u_view * pos_worldSpace;
+    gl_ClipDistance[0] = dot(pos_worldSpace, u_clipPlane);
     TexCoords = aTexCoords;
     v_viewNormal = normalize(u_normalMatrix * aNormal);
 }

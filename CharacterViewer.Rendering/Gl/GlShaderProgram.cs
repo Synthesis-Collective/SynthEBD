@@ -73,6 +73,14 @@ public class GlShaderProgram : IDisposable
     public void SetVector3(string name, float x, float y, float z) =>
         GL.Uniform3(GetUniformLocation(name), x, y, z);
 
+    public void SetVector4(string name, float x, float y, float z, float w) =>
+        GL.Uniform4(GetUniformLocation(name), x, y, z, w);
+
+    /// <summary>Convenience overload for the section-clip plane, which the renderer
+    /// carries as a <see cref="OpenTK.Mathematics.Vector4"/> of (normal.xyz, -distance).</summary>
+    public void SetVector4(string name, OpenTK.Mathematics.Vector4 v) =>
+        GL.Uniform4(GetUniformLocation(name), v.X, v.Y, v.Z, v.W);
+
     public void SetMatrix4(string name, ref OpenTK.Mathematics.Matrix4 matrix) =>
         GL.UniformMatrix4(GetUniformLocation(name), false, ref matrix);
 

@@ -13,9 +13,18 @@ out vec2 TexCoords;
 uniform mat4 u_model;
 uniform mat4 u_lightViewProj;
 
+// Section-clip plane, world space, (normal.xyz, -distance). Clipped in WORLD
+// space even though gl_Position here is in the LIGHT's clip space, so the shadow
+// pass drops exactly the geometry the camera pass drops. Without this, clipping
+// the chest away would still leave the chest's shadow cast across the ribcage
+// the user just uncovered.
+uniform vec4 u_clipPlane;
+
 void main()
 {
-    gl_Position = u_lightViewProj * u_model * vec4(aPos, 1.0);
+    vec4 pos_worldSpace = u_model * vec4(aPos, 1.0);
+    gl_Position = u_lightViewProj * pos_worldSpace;
+    gl_ClipDistance[0] = dot(pos_worldSpace, u_clipPlane);
     // Forwarded so the alpha-test-aware fragment can sample the diffuse
     // texture and discard transparent texels (hair / brow strands), so
     // their cutout silhouette is reflected in the cast shadow rather than
