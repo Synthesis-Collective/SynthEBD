@@ -99,6 +99,7 @@ public class VM_AnnotationQueue : VM
             execute: _ => ResetSessionCounters());
 
         _editor.PropertyChanged += OnEditorPropertyChanged;
+        _editor.AnnotationTable.PropertyChanged += OnAnnotationTablePropertyChanged;
 
         PropertyChanged += (_, args) =>
         {
@@ -273,6 +274,7 @@ public class VM_AnnotationQueue : VM
     public override void Dispose()
     {
         _editor.PropertyChanged -= OnEditorPropertyChanged;
+        _editor.AnnotationTable.PropertyChanged -= OnAnnotationTablePropertyChanged;
         CancelPrefetch();
         base.Dispose();
     }
@@ -589,6 +591,26 @@ public class VM_AnnotationQueue : VM
             return;
         }
 
+        ShowSliceAt(index);
+        if (countAsServed) ServedCount++;
+
+        // Moving the table's selection is what loads the slice into the viewer and points the
+        // annotation editor at it -- one path, already wired, already generation-guarded. The echo
+        // guard tells OnTableSelectionChanged that this move came from here, not from the user
+        // clicking a row in the grid.
+        _suppressSelectionEcho = true;
+        try { _editor.AnnotationTable.SelectedRow = _slices[index].Row; }
+        finally { _suppressSelectionEcho = false; }
+
+        RefreshValueHints();
+        StartPrefetch(index + 1);
+    }
+
+    /// <summary>Points the queue's readouts at <paramref name="index"/> without moving the table
+    /// selection. Split out of <see cref="AdvanceTo"/> so a user-driven selection change can
+    /// re-sync the cursor without re-selecting the row it is already on.</summary>
+    private void ShowSliceAt(int index)
+    {
         _cursor = index;
         var slice = _slices[index];
         CurrentSlice = slice;
@@ -599,16 +621,43 @@ public class VM_AnnotationQueue : VM
         CurrentAliasSummary = slice.Members.Count > 1
             ? slice.Members.Count + " identical presets: " + string.Join(", ", slice.Members.Select(m => m.PresetLabel))
             : "";
-        if (countAsServed) ServedCount++;
+    }
 
-        // Moving the table's selection is what loads the slice into the viewer and points the
-        // annotation editor at it -- one path, already wired, already generation-guarded.
-        _suppressSelectionEcho = true;
-        try { _editor.AnnotationTable.SelectedRow = slice.Row; }
-        finally { _suppressSelectionEcho = false; }
+    /// <summary>
+    /// Keeps the queue honest when the user clicks a row in the annotation table while a queue is
+    /// live.
+    /// <para>The queue's commit path writes the verdict to <see cref="CurrentSlice"/>'s whole alias
+    /// family, but the annotation editor follows the <i>table's</i> selection. If those two drift
+    /// apart -- which one grid click is enough to do -- Commit would attach the descriptors the user
+    /// just ticked for one body to a different body's aliases. So: a click onto a row that is in the
+    /// queue moves the cursor there, and a click onto a row that is not detaches the queue from the
+    /// current slice entirely rather than leaving a stale target armed.</para>
+    /// </summary>
+    private void OnTableSelectionChanged()
+    {
+        if (_suppressSelectionEcho) return;
+        if (_slices.Count == 0) return;
 
-        RefreshValueHints();
-        StartPrefetch(index + 1);
+        var selected = _editor.AnnotationTable.SelectedRow;
+        if (selected == null) return;
+        if (CurrentSlice != null && ReferenceEquals(CurrentSlice.Row, selected)) return;
+
+        for (int i = 0; i < _slices.Count; i++)
+        {
+            if (!ReferenceEquals(_slices[i].Row, selected)) continue;
+            ShowSliceAt(i);
+            RefreshValueHints();
+            Status = "Jumped to slice " + Position + " of " + QueueLength + " (selected in the table).";
+            StartPrefetch(i + 1);
+            return;
+        }
+
+        CurrentSlice = null;
+        Position = 0;
+        CurrentIsRandomDraw = false;
+        CurrentAliasSummary = "";
+        CurrentSliceLabel = "Editing a row outside the queue -- Commit and Next is disabled.";
+        Status = "Selected row is not in the queue. Edits still save; press Build Queue to resume.";
     }
 
     // ---------- alias propagation ----------
@@ -840,6 +889,14 @@ public class VM_AnnotationQueue : VM
     }
 
     // ---------- profile / editor binding ----------
+
+    private void OnAnnotationTablePropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(VM_PresetAnnotationTable.SelectedRow))
+        {
+            OnTableSelectionChanged();
+        }
+    }
 
     private void OnEditorPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
