@@ -1,4 +1,4 @@
-using Mutagen.Bethesda.Skyrim;
+﻿using Mutagen.Bethesda.Skyrim;
 using Noggog;
 
 namespace SynthEBD.CLI;
@@ -135,6 +135,18 @@ public class CliOptions
 
     /// <summary>Folder containing the dependency archives (matched by DownloadInfo.ExpectedFileName) for verify-install.</summary>
     public string? DownloadsDir { get; private set; }
+
+    /// <summary>
+    /// Inner-tab headers to select before each ui-screenshot capture, matched case-insensitively
+    /// against every <c>TabItem</c> in the window's visual tree. Repeatable; each entry is applied
+    /// in order, so a tab nested inside another tab is reached by naming the outer one first.
+    /// <para>Exists because a WPF <c>TabItem</c> is selected by the control, not by a command, so
+    /// <see cref="Invokes"/> (which resolves an <c>ICommand</c>) cannot reach one. Without this,
+    /// every inner tab of the Body Type Profile editor -- Regions, Measurements, Rules,
+    /// Label-then-Suggest, Preview, Match Presets -- was invisible to visual QA, which only ever
+    /// captured whichever tab happened to be selected first.</para>
+    /// </summary>
+    public List<string> SelectTabs { get; } = new();
 
     /// <summary>Menus to capture for ui-screenshot, matched case-insensitively against the displayed
     /// view-model name without its VM_ prefix (e.g. "Settings_General") or the nav command name without
@@ -484,6 +496,9 @@ EXIT CODES:
                     break;
                 case "--scroll-to":
                     options.ScrollTo = TakeValue(args, ref i, flag);
+                    break;
+                case "--select-tab":
+                    options.SelectTabs.Add(TakeValue(args, ref i, flag));
                     break;
                 default:
                     throw new CliArgumentException("Unknown option: " + flag);

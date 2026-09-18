@@ -50,6 +50,7 @@ public class VM_AnnotationQueue : VM
     private readonly List<VM_AnnotationQueueSlice> _slices = new();
     private int _cursor = -1;
     private CancellationTokenSource _prefetchCts;
+    private VM_BodyShapeDescriptorSelectionMenu _shellMenu;
 
     public VM_AnnotationQueue(VM_BodyTypeProfileEditor editor)
     {
@@ -106,6 +107,10 @@ public class VM_AnnotationQueue : VM
             switch (args.PropertyName)
             {
                 case nameof(TargetCategory):
+                    // _suppressPersist also gates the queue drop: a programmatic re-selection (a
+                    // profile load, or the ComboBox blanking itself while its item list is rebuilt)
+                    // is not the user changing what they are labelling.
+                    if (_suppressPersist) break;
                     RefreshValueHints();
                     RefreshTally();
                     InvalidateQueue("Target category changed -- press Build Queue.");
@@ -246,27 +251,24 @@ public class VM_AnnotationQueue : VM
     /// </summary>
     public void InitializeAfterMenu()
     {
-        RefreshAvailableCategories();
-
         var menu = _editor.AnnotationEditor?.DescriptorMenu;
         if (menu != null)
         {
             // Header is the menu's catch-all "something was toggled" signal -- the same one the
             // annotation editor subscribes to for its write-through.
             menu.WhenAnyValue(x => x.Header).Subscribe(_ => RefreshValueHints()).DisposeWith(this);
+
+            // The category list is NOT final at this point. VM_SettingsOBody builds the descriptor
+            // creation menu in its constructor and calls InitializeDescriptorFilter immediately, but
+            // TemplateDescriptors is still empty then -- the categories are loaded afterwards, and
+            // the selection menu picks them up through a throttled subscription that rebuilds its
+            // shells. Reading the list once here left the target-category dropdown permanently
+            // empty. Track the shells instead.
+            _shellMenu = menu;
+            menu.DescriptorShells.CollectionChanged += OnDescriptorShellsChanged;
         }
 
-        // The persisted target category could not be applied before the menu existed to validate
-        // it against; apply it now.
-        var prefs = _watchedProfile?.GetOrCreateAnnotatorPrefs();
-        if (prefs != null && !string.IsNullOrEmpty(prefs.QueueTargetCategory)
-            && AvailableCategories.Contains(prefs.QueueTargetCategory))
-        {
-            _suppressPersist = true;
-            try { TargetCategory = prefs.QueueTargetCategory; }
-            finally { _suppressPersist = false; }
-        }
-
+        RefreshAvailableCategories();
         RefreshValueHints();
         RefreshTally();
     }
@@ -275,6 +277,7 @@ public class VM_AnnotationQueue : VM
     {
         _editor.PropertyChanged -= OnEditorPropertyChanged;
         _editor.AnnotationTable.PropertyChanged -= OnAnnotationTablePropertyChanged;
+        if (_shellMenu != null) _shellMenu.DescriptorShells.CollectionChanged -= OnDescriptorShellsChanged;
         CancelPrefetch();
         base.Dispose();
     }
@@ -968,19 +971,53 @@ public class VM_AnnotationQueue : VM
         prefs.QueuePrefetch = PrefetchEnabled;
     }
 
+    private void OnDescriptorShellsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        RefreshAvailableCategories();
+    }
+
+    /// <summary>
+    /// Re-reads the annotation editor's category list. Called on profile change and whenever the
+    /// descriptor menu's shells change, since the descriptor catalog is loaded after this VM is
+    /// constructed.
+    /// <para>Rebuilding the collection resets the bound ComboBox's selection to null, which would
+    /// fire the TargetCategory setter and -- unguarded -- persist an empty category over the user's
+    /// saved choice and drop a live queue. So the whole rebuild runs under the same suppression
+    /// flag the load path uses, the previous selection is restored afterwards, and an unchanged
+    /// list returns without touching the collection at all.</para>
+    /// </summary>
     private void RefreshAvailableCategories()
     {
-        string previous = TargetCategory;
-        AvailableCategories.Clear();
         var categories = _editor.AnnotationEditor?.GetCategories() ?? new List<string>();
-        foreach (var c in categories) AvailableCategories.Add(c);
+        if (AvailableCategories.SequenceEqual(categories, StringComparer.Ordinal)) return;
 
-        if (!string.IsNullOrEmpty(previous) && !AvailableCategories.Contains(previous))
+        string previous = TargetCategory;
+        _suppressPersist = true;
+        try
         {
-            _suppressPersist = true;
-            try { TargetCategory = ""; }
-            finally { _suppressPersist = false; }
+            AvailableCategories.Clear();
+            foreach (var c in categories) AvailableCategories.Add(c);
+
+            if (!string.IsNullOrEmpty(previous))
+            {
+                // Restore the user's choice, or blank it when the category no longer exists.
+                TargetCategory = AvailableCategories.Contains(previous) ? previous : "";
+            }
+            else
+            {
+                // Nothing chosen yet: this is the first moment the persisted choice can be
+                // validated against a real category list, so apply it now.
+                var saved = _watchedProfile?.GetOrCreateAnnotatorPrefs()?.QueueTargetCategory ?? "";
+                if (saved.Length > 0 && AvailableCategories.Contains(saved)) TargetCategory = saved;
+            }
         }
+        finally
+        {
+            _suppressPersist = false;
+        }
+
+        RefreshValueHints();
+        RefreshTally();
     }
 
     private void RefreshAvailableMeasurements()

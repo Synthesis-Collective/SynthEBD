@@ -141,6 +141,22 @@ public static class UiScreenshotVerb
                             }
                         }
 
+                        // Inner tabs: a TabItem is selected by its control, not by a command, so
+                        // --invoke cannot reach one. Applied after --invoke so a command that swaps
+                        // the displayed VM has already run and the tabs on screen are the final set.
+                        foreach (var tabHeader in options.SelectTabs)
+                        {
+                            if (SelectTabByHeader(window, tabHeader))
+                            {
+                                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle).Task;
+                            }
+                            else
+                            {
+                                Console.Error.WriteLine("ui-screenshot: --select-tab \"" + tabHeader
+                                    + "\" matched no TabItem in menu " + menuName + "; capture shows the default tab.");
+                            }
+                        }
+
                         if (options.ExpandExpanders)
                         {
                             // Iterate to a fixpoint: expanding an element materializes children (item
@@ -191,6 +207,44 @@ public static class UiScreenshotVerb
 
             Console.Error.WriteLine("ui-screenshot: " + captured + " screenshot(s) written to " + options.OutPath);
             return captured > 0 ? 0 : 1;
+        }
+    }
+
+    /// <summary>
+    /// Selects the first <see cref="TabItem"/> in <paramref name="root"/>'s visual tree whose header
+    /// text equals <paramref name="header"/>, ignoring case. Returns false -- never throws -- when
+    /// nothing matches, so a stale tab name degrades to an unswitched capture plus a warning rather
+    /// than failing the run.
+    ///
+    /// <para>Matches on the header string because the TabItems in this codebase live inside
+    /// per-item DataTemplates, where <c>x:Name</c> generates no field to look up and the header
+    /// literal is the same text the user reads. Headers that are not plain strings (an icon, a
+    /// panel) are skipped rather than stringified, since their ToString carries no user-visible
+    /// name to match against.</para>
+    /// </summary>
+    private static bool SelectTabByHeader(DependencyObject root, string header)
+    {
+        foreach (var tab in EnumerateVisual(root).OfType<TabItem>())
+        {
+            if (tab.Header is not string text) continue;
+            if (!text.Equals(header, StringComparison.OrdinalIgnoreCase)) continue;
+            tab.IsSelected = true;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Depth-first walk of a visual tree. Kept private to this verb -- the capture helpers
+    /// each want their own traversal order and filtering.</summary>
+    private static IEnumerable<DependencyObject> EnumerateVisual(DependencyObject root)
+    {
+        if (root == null) yield break;
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            yield return child;
+            foreach (var descendant in EnumerateVisual(child)) yield return descendant;
         }
     }
 
