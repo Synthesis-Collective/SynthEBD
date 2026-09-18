@@ -172,6 +172,123 @@ public static partial class UiDocs
             technical: "VM_PresetAnnotationTable.HideAllColumns clears IsVisible on every column, rebuilds VisibleColumns, and persists the visible set to the profile's AnnotatorPreferences.",
             motivation: "Starting from zero and ticking on the two or three measurements you care about is quicker than un-ticking a long list.");
 
+        // ---------- Body Type Profile editor: annotation queue ----------
+
+        Add("BodySlides.QueueTargetCategory",
+            layperson: "The label you are judging right now, such as Belly. The queue serves you bodies and you record just this one label for each.",
+            technical: "Sets VM_AnnotationQueue.TargetCategory and is persisted per profile in AnnotatorPreferences.QueueTargetCategory. The list comes from the annotation editor's descriptor menu, so only categories you can actually toggle are offered; that menu runs with IncludeRulesOnly set, so categories flagged Rules only (which distribution pickers hide) do appear here. Changing the category drops the built queue.",
+            motivation: "Judging one label at a time is far faster and more consistent than deciding every category on every body, and it matches how the rules are actually authored - one category at a time.");
+
+        Add("BodySlides.QueuePolicy",
+            layperson: "How the queue picks which body to show you next. Spread walks the whole range of a measurement, Uncertainty shows bodies sitting close to where your current rules draw the line, and Random picks uniformly.",
+            technical: "Dispatches to AnnotationQueueOrdering.Order. Spread buckets candidates into quantile bins of the chosen measurement and visits the bins round-robin; Uncertainty ranks by the smallest range-normalized distance from a measurement value to a threshold in the target Category's rules, and degrades to Spread when that Category has no rules; Random is a seeded Fisher-Yates shuffle. Persisted in AnnotatorPreferences.QueuePolicy.",
+            motivation: "The three modes answer different questions. Spread is right when a category is new and you need coverage; Uncertainty sharpens a threshold you already have; Random is what an honest error rate has to be measured on.");
+
+        Add("BodySlides.QueueOptions",
+            layperson: "Opens the rest of the sampling settings: which measurement to spread over, how many buckets, the random share, the seed, and the on/off switches.",
+            technical: "A flyout Popup holding the numeric settings and checkboxes. They live in a popup rather than on the bar because the panel binds unmodified digit keys - a TextBox in the panel's own visual tree would fight them for keystrokes, while WPF hosts a Popup in its own window.",
+            motivation: "Keeps the working bar short during a labelling run while leaving every knob one click away.");
+
+        Add("BodySlides.QueueSpreadMeasurement",
+            layperson: "Which measurement the Spread mode walks across. Leave it blank and the queue picks one for you.",
+            technical: "Sets VM_AnnotationQueue.SpreadMeasurement. When blank, ResolveSpreadMeasurement falls back to the first measurement referenced by one of the target Category's rules, then to the profile's first measurement. Persisted in AnnotatorPreferences.QueueSpreadMeasurement.",
+            motivation: "The axis a category is already decided on is usually the one worth covering evenly, but only you know when a category needs judging along a different one.");
+
+        Add("BodySlides.QueueBinCount",
+            layperson: "How many buckets Spread mode divides the measurement into. With eight buckets, the first eight bodies you see come one from each eighth of the range.",
+            technical: "Sets VM_AnnotationQueue.BinCount, passed to AnnotationQueueOrdering.OrderSpread. Bins hold equal numbers of candidates (quantiles), not equal widths, and are capped at the candidate count. Persisted in AnnotatorPreferences.QueueBinCount.",
+            motivation: "Quantile bins rather than equal widths because preset measurements are heavy-tailed: a few extreme bodies stretch the axis, and equal-width buckets would leave most of them empty and keep serving the crowded middle.");
+
+        Add("BodySlides.QueueRandomFraction",
+            layperson: "What share of the bodies you are shown is picked completely at random, even in Spread or Uncertainty mode. A quarter is the usual setting. Setting it to zero is allowed but you will be warned.",
+            technical: "Sets VM_AnnotationQueue.RandomFraction, clamped to 0-1 and persisted in AnnotatorPreferences.QueueRandomFraction. AnnotationQueueOrdering.Interleave fills exactly round(n * fraction) positions from a uniform-random stream and flags each one, so the count is exact rather than probabilistic. A non-zero fraction that would round to zero on a short queue still yields one random draw. Building a queue at zero asks for confirmation first.",
+            motivation: "This is the part that keeps the labels trustworthy. A Belly rule fitted on verdicts gathered by walking the decision boundary scored 66 of 70 in-sample and only 8 of 14 on a random draw from the rows it changed - the random share is the only part of a session that can estimate a real error rate.");
+
+        Add("BodySlides.QueueSeed",
+            layperson: "The number the random picks are generated from. The same seed always produces the same sequence, so you can reproduce or quote a sample later.",
+            technical: "Sets VM_AnnotationQueue.Seed, threaded through every random decision in AnnotationQueueOrdering (the shuffle, the within-bin order, and which positions are random draws). Persisted in AnnotatorPreferences.QueueSeed and written into the verdict export alongside the policy and the random fraction.",
+            motivation: "A sample you cannot reproduce is a sample you cannot cite. Recording the seed turns a labelling session into evidence someone can check months later.");
+
+        Add("BodySlides.QueueIncludeAnnotated",
+            layperson: "Also serve bodies you have already labelled in this category, so you can re-judge them.",
+            technical: "When off (the default), BuildQueue drops any row whose persisted PresetAnnotation already carries a descriptor in the target Category. When on, every row is a candidate. Persisted in AnnotatorPreferences.QueueIncludeAnnotated.",
+            motivation: "Re-judging matters after a category is redefined - the verdicts recorded under the old meaning are no longer answers to the same question.");
+
+        Add("BodySlides.QueueDedupeAliases",
+            layperson: "Show each distinct body only once, even when several presets are identical copies of it, and apply your verdict to all of them at once.",
+            technical: "Groups candidates by AnnotationQueueOrdering.MeasurementSignature - the profile's measurements rounded to three decimals - and serves one representative. On commit, the verdict is written to every member's PresetAnnotation (replacing only the target Category) and each member records its siblings in PresetAnnotation.AliasLabels. Slices with no computable measurement are never grouped. Persisted in AnnotatorPreferences.QueueDedupeAliases.",
+            motivation: "The corpus is full of the same body re-uploaded under different names. Judging each copy separately spends your attention twice and makes that shape count two or three times in anything fitted on the verdicts.");
+
+        Add("BodySlides.QueueWeightCoherent",
+            layperson: "Show a few bodies at the same weight in a row before moving to another weight. This is much faster, because changing weight makes the preview reload a different character from scratch.",
+            technical: "AnnotationQueueOrdering.CoalesceRuns pulls same-(gender, weight) slices forward into runs of at most eight. The preview NPC is configured per weight slot and VM_CharacterViewer.LoadAsync short-circuits when the identity is unchanged, so advancing inside a run costs one mesh deformation while crossing a boundary costs a full NIF parse and texture decode. Runs are capped rather than fully sorted, so each run's leading slice keeps its policy position. Persisted in AnnotatorPreferences.QueueWeightCoherent.",
+            motivation: "Sorting the whole queue by weight would be faster still, but a session stopped halfway would then have labelled only low weights - a sampling bias introduced by a speed optimization. Capping the runs buys most of the speed without that.");
+
+        Add("BodySlides.QueuePrefetch",
+            layperson: "Load the next body in the background while you are deciding on the current one, so it appears sooner when you press Enter.",
+            technical: "Calls VM_CharacterViewer.PrewarmIdentityAsync through the editor's PrefetchPreviewNpcAsync for the next slice's preview NPC. It parses meshes and decodes textures into the shared CharacterPreviewCache on a background thread without touching the current scene, and is cancelled whenever the queue moves. Skipped inside a weight run, where the NPC is unchanged and there is nothing to warm. Persisted in AnnotatorPreferences.QueuePrefetch.",
+            motivation: "Loading the body is the real bottleneck in a labelling run, not the clicking. Turn this off only if background asset reads compete with something else for disk.");
+
+        Add("BodySlides.QueueBuild",
+            layperson: "Builds the list of bodies to serve from the current settings and shows you the first one.",
+            technical: "Runs VM_AnnotationQueue.BuildQueue: filters the annotation table's rows, groups aliases, scores each candidate for the chosen policy, orders them, optionally coalesces weight runs, then selects the first slice. It reads only the profile's cached measurements and never starts a scan. Any change to the sampling settings drops the built queue so a stale ordering cannot be served.",
+            motivation: "Building is explicit so the sample is a deliberate act with settings you can state, rather than something that quietly shifts under you while you label.");
+
+        Add("BodySlides.QueueCommitAndNext",
+            layperson: "Saves whatever you have ticked for this body and immediately loads the next one. The Enter key does the same thing.",
+            technical: "Persists through the annotation editor's existing write-through (there is no second writer), propagates the verdict to the slice's alias family, updates the session counters and the tally, then advances. Committing with nothing ticked prunes the annotation and is counted as a skip rather than a label.",
+            motivation: "One key per body is what turns labelling from a browsing task into a throughput task; counting an empty commit as a skip keeps the coverage numbers honest.");
+
+        Add("BodySlides.QueueSkip",
+            layperson: "Leaves this body unjudged and moves to the next one. The S key does the same thing.",
+            technical: "Increments the skipped counter and advances the cursor without touching the slice's annotation.",
+            motivation: "Some bodies cannot be judged confidently, and forcing a verdict on them would put noise into the very data the rules are fitted on.");
+
+        Add("BodySlides.QueueBack",
+            layperson: "Returns to the previous body so you can change your mind. Backspace and the left arrow do the same thing.",
+            technical: "Moves the cursor back one position and re-selects that row. It does not undo anything - the editor simply shows what is stored for that slice, and any change you make writes through as usual.",
+            motivation: "Second thoughts arrive one body too late often enough that going back has to be one keystroke, not a hunt through the table.");
+
+        Add("BodySlides.QueueValueHints",
+            layperson: "The values you can assign in this category, numbered to match the digit keys. Click one or press its number to toggle it; underlined values are the ones currently applied.",
+            technical: "Rendered from VM_AnnotationQueue.ValueHints, refreshed from the descriptor menu's Header signal so it stays in step with clicks made in the editor below. Both the buttons and the digit KeyBindings route to ToggleValueCommand, which calls the annotation editor's ToggleValueByIndex. Only the first nine values get a digit; the rest remain clickable here and in the menu below.",
+            motivation: "These are toggles rather than a radio group on purpose: a descriptor category is a tag set, and Belly = Fat + Pregnant is a legitimate verdict that a single-select control could not express.");
+
+        Add("BodySlides.QueueRandomDrawBadge",
+            layperson: "Marks a body that was picked at random rather than chosen by the sampling mode.",
+            technical: "Bound to VM_AnnotationQueue.CurrentIsRandomDraw, set from the AnnotationQueueEntry the sampler produced. The count of labelled random draws is tracked separately in the session counters.",
+            motivation: "Verdicts on randomly-drawn bodies are the ones an error rate can be computed from; knowing which they are while you judge is what lets you quote that rate afterwards.");
+
+        Add("BodySlides.QueueAliasSummary",
+            layperson: "Appears when several presets in your library are the same body. Your verdict will be recorded for all of them.",
+            technical: "Lists the members of the slice's alias family, detected by identical measurement signatures. On commit, each member gets the target Category's descriptors and records its siblings in PresetAnnotation.AliasLabels; the verdict export then emits the family as one row.",
+            motivation: "Seeing the family up front makes it obvious why a preset you never chose suddenly shows as annotated, and confirms the duplicate is not about to cost you a second judgment.");
+
+        Add("BodySlides.QueueTally",
+            layperson: "How many bodies in this profile currently carry each value of the category you are labelling.",
+            technical: "Counts descriptors in the target Category across the whole profile's PresetAnnotations, not just this session, and refreshes after each commit.",
+            motivation: "A value quietly collecting three examples while another collects sixty is the kind of imbalance that ruins a fit, and it is much cheaper to notice while labelling than afterwards.");
+
+        Add("BodySlides.QueueCounters",
+            layperson: "This session's totals: bodies served, labelled and skipped, and how many of the labelled ones were random picks.",
+            technical: "Session-scoped counters on VM_AnnotationQueue, reset when the profile changes or via the Reset button. The random count tracks labelled slices flagged FromRandomDraw.",
+            motivation: "The random count is the one that matters for a claim about accuracy - it is the size of the sample any quoted error rate actually rests on.");
+
+        Add("BodySlides.QueueResetCounters",
+            layperson: "Sets this session's served, labelled and skipped counts back to zero. It does not delete any labels.",
+            technical: "Clears the four session counters only; PresetAnnotations and the built queue are untouched.",
+            motivation: "Lets you start a fresh count for a new batch without reopening the menu or losing your place in the queue.");
+
+        Add("BodySlides.QueueCopyVerdicts",
+            layperson: "Copies this category's labels to the clipboard as JSON, ready to paste into notes or an analysis script.",
+            technical: "Serializes the same payload the Export button writes: one row per alias family with preset, gender, weight, value, the full tag set, and the aliases, plus the profile, category, policy, seed and random fraction.",
+            motivation: "The fastest path from a labelling session to an offline check, with no file dialog in the way.");
+
+        Add("BodySlides.QueueExportVerdicts",
+            layperson: "Saves this category's labels to a JSON file.",
+            technical: "Writes an AnnotationVerdictPayload through JSONhandler. Alias families are emitted once rather than once per member, so a family counts as a single observation; 'value' carries the first descriptor value for readers expecting one label per row and 'values' carries the full tag set.",
+            motivation: "The sampling policy, seed and random fraction travel with the verdicts because a verdict set is only interpretable alongside how it was drawn - reconstructing that from memory months later is exactly how a boundary-only sample gets mistaken for a representative one.");
+
         // ---------- Body Type Profile editor: Suggest Rules panel ----------
 
         Add("BodySlides.SuggestRulesAlgorithm",

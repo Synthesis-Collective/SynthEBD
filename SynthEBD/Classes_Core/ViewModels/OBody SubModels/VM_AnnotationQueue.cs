@@ -84,6 +84,16 @@ public class VM_AnnotationQueue : VM
             canExecute: _ => _editor.SelectedProfile != null && !string.IsNullOrEmpty(TargetCategory),
             execute: _ => ExportVerdicts(toClipboard: true));
 
+        ToggleValueCommand = new RelayCommand(
+            canExecute: _ => CurrentSlice != null,
+            execute: x =>
+            {
+                // KeyBinding passes its CommandParameter as a string; the digit legend passes the
+                // hint's own index. Accept both rather than forcing one shape on the XAML.
+                if (x is int i) { ToggleValue(i); return; }
+                if (x is string sx && int.TryParse(sx, out int parsed)) ToggleValue(parsed);
+            });
+
         ResetSessionCountersCommand = new RelayCommand(
             canExecute: _ => ServedCount > 0 || LabelledCount > 0 || SkippedCount > 0,
             execute: _ => ResetSessionCounters());
@@ -222,6 +232,10 @@ public class VM_AnnotationQueue : VM
     public RelayCommand ExportVerdictsCommand { get; }
     public RelayCommand CopyVerdictsCommand { get; }
     public RelayCommand ResetSessionCountersCommand { get; }
+
+    /// <summary>Toggles the Nth value of the target Category. Bound to the digit KeyBindings and to
+    /// the clickable entries of the digit legend.</summary>
+    public RelayCommand ToggleValueCommand { get; }
 
     /// <summary>
     /// Second-phase init, called once the annotation editor's descriptor menu exists (it is built

@@ -1,0 +1,262 @@
+<UserControl x:Class="SynthEBD.UC_AnnotationQueue"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SynthEBD"
+             d:DataContext="{d:DesignInstance Type=local:VM_AnnotationQueue}"
+             mc:Ignorable="d"
+             Focusable="True"
+             d:DesignHeight="150" d:DesignWidth="900">
+    <!-- Keyboard shortcuts live on this UserControl rather than on the tab's DockPanel on
+         purpose. The digit keys are unmodified, so a KeyBinding on an ancestor would swallow
+         plain typing anywhere in the tab (the weight-slot box, the preset filter). Scoping them
+         here means they only fire while this panel holds focus; the code-behind returns focus to
+         the panel after every command so a labelling run never needs the mouse. The numeric
+         settings sit inside a Popup, which WPF hosts in its own window, so typing a seed there
+         does not reach these bindings either.
+
+         Mirrors the InputBindings pattern already used by the Key Vertices, Regions, Measurements
+         and Rules tabs in UC_BodyTypeProfileEditor.xaml. -->
+    <UserControl.InputBindings>
+        <KeyBinding Key="Return"    Command="{Binding CommitAndNextCommand}"/>
+        <KeyBinding Key="Enter"     Command="{Binding CommitAndNextCommand}"/>
+        <KeyBinding Key="Back"      Command="{Binding BackCommand}"/>
+        <KeyBinding Key="Left"      Command="{Binding BackCommand}"/>
+        <KeyBinding Key="S"         Command="{Binding SkipCommand}"/>
+        <KeyBinding Key="D1"        Command="{Binding ToggleValueCommand}" CommandParameter="1"/>
+        <KeyBinding Key="D2"        Command="{Binding ToggleValueCommand}" CommandParameter="2"/>
+        <KeyBinding Key="D3"        Command="{Binding ToggleValueCommand}" CommandParameter="3"/>
+        <KeyBinding Key="D4"        Command="{Binding ToggleValueCommand}" CommandParameter="4"/>
+        <KeyBinding Key="D5"        Command="{Binding ToggleValueCommand}" CommandParameter="5"/>
+        <KeyBinding Key="D6"        Command="{Binding ToggleValueCommand}" CommandParameter="6"/>
+        <KeyBinding Key="D7"        Command="{Binding ToggleValueCommand}" CommandParameter="7"/>
+        <KeyBinding Key="D8"        Command="{Binding ToggleValueCommand}" CommandParameter="8"/>
+        <KeyBinding Key="D9"        Command="{Binding ToggleValueCommand}" CommandParameter="9"/>
+        <KeyBinding Key="NumPad1"   Command="{Binding ToggleValueCommand}" CommandParameter="1"/>
+        <KeyBinding Key="NumPad2"   Command="{Binding ToggleValueCommand}" CommandParameter="2"/>
+        <KeyBinding Key="NumPad3"   Command="{Binding ToggleValueCommand}" CommandParameter="3"/>
+        <KeyBinding Key="NumPad4"   Command="{Binding ToggleValueCommand}" CommandParameter="4"/>
+        <KeyBinding Key="NumPad5"   Command="{Binding ToggleValueCommand}" CommandParameter="5"/>
+        <KeyBinding Key="NumPad6"   Command="{Binding ToggleValueCommand}" CommandParameter="6"/>
+        <KeyBinding Key="NumPad7"   Command="{Binding ToggleValueCommand}" CommandParameter="7"/>
+        <KeyBinding Key="NumPad8"   Command="{Binding ToggleValueCommand}" CommandParameter="8"/>
+        <KeyBinding Key="NumPad9"   Command="{Binding ToggleValueCommand}" CommandParameter="9"/>
+    </UserControl.InputBindings>
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+        <StackPanel>
+
+            <!-- ============ Row 1: what to serve ============ -->
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Label:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox Grid.Column="1" MinWidth="130"
+                          ItemsSource="{Binding AvailableCategories}"
+                          SelectedItem="{Binding TargetCategory, Mode=TwoWay}"
+                          local:DocTooltip.Key="BodySlides.QueueTargetCategory"/>
+
+                <TextBlock Grid.Column="2" Text="Sampling:" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                <ComboBox Grid.Column="3" MinWidth="120"
+                          ItemsSource="{Binding AvailablePolicies}"
+                          SelectedItem="{Binding Policy, Mode=TwoWay}"
+                          local:DocTooltip.Key="BodySlides.QueuePolicy"/>
+
+                <!-- Everything numeric lives in this flyout, not on the bar. Keeping TextBoxes out
+                     of the panel's own visual tree is what lets the digit keys stay unmodified. -->
+                <ToggleButton Grid.Column="4" x:Name="SamplingOptionsBtn" Content="Options" Padding="6,2" Margin="6,0,0,0"
+                              local:DocTooltip.Key="BodySlides.QueueOptions"/>
+                <Popup Grid.Column="4" IsOpen="{Binding IsChecked, ElementName=SamplingOptionsBtn, Mode=TwoWay}"
+                       PlacementTarget="{Binding ElementName=SamplingOptionsBtn}" StaysOpen="False"
+                       AllowsTransparency="True" PopupAnimation="Fade">
+                    <Border Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" Padding="8">
+                        <StackPanel MinWidth="300">
+                            <TextBlock Text="Spread over measurement" Margin="0,0,0,2"/>
+                            <ComboBox ItemsSource="{Binding AvailableMeasurements}"
+                                      SelectedItem="{Binding SpreadMeasurement, Mode=TwoWay}"
+                                      IsEditable="False"
+                                      local:DocTooltip.Key="BodySlides.QueueSpreadMeasurement"/>
+
+                            <TextBlock Text="Quantile bins" Margin="0,8,0,2"/>
+                            <TextBox Text="{Binding BinCount, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                     local:DocTooltip.Key="BodySlides.QueueBinCount"/>
+
+                            <TextBlock Text="Random fraction (0 - 1)" Margin="0,8,0,2"/>
+                            <TextBox Text="{Binding RandomFraction, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                     local:DocTooltip.Key="BodySlides.QueueRandomFraction"/>
+
+                            <TextBlock Text="Seed" Margin="0,8,0,2"/>
+                            <TextBox Text="{Binding Seed, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                     local:DocTooltip.Key="BodySlides.QueueSeed"/>
+
+                            <CheckBox Content="Include already-annotated slices (re-judge)" Margin="0,10,0,0"
+                                      IsChecked="{Binding IncludeAnnotated, Mode=TwoWay}"
+                                      local:DocTooltip.Key="BodySlides.QueueIncludeAnnotated"/>
+                            <CheckBox Content="Serve identical presets once (de-duplicate)" Margin="0,4,0,0"
+                                      IsChecked="{Binding DedupeAliases, Mode=TwoWay}"
+                                      local:DocTooltip.Key="BodySlides.QueueDedupeAliases"/>
+                            <CheckBox Content="Group consecutive slices by weight (faster)" Margin="0,4,0,0"
+                                      IsChecked="{Binding WeightCoherent, Mode=TwoWay}"
+                                      local:DocTooltip.Key="BodySlides.QueueWeightCoherent"/>
+                            <CheckBox Content="Prefetch the next body while you decide" Margin="0,4,0,0"
+                                      IsChecked="{Binding PrefetchEnabled, Mode=TwoWay}"
+                                      local:DocTooltip.Key="BodySlides.QueuePrefetch"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
+                <Button Grid.Column="5" Content="Build Queue" Command="{Binding BuildQueueCommand}"
+                        Click="OnCommandButtonClick" Padding="10,2" Margin="6,0,0,0"
+                        local:DocTooltip.Key="BodySlides.QueueBuild"/>
+
+                <TextBlock Grid.Column="6" Text="{Binding Status}" VerticalAlignment="Center" Margin="10,0,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </Grid>
+
+            <!-- Zero random fraction is legal but consequential, so it is stated where the user is
+                 working rather than buried in the options flyout. -->
+            <Border Background="{DynamicResource TertiaryBackground}" Padding="6,3" Margin="0,0,0,4"
+                    Visibility="{Binding ShowRandomFractionWarning, Converter={StaticResource BoolToVis}}">
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource StatusPendingForeground}"
+                           Text="Random fraction is 0: every slice comes from the sampling policy, so these verdicts cannot estimate how often a rule is wrong."
+                           local:DocTooltip.Key="BodySlides.QueueRandomFraction"/>
+            </Border>
+
+            <!-- ============ Row 2: the slice being judged ============ -->
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{Binding CurrentSliceLabel}" FontWeight="SemiBold" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <!-- A random-draw slice is the only kind whose verdict can measure an error
+                         rate, so the user is told which ones they are while judging. -->
+                    <Border Background="{DynamicResource AccentBrush}" Padding="5,1" Margin="8,0,0,0" CornerRadius="2"
+                            Visibility="{Binding CurrentIsRandomDraw, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="RANDOM DRAW" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentForeground}"
+                                   local:DocTooltip.Key="BodySlides.QueueRandomDrawBadge"/>
+                    </Border>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="_Back" Command="{Binding BackCommand}" Click="OnCommandButtonClick"
+                        Padding="10,2" Margin="4,0,0,0" local:DocTooltip.Key="BodySlides.QueueBack"/>
+                <Button Grid.Column="2" Content="_Skip" Command="{Binding SkipCommand}" Click="OnCommandButtonClick"
+                        Padding="10,2" Margin="4,0,0,0" local:DocTooltip.Key="BodySlides.QueueSkip"/>
+                <Button Grid.Column="3" Content="Commit and Next" Command="{Binding CommitAndNextCommand}"
+                        Click="OnCommandButtonClick" Padding="10,2" Margin="4,0,0,0" FontWeight="SemiBold"
+                        local:DocTooltip.Key="BodySlides.QueueCommitAndNext"/>
+            </Grid>
+
+            <!-- Alias family notice: one verdict is about to cover several presets. -->
+            <TextBlock Text="{Binding CurrentAliasSummary}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,4"
+                       Foreground="{DynamicResource SecondaryForeground}"
+                       local:DocTooltip.Key="BodySlides.QueueAliasSummary">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentAliasSummary}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
+            <!-- ============ Row 3: digit legend, tally, counters ============ -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- The digit legend doubles as the value picker: clicking an entry does exactly
+                     what its digit key does. Toggles, never a radio group - a descriptor category
+                     is a tag set (Belly = Fat + Pregnant is a legitimate verdict). -->
+                <ItemsControl Grid.Column="0" ItemsSource="{Binding ValueHints}"
+                              local:DocTooltip.Key="BodySlides.QueueValueHints">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_AnnotationValueHint}">
+                            <Button Margin="0,0,4,2" Padding="6,2"
+                                    Command="{Binding DataContext.ToggleValueCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                    CommandParameter="{Binding Digit}"
+                                    Click="OnCommandButtonClick">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Digit}" FontWeight="Bold" Margin="0,0,5,0"
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+                                    <TextBlock Text="{Binding Value}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="TextDecorations" Value="Underline"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Running per-value counts across the whole profile, so a value drifting under-
+                     or over-represented is visible during the session rather than after it. -->
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding Tally}" Margin="10,0,0,0"
+                              local:DocTooltip.Key="BodySlides.QueueTally">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:VM_AnnotationTallyRow}">
+                            <TextBlock Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Run Text="{Binding Value, Mode=OneWay}"/><Run Text=": "/><Run Text="{Binding Count, Mode=OneWay}" FontWeight="SemiBold"/>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
+                    <TextBlock VerticalAlignment="Center" local:DocTooltip.Key="BodySlides.QueueCounters">
+                        <Run Text="served "/><Run Text="{Binding ServedCount, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  labelled "/><Run Text="{Binding LabelledCount, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  skipped "/><Run Text="{Binding SkippedCount, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="  ("/><Run Text="{Binding RandomLabelledCount, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" random)"/>
+                    </TextBlock>
+                    <Button Content="Reset" Command="{Binding ResetSessionCountersCommand}" Click="OnCommandButtonClick"
+                            Padding="6,2" Margin="6,0,0,0" local:DocTooltip.Key="BodySlides.QueueResetCounters"/>
+                    <Button Content="Copy verdicts" Command="{Binding CopyVerdictsCommand}" Click="OnCommandButtonClick"
+                            Padding="6,2" Margin="4,0,0,0" local:DocTooltip.Key="BodySlides.QueueCopyVerdicts"/>
+                    <Button Content="Export verdicts" Command="{Binding ExportVerdictsCommand}" Click="OnCommandButtonClick"
+                            Padding="6,2" Margin="4,0,0,0" local:DocTooltip.Key="BodySlides.QueueExportVerdicts"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

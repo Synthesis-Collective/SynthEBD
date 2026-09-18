@@ -1322,6 +1322,11 @@
                                     <DockPanel.InputBindings>
                                         <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveMeasurementsToCsv}"/>
                                     </DockPanel.InputBindings>
+                                    <!-- Queue first: it drives the editor below it by moving the
+                                         table's SelectedRow, so reading top-to-bottom follows the
+                                         same direction the data flows. -->
+                                    <local:UC_AnnotationQueue DockPanel.Dock="Top"
+                                                              DataContext="{Binding DataContext.AnnotationQueue, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"/>
                                     <local:UC_PresetAnnotationEditor DockPanel.Dock="Top"
                                                                       DataContext="{Binding DataContext.AnnotationEditor, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                                                       MaxHeight="260"/>
