@@ -279,6 +279,51 @@ public class AnnotationQueuePolicyTests
             .Should().BeEmpty();
     }
 
+    // ---------- weight-coherent run coalescing ----------
+
+    [Fact]
+    public void CoalesceRuns_GroupsSameKeyItemsIntoCappedRuns()
+    {
+        // Weights in policy order, one slice each. With a cap of 3, each run pulls forward at most
+        // two more of the same weight.
+        var ordered = new[] { 0, 75, 25, 75, 0, 75, 0, 25, 75 };
+        var runs = AnnotationQueueOrdering.CoalesceRuns(ordered, w => w, maxRunLength: 3);
+
+        runs.Should().Equal(0, 0, 0, 75, 75, 75, 25, 25, 75);
+    }
+
+    [Fact]
+    public void CoalesceRuns_LeadingItemOfEachRunKeepsPolicyOrder()
+    {
+        // The point of capping: if the user stops partway, what they labelled still follows the
+        // policy rather than being sorted by weight.
+        var ordered = new[] { 100, 0, 50, 0, 100, 50 };
+        var runs = AnnotationQueueOrdering.CoalesceRuns(ordered, w => w, maxRunLength: 2);
+
+        runs.Should().Equal(100, 100, 0, 0, 50, 50);
+        runs[0].Should().Be(ordered[0], "the first run leads with the policy's first pick");
+    }
+
+    [Fact]
+    public void CoalesceRuns_IsAPermutationAndLeavesShortInputsAlone()
+    {
+        var ordered = new[] { 3, 1, 4, 1, 5, 9, 2, 6 };
+
+        AnnotationQueueOrdering.CoalesceRuns(ordered, w => w, maxRunLength: 4)
+            .Should().BeEquivalentTo(ordered, "coalescing reorders, it never drops or duplicates");
+
+        AnnotationQueueOrdering.CoalesceRuns(ordered, w => w, maxRunLength: 1)
+            .Should().Equal(ordered, "a run cap below 2 is no run at all");
+    }
+
+    [Fact]
+    public void CoalesceRuns_UnlimitedCapFullyGroupsByKey()
+    {
+        var ordered = new[] { 0, 75, 0, 75 };
+        AnnotationQueueOrdering.CoalesceRuns(ordered, w => w, maxRunLength: int.MaxValue)
+            .Should().Equal(0, 0, 75, 75);
+    }
+
     // ---------- alias signature ----------
 
     [Fact]

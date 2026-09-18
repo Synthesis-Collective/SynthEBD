@@ -223,6 +223,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         AnnotationTable = new VM_PresetAnnotationTable(this);
         AnnotationEditor = new VM_PresetAnnotationEditor(this, _filterFactory);
+        AnnotationQueue = new VM_AnnotationQueue(this);
         SuggestMeasurements = new VM_SuggestMeasurementsPanel(this);
         SuggestRules = new VM_SuggestRulesPanel(this);
 
@@ -1017,6 +1018,9 @@ public class VM_BodyTypeProfileEditor : VM
         // Same DI prerequisites (DescriptorUI + race groupings) as the filter, so piggyback
         // on this call site to wire the new annotation editor's descriptor menu too.
         AnnotationEditor.InitializeMenu(oBodyVM, raceGroupingVMs);
+        // Must follow InitializeMenu: the queue's category list and its digit legend are read off
+        // the annotation editor's descriptor menu, which does not exist until that call.
+        AnnotationQueue.InitializeAfterMenu();
     }
 
     /// <summary>
@@ -4031,6 +4035,12 @@ public class VM_BodyTypeProfileEditor : VM
     /// so picking a row in the table reloads the menu's checks for that slice.</summary>
     public VM_PresetAnnotationEditor AnnotationEditor { get; }
 
+    /// <summary>Annotation queue: serves (preset, gender, weight) slices one at a time under a
+    /// sampling policy so the user can label without hunting rows. Drives the annotation editor and
+    /// the viewer by moving <see cref="VM_PresetAnnotationTable.SelectedRow"/>; owns no rows of its
+    /// own and never reorders the table.</summary>
+    public VM_AnnotationQueue AnnotationQueue { get; }
+
     /// <summary>Phase 5 panel: ranks profile measurements by how well they discriminate
     /// between annotated descriptor-value groups. Output (curated by the user) feeds Phase 6's
     /// rule synthesis.</summary>
@@ -4112,6 +4122,43 @@ public class VM_BodyTypeProfileEditor : VM
     /// preview NPC is configured or the load did not commit a renderable scene.
     /// <para>Mirrors the pre-flight block inside <see cref="RunScanAsync"/> so both the legacy
     /// Match Presets scan and the new annotation-table scan share the same recovery path.</para></summary>
+    /// <summary>
+    /// The preview NPC a (gender, weight) slice would load, using the same policy
+    /// <see cref="RefreshPreviewAsync"/> applies: an explicit <see cref="PreviewNpcOverride"/> wins,
+    /// otherwise the per-weight pair configured in OBody Misc Settings. Returns
+    /// <see cref="FormKey.Null"/> when no NPC is configured for that slot, which is a normal state
+    /// rather than an error.
+    /// <para>Exposed so the annotation queue can tell whether advancing to the next slice will
+    /// cost a full scene rebuild (different NPC) or short-circuit inside the viewer (same NPC), and
+    /// so it can prewarm the former.</para>
+    /// </summary>
+    internal FormKey ResolvePreviewNpcForSlice(Gender gender, int weight)
+    {
+        if (!PreviewNpcOverride.IsNull) return PreviewNpcOverride;
+        var preview = _patcherState?.OBodySettings?.PreviewNpcs;
+        if (preview == null) return FormKey.Null;
+        if (!preview.WeightPreviewNpcs.TryGetValue(weight, out var pair) || pair == null) return FormKey.Null;
+        return gender == Gender.Female ? pair.FemaleNpc : pair.MaleNpc;
+    }
+
+    /// <summary>
+    /// Warms the preview NPC for a (gender, weight) slice in the background without disturbing the
+    /// current scene. Called by the annotation queue for the slice it will serve next while the
+    /// user is still judging the current one -- the NIF parse and texture decode are the real
+    /// per-slice cost, and the viewer short-circuits its load when the NPC is unchanged, so this
+    /// only does work at a weight boundary.
+    /// <para>Best-effort: a null NPC, a missing viewer, or a prewarm failure all resolve to "no
+    /// prefetch happened", which costs latency on the next advance and nothing else.</para>
+    /// </summary>
+    internal System.Threading.Tasks.Task PrefetchPreviewNpcAsync(Gender gender, int weight, System.Threading.CancellationToken ct)
+    {
+        var viewer = CharacterViewer;
+        if (viewer == null || lk == null) return System.Threading.Tasks.Task.CompletedTask;
+        var npc = ResolvePreviewNpcForSlice(gender, weight);
+        if (npc.IsNull) return System.Threading.Tasks.Task.CompletedTask;
+        return viewer.PrewarmNpcAsync(npc, lk, ct);
+    }
+
     internal async System.Threading.Tasks.Task<bool> EnsurePreviewNpcLoadedAsync(Gender gender, System.Threading.CancellationToken ct)
     {
         var viewer = CharacterViewer;
@@ -9267,6 +9314,13 @@ public class VM_BodyTypeProfile : VM
                 copy.Descriptors.Add(new BodyShapeDescriptor.LabelSignature { Category = d.Category, Value = d.Value });
             }
         }
+        // Alias siblings are part of the annotation's meaning, not decoration: DumpToModel is the
+        // save path, so dropping them here would silently discard the de-duplication information
+        // the annotation queue recorded, every time the settings are written.
+        if (src.AliasLabels != null)
+        {
+            copy.AliasLabels = new List<string>(src.AliasLabels);
+        }
         return copy;
     }
 
@@ -9278,6 +9332,18 @@ public class VM_BodyTypeProfile : VM
         copy.SynthesisAlgorithm = src.SynthesisAlgorithm;
         if (src.WeightSlots != null) copy.WeightSlots = new List<int>(src.WeightSlots);
         if (src.VisibleMeasurementColumns != null) copy.VisibleMeasurementColumns = new List<string>(src.VisibleMeasurementColumns);
+        // Annotation-queue settings. Same reasoning as the lists above -- this clone feeds
+        // DumpToModel, so anything not copied here is reset on every save.
+        copy.QueueTargetCategory = src.QueueTargetCategory ?? "";
+        copy.QueuePolicy = src.QueuePolicy;
+        copy.QueueSpreadMeasurement = src.QueueSpreadMeasurement ?? "";
+        copy.QueueBinCount = src.QueueBinCount;
+        copy.QueueRandomFraction = src.QueueRandomFraction;
+        copy.QueueSeed = src.QueueSeed;
+        copy.QueueIncludeAnnotated = src.QueueIncludeAnnotated;
+        copy.QueueDedupeAliases = src.QueueDedupeAliases;
+        copy.QueueWeightCoherent = src.QueueWeightCoherent;
+        copy.QueuePrefetch = src.QueuePrefetch;
         return copy;
     }
 

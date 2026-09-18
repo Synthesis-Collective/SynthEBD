@@ -713,6 +713,20 @@ public class PresetAnnotation
     /// preset can carry multiple descriptors (e.g. BodyShape=Athletic + Tone=Toned); each one
     /// participates in its own per-Category training group during Suggest Measurements.</summary>
     public List<BodyShapeDescriptor.LabelSignature> Descriptors { get; set; } = new();
+
+    /// <summary>
+    /// Other preset labels whose measurements at this weight are identical to this one's, as
+    /// detected by <see cref="AnnotationQueueOrdering.MeasurementSignature"/> when the annotation
+    /// queue served this slice. Empty when the slice had no aliases or was annotated by hand
+    /// outside the queue.
+    /// <para>The corpus carries many byte-identical re-uploads under different names (SSBBW2 and
+    /// "S4rMs' (ThickXXX) SSBBW2" are the same body). The queue serves one representative and
+    /// writes the verdict to every member, so each member also records its siblings here. That is
+    /// what lets offline analysis collapse an alias family back to a single observation instead of
+    /// counting the same body two or three times -- a fit weighted by how often a shape happens to
+    /// have been re-uploaded is not a fit on the user's judgment.</para>
+    /// </summary>
+    public List<string> AliasLabels { get; set; } = new();
 }
 
 /// <summary>Algorithm used by the Suggest Measurements pass to score how well each measurement
@@ -774,6 +788,56 @@ public class AnnotatorPreferences
     /// <summary>Default algorithm used by the Suggest Rules panel. Same persistence semantics
     /// as <see cref="SelectionAlgorithm"/>.</summary>
     public RuleSynthesisAlgorithm SynthesisAlgorithm { get; set; } = RuleSynthesisAlgorithm.OptimalThresholdPerValue;
+
+    // ---------- Annotation queue (Label-then-suggest auto-advance) ----------
+
+    /// <summary>Descriptor Category the annotation queue serves slices for (e.g. "Belly"). Empty
+    /// until the user picks one. Persisted so resuming a labelling session doesn't start by
+    /// re-choosing what was being labelled.</summary>
+    public string QueueTargetCategory { get; set; } = "";
+
+    /// <summary>Sampling policy the queue orders candidates with.</summary>
+    public AnnotationQueuePolicy QueuePolicy { get; set; } = AnnotationQueuePolicy.Spread;
+
+    /// <summary>Measurement <see cref="AnnotationQueuePolicy.Spread"/> stratifies over. Empty means
+    /// "let the queue pick", which falls back to the first measurement the target Category's rules
+    /// reference, then to the profile's first measurement.</summary>
+    public string QueueSpreadMeasurement { get; set; } = "";
+
+    /// <summary>Quantile bins for <see cref="AnnotationQueuePolicy.Spread"/>.</summary>
+    public int QueueBinCount { get; set; } = AnnotationQueueOrdering.DefaultBinCount;
+
+    /// <summary>Share of served slices drawn uniformly at random even under Spread / Uncertainty.
+    /// <para>Defaults to 0.25 and is deliberately awkward to zero out (the UI warns). A rule fitted
+    /// only on boundary-sampled verdicts scored 66/70 in-sample and 8/14 on a random draw
+    /// (decision <c>D25</c>); the random share is the only part of a labelling session that can
+    /// estimate a real error rate.</para></summary>
+    public double QueueRandomFraction { get; set; } = AnnotationQueueOrdering.DefaultRandomFraction;
+
+    /// <summary>Seed for every random decision the queue makes. Surfaced in the UI so a sample is
+    /// reproducible and can be quoted in the tracker alongside the verdicts it produced.</summary>
+    public int QueueSeed { get; set; } = 1;
+
+    /// <summary>True to serve slices the target Category has already been annotated on (re-judging
+    /// mode). Defaults to false: the queue skips what is already labelled.</summary>
+    public bool QueueIncludeAnnotated { get; set; } = false;
+
+    /// <summary>True to collapse slices with identical measurements into one served representative,
+    /// propagating the verdict to every member. Defaults to true.</summary>
+    public bool QueueDedupeAliases { get; set; } = true;
+
+    /// <summary>True to keep runs of the same (gender, weight) together within the policy's order.
+    /// <para>The preview NPC is chosen per weight slot, and <c>VM_CharacterViewer.LoadAsync</c>
+    /// short-circuits when the same NPC is already loaded -- so advancing within a weight run costs
+    /// one mesh deformation while crossing a weight boundary costs a full NIF parse and texture
+    /// decode. Grouping is applied <i>within</i> the policy's ordering, so which slices get served
+    /// is unchanged; only the order they are visited in moves. Defaults to true.</para></summary>
+    public bool QueueWeightCoherent { get; set; } = true;
+
+    /// <summary>True to prewarm the next queued slice's preview NPC on a background thread while
+    /// the user decides on the current one. Defaults to true; turn it off if background asset
+    /// parsing competes with something else for I/O.</summary>
+    public bool QueuePrefetch { get; set; } = true;
 }
 
 /// <summary>

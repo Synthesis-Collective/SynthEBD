@@ -83,6 +83,11 @@ public class VM_PresetAnnotationEditor : VM
             // showPriority = false: simple binary annotation; priority is ClassifierRules-only.
             false);
 
+        // Annotation is a judgment about a body, not a distribution choice, so the rules-only
+        // categories the distribution pickers hide belong here: a rule gated on ShoulderWidth:Wide
+        // can only be fitted if the user can record that verdict in the first place.
+        DescriptorMenu.SetIncludeRulesOnly(true);
+
         _headerSubscription = this.WhenAnyValue(x => x.DescriptorMenu.Header)
             .Skip(1)
             .Subscribe(_ => OnDescriptorMenuChanged());
@@ -95,6 +100,94 @@ public class VM_PresetAnnotationEditor : VM
     {
         _headerSubscription?.Dispose();
         base.Dispose();
+    }
+
+    // ---------- annotation-queue support ----------
+    //
+    // The queue drives this editor rather than duplicating it: it moves the table selection (which
+    // this VM already mirrors into CurrentRow) and toggles values through the helpers below, so
+    // every write still goes out through OnDescriptorMenuChanged's single persistence path. There
+    // is deliberately no second writer to profile.PresetAnnotations.
+
+    /// <summary>Descriptor categories the menu can actually toggle, in menu order. The queue offers
+    /// exactly these as target categories -- a category the editor cannot express a verdict in is
+    /// not one the queue should be serving slices for.</summary>
+    public IReadOnlyList<string> GetCategories()
+    {
+        var result = new List<string>();
+        if (DescriptorMenu == null) return result;
+        foreach (var shell in DescriptorMenu.DescriptorShells)
+        {
+            var category = shell?.TrackedShell?.Category;
+            if (!string.IsNullOrEmpty(category)) result.Add(category);
+        }
+        return result;
+    }
+
+    /// <summary>Values available in <paramref name="category"/>, in menu order. The queue shows
+    /// these numbered so the user can see which digit key toggles which value.</summary>
+    public IReadOnlyList<string> GetCategoryValues(string category)
+    {
+        var result = new List<string>();
+        var shell = FindShell(category);
+        if (shell == null) return result;
+        foreach (var selector in shell.DescriptorSelectors)
+        {
+            if (selector != null && !string.IsNullOrEmpty(selector.Value)) result.Add(selector.Value);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Flips the selected state of the <paramref name="oneBasedIndex"/>-th value of
+    /// <paramref name="category"/> -- the digit-key path.
+    /// <para>Toggle, not select: descriptor categories are tag sets. Decision <c>D23</c> settled
+    /// that <c>Belly = Fat + Pregnant</c> is a legitimate dual assignment and that
+    /// <c>Nero Preggo</c> genuinely carries both, so a single-select control would make correct
+    /// labels unrepresentable.</para>
+    /// </summary>
+    /// <returns>The value that was toggled, or null when the index is out of range. The caller
+    /// uses the return to decide whether the keystroke did anything worth reporting.</returns>
+    public string ToggleValueByIndex(string category, int oneBasedIndex)
+    {
+        var shell = FindShell(category);
+        if (shell == null) return null;
+        int i = oneBasedIndex - 1;
+        if (i < 0 || i >= shell.DescriptorSelectors.Count) return null;
+        var selector = shell.DescriptorSelectors[i];
+        if (selector == null) return null;
+        // Writing IsSelected fires the menu's Header subscription, which routes through
+        // OnDescriptorMenuChanged and persists -- same path a mouse click takes.
+        selector.IsSelected = !selector.IsSelected;
+        return selector.Value;
+    }
+
+    /// <summary>Values currently selected in <paramref name="category"/> for the active row. The
+    /// queue reads this on commit to propagate the verdict to alias slices and to tally it.</summary>
+    public IReadOnlyList<string> GetSelectedValues(string category)
+    {
+        var result = new List<string>();
+        var shell = FindShell(category);
+        if (shell == null) return result;
+        foreach (var selector in shell.DescriptorSelectors)
+        {
+            if (selector != null && selector.IsSelected && !string.IsNullOrEmpty(selector.Value))
+            {
+                result.Add(selector.Value);
+            }
+        }
+        return result;
+    }
+
+    private VM_BodyShapeDescriptorShellSelector FindShell(string category)
+    {
+        if (DescriptorMenu == null || string.IsNullOrEmpty(category)) return null;
+        foreach (var shell in DescriptorMenu.DescriptorShells)
+        {
+            if (shell?.TrackedShell == null) continue;
+            if (string.Equals(shell.TrackedShell.Category, category, StringComparison.Ordinal)) return shell;
+        }
+        return null;
     }
 
     private void OnAnnotationTablePropertyChanged(object sender, PropertyChangedEventArgs e)

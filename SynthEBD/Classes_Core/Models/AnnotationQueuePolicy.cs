@@ -303,6 +303,66 @@ public static class AnnotationQueueOrdering
     }
 
     /// <summary>
+    /// Pulls same-key items forward into runs of at most <paramref name="maxRunLength"/>, so
+    /// consecutive positions tend to share a key while the order of each run's <i>leading</i> item
+    /// still follows <paramref name="ordered"/>.
+    /// <para>The queue uses the (gender, weight) slot as the key. The preview NPC is chosen per
+    /// weight slot and <c>VM_CharacterViewer.LoadAsync</c> short-circuits when the same NPC is
+    /// already loaded, so advancing inside a run costs one mesh deformation while crossing a
+    /// boundary costs a full NIF parse plus texture decode. Coalescing cuts that cost by roughly
+    /// <paramref name="maxRunLength"/>.</para>
+    /// <para>Runs are capped rather than fully grouped on purpose. Sorting the whole queue by
+    /// weight would be cheaper still, but a session stopped halfway would then have labelled only
+    /// low weights -- a sampling bias introduced by a performance optimization, which is exactly
+    /// the kind of trade the policy is supposed to prevent. Capping keeps every run's first item in
+    /// policy order, so coverage degrades gracefully if the user stops early.</para>
+    /// <para>The output is always a permutation of the input: items are only reordered, never
+    /// dropped or duplicated.</para>
+    /// </summary>
+    /// <typeparam name="T">Queue item type.</typeparam>
+    /// <typeparam name="TKey">Coherence key type (the queue passes a (Gender, int) tuple).</typeparam>
+    /// <param name="ordered">The policy ordering to coalesce.</param>
+    /// <param name="keySelector">Extracts the coherence key from an item.</param>
+    /// <param name="maxRunLength">Longest run of one key. Values below 2 return the input order
+    /// unchanged, since a run of one is no run at all.</param>
+    public static IReadOnlyList<T> CoalesceRuns<T, TKey>(
+        IReadOnlyList<T> ordered,
+        Func<T, TKey> keySelector,
+        int maxRunLength)
+        where TKey : notnull
+    {
+        int n = ordered?.Count ?? 0;
+        if (n == 0) return Array.Empty<T>();
+        if (keySelector == null || maxRunLength < 2) return ordered;
+
+        var taken = new bool[n];
+        var result = new List<T>(n);
+
+        for (int i = 0; i < n; i++)
+        {
+            if (taken[i]) continue;
+
+            // This item leads a run, and its position is the one the policy chose -- that is what
+            // keeps coverage intact when a session stops partway through.
+            taken[i] = true;
+            result.Add(ordered[i]);
+
+            var key = keySelector(ordered[i]);
+            int runCount = 1;
+            for (int j = i + 1; j < n && runCount < maxRunLength; j++)
+            {
+                if (taken[j]) continue;
+                if (!EqualityComparer<TKey>.Default.Equals(keySelector(ordered[j]), key)) continue;
+                taken[j] = true;
+                result.Add(ordered[j]);
+                runCount++;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Smallest normalized distance between this slice's measurement values and any threshold in
     /// <paramref name="categoryRules"/> -- the "how close to a decision boundary is this slice?"
     /// score <see cref="AnnotationQueuePolicy.Uncertainty"/> ranks on.

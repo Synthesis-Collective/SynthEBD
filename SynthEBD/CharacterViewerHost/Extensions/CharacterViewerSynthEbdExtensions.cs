@@ -41,6 +41,26 @@ public static class CharacterViewerSynthEbdExtensions
     }
 
     /// <summary>
+    /// Mutagen-typed wrapper over <see cref="VM_CharacterViewer.PrewarmIdentityAsync"/>: parses and
+    /// decodes <paramref name="npcFormKey"/>'s assets into the shared preview cache in the
+    /// background, leaving the current scene alone, so a later
+    /// <see cref="LoadNpcAsync(VM_CharacterViewer, FormKey, ILinkCache, string?)"/> for the same
+    /// NPC is cheap.
+    ///
+    /// <para><paramref name="linkCache"/> is accepted for symmetry with
+    /// <see cref="LoadNpcAsync(VM_CharacterViewer, FormKey, ILinkCache, string?)"/> and is likewise
+    /// unused -- the viewer's preview-cache adapter holds its own reference. A null FormKey is a
+    /// no-op, since "no NPC configured for this slot" is a normal state, not an error.</para>
+    /// </summary>
+    public static Task PrewarmNpcAsync(this VM_CharacterViewer viewer,
+        FormKey npcFormKey, ILinkCache linkCache, CancellationToken ct = default)
+    {
+        if (viewer == null || npcFormKey.IsNull) return Task.CompletedTask;
+        var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
+        return viewer.PrewarmIdentityAsync(identity, ct);
+    }
+
+    /// <summary>
     /// Translates SynthEBD's <see cref="FilePathReplacement"/> overrides into the
     /// viewer's neutral <see cref="TextureOverride"/> shape and applies them.
     /// Each FilePathReplacement encodes its target body part + slot in its

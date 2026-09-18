@@ -4575,6 +4575,57 @@ public partial class VM_CharacterViewer : ViewerVm
     /// hands off to <see cref="LoadAsync"/>. NPC Plugin Chooser 2 (and any
     /// other host) calls this directly with their own <see cref="NpcIdentity"/>.
     /// </summary>
+    /// <summary>
+    /// Resolves <paramref name="identity"/>'s mesh paths and parses / decodes its assets into the
+    /// shared <see cref="CharacterPreviewCache"/> <b>without touching the current scene</b>, so a
+    /// later <see cref="LoadByIdentityAsync"/> for the same NPC hits warm entries instead of doing
+    /// the work on the render thread.
+    ///
+    /// <para>Strictly best-effort and side-effect-free from the viewer's point of view: it does not
+    /// change <see cref="StatusText"/>, does not set <see cref="IsLoading"/>, does not cancel an
+    /// in-flight load, and swallows its own failures. Anything it misses simply loads lazily as
+    /// before, so calling it can cost time but can never change what is rendered.</para>
+    ///
+    /// <para>Runs its work on the thread pool. The caller owns the cancellation token and should
+    /// cancel when the prediction it prefetched for stops being the likely next load -- otherwise
+    /// a stale prewarm competes for I/O with the load the user actually asked for.</para>
+    ///
+    /// <para>Added for SynthEBD's Label-then-Suggest annotation queue, which knows the next slice
+    /// it will serve while the user is still judging the current one. It is a general host
+    /// facility, not specific to that caller.</para>
+    /// </summary>
+    /// <param name="identity">NPC to warm. Same identity shape <see cref="LoadByIdentityAsync"/>
+    /// takes, so the cache keys line up.</param>
+    /// <param name="ct">Cancels the resolve / parse / decode work.</param>
+    public async Task PrewarmIdentityAsync(NpcIdentity identity, CancellationToken ct = default)
+    {
+        if (identity == null) return;
+        // Already the committed scene: every asset it needs is resident, so there is nothing to
+        // warm and the work would be pure waste.
+        if (identity.CacheKey == _currentLoadedIdentityKey) return;
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                var paths = _previewCache.GetOrResolveMeshPaths(identity);
+                if (paths == null) return;
+                ct.ThrowIfCancellationRequested();
+                _previewCache.PrewarmNpc(paths, null, ct);
+            }, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected whenever the prediction changes mid-flight; not worth a log line.
+        }
+        catch (Exception ex)
+        {
+            LogVerbose("CharacterViewer: prewarm of " + identity.CacheKey + " failed (harmless): " +
+                ex.Message);
+        }
+    }
+
     public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null,
         IReadOnlySet<string>? overrideEyeShapeNames = null)
     {

@@ -46,7 +46,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
                 // Rules-only categories exist to feed Label by Measurements rules, not to be
                 // distributed on. They stay in TemplateDescriptors (so the Body Type Profile
                 // editor keeps them) but never reach a distribution picker.
-                if (Descriptor.IsRulesOnly) continue;
+                if (Descriptor.IsRulesOnly && !IncludeRulesOnly) continue;
                 DescriptorShells.Add(new VM_BodyShapeDescriptorShellSelector(Descriptor, this));
             }
             TrackedMenu.TemplateDescriptors.ToObservableChangeSet().Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler).Subscribe(_ => UpdateShellList()).DisposeWith(this);
@@ -83,6 +83,30 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     ObservableCollection<VM_RaceGrouping>  TrackedRaceGroupings { get; set; }
     public VM_BodyShapeDescriptorShellSelector CurrentlyDisplayedShell { get; set; }
     public bool ShowMatchMode { get; set; } = false;
+
+    /// <summary>
+    /// When true, categories flagged <see cref="VM_BodyShapeDescriptorShell.IsRulesOnly"/> are
+    /// shown alongside the rest instead of being skipped. Defaults to false, which is the
+    /// behavior every distribution picker wants: a rules-only category exists to be referenced by
+    /// Label by Measurements rules, not to be distributed on.
+    /// <para>The Label-then-Suggest annotation editor is the exception. There the user is
+    /// recording a visual judgment about a body, not choosing what to distribute, and a rules-only
+    /// category is exactly as judgeable as any other -- hiding it would make its rules
+    /// unlabellable and therefore un-fittable. Set through
+    /// <see cref="SetIncludeRulesOnly"/> rather than assigned directly, since the shell list has
+    /// already been built by the time a caller can reach this property.</para>
+    /// </summary>
+    public bool IncludeRulesOnly { get; private set; } = false;
+
+    /// <summary>Sets <see cref="IncludeRulesOnly"/> and rebuilds the shell list so the change takes
+    /// effect on an already-constructed menu. No-op when the flag is unchanged.</summary>
+    /// <param name="include">Whether rules-only categories should appear in this menu.</param>
+    public void SetIncludeRulesOnly(bool include)
+    {
+        if (IncludeRulesOnly == include) return;
+        IncludeRulesOnly = include;
+        if (TrackedMenu != null) UpdateShellList();
+    }
     public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
     private bool _initializing { get; set; } = false;
@@ -166,7 +190,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
             bool found = false;
             foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
             {
-                if (sourceShell.IsRulesOnly) continue; // newly hidden -> treat as removed
+                if (sourceShell.IsRulesOnly && !IncludeRulesOnly) continue; // newly hidden -> treat as removed
                 if (DescriptorShells[i].TrackedShell.Category == sourceShell.Category)
                 {
                     found = true;
@@ -183,7 +207,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         // add new shells
         foreach (var sourceShell in TrackedMenu.TemplateDescriptors)
         {
-            if (sourceShell.IsRulesOnly) continue;
+            if (sourceShell.IsRulesOnly && !IncludeRulesOnly) continue;
             bool found = false;
             foreach (var destShell in DescriptorShells)
             {
