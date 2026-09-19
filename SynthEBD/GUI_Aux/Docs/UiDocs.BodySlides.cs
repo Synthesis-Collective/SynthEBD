@@ -180,9 +180,9 @@ public static partial class UiDocs
             motivation: "Judging one label at a time is far faster and more consistent than deciding every category on every body, and it matches how the rules are actually authored - one category at a time.");
 
         Add("BodySlides.QueuePolicy",
-            layperson: "How the queue picks which body to show you next. Spread walks the whole range of a measurement, Uncertainty shows bodies sitting close to where your current rules draw the line, and Random picks uniformly.",
-            technical: "Dispatches to AnnotationQueueOrdering.Order. Spread buckets candidates into quantile bins of the chosen measurement and visits the bins round-robin; Uncertainty ranks by the smallest range-normalized distance from a measurement value to a threshold in the target Category's rules, and degrades to Spread when that Category has no rules; Random is a seeded Fisher-Yates shuffle. Persisted in AnnotatorPreferences.QueuePolicy.",
-            motivation: "The three modes answer different questions. Spread is right when a category is new and you need coverage; Uncertainty sharpens a threshold you already have; Random is what an honest error rate has to be measured on.");
+            layperson: "How the queue picks which body to show you next. Spread walks the whole range of a measurement, Uncertainty shows bodies sitting close to where your current rules draw the line, Random picks uniformly, and List serves exactly the bodies named in a worklist you load.",
+            technical: "The first three dispatch to AnnotationQueueOrdering.Order. Spread buckets candidates into quantile bins of the chosen measurement and visits the bins round-robin; Uncertainty ranks by the smallest range-normalized distance from a measurement value to a threshold in the target Category's rules, and degrades to Spread when that Category has no rules; Random is a seeded Fisher-Yates shuffle. List bypasses scoring and ordering entirely and serves the loaded worklist in the order written, ignoring the random fraction, weight grouping, de-duplication and the skip-already-annotated filter. Persisted in AnnotatorPreferences.QueuePolicy.",
+            motivation: "The modes answer different questions. Spread is right when a category is new and you need coverage; Uncertainty sharpens a threshold you already have; Random is what an honest error rate has to be measured on; List is for working through cases someone picked out deliberately, which is why nothing in that mode is allowed to quietly reorder or filter them.");
 
         Add("BodySlides.QueueOptions",
             layperson: "Opens the rest of the sampling settings: which measurement to spread over, how many buckets, the random share, the seed, and the on/off switches.",
@@ -229,19 +229,44 @@ public static partial class UiDocs
             technical: "Calls VM_CharacterViewer.PrewarmIdentityAsync through the editor's PrefetchPreviewNpcAsync for the next slice's preview NPC. It parses meshes and decodes textures into the shared CharacterPreviewCache on a background thread without touching the current scene, and is cancelled whenever the queue moves. Skipped inside a weight run, where the NPC is unchanged and there is nothing to warm. Persisted in AnnotatorPreferences.QueuePrefetch.",
             motivation: "Loading the body is the real bottleneck in a labelling run, not the clicking. Turn this off only if background asset reads compete with something else for disk.");
 
+        Add("BodySlides.QueueLoadList",
+            layperson: "Loads a worklist of specific bodies to judge, from a text or JSON file. Use this when someone hands you a list of particular presets to look at.",
+            technical: "Parsed by AnnotationCaseList. Plain text is one case per line as 'Preset | weight | note' - the separator may also be a tab, or the weight may simply trail the name ('Preset 75', 'Preset, 75'), and lines starting with # or // are comments. JSON may be a bare array or an object with a 'rows' array, with case-insensitive preset/weight/gender/note fields and unknown fields ignored, so a verdict export loads back unchanged. The file path is remembered per profile and re-read on the next Build Queue.",
+            motivation: "Turns 'here are fourteen bodies worth a second look' into a task you can work through without hunting each one in the table - and because a verdict export is itself a valid worklist, a set of labels can be handed back for re-judging as-is.");
+
+        Add("BodySlides.QueuePasteList",
+            layperson: "Loads a worklist straight from the clipboard, so a list someone sent you can go in without saving a file first.",
+            technical: "Reads the clipboard and parses it exactly as Load list does, accepting the same plain-text and JSON shapes. No path is remembered, since a paste has no file to come back to next session.",
+            motivation: "A worklist usually arrives in a message rather than as a file, and making the user stop to save it first is friction for no benefit.");
+
+        Add("BodySlides.QueueClearList",
+            layperson: "Forgets the loaded worklist. Your labels are not affected.",
+            technical: "Empties the in-memory case list and clears the remembered path on the profile, then drops the built queue. PresetAnnotations are untouched.",
+            motivation: "Lets you end a review pass without the next Build Queue silently reusing the old list.");
+
+        Add("BodySlides.QueueListSummary",
+            layperson: "Shows how many cases are loaded and where they came from.",
+            technical: "Reports the parsed case count and the source name (a file name, or 'clipboard'). A case is one entry in the list; a case with no weight expands to every weight that preset has a row at, so the queue can be longer than the case count.",
+            motivation: "Confirms the list actually parsed before you build a queue from it - a truncated or misread list is much cheaper to catch here than twenty bodies in.");
+
+        Add("BodySlides.QueueCaseNote",
+            layperson: "The note attached to this body by the worklist - usually why it was picked out for you to look at.",
+            technical: "Rendered from VM_AnnotationQueue.CurrentCaseNote, taken from the current slice's worklist entry. Hidden for slices a sampling policy chose, which have no note.",
+            motivation: "A reviewer told that a body sits just above the Chubby threshold is answering a sharper question than one working through anonymous rows, and the answer is correspondingly more useful to whoever fits the rule.");
+
         Add("BodySlides.QueueBuild",
             layperson: "Builds the list of bodies to serve from the current settings and shows you the first one.",
             technical: "Runs VM_AnnotationQueue.BuildQueue: filters the annotation table's rows, groups aliases, scores each candidate for the chosen policy, orders them, optionally coalesces weight runs, then selects the first slice. It reads only the profile's cached measurements and never starts a scan. Any change to the sampling settings drops the built queue so a stale ordering cannot be served.",
             motivation: "Building is explicit so the sample is a deliberate act with settings you can state, rather than something that quietly shifts under you while you label.");
 
         Add("BodySlides.QueueCommitAndNext",
-            layperson: "Saves whatever you have ticked for this body and immediately loads the next one. The Enter key does the same thing.",
+            layperson: "Saves whatever you have ticked for this body and immediately loads the next one. Spacebar and Enter do the same thing.",
             technical: "Persists through the annotation editor's existing write-through (there is no second writer), propagates the verdict to the slice's alias family, updates the session counters and the tally, then advances. Committing with nothing ticked prunes the annotation and is counted as a skip rather than a label.",
             motivation: "One key per body is what turns labelling from a browsing task into a throughput task; counting an empty commit as a skip keeps the coverage numbers honest.");
 
         Add("BodySlides.QueueSkip",
-            layperson: "Leaves this body unjudged and moves to the next one. The S key does the same thing.",
-            technical: "Increments the skipped counter and advances the cursor without touching the slice's annotation.",
+            layperson: "Leaves this body unjudged and moves to the next one. Tab and S do the same thing.",
+            technical: "Increments the skipped counter and advances the cursor without touching the slice's annotation. Tab is bound as a second Skip key; because the binding is scoped to this panel, Tab-to-move-focus is affected only inside it and works normally everywhere else in the app.",
             motivation: "Some bodies cannot be judged confidently, and forcing a verdict on them would put noise into the very data the rules are fitted on.");
 
         Add("BodySlides.QueueBack",
@@ -250,7 +275,7 @@ public static partial class UiDocs
             motivation: "Second thoughts arrive one body too late often enough that going back has to be one keystroke, not a hunt through the table.");
 
         Add("BodySlides.QueueValueHints",
-            layperson: "The values you can assign in this category, numbered to match the digit keys. Click one or press its number to toggle it; underlined values are the ones currently applied.",
+            layperson: "The values you can assign in this category, numbered to match the digit keys. Click one or press its number to toggle it, then Spacebar to commit and move on; underlined values are the ones currently applied.",
             technical: "Rendered from VM_AnnotationQueue.ValueHints, refreshed from the descriptor menu's Header signal so it stays in step with clicks made in the editor below. Both the buttons and the digit KeyBindings route to ToggleValueCommand, which calls the annotation editor's ToggleValueByIndex. Only the first nine values get a digit; the rest remain clickable here and in the menu below.",
             motivation: "These are toggles rather than a radio group on purpose: a descriptor category is a tag set, and Belly = Fat + Pregnant is a legitimate verdict that a single-select control could not express.");
 

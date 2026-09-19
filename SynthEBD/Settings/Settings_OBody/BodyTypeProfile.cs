@@ -838,6 +838,13 @@ public class AnnotatorPreferences
     /// the user decides on the current one. Defaults to true; turn it off if background asset
     /// parsing competes with something else for I/O.</summary>
     public bool QueuePrefetch { get; set; } = true;
+
+    /// <summary>Path of the worklist file last loaded for <see cref="AnnotationQueuePolicy.List"/>
+    /// mode, re-read on the next Build Queue so resuming a review session does not start with a
+    /// re-load. Empty when no list is loaded or the list was pasted rather than opened from disk
+    /// (a paste has no file to come back to). A path that no longer resolves is ignored silently --
+    /// the queue then reports "no worklist loaded" rather than interrupting with a dialog.</summary>
+    public string QueueCaseListPath { get; set; } = "";
 }
 
 /// <summary>

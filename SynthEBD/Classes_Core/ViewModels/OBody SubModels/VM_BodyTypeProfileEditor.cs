@@ -9344,6 +9344,7 @@ public class VM_BodyTypeProfile : VM
         copy.QueueDedupeAliases = src.QueueDedupeAliases;
         copy.QueueWeightCoherent = src.QueueWeightCoherent;
         copy.QueuePrefetch = src.QueuePrefetch;
+        copy.QueueCaseListPath = src.QueueCaseListPath ?? "";
         return copy;
     }
 

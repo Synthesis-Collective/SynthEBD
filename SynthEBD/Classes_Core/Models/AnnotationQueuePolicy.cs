@@ -26,6 +26,19 @@ public enum AnnotationQueuePolicy
     /// <summary>Uniform random over candidates, from a fixed seed so a sample is reproducible and
     /// can be quoted in the tracker.</summary>
     Random = 2,
+
+    /// <summary>
+    /// Serve exactly the slices named in a hand-authored worklist, in the order they are listed.
+    /// <para>The defining property is that the caller has already decided what the sample is, so
+    /// nothing here may quietly change it: no random interleave, no weight coalescing, no alias
+    /// de-duplication and no skipping of already-annotated slices. A list of edge cases handed over
+    /// for review is only worth reviewing if the reviewer sees the cases that were chosen, in the
+    /// order they were chosen, including the ones that carry an existing verdict being
+    /// re-examined.</para>
+    /// <para>Parsed by <see cref="AnnotationCaseList"/> from plain text or JSON; a verdict export
+    /// can be fed straight back in.</para>
+    /// </summary>
+    List = 3,
 }
 
 /// <summary>
@@ -103,6 +116,14 @@ public static class AnnotationQueueOrdering
     {
         int count = scores?.Count ?? 0;
         if (count == 0) return Array.Empty<AnnotationQueueEntry>();
+
+        if (policy == AnnotationQueuePolicy.List)
+        {
+            // The caller's order IS the sample. Returning it untouched keeps this function total
+            // rather than silently falling through to a shuffle, but the queue does not route List
+            // mode through here at all -- it builds straight from the worklist.
+            return Enumerable.Range(0, count).Select(i => new AnnotationQueueEntry(i, false)).ToList();
+        }
 
         if (policy == AnnotationQueuePolicy.Random)
         {

@@ -19,10 +19,17 @@
          Mirrors the InputBindings pattern already used by the Key Vertices, Regions, Measurements
          and Rules tabs in UC_BodyTypeProfileEditor.xaml. -->
     <UserControl.InputBindings>
+        <KeyBinding Key="Space"     Command="{Binding CommitAndNextCommand}"/>
         <KeyBinding Key="Return"    Command="{Binding CommitAndNextCommand}"/>
         <KeyBinding Key="Enter"     Command="{Binding CommitAndNextCommand}"/>
         <KeyBinding Key="Back"      Command="{Binding BackCommand}"/>
         <KeyBinding Key="Left"      Command="{Binding BackCommand}"/>
+        <!-- Tab is normally focus traversal. Binding it costs Tab-to-move-focus *inside this
+             panel only* (the binding is scoped to this UserControl, so the rest of the app is
+             untouched), which is an acceptable trade here: focus is parked on the panel root and
+             returned there after every command, so there is nothing to traverse to. S is kept as
+             a second Skip key so the panel stays usable if Tab is ever reverted. -->
+        <KeyBinding Key="Tab"       Command="{Binding SkipCommand}"/>
         <KeyBinding Key="S"         Command="{Binding SkipCommand}"/>
         <KeyBinding Key="D1"        Command="{Binding ToggleValueCommand}" CommandParameter="1"/>
         <KeyBinding Key="D2"        Command="{Binding ToggleValueCommand}" CommandParameter="2"/>
@@ -127,6 +134,30 @@
                            TextTrimming="CharacterEllipsis"/>
             </Grid>
 
+            <!-- Worklist controls, shown only under the List policy where they mean anything.
+                 Paste sits beside Load because the likely source of a worklist is a message rather
+                 than a file on disk. -->
+            <Grid Margin="0,0,0,4" Visibility="{Binding IsListPolicy, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Load list..." Command="{Binding LoadCaseListCommand}"
+                        Click="OnCommandButtonClick" Padding="8,2"
+                        local:DocTooltip.Key="BodySlides.QueueLoadList"/>
+                <Button Grid.Column="1" Content="Paste list" Command="{Binding PasteCaseListCommand}"
+                        Click="OnCommandButtonClick" Padding="8,2" Margin="4,0,0,0"
+                        local:DocTooltip.Key="BodySlides.QueuePasteList"/>
+                <Button Grid.Column="2" Content="Clear" Command="{Binding ClearCaseListCommand}"
+                        Click="OnCommandButtonClick" Padding="8,2" Margin="4,0,0,0"
+                        local:DocTooltip.Key="BodySlides.QueueClearList"/>
+                <TextBlock Grid.Column="3" Text="{Binding CaseListSummary}" VerticalAlignment="Center"
+                           Margin="10,0,0,0" TextTrimming="CharacterEllipsis"
+                           local:DocTooltip.Key="BodySlides.QueueListSummary"/>
+            </Grid>
+
             <!-- Zero random fraction is legal but consequential, so it is stated where the user is
                  working rather than buried in the options flyout. -->
             <Border Background="{DynamicResource TertiaryBackground}" Padding="6,3" Margin="0,0,0,4"
@@ -165,6 +196,23 @@
                         Click="OnCommandButtonClick" Padding="10,2" Margin="4,0,0,0" FontWeight="SemiBold"
                         local:DocTooltip.Key="BodySlides.QueueCommitAndNext"/>
             </Grid>
+
+            <!-- Why this case is on the worklist. Rendered prominently rather than as a tooltip:
+                 it is the question the reviewer is being asked, not a detail about the row. -->
+            <Border Background="{DynamicResource TertiaryBackground}" Padding="6,3" Margin="0,0,0,4"
+                    local:DocTooltip.Key="BodySlides.QueueCaseNote">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentCaseNote}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding CurrentCaseNote}" TextWrapping="Wrap" FontStyle="Italic"/>
+            </Border>
 
             <!-- Alias family notice: one verdict is about to cover several presets. -->
             <TextBlock Text="{Binding CurrentAliasSummary}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,4"

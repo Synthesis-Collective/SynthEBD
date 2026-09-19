@@ -51,6 +51,8 @@ public class VM_AnnotationQueue : VM
     private int _cursor = -1;
     private CancellationTokenSource _prefetchCts;
     private VM_BodyShapeDescriptorSelectionMenu _shellMenu;
+    private List<AnnotationCase> _caseList = new();
+    private string _caseListSource = "";
 
     public VM_AnnotationQueue(VM_BodyTypeProfileEditor editor)
     {
@@ -95,6 +97,18 @@ public class VM_AnnotationQueue : VM
                 if (x is string sx && int.TryParse(sx, out int parsed)) ToggleValue(parsed);
             });
 
+        LoadCaseListCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => LoadCaseListFromFile());
+
+        PasteCaseListCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => LoadCaseListFromClipboard());
+
+        ClearCaseListCommand = new RelayCommand(
+            canExecute: _ => _caseList.Count > 0,
+            execute: _ => SetCaseList(new List<AnnotationCase>(), "", persistPath: true));
+
         ResetSessionCountersCommand = new RelayCommand(
             canExecute: _ => ServedCount > 0 || LabelledCount > 0 || SkippedCount > 0,
             execute: _ => ResetSessionCounters());
@@ -117,6 +131,8 @@ public class VM_AnnotationQueue : VM
                     PersistSettings();
                     break;
                 case nameof(Policy):
+                    IsListPolicy = Policy == AnnotationQueuePolicy.List;
+                    goto case nameof(SpreadMeasurement);
                 case nameof(SpreadMeasurement):
                 case nameof(BinCount):
                 case nameof(Seed):
@@ -188,6 +204,15 @@ public class VM_AnnotationQueue : VM
     /// <summary>Prewarm the next slice's preview NPC while the user judges the current one.</summary>
     public bool PrefetchEnabled { get; set; } = true;
 
+    /// <summary>True while <see cref="Policy"/> is <see cref="AnnotationQueuePolicy.List"/>. Bound
+    /// to the visibility of the worklist controls, which are meaningless under the other
+    /// policies.</summary>
+    public bool IsListPolicy { get; private set; }
+
+    /// <summary>One line describing the loaded worklist ("40 case(s) from belly_edges.txt"), or a
+    /// prompt when none is loaded.</summary>
+    public string CaseListSummary { get; private set; } = "No list loaded.";
+
     // ---------- live queue state ----------
 
     /// <summary>The slice being judged, or null when no queue is built / the queue is exhausted.</summary>
@@ -203,6 +228,12 @@ public class VM_AnnotationQueue : VM
     /// <summary>True when the current slice came from the interleaved random stream rather than the
     /// policy's ordering. Surfaced because only these verdicts can estimate an error rate.</summary>
     public bool CurrentIsRandomDraw { get; private set; }
+
+    /// <summary>The note attached to the current slice by the worklist, if any.
+    /// <para>Shown while judging, not just parsed and discarded: a reviewer who knows a case was
+    /// picked because it sits 0.2 above the Chubby cut is answering a sharper question than one
+    /// working through anonymous rows.</para></summary>
+    public string CurrentCaseNote { get; private set; } = "";
 
     /// <summary>1-based position in the queue; 0 when nothing is being served.</summary>
     public int Position { get; private set; }
@@ -238,6 +269,16 @@ public class VM_AnnotationQueue : VM
     public RelayCommand ExportVerdictsCommand { get; }
     public RelayCommand CopyVerdictsCommand { get; }
     public RelayCommand ResetSessionCountersCommand { get; }
+
+    /// <summary>Loads a worklist from a file for <see cref="AnnotationQueuePolicy.List"/> mode.</summary>
+    public RelayCommand LoadCaseListCommand { get; }
+
+    /// <summary>Loads a worklist from the clipboard -- the path a list pasted out of a conversation
+    /// takes, with no file in between.</summary>
+    public RelayCommand PasteCaseListCommand { get; }
+
+    /// <summary>Discards the loaded worklist.</summary>
+    public RelayCommand ClearCaseListCommand { get; }
 
     /// <summary>Toggles the Nth value of the target Category. Bound to the digit KeyBindings and to
     /// the clickable entries of the digit legend.</summary>
@@ -298,6 +339,14 @@ public class VM_AnnotationQueue : VM
         if (rows.Count == 0)
         {
             Status = "No rows. Scan the annotation table (or let it load from cache) first.";
+            return;
+        }
+
+        // List mode is not a sampling policy: the caller already chose the sample, so it bypasses
+        // scoring, ordering, the random interleave and every filter below.
+        if (Policy == AnnotationQueuePolicy.List)
+        {
+            BuildFromCaseList(profile, rows);
             return;
         }
 
@@ -401,6 +450,209 @@ public class VM_AnnotationQueue : VM
         AdvanceTo(0, countAsServed: true);
     }
 
+    /// <summary>
+    /// Builds the queue straight from the loaded worklist: every listed case resolved to its rows,
+    /// in the order listed.
+    /// <para>Deliberately ignores <see cref="IncludeAnnotated"/>, <see cref="DedupeAliases"/>,
+    /// <see cref="WeightCoherent"/> and <see cref="RandomFraction"/>, and says so in the status
+    /// rather than applying them silently. A worklist is already a deliberate sample; filtering out
+    /// its already-annotated entries would remove exactly the rows a re-judging pass exists to
+    /// revisit, and reordering it would discard the reason the cases were put in that order.</para>
+    /// <para>Matching is case-insensitive on the preset label, because a list is typed or pasted by
+    /// a human. A case with no weight expands to every weight the preset has a row at, ascending; a
+    /// case with no gender matches whichever gender the preset exists under. Exact repeats are
+    /// dropped -- serving one slice twice only lets the second verdict overwrite the first -- and
+    /// counted in the status.</para>
+    /// </summary>
+    private void BuildFromCaseList(VM_BodyTypeProfile profile, ObservableCollection<VM_PresetAnnotationRow> rows)
+    {
+        if (_caseList.Count == 0) TryReloadPersistedCaseList();
+        if (_caseList.Count == 0)
+        {
+            ClearQueue();
+            Status = "No worklist loaded. Use Load list or Paste, or pick another sampling mode.";
+            return;
+        }
+
+        var byLabel = new Dictionary<string, List<VM_PresetAnnotationRow>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (row == null || string.IsNullOrEmpty(row.PresetLabel)) continue;
+            if (!byLabel.TryGetValue(row.PresetLabel, out var bucket))
+            {
+                bucket = new List<VM_PresetAnnotationRow>();
+                byLabel[row.PresetLabel] = bucket;
+            }
+            bucket.Add(row);
+        }
+
+        var built = new List<VM_AnnotationQueueSlice>();
+        var alreadyQueued = new HashSet<VM_PresetAnnotationRow>();
+        var unmatched = new List<string>();
+        int duplicates = 0;
+
+        foreach (var entry in _caseList)
+        {
+            if (entry == null || string.IsNullOrEmpty(entry.PresetLabel)) continue;
+            if (!byLabel.TryGetValue(entry.PresetLabel, out var candidates))
+            {
+                unmatched.Add(entry.PresetLabel + (entry.Weight.HasValue ? " @" + entry.Weight.Value : ""));
+                continue;
+            }
+
+            var matches = candidates
+                .Where(r => !entry.Weight.HasValue || r.Weight == entry.Weight.Value)
+                .Where(r => !entry.Gender.HasValue || r.Gender == entry.Gender.Value)
+                .OrderBy(r => r.Weight)
+                .ToList();
+
+            if (matches.Count == 0)
+            {
+                unmatched.Add(entry.PresetLabel + (entry.Weight.HasValue ? " @" + entry.Weight.Value : ""));
+                continue;
+            }
+
+            foreach (var row in matches)
+            {
+                if (!alreadyQueued.Add(row)) { duplicates++; continue; }
+                built.Add(new VM_AnnotationQueueSlice(
+                    row,
+                    new List<VM_PresetAnnotationRow> { row },
+                    fromRandomDraw: false,
+                    note: entry.Note ?? ""));
+            }
+        }
+
+        _slices.Clear();
+        _slices.AddRange(built);
+        QueueLength = _slices.Count;
+        HasQueue = QueueLength > 0;
+        _cursor = -1;
+
+        var status = new StringBuilder();
+        status.Append("List: ").Append(QueueLength).Append(" slice(s) from ")
+              .Append(_caseList.Count).Append(" case(s), in list order (sampling options ignored)");
+        if (duplicates > 0) status.Append("; ").Append(duplicates).Append(" repeat(s) dropped");
+        if (unmatched.Count > 0)
+        {
+            status.Append("; ").Append(unmatched.Count).Append(" not found (")
+                  .Append(string.Join(", ", unmatched.Take(3)))
+                  .Append(unmatched.Count > 3 ? ", ..." : "").Append(")");
+        }
+        status.Append(".");
+        Status = status.ToString();
+
+        if (QueueLength == 0) { ClearQueue(); Status = status.ToString(); return; }
+        AdvanceTo(0, countAsServed: true);
+    }
+
+    private void LoadCaseListFromFile()
+    {
+        if (!IO_Aux.SelectFile("", "Worklists (*.txt;*.json)|*.txt;*.json|All files (*.*)|*.*",
+                "Load annotation worklist", out string path))
+        {
+            return;
+        }
+
+        string text;
+        try
+        {
+            text = System.IO.File.ReadAllText(path);
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.DisplayNotificationOK("Load Failed", ex.Message);
+            return;
+        }
+
+        ApplyParsedCaseList(text, System.IO.Path.GetFileName(path), path);
+    }
+
+    private void LoadCaseListFromClipboard()
+    {
+        string text;
+        try
+        {
+            text = System.Windows.Clipboard.GetText();
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.DisplayNotificationOK("Paste Failed", ex.Message);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            MessageWindow.DisplayNotificationOK("Paste Failed", "The clipboard has no text.");
+            return;
+        }
+
+        // A pasted list has no file to reload from next session, so no path is persisted.
+        ApplyParsedCaseList(text, "clipboard", "");
+    }
+
+    private void ApplyParsedCaseList(string text, string sourceName, string persistPath)
+    {
+        var parsed = AnnotationCaseList.Parse(text, out var warnings);
+        if (parsed.Count == 0)
+        {
+            MessageWindow.DisplayNotificationOK("Nothing Loaded",
+                "No cases were found in " + sourceName + "."
+                + (warnings.Count > 0 ? Environment.NewLine + Environment.NewLine + string.Join(Environment.NewLine, warnings.Take(10)) : ""));
+            return;
+        }
+
+        SetCaseList(parsed, sourceName, persistPath: true, path: persistPath);
+
+        // Warnings are surfaced rather than logged quietly: a line that silently did not become a
+        // case is a case the reviewer will never be asked about and will assume they judged.
+        if (warnings.Count > 0)
+        {
+            MessageWindow.DisplayNotificationOK("Worklist Loaded With Warnings",
+                parsed.Count + " case(s) loaded from " + sourceName + "; "
+                + warnings.Count + " line(s) had problems:"
+                + Environment.NewLine + Environment.NewLine
+                + string.Join(Environment.NewLine, warnings.Take(10))
+                + (warnings.Count > 10 ? Environment.NewLine + "..." : ""));
+        }
+    }
+
+    private void SetCaseList(List<AnnotationCase> cases, string sourceName, bool persistPath, string path = "")
+    {
+        _caseList = cases ?? new List<AnnotationCase>();
+        _caseListSource = sourceName ?? "";
+        CaseListSummary = _caseList.Count == 0
+            ? "No list loaded."
+            : _caseList.Count + " case(s) from " + _caseListSource;
+
+        if (persistPath && _watchedProfile != null)
+        {
+            _watchedProfile.GetOrCreateAnnotatorPrefs().QueueCaseListPath = path ?? "";
+        }
+
+        InvalidateQueue(_caseList.Count == 0
+            ? "Worklist cleared -- load one, or pick another sampling mode."
+            : CaseListSummary + " -- press Build Queue.");
+    }
+
+    /// <summary>Re-reads the worklist file remembered on the profile, so resuming a session does not
+    /// start with a re-load. Silent on failure: a list file that has moved is a reason to show "no
+    /// list loaded", not to interrupt with a dialog the user did not ask for.</summary>
+    private void TryReloadPersistedCaseList()
+    {
+        string path = _watchedProfile?.GetOrCreateAnnotatorPrefs()?.QueueCaseListPath ?? "";
+        if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path)) return;
+        try
+        {
+            var parsed = AnnotationCaseList.Parse(System.IO.File.ReadAllText(path), out _);
+            if (parsed.Count > 0) SetCaseList(parsed, System.IO.Path.GetFileName(path), persistPath: false);
+        }
+        catch
+        {
+            // Unreadable / locked file -- leave the list empty and let BuildQueue say so.
+        }
+    }
+
     /// <summary>Drops the built queue without touching any annotation. Used whenever a setting that
     /// changes what should be served is edited -- silently serving slices from a stale ordering
     /// would misreport what the sample was.</summary>
@@ -422,6 +674,7 @@ public class VM_AnnotationQueue : VM
         Position = 0;
         CurrentIsRandomDraw = false;
         CurrentAliasSummary = "";
+        CurrentCaseNote = "";
         CurrentSliceLabel = "No queue. Pick a Category and press Build Queue.";
     }
 
@@ -589,6 +842,7 @@ public class VM_AnnotationQueue : VM
             Position = 0;
             CurrentIsRandomDraw = false;
             CurrentAliasSummary = "";
+            CurrentCaseNote = "";
             CurrentSliceLabel = "Queue finished -- " + LabelledCount + " labelled, " + SkippedCount + " skipped.";
             Status = "Queue exhausted. Build a new one to continue.";
             return;
@@ -624,6 +878,7 @@ public class VM_AnnotationQueue : VM
         CurrentAliasSummary = slice.Members.Count > 1
             ? slice.Members.Count + " identical presets: " + string.Join(", ", slice.Members.Select(m => m.PresetLabel))
             : "";
+        CurrentCaseNote = slice.Note ?? "";
     }
 
     /// <summary>
@@ -659,6 +914,7 @@ public class VM_AnnotationQueue : VM
         Position = 0;
         CurrentIsRandomDraw = false;
         CurrentAliasSummary = "";
+        CurrentCaseNote = "";
         CurrentSliceLabel = "Editing a row outside the queue -- Commit and Next is disabled.";
         Status = "Selected row is not in the queue. Edits still save; press Build Queue to resume.";
     }
@@ -914,6 +1170,11 @@ public class VM_AnnotationQueue : VM
         _watchedProfile = profile;
         ClearQueue();
         ResetSessionCounters();
+        // The worklist belongs to the profile it was written against -- preset labels resolve
+        // against that profile's rows -- so it does not follow the user to another one.
+        _caseList = new List<AnnotationCase>();
+        _caseListSource = "";
+        CaseListSummary = "No list loaded.";
         RefreshAvailableMeasurements();
         RefreshAvailableCategories();
         LoadSettingsFromProfile();
@@ -940,6 +1201,7 @@ public class VM_AnnotationQueue : VM
             DedupeAliases = prefs.QueueDedupeAliases;
             WeightCoherent = prefs.QueueWeightCoherent;
             PrefetchEnabled = prefs.QueuePrefetch;
+            IsListPolicy = Policy == AnnotationQueuePolicy.List;
             // Only settable once the menu has told us which categories exist; InitializeAfterMenu
             // re-applies it. Applying an unavailable category here would silently blank it.
             TargetCategory = AvailableCategories.Contains(prefs.QueueTargetCategory ?? "")
@@ -1126,11 +1388,13 @@ public class VM_AnnotationQueue : VM
 /// <summary>One served position in the annotation queue.</summary>
 public sealed class VM_AnnotationQueueSlice
 {
-    public VM_AnnotationQueueSlice(VM_PresetAnnotationRow row, IReadOnlyList<VM_PresetAnnotationRow> members, bool fromRandomDraw)
+    public VM_AnnotationQueueSlice(VM_PresetAnnotationRow row, IReadOnlyList<VM_PresetAnnotationRow> members,
+        bool fromRandomDraw, string note = "")
     {
         Row = row;
         Members = members ?? new List<VM_PresetAnnotationRow> { row };
         FromRandomDraw = fromRandomDraw;
+        Note = note ?? "";
     }
 
     /// <summary>The slice actually shown in the viewer and edited.</summary>
@@ -1143,6 +1407,10 @@ public sealed class VM_AnnotationQueueSlice
     /// <summary>True when the sampler took this position from the uniform-random stream rather than
     /// from the policy's ordering.</summary>
     public bool FromRandomDraw { get; }
+
+    /// <summary>Why this case was put on the worklist, when it came from one. Empty for slices a
+    /// sampling policy chose, which have no author to explain them.</summary>
+    public string Note { get; }
 }
 
 /// <summary>One numbered value in the target Category, for the digit-key legend.</summary>
