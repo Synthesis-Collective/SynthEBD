@@ -309,6 +309,7 @@ public partial class VM_CharacterViewer
         }
 
         int installed = 0;
+        var lockTally = new TextureLockTally();
         foreach (var (bodyPart, meshSource, meshes) in installOrder)
         {
             request.MeshPaths.TxstTextures.TryGetValue(bodyPart, out var txstOverrides);
@@ -348,6 +349,9 @@ public partial class VM_CharacterViewer
                 glMesh.BipedSlots = 0;
                 glMesh.HidesSlots = 0;
 
+                // The mask is passed explicitly because the mesh only joins _guestMeshes
+                // below; it keeps the lock off the Tint Color the Translucent style draws with.
+                ApplyTextureVisibilityLock(glMesh, lockTally, GuestLockableTextureSlots);
                 Renderer.AddMesh(glMesh);
                 _guestMeshes.Add(glMesh);
                 installed++;
@@ -356,6 +360,7 @@ public partial class VM_CharacterViewer
 
         LogVerbose("CharacterViewer: guest overlay installed (" + installed + " shape(s), style="
             + _guestStyle + ", bodyOnly=" + _guestBodyOnly + ", key=" + request.CacheKey + ")");
+        LogTextureLockTally(lockTally, "guest overlay");
     }
 
     /// <summary>Applies the guest's textures using the same routine as the primary scene, so

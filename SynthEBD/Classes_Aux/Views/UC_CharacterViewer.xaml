@@ -480,6 +480,24 @@
                 IsHitTestVisible="False" ClipToBounds="True"
                 Visibility="{Binding HasPendingBox, Converter={StaticResource BoolToVis}}"/>
 
+        <!-- Texture-lock badge: shown while "Lock Texture Visibility" (right-click menu) is on
+             AND remembers at least one texture slot as hidden, so a long judging session can't
+             lose track of the fact that every NPC it loads is drawn with textures off.
+             IsHitTestVisible=False so it never swallows an orbit drag or the right-click that
+             turns the lock off. Declared before the pending-box panel, which covers it while a
+             box is being edited. Hardcoded HUD palette like the other viewport overlays. -->
+        <Border Grid.Row="6"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
+                Background="#E0201A08" BorderBrush="#FFFFCC40" BorderThickness="1"
+                CornerRadius="3" Padding="8 4"
+                IsHitTestVisible="False"
+                Visibility="{Binding TexturesHiddenByLock, Converter={StaticResource BoolToVis}}">
+            <TextBlock FontSize="11" Foreground="#FFFFCC40">
+                <Run Text="Textures hidden (locked)" FontWeight="Bold"/>
+                <Run Text="- right-click the model to unlock" Foreground="#FFB8A878"/>
+            </TextBlock>
+        </Border>
+
         <!-- Pending-box edit panel. Floats at top of the viewport while HasPendingBox is true.
              Six SingleUpDowns drive PendingBox{Min,Max}{X,Y,Z}; the wireframe redraws live.
              'Shrink to Camera Half' auto-halves the most-view-aligned axis toward the camera

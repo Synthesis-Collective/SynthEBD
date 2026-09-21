@@ -159,6 +159,10 @@ public partial class VM_CharacterViewer : ViewerVm
         int TotalShapes)
     {
         public int Installed { get; set; }
+
+        /// <summary>What the texture visibility lock did across the install's ticks,
+        /// logged once at scene commit.</summary>
+        public TextureLockTally LockTally { get; } = new();
     }
 
     private readonly record struct PendingShape(
@@ -2104,6 +2108,146 @@ public partial class VM_CharacterViewer : ViewerVm
 
         return anyHit;
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TEXTURE VISIBILITY LOCK
+    //
+    //  The right-click menu's per-slot texture toggles live on each GlMesh, so
+    //  they are lost whenever a load builds new meshes — which the OBody
+    //  annotation queue does on every weight change, since each weight has its
+    //  own preview NPC. The lock remembers the choices at the viewer level and
+    //  re-applies them to every mesh created afterwards. Session-only by
+    //  design: an invisible, persisted "textures off" would mislead later.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>The remembered choices; see <see cref="TextureVisibilityLock"/>.</summary>
+    private readonly TextureVisibilityLock _textureLock = new();
+
+    /// <summary>A guest overlay's Translucent style draws its flat overlay colour through the
+    /// Tint Color toggle, so the lock never sets that slot on a guest mesh: hiding it would
+    /// turn the orange overlay grey.</summary>
+    private const TextureSlots GuestLockableTextureSlots = TextureSlots.All & ~TextureSlots.TintColor;
+
+    /// <summary>True while "Lock Texture Visibility" is on: the per-slot texture choices are
+    /// remembered and re-applied to every mesh this viewer creates — NPC loads, weight
+    /// changes, head-only rebuilds, mesh overrides, guest overlays. Session-only; change it
+    /// through <see cref="SetTextureVisibilityLocked"/>.</summary>
+    public bool IsTextureVisibilityLocked { get; private set; }
+
+    /// <summary>True while the lock is on AND remembers at least one slot as hidden. Drives the
+    /// viewport's "Textures hidden (locked)" badge: judging runs over long sessions, and it must
+    /// stay obvious that every NPC loaded is being drawn with textures off.</summary>
+    public bool TexturesHiddenByLock { get; private set; }
+
+    /// <summary>
+    /// Engages or releases the texture visibility lock. Engaging remembers the choices on
+    /// screen now (<see cref="TextureVisibilityLock.Capture"/>) and drops anything an earlier
+    /// lock held, so it can't resurface. Releasing only stops the re-apply: what is shown stays
+    /// as it is — turning textures back on is <see cref="ResetAllTextures"/>.
+    /// </summary>
+    public void SetTextureVisibilityLocked(bool locked)
+    {
+        if (locked == IsTextureVisibilityLocked) return;
+        IsTextureVisibilityLocked = locked;
+        if (locked) _textureLock.Capture(PrimarySceneMeshes());
+        else _textureLock.Clear();
+        RefreshTexturesHiddenByLock();
+        LogVerbose("CharacterViewer: texture visibility lock " + (locked
+            ? "engaged; remembered hidden slots: " + DescribeTextureSlots(_textureLock.HiddenSlots)
+            : "released"));
+    }
+
+    /// <summary>Switches <paramref name="slots"/> on or off on one mesh — the right-click
+    /// menu's per-slot checkboxes. While locked the choice is remembered too, so the lock
+    /// follows the latest choice rather than freezing the one it engaged with. A guest overlay
+    /// mesh changes on its own: the lock only learns from the scene being edited.</summary>
+    public void SetTextureSlotEnabled(GlMesh mesh, TextureSlots slots, bool enabled)
+    {
+        mesh.SetTextureSlotsEnabled(slots, enabled);
+        if (!IsTextureVisibilityLocked || _guestMeshes.Contains(mesh)) return;
+        _textureLock.Record(mesh, slots, enabled);
+        RefreshTexturesHiddenByLock();
+    }
+
+    /// <summary>Switches off every texture slot each mesh in the viewer has (a guest overlay
+    /// keeps its Tint Color). While locked this is remembered as "hide everything", which
+    /// also covers parts a later NPC has and this one doesn't.</summary>
+    public void HideAllTextures()
+    {
+        foreach (var mesh in Renderer.Meshes)
+            mesh.SetTextureSlotsEnabled(mesh.PresentTextureSlots() & LockableTextureSlots(mesh), false);
+        if (!IsTextureVisibilityLocked) return;
+        _textureLock.RecordAllHidden(PrimarySceneMeshes());
+        RefreshTexturesHiddenByLock();
+    }
+
+    /// <summary>Switches every texture slot back on for every mesh. While locked, the
+    /// remembered state returns to all-on as well, so textures stay restored across the next
+    /// load; the lock itself stays engaged.</summary>
+    public void ResetAllTextures()
+    {
+        foreach (var mesh in Renderer.Meshes)
+            mesh.SetTextureSlotsEnabled(TextureSlots.All, true);
+        _textureLock.Clear();
+        RefreshTexturesHiddenByLock();
+    }
+
+    private void RefreshTexturesHiddenByLock() =>
+        TexturesHiddenByLock = IsTextureVisibilityLocked && _textureLock.HiddenSlots != TextureSlots.None;
+
+    /// <summary>The meshes the lock learns from: all but a guest overlay's, which share shape
+    /// names with the primary model and would otherwise overwrite its choices.</summary>
+    private IEnumerable<GlMesh> PrimarySceneMeshes() =>
+        Renderer.Meshes.Where(m => !_guestMeshes.Contains(m));
+
+    private TextureSlots LockableTextureSlots(GlMesh mesh) =>
+        _guestMeshes.Contains(mesh) ? GuestLockableTextureSlots : TextureSlots.All;
+
+    /// <summary>What the lock did to one batch of new meshes, for the verbose log line.</summary>
+    private sealed class TextureLockTally
+    {
+        public int Meshes;
+        public TextureSlots Hidden;
+        public readonly List<string> Unmatched = new();
+    }
+
+    /// <summary>
+    /// Re-applies the locked choices to a mesh about to join the scene, limited to
+    /// <paramref name="limitTo"/>. Called at every <c>Renderer.AddMesh</c> site once the
+    /// mesh's textures, <c>BodyPart</c> and shader flags are set, so it is drawn with the
+    /// remembered choice from its first frame; a sweep at scene commit would show the sliced
+    /// install's early shapes textured for a few frames first. No-op while unlocked.
+    /// </summary>
+    private void ApplyTextureVisibilityLock(GlMesh mesh, TextureLockTally tally,
+        TextureSlots limitTo = TextureSlots.All)
+    {
+        if (!IsTextureVisibilityLocked) return;
+        limitTo &= LockableTextureSlots(mesh);
+        if (limitTo == TextureSlots.None) return;
+
+        var applied = _textureLock.Apply(mesh, limitTo);
+        tally.Meshes++;
+        tally.Hidden |= applied & mesh.DisabledTextureSlots();
+        if (applied == TextureSlots.None)
+            tally.Unmatched.Add("'" + mesh.ShapeName + "' (" + mesh.BodyPart + "/" +
+                TextureVisibilityLock.ShapeKind(mesh) + ")");
+    }
+
+    /// <summary>One verbose line per batch the lock re-applied to: mesh count, slots hidden,
+    /// and any mesh no remembered choice reached. Cheap to have when "the lock didn't hold"
+    /// gets reported.</summary>
+    private void LogTextureLockTally(TextureLockTally tally, string context)
+    {
+        if (tally.Meshes == 0) return;
+        LogVerbose("CharacterViewer: texture visibility lock re-applied to " + tally.Meshes +
+            " mesh(es) (" + context + "); hidden: " + DescribeTextureSlots(tally.Hidden) +
+            (tally.Unmatched.Count > 0
+                ? "; no remembered choice for " + string.Join(", ", tally.Unmatched)
+                : ""));
+    }
+
+    private static string DescribeTextureSlots(TextureSlots slots) =>
+        slots == TextureSlots.None ? "none" : slots.ToString();
 
     // ═══════════════════════════════════════════════════════════════════════
     //  KEY-VERTEX PICKING (Phase 2 — BodySlide classifier)
@@ -4284,6 +4428,8 @@ public partial class VM_CharacterViewer : ViewerVm
         LogLoadCheckpoint(install.LoadStopwatch,
             "Scene committed (" + install.TotalShapes +
             " shapes -> " + Renderer.Meshes.Count + " GL meshes) — load complete");
+        // Logged before the override drains below, which report their own batches.
+        LogTextureLockTally(install.LockTally, "scene install");
 
         StatusText = install.TotalShapes > 0
             ? $"Loaded {install.TotalShapes} shape(s) for NPC"
@@ -4509,6 +4655,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // face. Base shapes stay at draw priority 0 and never hide anything.
         glMesh.BipedSlots = BipedSlotsForBaseShape(shape.Built, shape.BodyPart);
         glMesh.ShowWireframe = ShowWireframe;
+        ApplyTextureVisibilityLock(glMesh, install.LockTally);
         Renderer.AddMesh(glMesh);
 
         var bodyPart = shape.BodyPart;
@@ -5407,6 +5554,11 @@ public partial class VM_CharacterViewer : ViewerVm
         LogVerbose("CharacterViewer: ApplyTextureOverrides applying " + overrideList.Count +
             " override(s); tracked body parts: [" + string.Join(", ", _meshesByBodyPart.Keys) + "]");
 
+        // An override can give a mesh a slot it was created without (a normal, skin, detail
+        // or specular map), which the texture visibility lock never saw. Note each target's
+        // slots before its first override so the lock can cover what appeared, below.
+        var slotsBeforeOverride = IsTextureVisibilityLocked ? new Dictionary<GlMesh, TextureSlots>() : null;
+
         // Shape-named overrides (worn-armor AlternateTextures targeting one named
         // sub-shape) must apply AFTER the flat body-wide overrides so they win on
         // their shape: a config can carry both a body-wide skin diffuse and a
@@ -5472,6 +5624,8 @@ public partial class VM_CharacterViewer : ViewerVm
 
             foreach (var mesh in targets)
             {
+                slotsBeforeOverride?.TryAdd(mesh, mesh.PresentTextureSlots());
+
                 if (slot == 0)
                 {
                     mesh.DiffuseTexture = TextureManager.LoadTexture(source);
@@ -5525,6 +5679,14 @@ public partial class VM_CharacterViewer : ViewerVm
 
             LogVerbose("CharacterViewer: Slot " + slot + " override '" + source +
                 "' → " + bodyPart + " (" + targets.Count + " shape(s))");
+        }
+
+        if (slotsBeforeOverride != null)
+        {
+            var lockTally = new TextureLockTally();
+            foreach (var (mesh, slotsBefore) in slotsBeforeOverride)
+                ApplyTextureVisibilityLock(mesh, lockTally, mesh.PresentTextureSlots() & ~slotsBefore);
+            LogTextureLockTally(lockTally, "texture overrides");
         }
     }
 
@@ -5714,6 +5876,7 @@ public partial class VM_CharacterViewer : ViewerVm
 
         nifly.NifFile? skeletonNif = null;
         string? skelDiskPath = null;
+        var lockTally = new TextureLockTally();
         try
         {
             if (!string.IsNullOrWhiteSpace(_cachedMeshPaths.SkeletonPath))
@@ -5735,13 +5898,14 @@ public partial class VM_CharacterViewer : ViewerVm
             {
                 ct.ThrowIfCancellationRequested();
                 if (ov == null || string.IsNullOrWhiteSpace(ov.MeshPath)) continue;
-                ApplyOneMeshOverride(ov, skeletonNif, skelDiskPath);
+                ApplyOneMeshOverride(ov, skeletonNif, skelDiskPath, lockTally);
             }
         }
         finally
         {
             skeletonNif?.Dispose();
         }
+        LogTextureLockTally(lockTally, "mesh overrides");
 
         // Recompute slot occupancy now that the override shapes are in the scene
         // (e.g. armor hides the base body, headgear hides hair). An auxiliary
@@ -5761,7 +5925,8 @@ public partial class VM_CharacterViewer : ViewerVm
     /// problems (bones the mesh expects but the skeleton lacks) on
     /// <see cref="MeshOverrideWarnings"/> instead of crashing or silently
     /// rendering a collapsed or misaligned shape.</summary>
-    private void ApplyOneMeshOverride(MeshOverride ov, nifly.NifFile? skeletonNif, string? skelDiskPath)
+    private void ApplyOneMeshOverride(MeshOverride ov, nifly.NifFile? skeletonNif, string? skelDiskPath,
+        TextureLockTally lockTally)
     {
         // Per-override resolution widening (see MeshOverride.AllowLoadOrderFallback).
         // Nested inside ApplyMeshOverrides' scope bracket, so it only flips this one
@@ -6152,6 +6317,7 @@ public partial class VM_CharacterViewer : ViewerVm
             glMesh.HidesSlots = ov.EffectiveHidesSlots;
             glMesh.SlotDrawPriority = SlotDrawPriorityForKind(ov.Kind);
             glMesh.ShowWireframe = ShowWireframe;
+            ApplyTextureVisibilityLock(glMesh, lockTally);
             Renderer.AddMesh(glMesh);
             installed++;
         }
@@ -6755,6 +6921,7 @@ public partial class VM_CharacterViewer : ViewerVm
         _builtMeshesByBodyPart.Remove("Head");
 
         // Install fresh head shape(s). Mirrors the Head branch of ProcessPendingScene.
+        var lockTally = new TextureLockTally();
         foreach (var built in meshes)
         {
             // Cull invisible physics/collision proxies before the geometry upload.
@@ -6788,6 +6955,7 @@ public partial class VM_CharacterViewer : ViewerVm
             glMesh.BodyPart = "Head";
             glMesh.BipedSlots = BipedSlotsForBaseShape(built, "Head");
             glMesh.ShowWireframe = ShowWireframe;
+            ApplyTextureVisibilityLock(glMesh, lockTally);
             Renderer.AddMesh(glMesh);
 
             if (built.IsPrimaryHeadShape || !_meshesByBodyPart.ContainsKey("Head"))
@@ -6803,6 +6971,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // override so other inspection / future logic can read it.
         _currentHeadMeshOverride = headNifPath;
 
+        LogTextureLockTally(lockTally, "head-only rebuild");
         LogLoadCheckpoint(headStopwatch, "Head install complete (" + meshes.Count +
             " shape(s) from " + System.IO.Path.GetFileName(headNifPath) + ")");
     }

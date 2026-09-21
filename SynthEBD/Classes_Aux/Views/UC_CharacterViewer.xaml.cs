@@ -1232,7 +1232,7 @@ public partial class UC_CharacterViewer : UserControl
     //  RIGHT-CLICK → MESH PICKING & TEXTURE TOGGLE CONTEXT MENU
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Right-click handler: hit-tests the mesh under the cursor and opens a context menu of per-slot texture toggles, mesh visibility, and "show all / reset all" actions for it.</summary>
+    /// <summary>Right-click handler: hit-tests the mesh under the cursor and opens a context menu of per-slot texture toggles, mesh visibility, "show all / hide all / reset all" actions, and the session-only "Lock Texture Visibility" that carries the texture choices across NPC loads.</summary>
     private void GlControl_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
@@ -1258,36 +1258,36 @@ public partial class UC_CharacterViewer : UserControl
         menu.Items.Add(header);
         menu.Items.Add(new Separator());
 
-        // Build toggle items for each texture slot that is active on this shape
-        var toggles = new List<(string Label, bool HasTexture, Func<bool> Getter, Action<bool> Setter)>
+        // Build toggle items for each texture slot that is active on this shape. The
+        // VM applies the toggle so a locked texture visibility also remembers it.
+        var toggles = new List<(string Label, TextureSlots Slot)>
         {
-            ("Diffuse",      hitMesh.DiffuseTexture != 0,  () => hitMesh.DiffuseEnabled,   v => hitMesh.DiffuseEnabled = v),
-            ("Normal Map",   hitMesh.HasNormalMap,          () => hitMesh.NormalEnabled,     v => hitMesh.NormalEnabled = v),
-            ("Skin/SSS",     hitMesh.HasSkinMap,            () => hitMesh.SkinEnabled,       v => hitMesh.SkinEnabled = v),
-            ("Specular",     hitMesh.HasSpecular,           () => hitMesh.SpecularEnabled,   v => hitMesh.SpecularEnabled = v),
-            ("Face Tint",    hitMesh.HasFaceTintMap,        () => hitMesh.FaceTintEnabled,   v => hitMesh.FaceTintEnabled = v),
-            ("Detail Map",   hitMesh.HasDetailMap,          () => hitMesh.DetailEnabled,     v => hitMesh.DetailEnabled = v),
-            ("Environment",  hitMesh.HasEnvironmentMap,     () => hitMesh.EnvMapEnabled,     v => hitMesh.EnvMapEnabled = v),
-            ("Emissive",     hitMesh.HasEmissive,           () => hitMesh.EmissiveEnabled,   v => hitMesh.EmissiveEnabled = v),
-            (TintColorLabel(hitMesh), hitMesh.HasTintColor,     () => hitMesh.TintColorEnabled,  v => hitMesh.TintColorEnabled = v),
+            ("Diffuse",               TextureSlots.Diffuse),
+            ("Normal Map",            TextureSlots.Normal),
+            ("Skin/SSS",              TextureSlots.Skin),
+            ("Specular",              TextureSlots.Specular),
+            ("Face Tint",             TextureSlots.FaceTint),
+            ("Detail Map",            TextureSlots.Detail),
+            ("Environment",           TextureSlots.EnvMap),
+            ("Emissive",              TextureSlots.Emissive),
+            (TintColorLabel(hitMesh), TextureSlots.TintColor),
         };
 
+        var presentSlots = hitMesh.PresentTextureSlots();
         bool anyAdded = false;
-        foreach (var (label, hasTexture, getter, setter) in toggles)
+        foreach (var (label, slot) in toggles)
         {
-            if (!hasTexture) continue;
+            if (!presentSlots.HasFlag(slot)) continue;
             anyAdded = true;
 
             var item = new MenuItem
             {
                 Header = label,
                 IsCheckable = true,
-                IsChecked = getter(),
+                IsChecked = hitMesh.AreTextureSlotsEnabled(slot),
                 StaysOpenOnClick = true
             };
-            // Capture setter in closure
-            var localSetter = setter;
-            item.Click += (_, _) => localSetter(item.IsChecked);
+            item.Click += (_, _) => _vm.SetTextureSlotEnabled(hitMesh, slot, item.IsChecked);
             menu.Items.Add(item);
         }
 
@@ -1317,24 +1317,32 @@ public partial class UC_CharacterViewer : UserControl
         };
         menu.Items.Add(showAllItem);
 
-        // "Reset All Textures" to re-enable all toggles
+        // "Hide All Textures": every slot off on every mesh at once, instead of
+        // slot by slot, mesh by mesh (remembered as "hide everything" when locked)
+        menu.Items.Add(new Separator());
+        var hideAllItem = new MenuItem { Header = "Hide All Textures" };
+        hideAllItem.Click += (_, _) => _vm.HideAllTextures();
+        menu.Items.Add(hideAllItem);
+
+        // "Reset All Textures" to re-enable all toggles (and, when locked, the
+        // remembered state)
         var resetItem = new MenuItem { Header = "Reset All Textures" };
-        resetItem.Click += (_, _) =>
-        {
-            foreach (var mesh in _vm.Renderer.Meshes)
-            {
-                mesh.DiffuseEnabled = true;
-                mesh.NormalEnabled = true;
-                mesh.SkinEnabled = true;
-                mesh.SpecularEnabled = true;
-                mesh.FaceTintEnabled = true;
-                mesh.DetailEnabled = true;
-                mesh.EnvMapEnabled = true;
-                mesh.EmissiveEnabled = true;
-                mesh.TintColorEnabled = true;
-            }
-        };
+        resetItem.Click += (_, _) => _vm.ResetAllTextures();
         menu.Items.Add(resetItem);
+
+        // "Lock Texture Visibility": keep these choices when the viewer loads another
+        // NPC (e.g. every weight change in the annotation queue). Session-only.
+        var lockItem = new MenuItem
+        {
+            Header = "Lock Texture Visibility",
+            IsCheckable = true,
+            IsChecked = _vm.IsTextureVisibilityLocked,
+            StaysOpenOnClick = true,
+            ToolTip = "Re-apply these texture choices to every NPC the viewer loads next " +
+                      "(weight, preset or head-part changes) until unlocked. Not saved between sessions."
+        };
+        lockItem.Click += (_, _) => _vm.SetTextureVisibilityLocked(lockItem.IsChecked);
+        menu.Items.Add(lockItem);
 
         GlControl.ContextMenu = menu;
         menu.IsOpen = true;
