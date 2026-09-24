@@ -1664,15 +1664,16 @@ public class VM_BodyTypeProfileEditor : VM
             // the profile defines no RegionVolume measurements (the common case), so no zero-morph
             // reference pass runs.
             //
-            // Applying an empty MorphSet yields the sliders-0 base mesh at a weight: ApplyMorphSet
-            // rebuilds CpuPositions from the weight-blended bind pose, then applies (no) slider
-            // deltas. But it early-returns WITHOUT rebuilding when it has no morph context AND no
-            // sibling .tri (haveDeltas == false) — which would leave stale (previewed-preset)
-            // geometry and bake the region against the wrong mesh. So prime the morph context first
-            // via ApplyBodySlide on any target preset: that loads the SliderGroup's OSD context as
-            // a side effect (and .tri-equipped bodies like CBBE 3BA auto-load their sibling .tri
-            // inside ApplyMorphSet regardless). The context is weight-independent, so one prime
-            // covers every weight slot; the main loop re-primes per preset anyway.
+            // The reference comes from GetZeroedShapePositions, which computes the sliders-0 mesh at
+            // a weight without touching the viewer's live geometry — the same source the editor's
+            // interactive region resolves use. This pass used to push an empty MorphSet through
+            // ApplyMorphSet and read CpuPositions back, which raced the viewer's two readiness
+            // queues: when a scene rebuild was still in flight at scan start, the priming
+            // ApplyBodySlide parked in SynthEbdViewerHostState's queue while a slot's ApplyMorphSet
+            // parked in the VM's, and on commit the VM drained its zeroed morph first and the host
+            // then replayed the priming preset over it. That slot's region was baked on a deformed
+            // mesh, so its curated vertex edits all missed and the box fell back to a plain clip:
+            // BellyVolume read ~21% high at weight 25 only, across the whole cache (OBody tracker D36).
             Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>> resolvedRegionsByWeight = null;
             bool hasRegionVolumes = profileModel.Measurements != null
                 && profileModel.Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume);
@@ -1683,22 +1684,15 @@ public class VM_BodyTypeProfileEditor : VM
             if ((hasRegionVolumes || hasRegionKeyVertices) && profileModel.Regions != null && profileModel.Regions.Count > 0)
             {
                 resolvedRegionsByWeight = new Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>>();
-                var primeModel = missing.Count > 0 ? missing[0].ph?.AssociatedModel : null;
-                if (primeModel != null)
-                {
-                    viewer.ApplyBodySlide(primeModel, missing[0].weight);
-                    await Dispatcher.Yield(DispatcherPriority.Background);
-                }
                 foreach (int wSlot in missing.Select(x => x.weight).Distinct())
                 {
                     if (ct.IsCancellationRequested) break;
-                    viewer.ApplyMorphSet(new MorphSet { Label = "(sliders-0 reference)" }, wSlot);
-                    await Dispatcher.Yield(DispatcherPriority.Background);
                     if (viewer.GetCurrentShapeVertexCounts().Count == 0) continue; // viewer unloaded mid-prep
                     var resolved = RegionVolumeEvaluator.ResolveRegions(
                         profileModel.Regions,
-                        shape => viewer.GetShapePositions(shape),
-                        shape => viewer.GetShapeIndices(shape));
+                        shape => viewer.GetZeroedShapePositions(shape, wSlot),
+                        shape => viewer.GetShapeIndices(shape),
+                        logMisses: msg => _logger?.LogMessage($"{msg} (scan reference @ weight {wSlot})"));
                     resolvedRegionsByWeight[wSlot] = resolved;
                     if (VerboseScan)
                     {
