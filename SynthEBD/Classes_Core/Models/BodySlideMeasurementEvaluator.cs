@@ -545,12 +545,17 @@ public static class BodySlideMeasurementEvaluator
     ///
     /// Prior Classifier-sourced entries are always excluded so a re-run can never feed its own
     /// previous output back into its DescriptorRef conditions.
+    ///
+    /// <para><paramref name="includeStoredAnnotations"/> = false drops the Manual / Library entries,
+    /// leaving only rule-derived labels (live slider-rule matches, or the stored RulesBased fallback).
+    /// Used by the editor's Show Spread "Ignore Manual Annotations" mode to classify purely by rules.</para>
     /// </summary>
     public static HashSet<(string Category, string Value)> CollectExternalDescriptors(
         BodySlideSetting? preset,
         int weight,
         Dictionary<string, SliderClassificationRulesByBodyType>? sliderClassificationRules = null,
-        HashSet<BodyShapeDescriptor.LabelSignature>? descriptorUniverse = null)
+        HashSet<BodyShapeDescriptor.LabelSignature>? descriptorUniverse = null,
+        bool includeStoredAnnotations = true)
     {
         var result = new HashSet<(string Category, string Value)>();
         if (preset == null) return result;
@@ -581,8 +586,9 @@ public static class BodySlideMeasurementEvaluator
                 foreach (var d in slot)
                 {
                     if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
-                    bool seedFromStorage = d.Source == BodyShapeAnnotationSource.Manual
-                        || d.Source == BodyShapeAnnotationSource.Library
+                    bool seedFromStorage = (includeStoredAnnotations
+                            && (d.Source == BodyShapeAnnotationSource.Manual
+                                || d.Source == BodyShapeAnnotationSource.Library))
                         || (!haveLiveRules && d.Source == BodyShapeAnnotationSource.RulesBased);
                     if (seedFromStorage) result.Add((d.Category, d.Value));
                 }

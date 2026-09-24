@@ -264,8 +264,9 @@ internal sealed class SynthEbdViewerHostState
     // ───────────────────────────────────────────────────────────────────
 
     /// <summary>Translates a SynthEBD <see cref="BodySlideSetting"/> into the
-    /// neutral <see cref="MorphSet"/> the viewer's deformer consumes.</summary>
-    private static MorphSet ToMorphSet(BodySlideSetting? preset)
+    /// neutral <see cref="MorphSet"/> the viewer's deformer consumes. Internal so offscreen
+    /// callers (Show Spread thumbnails) build the same morph the live viewer applies.</summary>
+    internal static MorphSet ToMorphSet(BodySlideSetting? preset)
     {
         var sliders = new Dictionary<string, MorphSlider>(StringComparer.OrdinalIgnoreCase);
         if (preset?.SliderValues != null)

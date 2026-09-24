@@ -89,6 +89,18 @@ public sealed class OffscreenRenderRequest
     /// await point if cancellation is requested.</summary>
     public CancellationToken Cancellation { get; init; }
 
+    /// <summary>Optional host hook invoked on the render thread against the
+    /// per-request <see cref="VM_CharacterViewer"/> once the scene is fully
+    /// built — after mesh load, texture / mesh overrides and <see cref="Morphs"/>
+    /// — and before the camera is configured and the frame drawn. Lets a host
+    /// add overlays computed from the deformed geometry, e.g. measurement lines
+    /// via <see cref="VM_CharacterViewer.SetMeasurementLines"/> built from
+    /// <see cref="VM_CharacterViewer.GetShapePositions"/>. The VM is created per
+    /// request, so nothing the hook sets carries into the next render. Must not
+    /// touch WPF objects (it isn't on the dispatcher thread). An exception is
+    /// logged and the frame still renders without the overlay.</summary>
+    public Action<VM_CharacterViewer>? BeforeDraw { get; init; }
+
     /// <summary>
     /// When true (default), a loose copy of an asset under the host's
     /// vanilla data folder takes precedence over any BSA copy of the same

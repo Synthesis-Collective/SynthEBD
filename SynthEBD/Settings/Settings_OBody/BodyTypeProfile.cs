@@ -963,6 +963,14 @@ public static class MeasurementMath
         }
     }
 
+    /// <summary>Resolves one named key vertex to its current position exactly as
+    /// <see cref="TryEvaluate(MeasurementDefinition, IReadOnlyDictionary{string, NamedKeyVertex}, VertexLookup, ShapePositionsLookup?, ShapeBoneInfoLookup?, IReadOnlyDictionary{string, RegionVolumeEvaluator.ResolvedRegion}?, ShapePositionsLookup?, out float)"/>
+    /// does for a measurement's endpoints — BoundingBox / Region / Coordinate strategies re-resolve
+    /// against the supplied geometry. Used to draw a measurement's lines on a mesh other than the
+    /// live preview (Show Spread's offscreen thumbnails), where a cached vertex index would be wrong.</summary>
+    public static bool TryResolveKeyVertex(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, ShapePositionsLookup? zeroedShapeLookup, out OpenTK.Mathematics.Vector3 pos)
+        => TryResolve(vertexRefName, keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out pos);
+
     private static bool TryResolve(string vertexRefName, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, VertexLookup lookup, ShapePositionsLookup? shapeLookup, ShapeBoneInfoLookup? boneLookup, IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions, ShapePositionsLookup? zeroedShapeLookup, out OpenTK.Mathematics.Vector3 pos)
     {
         pos = default;

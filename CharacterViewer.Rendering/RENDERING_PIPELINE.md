@@ -780,6 +780,12 @@ Each channel is a public collection on `GlRenderer`, cleared+repopulated by a `V
 
 Marker spheres are a pre-built 2×-subdivided octahedron (128 tris) scaled by `KeyVertexMarkerRadius × ModelScale` and re-centered per marker. Because each sphere re-uploads ~3 KB, dotting a marker at *every* vertex of a dense cut loop produces an overlapping "beaded cord" and tanks the framerate — which is why the region overlay draws **edges as thin lines**, not a marker per vertex.
 
+### Overlays in offscreen renders (`BeforeDraw`)
+
+The offscreen renderer draws through the same `GlRenderer.Render`, so every overlay channel above renders into an offscreen image too — if something fills it. Because an overlay is usually computed *from the deformed geometry* (a measurement line joins two resolved key vertices of this preset at this weight), a host can't precompute it before the request: the offscreen scene doesn't exist yet. `OffscreenRenderRequest.BeforeDraw` (an `Action<VM_CharacterViewer>?`) closes that gap. It runs on the render thread against the per-request VM **after** mesh load, texture/mesh overrides and `Morphs` have been applied and **before** `ConfigureCamera` + `Render`, so the geometry accessors above return this render's deformed positions and anything the hook pushes (e.g. `SetMeasurementLines`) is drawn in the same frame.
+
+The per-request VM is created fresh for every render, so a hook's overlay can't leak into a later request (including the software fallback preview, which shares the renderer). The hook must not touch WPF objects — it isn't on the dispatcher thread — and a throwing hook is logged and costs only the overlay; the frame still renders. SynthEBD's Show Spread window uses it to draw a metric's measurement lines on each thumbnail. Null `BeforeDraw` leaves the offscreen path byte-identical to before.
+
 ### Region overlay (BodySlide classifier)
 
 A RegionVolume region's selected-state visualization has two modes (editor `RegionViewMode`), both built from the baked `ResolvedRegion` evaluated against the current deformed positions (so they track the previewed preset):

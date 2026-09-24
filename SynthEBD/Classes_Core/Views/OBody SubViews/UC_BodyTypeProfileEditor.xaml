@@ -965,6 +965,10 @@
                                             <Button Content="Delete selected" Command="{Binding DeleteSelectedTreeNodeCommand}"
                                                     Padding="6,2"
                                                     local:DocTooltip.Key="BodyTypeProfiles.DeleteDescriptorNode"/>
+                                            <Button Content="Show Spread"
+                                                    Command="{Binding DataContext.ShowSpreadFromRulesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Padding="6,2" Margin="5,0,0,0"
+                                                    local:DocTooltip.Key="BodyTypeProfiles.ShowSpreadRules"/>
                                         </StackPanel>
                                         <TreeView ItemsSource="{Binding RuleTreeCategories}"
                                                   SelectedItemChanged="RuleTree_SelectedItemChanged"
@@ -1497,6 +1501,10 @@
                                                   DisplayMemberPath="Label"
                                                   SelectedValue="{Binding DataContext.ScoreSortMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   local:DocTooltip.Key="BodyTypeProfiles.MatchSortMode"/>
+                                        <Button Content="Show Spread"
+                                                Command="{Binding DataContext.ShowSpreadFromMatchPresetsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                Padding="6,2" VerticalAlignment="Center" Margin="0,0,10,5"
+                                                local:DocTooltip.Key="BodyTypeProfiles.ShowSpreadMatchPresets"/>
                                         <!-- Target picker for the Similarity sort modes. Visibility binds to the
                                              editor's IsSimilarityScoreMode flag (recomputed on ScoreSortMode change).
                                              When hidden, the bound SimilarityTarget stays put so re-entering a

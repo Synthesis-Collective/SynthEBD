@@ -419,7 +419,7 @@ public static class FallbackPreviewControllerRegistry
 
     /// <summary>Lazily builds the single shared offscreen renderer. MUST first be reached on the
     /// process main thread — GLFW installs its event hook on the constructing thread — which it is:
-    /// the only caller is a controller's render loop, and that runs on the WPF UI (main) thread.</summary>
+    /// the callers are a controller's render loop and <see cref="SharedRenderer"/>, both on the WPF UI (main) thread.</summary>
     private static IOffscreenRenderer GetSharedRenderer()
     {
         lock (_rendererGate)
@@ -427,6 +427,12 @@ public static class FallbackPreviewControllerRegistry
             return _sharedRenderer ??= _rendererFactory!();
         }
     }
+
+    /// <summary>The single shared offscreen renderer, for non-fallback consumers that render
+    /// thumbnails (Show Spread). Renders are serialized FIFO on the renderer's own thread, so
+    /// sharing it with the fallback preview is safe. Must first be reached on the WPF UI (main)
+    /// thread.</summary>
+    internal static IOffscreenRenderer SharedRenderer => GetSharedRenderer();
 
     /// <summary>Drops the shared renderer's caches when SynthEBD rebuilds its game
     /// environment / load order (resolved paths + decoded pixels + uploaded textures may

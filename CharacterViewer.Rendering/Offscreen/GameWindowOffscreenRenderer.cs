@@ -740,6 +740,20 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         {
             vm.ApplyMorphSet(request.Morphs, request.MorphWeight);
         }
+        // Host scene hook: runs against the fully built, deformed scene so an overlay
+        // computed from vertex positions (e.g. measurement lines) matches this render.
+        // A throwing hook costs the overlay, not the frame.
+        if (request.BeforeDraw != null)
+        {
+            try
+            {
+                request.BeforeDraw(vm);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("OffscreenRenderer: BeforeDraw hook threw", ex);
+            }
+        }
 
         long tInstallDone = Stopwatch.GetTimestamp();
 

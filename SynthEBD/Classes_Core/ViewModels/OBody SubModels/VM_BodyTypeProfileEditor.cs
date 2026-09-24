@@ -189,6 +189,14 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => IsScanning,
             execute: _ => CancelScan());
 
+        ShowSpreadFromRulesCommand = new RelayCommand(
+            canExecute: _ => !IsScanning && GetRuleTreeCategory(SelectedProfile) != null,
+            execute: _ => _ = OpenSpreadAsync(GetRuleTreeCategory(SelectedProfile)));
+
+        ShowSpreadFromMatchPresetsCommand = new RelayCommand(
+            canExecute: _ => !IsScanning && SelectedProfile != null && GetMatchPresetsFilterCategory() != null,
+            execute: _ => _ = OpenSpreadAsync(GetMatchPresetsFilterCategory()));
+
         // Purges the on-disk measurement cache snapshot for the active profile's current
         // BodyTypeName. Other snapshots in the same cache file (e.g., a dormant BHUNP
         // snapshot from a previous body-mod experiment) are preserved. Clears the in-memory
@@ -408,6 +416,12 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand DuplicateSelectedProfile { get; }
     public RelayCommand RefreshPresetList { get; }
     public RelayCommand ScanAllPresetsCommand { get; }
+
+    /// <summary>Opens Show Spread for the Category selected in the Rules-tab tree.</summary>
+    public RelayCommand ShowSpreadFromRulesCommand { get; }
+
+    /// <summary>Opens Show Spread for the one Category the Match Presets descriptor filter is narrowed to.</summary>
+    public RelayCommand ShowSpreadFromMatchPresetsCommand { get; }
     public RelayCommand CancelScanCommand { get; }
     public RelayCommand PurgeCacheForActiveProfileCommand { get; }
     public RelayCommand LoadScanResultCommand { get; }
@@ -2927,43 +2941,10 @@ public class VM_BodyTypeProfileEditor : VM
         VM_BodyTypeProfile profile, List<VM_MeasurementRule> rules,
         IReadOnlyDictionary<string, string> defaultsByCategory = null)
     {
-        // Expand the input set to its DescriptorRef closure. Eligibility (gender/draft) is
-        // deliberately ignored here — a superset only costs a few extra Welford passes, and
-        // sigma is a population statistic per measurement name regardless of which rule
-        // asked for it.
-        var closure = new List<VM_MeasurementRule>();
-        var seen = new HashSet<VM_MeasurementRule>();
-        foreach (var r in rules)
-        {
-            if (r != null && seen.Add(r)) closure.Add(r);
-        }
-        for (int i = 0; i < closure.Count; i++)
-        {
-            foreach (var group in closure[i].Groups)
-            {
-                if (group?.Conditions == null) continue;
-                foreach (var cond in group.Conditions)
-                {
-                    if (cond == null || cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
-                    if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue)) continue;
-                    // A ref to the referenced Category's *default* value tunnels into the
-                    // synthesized default margin, which is built from every rival rule in
-                    // that Category (ScoreCategoryDefault) — so the whole Category joins the
-                    // closure, not just the rules that produce the referenced value.
-                    bool refIsDefault = IsCategoryDefault(cond.RefCategory, cond.RefValue, defaultsByCategory);
-                    foreach (var producer in profile.Rules)
-                    {
-                        if (producer == null) continue;
-                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal))
-                            continue;
-                        if (!refIsDefault
-                            && !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
-                            continue;
-                        if (seen.Add(producer)) closure.Add(producer);
-                    }
-                }
-            }
-        }
+        // Eligibility (gender/draft) is deliberately ignored in the closure — a superset only
+        // costs a few extra Welford passes, and sigma is a population statistic per
+        // measurement name regardless of which rule asked for it.
+        var closure = ExpandDescriptorRefClosure(profile, rules, defaultsByCategory);
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var rule in closure)
@@ -2999,6 +2980,52 @@ public class VM_BodyTypeProfileEditor : VM
             result[name] = n >= 2 ? Math.Sqrt(m2 / (n - 1)) : 0.0;
         }
         return result;
+    }
+
+    /// <summary>Expands <paramref name="rules"/> to every rule reachable through DescriptorRef
+    /// conditions — the set the scorer can tunnel into. A ref to a Category's <i>default</i> value
+    /// pulls in that whole Category, since the default's synthesized margin is built from every
+    /// rival rule there (<see cref="ScoreCategoryDefault"/>). Ignores gender/draft eligibility;
+    /// callers filter if they need to.</summary>
+    private static List<VM_MeasurementRule> ExpandDescriptorRefClosure(
+        VM_BodyTypeProfile profile, IEnumerable<VM_MeasurementRule> rules,
+        IReadOnlyDictionary<string, string> defaultsByCategory)
+    {
+        var closure = new List<VM_MeasurementRule>();
+        var seen = new HashSet<VM_MeasurementRule>();
+        foreach (var r in rules)
+        {
+            if (r != null && seen.Add(r)) closure.Add(r);
+        }
+        for (int i = 0; i < closure.Count; i++)
+        {
+            foreach (var group in closure[i].Groups)
+            {
+                if (group?.Conditions == null) continue;
+                foreach (var cond in group.Conditions)
+                {
+                    if (cond == null || cond.Kind != MeasurementConditionKind.DescriptorRef) continue;
+                    if (string.IsNullOrEmpty(cond.RefCategory) || string.IsNullOrEmpty(cond.RefValue)) continue;
+                    // A ref to the referenced Category's *default* value tunnels into the
+                    // synthesized default margin, which is built from every rival rule in
+                    // that Category (ScoreCategoryDefault) — so the whole Category joins the
+                    // closure, not just the rules that produce the referenced value.
+                    bool refIsDefault = IsCategoryDefault(cond.RefCategory, cond.RefValue, defaultsByCategory);
+                    foreach (var producer in profile.Rules)
+                    {
+                        if (producer == null) continue;
+                        if (!string.Equals(producer.DescriptorCategory, cond.RefCategory, StringComparison.Ordinal))
+                            continue;
+                        if (!refIsDefault
+                            && !string.Equals(producer.DescriptorValue, cond.RefValue, StringComparison.Ordinal))
+                            continue;
+                        if (seen.Add(producer)) closure.Add(producer);
+                    }
+                }
+            }
+        }
+
+        return closure;
     }
 
     /// <summary>True for comparators that produce a continuous "value − threshold" margin
@@ -3401,6 +3428,64 @@ public class VM_BodyTypeProfileEditor : VM
             ? new Dictionary<string, double>(StringComparer.Ordinal)
             : ComputePopulationStdDevs(
                 profile, profile.Rules.ToList(), profile.GetDefaultValuesByCategory());
+
+    /// <summary>Names of every measurement that can decide <paramref name="category"/> for a
+    /// <paramref name="gender"/> slice: those in the Category's own gender-eligible rules plus
+    /// every rule reachable from them through DescriptorRef conditions. Unlike the sigma table,
+    /// Equal/NotEqual conditions count too — they still gate the Category. Ordered as the
+    /// profile's Measurements list, so the Show Spread metric picker reads like the Measurements tab.</summary>
+    internal static List<string> CollectCategoryMeasurementNames(
+        VM_BodyTypeProfile profile, string category, Gender gender)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (profile == null || string.IsNullOrEmpty(category)) return new List<string>();
+
+        var own = profile.Rules.Where(r => r != null
+            && string.Equals(r.DescriptorCategory, category, StringComparison.Ordinal)
+            && BodySlideMeasurementEvaluator.RuleGenderMatches(r.Gender, gender));
+        foreach (var rule in ExpandDescriptorRefClosure(profile, own, profile.GetDefaultValuesByCategory()))
+        {
+            if (!BodySlideMeasurementEvaluator.RuleGenderMatches(rule.Gender, gender)) continue;
+            foreach (var group in rule.Groups)
+            {
+                if (group?.Conditions == null || group.IsDisabled) continue;
+                foreach (var cond in group.Conditions)
+                {
+                    if (cond?.Kind != MeasurementConditionKind.Measurement) continue;
+                    if (!string.IsNullOrEmpty(cond.MeasurementName)) names.Add(cond.MeasurementName);
+                }
+            }
+        }
+
+        var ordered = new List<string>();
+        foreach (var def in profile.Measurements)
+        {
+            if (def?.Name != null && names.Remove(def.Name)) ordered.Add(def.Name);
+        }
+        // Names a rule references that no longer have a definition still get a column, last.
+        ordered.AddRange(names.OrderBy(n => n, StringComparer.Ordinal));
+        return ordered;
+    }
+
+    /// <summary>σ-normalized margin score of one slice for (<paramref name="category"/>,
+    /// <paramref name="value"/>) — the same number the Match Presets "score" badge shows with
+    /// StdDevNormalized sorting. Positive when the slice carries the value, magnitude = distance
+    /// from the rule boundary. Null when nothing is scorable. <paramref name="stdDevs"/> should come
+    /// from <see cref="ComputeStdDevsForAllRules"/>, computed once per batch of slices.</summary>
+    internal static double? ScoreSliceForValue(
+        string category,
+        string value,
+        IReadOnlyDictionary<string, float?> measurements,
+        Dictionary<string, double> stdDevs,
+        IReadOnlyList<VM_MeasurementRule> allRules,
+        IReadOnlyDictionary<string, string> defaultsByCategory,
+        Gender gender)
+    {
+        if (measurements == null) return null;
+        return ScoreDescriptorValue(
+            category, value, measurements, MarginScoreMode.StdDevNormalized, stdDevs,
+            allRules, defaultsByCategory, gender, new RuleScoreContext(), out _);
+    }
 
     /// <summary>Every value in <paramref name="category"/> that could carry a margin for a
     /// row of <paramref name="rowGender"/>: each value with at least one gender-eligible
@@ -3928,21 +4013,171 @@ public class VM_BodyTypeProfileEditor : VM
     /// measurement refresh).</summary>
     internal void LoadScanResultInViewer(VM_PresetScanRow row)
     {
-        if (row == null || IsScanning) return;
-        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
-        if (menu == null) return;
-        var source = row.Gender == Gender.Male ? menu.BodySlidesMale : menu.BodySlidesFemale;
-        VM_BodySlidePlaceHolder ph = null;
-        foreach (var p in source)
-        {
-            if (p?.AssociatedModel?.Label == row.PresetLabel) { ph = p; break; }
-        }
+        if (row == null) return;
+        LoadSliceInViewer(row.PresetLabel, row.Gender, row.Weight);
+    }
+
+    /// <summary>Loads one (preset, gender, weight) slice into the editor's viewer. Shared by the
+    /// Match Presets rows, the Rules-tab rows and Show Spread cells; routes via
+    /// <see cref="SelectedPreset"/>/<see cref="PreviewWeight"/>/<see cref="PreviewGender"/> so the
+    /// existing RefreshPreviewAsync path loads the NPC, applies the deformation and refreshes
+    /// the measurement readouts. No-op while scanning or when the preset is no longer listed.</summary>
+    internal void LoadSliceInViewer(string presetLabel, Gender gender, int weight)
+    {
+        if (IsScanning) return;
+        var ph = FindPresetPlaceHolder(presetLabel, gender);
         if (ph == null) return;
 
-        PreviewGender = row.Gender;
-        PreviewWeight = row.Weight;
+        PreviewGender = gender;
+        PreviewWeight = weight;
         SelectedPreset = ph;
     }
+
+    private VM_BodySlidePlaceHolder? FindPresetPlaceHolder(string presetLabel, Gender gender)
+    {
+        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
+        if (menu == null) return null;
+        var source = gender == Gender.Male ? menu.BodySlidesMale : menu.BodySlidesFemale;
+        foreach (var p in source)
+        {
+            if (p?.AssociatedModel?.Label == presetLabel) return p;
+        }
+        return null;
+    }
+
+    /// <summary>Opens a <see cref="Window_BodyTypeSpread"/> for <paramref name="category"/> on the
+    /// selected profile. Like <see cref="OpenMeasurementHistogramAsync"/>, drives a scan first when
+    /// the measurement cache is stale or empty, and re-derives descriptors (CPU only) when only the
+    /// rules changed. Renders reuse the NPC currently loaded in the editor's viewer, so the preview
+    /// must be showing the body type's gender. Non-modal; several windows may be open at once.</summary>
+    public async System.Threading.Tasks.Task OpenSpreadAsync(string category)
+    {
+        var profile = SelectedProfile;
+        if (profile == null || string.IsNullOrEmpty(category) || IsScanning) return;
+
+        if (profile.MeasurementCacheStale || profile.MeasurementCache.Count == 0)
+        {
+            await RunScanAsync();
+            if (profile.MeasurementCache.Count == 0)
+            {
+                MessageWindow.DisplayNotificationOK(
+                    "No data for Show Spread",
+                    "The scan returned no (preset, weight) entries — check that this profile's Body Type matches at least one preset's SliderGroup.");
+                return;
+            }
+        }
+        if (profile.ScanResultsStale)
+        {
+            profile.RebuildScanResultsFromCache(profile.DumpToModel(), includeDrafts: true);
+        }
+
+        var gender = ResolveBodyTypeGender(profile);
+        var scene = CharacterViewer?.TryGetSceneInputsSnapshot();
+        if (scene == null || PreviewGender != gender)
+        {
+            // Nothing (or the other gender) is loaded: fall back to the configured default
+            // preview NPC for the body type's gender rather than making the user preview first.
+            scene = await LoadDefaultPreviewNpcAsync(gender);
+            if (scene == null)
+            {
+                MessageWindow.DisplayNotificationOK(
+                    "Show Spread needs a preview NPC",
+                    $"No {gender} preview NPC is configured in the OBody Misc settings' per-weight table, so there is no NPC to render the presets on. Set one there, or preview a {gender} preset in this editor, then try again.");
+                return;
+            }
+        }
+
+        try
+        {
+            var vm = new VM_BodyTypeSpread(this, profile, category, gender, scene, CharacterViewer,
+                label => FindPresetPlaceHolder(label, gender)?.AssociatedModel, _logger);
+            var window = new Window_BodyTypeSpread { DataContext = vm };
+            window.Owner = System.Windows.Application.Current?.MainWindow;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to open the Show Spread window: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>Loads the default preview NPC for <paramref name="gender"/> into the editor's viewer
+    /// and returns its scene snapshot, for Show Spread when no suitable preview is loaded. Uses the
+    /// OBody per-weight preview table (the same source <see cref="RefreshPreviewAsync"/> uses),
+    /// taking the configured weight nearest <see cref="PreviewWeight"/> that names an NPC of that
+    /// gender. Null when the table has none or the load fails. Bumps the preview generation first
+    /// so an in-flight preview refresh can't apply its deformation on top of this NPC.</summary>
+    private async System.Threading.Tasks.Task<SceneInputsSnapshot?> LoadDefaultPreviewNpcAsync(Gender gender)
+    {
+        if (CharacterViewer == null || lk == null) return null;
+        var table = _patcherState?.OBodySettings?.PreviewNpcs?.WeightPreviewNpcs;
+        if (table == null) return null;
+
+        FormKey npc = FormKey.Null;
+        foreach (var kv in table.OrderBy(kv => Math.Abs(kv.Key - PreviewWeight)).ThenBy(kv => kv.Key))
+        {
+            if (kv.Value == null) continue;
+            var candidate = gender == Gender.Female ? kv.Value.FemaleNpc : kv.Value.MaleNpc;
+            if (!candidate.IsNull)
+            {
+                npc = candidate;
+                break;
+            }
+        }
+        if (npc.IsNull) return null;
+
+        try
+        {
+            _refreshPreviewGeneration++;
+            await CharacterViewer.LoadNpcAsync(npc, lk);
+            return CharacterViewer.TryGetSceneInputsSnapshot();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Show Spread: loading the default preview NPC failed: " + ExceptionLogger.GetExceptionStack(ex));
+            return null;
+        }
+    }
+
+    /// <summary>Gender of the body type <paramref name="profile"/> targets, from the body type
+    /// registry entry named by <see cref="VM_BodyTypeProfile.BodyTypeName"/>. Falls back to the
+    /// majority gender in the measurement cache, then to <see cref="PreviewGender"/>, for a
+    /// profile whose body type isn't registered.</summary>
+    private Gender ResolveBodyTypeGender(VM_BodyTypeProfile profile)
+    {
+        string bodyType = profile.BodyTypeName?.Trim() ?? "";
+        var entry = _patcherState?.OBodySettings?.BodyTypeRegistry?
+            .FirstOrDefault(e => e != null && string.Equals(e.Name?.Trim(), bodyType, StringComparison.OrdinalIgnoreCase));
+        if (entry != null) return entry.Gender;
+
+        if (profile.MeasurementCache.Count > 0)
+        {
+            return profile.MeasurementCache.Keys
+                .GroupBy(k => k.Gender)
+                .OrderByDescending(g => g.Count())
+                .First().Key;
+        }
+        return PreviewGender;
+    }
+
+    /// <summary>The single descriptor Category the Match Presets filter is narrowed to, or null when
+    /// the filter selects nothing or spans several Categories.</summary>
+    private string? GetMatchPresetsFilterCategory()
+    {
+        var categories = (DescriptorFilter?.DumpToHashSet() ?? new HashSet<BodyShapeDescriptor.LabelSignature>())
+            .Select(s => s.Category)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return categories.Count == 1 ? categories[0] : null;
+    }
+
+    /// <summary>The Category of the Rules-tab tree selection (a Category node or one of its values).</summary>
+    private static string? GetRuleTreeCategory(VM_BodyTypeProfile? profile) => profile?.SelectedRuleTreeNode switch
+    {
+        VM_RuleTreeValueNode v => v.Category,
+        VM_RuleTreeCategoryNode c => c.Category,
+        _ => null,
+    };
 
     /// <summary>Loads a Rules-tab matching-preset row into the viewer. Mirrors
     /// <see cref="LoadScanResultInViewer"/> but takes the simpler
@@ -3951,20 +4186,8 @@ public class VM_BodyTypeProfileEditor : VM
     /// BodySlide deformation.</summary>
     internal void LoadRuleNodeMatchInViewer(VM_RuleNodeMatchRow row)
     {
-        if (row == null || IsScanning) return;
-        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
-        if (menu == null) return;
-        var source = row.Gender == Gender.Male ? menu.BodySlidesMale : menu.BodySlidesFemale;
-        VM_BodySlidePlaceHolder ph = null;
-        foreach (var p in source)
-        {
-            if (p?.AssociatedModel?.Label == row.PresetLabel) { ph = p; break; }
-        }
-        if (ph == null) return;
-
-        PreviewGender = row.Gender;
-        PreviewWeight = row.Weight;
-        SelectedPreset = ph;
+        if (row == null) return;
+        LoadSliceInViewer(row.PresetLabel, row.Gender, row.Weight);
     }
 
     /// <summary>Currently-attached profile for the Rules-tab matching-preset row signal.
@@ -7319,6 +7542,46 @@ public class VM_BodyTypeProfile : VM
     /// any structural change (vertex add, measurement edit) and externally when the viewer's
     /// preset/weight changes.
     /// </summary>
+    /// <summary>Everything Show Spread needs to draw measurement lines on an offscreen render,
+    /// snapshotted on the UI thread so the render thread only reads immutable copies: the key
+    /// vertices by name, the Regions resolved against the sliders-0 mesh (preset-independent, so
+    /// safe to reuse for every preset), and each measurement's line spec by name (first row wins,
+    /// matching the evaluator).</summary>
+    internal (IReadOnlyDictionary<string, NamedKeyVertex> KeyVertsByName,
+              IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? ResolvedRegions,
+              IReadOnlyDictionary<string, VM_BodyTypeProfile.MeasurementLineSpec> SpecsByName)
+        SnapshotMeasurementOverlayInputs(VM_CharacterViewer viewer)
+    {
+        var keyVertsByName = KeyVertices
+            .Where(k => !string.IsNullOrEmpty(k.Name))
+            .GroupBy(k => k.Name)
+            .ToDictionary(g => g.Key, g => g.First().DumpToModel(), StringComparer.Ordinal);
+
+        Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
+        if (viewer != null && Regions.Count > 0
+            && KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region))
+        {
+            resolvedRegions = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
+            foreach (var r in Regions)
+            {
+                var rm = r.DumpToModel();
+                if (string.IsNullOrEmpty(rm.Name) || resolvedRegions.ContainsKey(rm.Name)) continue;
+                var rr = GetOrResolveRegion(viewer, rm);
+                if (rr != null) resolvedRegions[rm.Name] = rr;
+            }
+        }
+
+        var specs = new Dictionary<string, VM_BodyTypeProfile.MeasurementLineSpec>(StringComparer.Ordinal);
+        foreach (var m in Measurements)
+        {
+            if (m == null || string.IsNullOrEmpty(m.Name) || specs.ContainsKey(m.Name)) continue;
+            specs[m.Name] = new VM_BodyTypeProfile.MeasurementLineSpec(
+                m.Kind, m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD,
+                m.Axis, m.NumeratorAxis, m.DenominatorAxis);
+        }
+        return (keyVertsByName, resolvedRegions, specs);
+    }
+
     public void RefreshMeasurementValues()
     {
         var viewer = ActiveViewer;
@@ -7884,31 +8147,6 @@ public class VM_BodyTypeProfile : VM
         // same measurement they're hovering.
         var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
 
-        // Yellow for the primary pair, cyan for the ratio denominator pair. For AxisDistance
-        // the three axis-aligned legs use: yellow (the measurement axis), white (the two
-        // secondary axes), and grey (the A-B hypotenuse) — white/grey stand in for the
-        // originally-planned dashed styling so the renderer can stay on flat-color lines.
-        // The same color scheme is reused for every selected measurement; with multi-selection
-        // the legend stays "yellow = numerator, cyan = denominator" regardless of which
-        // measurement a given leg belongs to.
-        var primary = new OpenTK.Mathematics.Vector3(1.0f, 0.85f, 0.1f);
-        var secondary = new OpenTK.Mathematics.Vector3(0.1f, 0.85f, 1.0f);
-        var axisSecondary = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
-        var axisHypotenuse = new OpenTK.Mathematics.Vector3(0.5f, 0.5f, 0.5f);
-
-        // Axis-aligned leg from a to a + projection of (b - a) onto the named axis. Length
-        // equals |b - a| on that axis (matches MeasurementMath.AxisOrLength). Inline so the
-        // visualization code can mirror the metric for both AxisDistance and the
-        // axis-projected RatioDistance pairs.
-        static OpenTK.Mathematics.Vector3 AxisLegEnd(OpenTK.Mathematics.Vector3 av,
-            OpenTK.Mathematics.Vector3 bv, MeasurementAxis axis) => axis switch
-        {
-            MeasurementAxis.X => new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z),
-            MeasurementAxis.Y => new OpenTK.Mathematics.Vector3(av.X, bv.Y, av.Z),
-            MeasurementAxis.Z => new OpenTK.Mathematics.Vector3(av.X, av.Y, bv.Z),
-            _ => bv,
-        };
-
         // Pair equality is unordered: a PointDistance/AxisDistance between (X, Y) measures
         // the same scalar as one between (Y, X). The hover-label cross-reference treats
         // pairs as sets so a ratio's numerator (L_HipSide, R_HipSide) finds a sibling
@@ -7999,102 +8237,10 @@ public class VM_BodyTypeProfile : VM
                     "F4", System.Globalization.CultureInfo.InvariantCulture)
                 : rawName;
 
-            var a = Resolve(sel.VertexRefA);
-            var b = Resolve(sel.VertexRefB);
-            if (a.HasValue && b.HasValue)
-            {
-                if (sel.Kind == MeasurementKind.AxisDistance || sel.Kind == MeasurementKind.SignedAxisDistance)
-                {
-                    // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
-                    // X, then Y, then Z. The leg matching the measurement axis takes the primary
-                    // (yellow) color; the other two take secondary (white). Zero-length legs are
-                    // skipped. SignedAxisDistance shares this visualization with AxisDistance —
-                    // the sign lives in the scalar value, not the geometry.
-                    // <para>The full A-B hypotenuse line is intentionally NOT drawn for
-                    // AxisDistance: it represents a 3D length that the measurement doesn't
-                    // actually evaluate (only the axis-projected leg matters), so showing it
-                    // visually invites confusion about what the threshold tests against. The
-                    // colored legs are sufficient to convey both the pair and the axis;
-                    // unlike the RatioDistance branches we don't need the grey reference
-                    // line as visual context for a non-evaluated denominator pair.</para>
-                    var av = a.Value;
-                    var bv = b.Value;
-                    var p1 = new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z); // after X leg
-                    var p2 = new OpenTK.Mathematics.Vector3(bv.X, bv.Y, av.Z); // after Y leg
-
-                    var xColor = sel.Axis == MeasurementAxis.X ? primary : axisSecondary;
-                    var yColor = sel.Axis == MeasurementAxis.Y ? primary : axisSecondary;
-                    var zColor = sel.Axis == MeasurementAxis.Z ? primary : axisSecondary;
-
-                    // Label format: "{name} (role qualifier)". Name leads so the parent
-                    // measurement is identifiable at a glance; role describes which leg of
-                    // the decomposition the cursor is on. The axis matching sel.Axis is
-                    // annotated as "measurement axis" so the user can tell which leg
-                    // actually contributes to the threshold. AxisDistance doesn't get a
-                    // cross-reference colon because it's a single measurement, not a
-                    // composite — the parent name alone identifies it.
-                    if (av.X != bv.X) segments.Add((av, p1, xColor, $"{name} (X leg{(sel.Axis == MeasurementAxis.X ? " — measurement axis" : "")})"));
-                    if (av.Y != bv.Y) segments.Add((p1, p2, yColor, $"{name} (Y leg{(sel.Axis == MeasurementAxis.Y ? " — measurement axis" : "")})"));
-                    if (av.Z != bv.Z) segments.Add((p2, bv, zColor, $"{name} (Z leg{(sel.Axis == MeasurementAxis.Z ? " — measurement axis" : "")})"));
-                }
-                else if (sel.Kind == MeasurementKind.RatioDistance && sel.NumeratorAxis.HasValue)
-                {
-                    // RatioDistance numerator pair (A,B) is being reduced along a single axis
-                    // via NumeratorAxis. Draw only the axis-projected leg in the primary
-                    // color — its length equals the actual scalar being fed into the ratio.
-                    // The grey A→B hypotenuse was previously also drawn as a visual reference
-                    // for where A and B sit, but per user feedback it's omitted for axis-
-                    // locked pairs: the hypotenuse represents a 3D length the ratio doesn't
-                    // evaluate, and seeing it invites the same "wait, which one IS the
-                    // measurement?" confusion that motivated the original axis-projected
-                    // branch in the first place.
-                    var legEnd = AxisLegEnd(a.Value, b.Value, sel.NumeratorAxis.Value);
-                    segments.Add((a.Value, legEnd, primary,
-                        $"{name} (numerator: {PairSlot(sel.VertexRefA, sel.VertexRefB, sel.NumeratorAxis)})"));
-                }
-                else
-                {
-                    if (sel.Kind == MeasurementKind.RatioDistance)
-                    {
-                        // No NumeratorAxis: the ratio uses the full 3D length, so the single
-                        // line drawn IS the numerator's contribution. Cross-references a
-                        // sibling PointDistance with the same pair (axis=null).
-                        segments.Add((a.Value, b.Value, primary,
-                            $"{name} (numerator: {PairSlot(sel.VertexRefA, sel.VertexRefB, null)})"));
-                    }
-                    else
-                    {
-                        // PointDistance / SignedPointDistance: only one segment per measurement,
-                        // name alone suffices. SignedPointDistance shares this rendering with
-                        // PointDistance — the sign lives in the scalar value, not the geometry.
-                        segments.Add((a.Value, b.Value, primary, name));
-                    }
-                }
-            }
-
-            if (sel.Kind == MeasurementKind.RatioDistance)
-            {
-                var c = Resolve(sel.VertexRefC);
-                var d = Resolve(sel.VertexRefD);
-                if (c.HasValue && d.HasValue)
-                {
-                    if (sel.DenominatorAxis.HasValue)
-                    {
-                        // Symmetric treatment to the axis-locked numerator branch above:
-                        // only the cyan axis-projected leg is drawn (its length is the actual
-                        // denominator scalar). The C→D hypotenuse is suppressed for the same
-                        // reason — it represents a 3D length the ratio doesn't evaluate.
-                        var legEnd = AxisLegEnd(c.Value, d.Value, sel.DenominatorAxis.Value);
-                        segments.Add((c.Value, legEnd, secondary,
-                            $"{name} (denominator: {PairSlot(sel.VertexRefC, sel.VertexRefD, sel.DenominatorAxis)})"));
-                    }
-                    else
-                    {
-                        segments.Add((c.Value, d.Value, secondary,
-                            $"{name} (denominator: {PairSlot(sel.VertexRefC, sel.VertexRefD, null)})"));
-                    }
-                }
-            }
+            AppendMeasurementLineSegments(
+                new MeasurementLineSpec(sel.Kind, sel.VertexRefA, sel.VertexRefB, sel.VertexRefC, sel.VertexRefD,
+                    sel.Axis, sel.NumeratorAxis, sel.DenominatorAxis),
+                name, Resolve, PairSlot, segments);
         }
 
         if (segments.Count == 0)
@@ -8104,6 +8250,151 @@ public class VM_BodyTypeProfile : VM
         }
 
         viewer.SetMeasurementLines(segments);
+    }
+
+    /// <summary>Endpoints and axes of one measurement, as <see cref="AppendMeasurementLineSegments"/>
+    /// needs them. Mirrors <see cref="VM_MeasurementDefinition"/>'s fields positionally (unlike
+    /// <see cref="VM_MeasurementDefinition.DumpToModel"/>, which drops empty refs and so shifts
+    /// indices), so the live overlay and Show Spread's offscreen overlay read identical inputs.</summary>
+    internal readonly record struct MeasurementLineSpec(
+        MeasurementKind Kind, string VertexRefA, string VertexRefB, string VertexRefC, string VertexRefD,
+        MeasurementAxis Axis, MeasurementAxis? NumeratorAxis, MeasurementAxis? DenominatorAxis);
+
+    /// <summary>Appends the overlay line segments that depict one measurement: the A-B pair (or its
+    /// axis-aligned legs for AxisDistance / an axis-locked ratio numerator) and, for RatioDistance, the
+    /// C-D denominator pair. Shared by the live viewer overlay (<see cref="RefreshMeasurementHighlight"/>)
+    /// and Show Spread's offscreen thumbnails so both draw the same geometry in the same colors.
+    /// <paramref name="resolve"/> maps a key-vertex name to its position on the mesh being drawn (null
+    /// when unresolved: that pair is skipped); <paramref name="name"/> and <paramref name="pairSlot"/>
+    /// only feed the hover labels.</summary>
+    internal static void AppendMeasurementLineSegments(
+        MeasurementLineSpec sel,
+        string name,
+        Func<string, OpenTK.Mathematics.Vector3?> resolve,
+        Func<string, string, MeasurementAxis?, string> pairSlot,
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
+    {
+        // Yellow for the primary pair, cyan for the ratio denominator pair. For AxisDistance
+        // the three axis-aligned legs use: yellow (the measurement axis), white (the two
+        // secondary axes), and grey (the A-B hypotenuse) — white/grey stand in for the
+        // originally-planned dashed styling so the renderer can stay on flat-color lines.
+        // The same color scheme is reused for every selected measurement; with multi-selection
+        // the legend stays "yellow = numerator, cyan = denominator" regardless of which
+        // measurement a given leg belongs to.
+        var primary = new OpenTK.Mathematics.Vector3(1.0f, 0.85f, 0.1f);
+        var secondary = new OpenTK.Mathematics.Vector3(0.1f, 0.85f, 1.0f);
+        var axisSecondary = new OpenTK.Mathematics.Vector3(1.0f, 1.0f, 1.0f);
+        var axisHypotenuse = new OpenTK.Mathematics.Vector3(0.5f, 0.5f, 0.5f);
+
+        // Axis-aligned leg from a to a + projection of (b - a) onto the named axis. Length
+        // equals |b - a| on that axis (matches MeasurementMath.AxisOrLength). Inline so the
+        // visualization code can mirror the metric for both AxisDistance and the
+        // axis-projected RatioDistance pairs.
+        static OpenTK.Mathematics.Vector3 AxisLegEnd(OpenTK.Mathematics.Vector3 av,
+            OpenTK.Mathematics.Vector3 bv, MeasurementAxis axis) => axis switch
+        {
+            MeasurementAxis.X => new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z),
+            MeasurementAxis.Y => new OpenTK.Mathematics.Vector3(av.X, bv.Y, av.Z),
+            MeasurementAxis.Z => new OpenTK.Mathematics.Vector3(av.X, av.Y, bv.Z),
+            _ => bv,
+        };
+
+        var a = resolve(sel.VertexRefA);
+        var b = resolve(sel.VertexRefB);
+        if (a.HasValue && b.HasValue)
+        {
+            if (sel.Kind == MeasurementKind.AxisDistance || sel.Kind == MeasurementKind.SignedAxisDistance)
+            {
+                // Decompose B-A into three axis-aligned legs walking A → P1 → P2 → B along
+                // X, then Y, then Z. The leg matching the measurement axis takes the primary
+                // (yellow) color; the other two take secondary (white). Zero-length legs are
+                // skipped. SignedAxisDistance shares this visualization with AxisDistance —
+                // the sign lives in the scalar value, not the geometry.
+                // <para>The full A-B hypotenuse line is intentionally NOT drawn for
+                // AxisDistance: it represents a 3D length that the measurement doesn't
+                // actually evaluate (only the axis-projected leg matters), so showing it
+                // visually invites confusion about what the threshold tests against. The
+                // colored legs are sufficient to convey both the pair and the axis;
+                // unlike the RatioDistance branches we don't need the grey reference
+                // line as visual context for a non-evaluated denominator pair.</para>
+                var av = a.Value;
+                var bv = b.Value;
+                var p1 = new OpenTK.Mathematics.Vector3(bv.X, av.Y, av.Z); // after X leg
+                var p2 = new OpenTK.Mathematics.Vector3(bv.X, bv.Y, av.Z); // after Y leg
+
+                var xColor = sel.Axis == MeasurementAxis.X ? primary : axisSecondary;
+                var yColor = sel.Axis == MeasurementAxis.Y ? primary : axisSecondary;
+                var zColor = sel.Axis == MeasurementAxis.Z ? primary : axisSecondary;
+
+                // Label format: "{name} (role qualifier)". Name leads so the parent
+                // measurement is identifiable at a glance; role describes which leg of
+                // the decomposition the cursor is on. The axis matching sel.Axis is
+                // annotated as "measurement axis" so the user can tell which leg
+                // actually contributes to the threshold. AxisDistance doesn't get a
+                // cross-reference colon because it's a single measurement, not a
+                // composite — the parent name alone identifies it.
+                if (av.X != bv.X) segments.Add((av, p1, xColor, $"{name} (X leg{(sel.Axis == MeasurementAxis.X ? " — measurement axis" : "")})"));
+                if (av.Y != bv.Y) segments.Add((p1, p2, yColor, $"{name} (Y leg{(sel.Axis == MeasurementAxis.Y ? " — measurement axis" : "")})"));
+                if (av.Z != bv.Z) segments.Add((p2, bv, zColor, $"{name} (Z leg{(sel.Axis == MeasurementAxis.Z ? " — measurement axis" : "")})"));
+            }
+            else if (sel.Kind == MeasurementKind.RatioDistance && sel.NumeratorAxis.HasValue)
+            {
+                // RatioDistance numerator pair (A,B) is being reduced along a single axis
+                // via NumeratorAxis. Draw only the axis-projected leg in the primary
+                // color — its length equals the actual scalar being fed into the ratio.
+                // The grey A→B hypotenuse was previously also drawn as a visual reference
+                // for where A and B sit, but per user feedback it's omitted for axis-
+                // locked pairs: the hypotenuse represents a 3D length the ratio doesn't
+                // evaluate, and seeing it invites the same "wait, which one IS the
+                // measurement?" confusion that motivated the original axis-projected
+                // branch in the first place.
+                var legEnd = AxisLegEnd(a.Value, b.Value, sel.NumeratorAxis.Value);
+                segments.Add((a.Value, legEnd, primary,
+                    $"{name} (numerator: {pairSlot(sel.VertexRefA, sel.VertexRefB, sel.NumeratorAxis)})"));
+            }
+            else
+            {
+                if (sel.Kind == MeasurementKind.RatioDistance)
+                {
+                    // No NumeratorAxis: the ratio uses the full 3D length, so the single
+                    // line drawn IS the numerator's contribution. Cross-references a
+                    // sibling PointDistance with the same pair (axis=null).
+                    segments.Add((a.Value, b.Value, primary,
+                        $"{name} (numerator: {pairSlot(sel.VertexRefA, sel.VertexRefB, null)})"));
+                }
+                else
+                {
+                    // PointDistance / SignedPointDistance: only one segment per measurement,
+                    // name alone suffices. SignedPointDistance shares this rendering with
+                    // PointDistance — the sign lives in the scalar value, not the geometry.
+                    segments.Add((a.Value, b.Value, primary, name));
+                }
+            }
+        }
+
+        if (sel.Kind == MeasurementKind.RatioDistance)
+        {
+            var c = resolve(sel.VertexRefC);
+            var d = resolve(sel.VertexRefD);
+            if (c.HasValue && d.HasValue)
+            {
+                if (sel.DenominatorAxis.HasValue)
+                {
+                    // Symmetric treatment to the axis-locked numerator branch above:
+                    // only the cyan axis-projected leg is drawn (its length is the actual
+                    // denominator scalar). The C→D hypotenuse is suppressed for the same
+                    // reason — it represents a 3D length the ratio doesn't evaluate.
+                    var legEnd = AxisLegEnd(c.Value, d.Value, sel.DenominatorAxis.Value);
+                    segments.Add((c.Value, legEnd, secondary,
+                        $"{name} (denominator: {pairSlot(sel.VertexRefC, sel.VertexRefD, sel.DenominatorAxis)})"));
+                }
+                else
+                {
+                    segments.Add((c.Value, d.Value, secondary,
+                        $"{name} (denominator: {pairSlot(sel.VertexRefC, sel.VertexRefD, null)})"));
+                }
+            }
+        }
     }
 
     /// <summary>Dumps the Measurements grid to a CSV file via the standard save dialog.
@@ -10826,7 +11117,8 @@ public class VM_BodyTypeProfile : VM
         BodyTypeProfile profileModel,
         bool includeDrafts,
         ExternalDescriptorSeedContext? seedContext,
-        out HashSet<(string Category, string Value)> externals)
+        out HashSet<(string Category, string Value)> externals,
+        bool includeStoredAnnotations = true)
     {
         var result = new List<BodyShapeDescriptor.LabelSignature>();
         externals = new HashSet<(string Category, string Value)>();
@@ -10846,7 +11138,7 @@ public class VM_BodyTypeProfile : VM
         // a default value fire). Gender is taken from the cache key — every cached entry was scanned
         // with a known (PresetLabel, Gender, Weight) coordinate.
         var eligible = BodySlideMeasurementEvaluator.FilterEligibleRules(profileModel.Rules, key.Gender, includeDrafts);
-        externals = GetExternalDescriptorsFor(key, seedContext ?? _parent?.BuildExternalDescriptorSeedContext());
+        externals = GetExternalDescriptorsFor(key, seedContext ?? _parent?.BuildExternalDescriptorSeedContext(), includeStoredAnnotations);
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var defaults = BodySlideMeasurementEvaluator.RunClassifierRules(
@@ -10914,13 +11206,33 @@ public class VM_BodyTypeProfile : VM
     /// derive then behaves exactly as before seeding existed).</summary>
     private static HashSet<(string Category, string Value)> GetExternalDescriptorsFor(
         (string PresetLabel, Gender Gender, int Weight) key,
-        ExternalDescriptorSeedContext? seedContext)
+        ExternalDescriptorSeedContext? seedContext,
+        bool includeStoredAnnotations = true)
     {
         if (seedContext == null) return new HashSet<(string Category, string Value)>();
         return seedContext.PresetModelLookup.TryGetValue((key.PresetLabel, key.Gender), out var presetModel)
             ? BodySlideMeasurementEvaluator.CollectExternalDescriptors(
-                presetModel, key.Weight, seedContext.SliderClassificationRules, seedContext.DescriptorUniverse)
+                presetModel, key.Weight, seedContext.SliderClassificationRules, seedContext.DescriptorUniverse,
+                includeStoredAnnotations)
             : new HashSet<(string Category, string Value)>();
+    }
+
+    /// <summary>Every descriptor one slice carries <b>by rules alone</b>: this profile's classifier
+    /// output plus Label-by-Sliders rule labels, with the preset's stored Manual / Library annotations
+    /// left out of both the seed and the result. Without them a Category's default is no longer
+    /// suppressed by a hand label, and aggregator rules see only rule-derived descriptors -- so this is
+    /// what the rules say, independent of any contradicting annotation. Used by Show Spread's
+    /// "Ignore Manual Annotations" mode; pass one <paramref name="seedContext"/> for a whole batch.</summary>
+    internal HashSet<(string Category, string Value)> DeriveRuleOnlyDescriptors(
+        (string PresetLabel, Gender Gender, int Weight) key,
+        BodyTypeProfile profileModel,
+        ExternalDescriptorSeedContext? seedContext)
+    {
+        var derived = DeriveDescriptorsFor(key, profileModel, includeDrafts: true, seedContext,
+            out var ruleExternals, includeStoredAnnotations: false);
+        var result = new HashSet<(string Category, string Value)>(ruleExternals);
+        foreach (var d in derived) result.Add((d.Category, d.Value));
+        return result;
     }
 }
 
