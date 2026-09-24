@@ -1310,6 +1310,7 @@ public class VM_BodyTypeProfileEditor : VM
             if (total == 0)
             {
                 profile.ScanResults.Clear();
+                profile.SeedDescriptors.Clear();
                 RebuildWeightFilterOptions();
                 RefreshMatchingPresets();
                 ScanStatus = $"No presets tagged with SliderGroup=\"{bodyType}\". Check the BodySlides menu or the profile's Body Type field.";
@@ -2382,6 +2383,7 @@ public class VM_BodyTypeProfileEditor : VM
             profile.MeasurementCacheStale = true;
             profile.ClearMeasurementCacheBaseline();
             profile.ScanResults.Clear();
+            profile.SeedDescriptors.Clear();
             profile.ScanResultsStale = true;
             ScanCacheStale = true;
         }
@@ -2435,7 +2437,11 @@ public class VM_BodyTypeProfileEditor : VM
         foreach (var kv in ordered)
         {
             if (weightFilterActive && !allowedWeights.Contains(kv.Key.Weight)) continue;
-            if (!DescriptorFilterAccepts(kv.Value, selectionKeys, filterMode)) continue;
+            // Filter and display on classifier output PLUS the slider / manual seeds: seeds are
+            // never emitted by the classifier, so a slider-only Category (BellyMorph) would
+            // otherwise only ever match its default value.
+            var matches = profile.GetMatchesWithSeeds(kv.Key, kv.Value);
+            if (!DescriptorFilterAccepts(matches, selectionKeys, filterMode)) continue;
             // Name-substring filter. Applied here (pre-scoring, pre-sort) so the score
             // passes don't touch rows the user won't see anyway. Case-insensitive ordinal —
             // matches what the user types regardless of preset-author capitalization, and
@@ -2444,7 +2450,7 @@ public class VM_BodyTypeProfileEditor : VM
                 && (kv.Key.PresetLabel == null
                     || kv.Key.PresetLabel.IndexOf(nameFilter, StringComparison.OrdinalIgnoreCase) < 0))
                 continue;
-            staged.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, kv.Value));
+            staged.Add(new VM_PresetScanRow(kv.Key.PresetLabel, kv.Key.Gender, kv.Key.Weight, matches));
         }
 
         // MeasurementValue sort is independent of the descriptor filter — the row is scored
@@ -9368,6 +9374,31 @@ public class VM_BodyTypeProfile : VM
     /// and repopulated by <see cref="VM_BodyTypeProfileEditor.RunScanAsync"/>.</summary>
     public Dictionary<(string PresetLabel, Gender Gender, int Weight), List<BodyShapeDescriptor.LabelSignature>> ScanResults { get; } = new();
 
+    /// <summary>Per-(preset, weight) external seeds -- Label-by-Sliders matches plus stored
+    /// Manual / Library annotations -- captured alongside <see cref="ScanResults"/> by
+    /// <see cref="RebuildScanResultsFromCache"/>. <see cref="ScanResults"/> holds the classifier's
+    /// output only, and seeds are never emitted there (they gate DescriptorRef conditions and
+    /// suppress their Category's default); so a slider-only Category (e.g. BellyMorph) would show
+    /// nothing but its default. The Match Presets list merges these back in for filtering and
+    /// display (<see cref="VM_BodyTypeProfileEditor.RefreshMatchingPresets"/>); other consumers
+    /// keep reading the pure classifier output.</summary>
+    public Dictionary<(string PresetLabel, Gender Gender, int Weight), HashSet<(string Category, string Value)>> SeedDescriptors { get; } = new();
+
+    /// <summary><see cref="ScanResults"/>[<paramref name="key"/>] plus that key's
+    /// <see cref="SeedDescriptors"/>, de-duplicated: every descriptor the preset carries at that
+    /// weight, whichever source produced it.</summary>
+    internal IReadOnlyList<BodyShapeDescriptor.LabelSignature> GetMatchesWithSeeds(
+        (string PresetLabel, Gender Gender, int Weight) key,
+        List<BodyShapeDescriptor.LabelSignature> classifierMatches)
+    {
+        if (!SeedDescriptors.TryGetValue(key, out var seeds) || seeds.Count == 0) return classifierMatches;
+        var merged = new List<BodyShapeDescriptor.LabelSignature>(classifierMatches);
+        var have = classifierMatches.Select(m => (m.Category, m.Value)).ToHashSet();
+        foreach (var s in seeds)
+            if (have.Add(s)) merged.Add(new BodyShapeDescriptor.LabelSignature { Category = s.Category, Value = s.Value });
+        return merged;
+    }
+
     /// <summary>True when the cache is empty or out of date (rules/measurements/key vertices
     /// changed after the last scan). Surfaces in the UI as a "Results stale — re-scan" nudge.</summary>
     public bool ScanResultsStale { get; set; } = true;
@@ -10784,8 +10815,21 @@ public class VM_BodyTypeProfile : VM
         BodyTypeProfile profileModel,
         bool includeDrafts,
         ExternalDescriptorSeedContext? seedContext = null)
+        => DeriveDescriptorsFor(key, profileModel, includeDrafts, seedContext, out _);
+
+    /// <summary>As <see cref="DeriveDescriptorsFor(ValueTuple{string, Gender, int}, BodyTypeProfile, bool, ExternalDescriptorSeedContext?)"/>,
+    /// also returning the external seed the pass ran with, so
+    /// <see cref="RebuildScanResultsFromCache"/> can keep it for the Match Presets list without
+    /// deriving the slider labels twice.</summary>
+    private List<BodyShapeDescriptor.LabelSignature> DeriveDescriptorsFor(
+        (string PresetLabel, Gender Gender, int Weight) key,
+        BodyTypeProfile profileModel,
+        bool includeDrafts,
+        ExternalDescriptorSeedContext? seedContext,
+        out HashSet<(string Category, string Value)> externals)
     {
         var result = new List<BodyShapeDescriptor.LabelSignature>();
+        externals = new HashSet<(string Category, string Value)>();
         if (!MeasurementCache.TryGetValue(key, out var entry)) return result;
         if (profileModel == null) return result;
 
@@ -10802,7 +10846,7 @@ public class VM_BodyTypeProfile : VM
         // a default value fire). Gender is taken from the cache key — every cached entry was scanned
         // with a known (PresetLabel, Gender, Weight) coordinate.
         var eligible = BodySlideMeasurementEvaluator.FilterEligibleRules(profileModel.Rules, key.Gender, includeDrafts);
-        var externals = GetExternalDescriptorsFor(key, seedContext ?? _parent?.BuildExternalDescriptorSeedContext());
+        externals = GetExternalDescriptorsFor(key, seedContext ?? _parent?.BuildExternalDescriptorSeedContext());
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var defaults = BodySlideMeasurementEvaluator.RunClassifierRules(
@@ -10847,12 +10891,16 @@ public class VM_BodyTypeProfile : VM
     public void RebuildScanResultsFromCache(BodyTypeProfile profileModel, bool includeDrafts = true)
     {
         ScanResults.Clear();
+        SeedDescriptors.Clear();
         // Seed context assembled once for the whole rebuild (VM dumps + preset sweep), not per
         // cache key — it feeds each key's external-descriptor seed (live slider labels +
         // stored manual/library annotations).
         var seedContext = _parent?.BuildExternalDescriptorSeedContext();
         foreach (var key in MeasurementCache.Keys)
-            ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts, seedContext);
+        {
+            ScanResults[key] = DeriveDescriptorsFor(key, profileModel, includeDrafts, seedContext, out var externals);
+            if (externals.Count > 0) SeedDescriptors[key] = externals;
+        }
         ScanResultsStale = false;
         // The descriptors now reflect the current rules; snapshot that rule state so a later
         // rule edit can tell a real change from an edit-then-revert (RevalidateRulesStale).
