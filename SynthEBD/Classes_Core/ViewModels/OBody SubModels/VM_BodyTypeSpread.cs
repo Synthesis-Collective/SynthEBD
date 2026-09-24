@@ -73,6 +73,7 @@ public class VM_BodyTypeSpread : VM
     private readonly CancellationTokenSource _cts = new();
     private bool _pumping;
     private bool _loggedFirstRender;
+    private bool _loggedFirstOverlay;
 
     /// <summary>Overlay is the measurement-line set drawn on the image ("" = none), so toggling
     /// Show Measurements, or switching metric with it on, caches a separate image.</summary>
@@ -503,6 +504,7 @@ public class VM_BodyTypeSpread : VM
         }
 
         var vm = _renderSettingsSource;
+        var overlayDiag = new System.Runtime.CompilerServices.StrongBox<string?>();
         var request = new OffscreenRenderRequest
         {
             MeshPaths = _scene.MeshPaths,
@@ -546,12 +548,18 @@ public class VM_BodyTypeSpread : VM
             EnableBloom = vm.EnableBloom,
             BloomIntensity = vm.BloomIntensity,
             MissingMeshPathsOut = new List<string>(),
-            BeforeDraw = key.Overlay.Length == 0 ? null : BuildMeasurementOverlayHook(key.Overlay.Split('\u001f')),
+            BeforeDraw = key.Overlay.Length == 0 ? null : BuildMeasurementOverlayHook(key.Overlay.Split('\u001f'), overlayDiag),
         };
 
         var sw = Stopwatch.StartNew();
         byte[] bgra = await FallbackPreviewControllerRegistry.SharedRenderer.RenderToBgra32Async(request);
         sw.Stop();
+        if (key.Overlay.Length > 0 && !_loggedFirstOverlay)
+        {
+            _loggedFirstOverlay = true;
+            _logger?.LogMessage($"Show Spread: first measurement overlay ('{key.PresetLabel}' W{key.Weight}): "
+                + (overlayDiag.Value ?? "hook never ran"));
+        }
         if (!_loggedFirstRender)
         {
             _loggedFirstRender = true;
@@ -571,8 +579,12 @@ public class VM_BodyTypeSpread : VM
     /// resolve through <see cref="MeasurementMath.TryResolveKeyVertex"/> -- the same resolution the
     /// scan used for this preset -- rather than the live preview's cached indices, which belong to a
     /// different body. Runs on the render thread, so it only reads the immutable snapshots taken at
-    /// open time. RegionVolume measurements have no line geometry and draw nothing.</summary>
-    private Action<VM_CharacterViewer> BuildMeasurementOverlayHook(IReadOnlyList<string> measurementNames)
+    /// open time. RegionVolume measurements have no line geometry and draw nothing.
+    /// <para><paramref name="diag"/> receives a one-line summary (specs found, each vertex ref's
+    /// resolution, segment count, loaded shapes -- or the exception) for the caller to log on the UI
+    /// thread, so an overlay that renders nothing says why.</para></summary>
+    private Action<VM_CharacterViewer> BuildMeasurementOverlayHook(IReadOnlyList<string> measurementNames,
+        System.Runtime.CompilerServices.StrongBox<string?> diag)
     {
         var keyVerts = _keyVertsByName;
         var regions = _resolvedRegions;
@@ -582,25 +594,60 @@ public class VM_BodyTypeSpread : VM
             .ToList();
         return vm =>
         {
-            OpenTK.Mathematics.Vector3? Resolve(string refName) =>
-                MeasurementMath.TryResolveKeyVertex(refName, keyVerts,
-                    (shape, idx) => vm.TryGetCurrentVertex(shape, idx, out var p) ? p : null,
-                    shape => vm.GetShapePositions(shape),
-                    shape => vm.GetShapeBoneInfo(shape),
-                    regions,
-                    shape => vm.GetZeroedShapePositions(shape, 0),
-                    out var pos)
-                    ? pos
-                    : null;
-
-            var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
-            foreach (var spec in specs)
+            var refResults = new List<string>();
+            try
             {
-                VM_BodyTypeProfile.AppendMeasurementLineSegments(
-                    spec, "", Resolve, (_, _, _) => "", segments);
+                OpenTK.Mathematics.Vector3? Resolve(string refName)
+                {
+                    OpenTK.Mathematics.Vector3? r = MeasurementMath.TryResolveKeyVertex(refName, keyVerts,
+                        (shape, idx) => vm.TryGetCurrentVertex(shape, idx, out var p) ? p : null,
+                        shape => vm.GetShapePositions(shape),
+                        shape => vm.GetShapeBoneInfo(shape),
+                        regions,
+                        shape => vm.GetZeroedShapePositions(shape, 0),
+                        out var pos)
+                        ? pos
+                        : null;
+                    if (!string.IsNullOrEmpty(refName))
+                        refResults.Add(refName + (r.HasValue ? "=ok" : "=UNRESOLVED"));
+                    return r;
+                }
+
+                var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
+                foreach (var spec in specs)
+                {
+                    VM_BodyTypeProfile.AppendMeasurementLineSegments(
+                        spec, "", Resolve, (_, _, _) => "", segments);
+                }
+                vm.SetMeasurementLines(segments);
+                diag.Value = $"{specs.Count}/{measurementNames.Count} measurement(s) have line specs; "
+                    + $"refs [{string.Join(", ", refResults.Distinct())}]; {segments.Count} segment(s); "
+                    + $"shapes [{string.Join(", ", vm.GetCurrentShapeVertexCounts().Keys)}]; "
+                    + DescribeLineGlState(segments.Count > 0 ? segments[0].A : null);
             }
-            vm.SetMeasurementLines(segments);
+            catch (Exception ex)
+            {
+                diag.Value = $"hook threw after refs [{string.Join(", ", refResults)}]: {ex.GetType().Name}: {ex.Message}";
+                throw;
+            }
         };
+    }
+
+    /// <summary>Diagnostic: the offscreen context's line-relevant GL state (profile / flags, the
+    /// aliased line-width range, whether the renderer's 4.5 px line width is accepted), plus the
+    /// first segment's endpoint so it can be sanity-checked against the mesh. Render thread only.</summary>
+    private static string DescribeLineGlState(OpenTK.Mathematics.Vector3? firstPoint)
+    {
+        while (OpenTK.Graphics.OpenGL4.GL.GetError() != OpenTK.Graphics.OpenGL4.ErrorCode.NoError) { } // drain stale errors
+        OpenTK.Graphics.OpenGL4.GL.GetInteger(OpenTK.Graphics.OpenGL4.GetPName.ContextFlags, out int flags);
+        OpenTK.Graphics.OpenGL4.GL.GetInteger((OpenTK.Graphics.OpenGL4.GetPName)0x9126 /* GL_CONTEXT_PROFILE_MASK */, out int profile);
+        var range = new float[2];
+        OpenTK.Graphics.OpenGL4.GL.GetFloat(OpenTK.Graphics.OpenGL4.GetPName.AliasedLineWidthRange, range);
+        OpenTK.Graphics.OpenGL4.GL.LineWidth(4.5f);
+        var lineWidthError = OpenTK.Graphics.OpenGL4.GL.GetError();
+        OpenTK.Graphics.OpenGL4.GL.LineWidth(1f);
+        return $"GL flags=0x{flags:X} profileMask=0x{profile:X} aliasedLineWidth=[{range[0]}, {range[1]}] "
+            + $"LineWidth(4.5)->{lineWidthError}; firstPoint={firstPoint?.ToString() ?? "none"}";
     }
 
     /// <summary>Loads a cell's slice into the Body Type Profile editor's live viewer for close

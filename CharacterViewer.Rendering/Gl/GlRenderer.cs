@@ -517,6 +517,11 @@ public class GlRenderer : IDisposable
     /// <summary>Line width (px) for <see cref="RegionWireLines"/>. Thin — a true wireframe.</summary>
     public float RegionWireWidth { get; set; } = 1.25f;
 
+    /// <summary>Whether this context honors glLineWidth &gt; 1 (probed once in <see cref="Initialize"/>).
+    /// False on forward-compatible core contexts, where the overlay line channels fall back to
+    /// screen-aligned quads.</summary>
+    private bool _wideLinesSupported = true;
+
     public struct MeasurementLineSegment
     {
         public Vector3 A;
@@ -843,6 +848,14 @@ public class GlRenderer : IDisposable
         GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, 3 * sizeof(float));
         GL.EnableVertexAttribArray(1);
         GL.BindVertexArray(0);
+
+        // Wide-line capability probe. A forward-compatible core context (the offscreen renderer's
+        // GameWindow) rejects glLineWidth > 1 with GL_INVALID_VALUE and keeps drawing 1 px lines, so
+        // the overlay line channels switch to CPU-expanded quads there (see DrawLineSegmentList).
+        while (GL.GetError() != ErrorCode.NoError) { }
+        GL.LineWidth(2.0f);
+        _wideLinesSupported = GL.GetError() != ErrorCode.InvalidValue;
+        GL.LineWidth(1.0f);
 
         // Heatmap VAO: position(3) + normal(3) + color(3) = 9 floats per vertex.
         // The normal is carried for layout parity with the debug VAO/emit path even
@@ -1221,7 +1234,7 @@ public class GlRenderer : IDisposable
 
         // Measurement lines (BodyTypeProfile editor). Drawn after markers so the
         // connection between the two endpoint gizmos reads clearly.
-        DrawMeasurementLines(ref view, ref projection);
+        DrawMeasurementLines(ref view, ref projection, viewportWidth, viewportHeight);
 
         // Overlay: directional-light direction arrows. Drawn last with depth test off
         // so they behave like gizmos (always visible through the model).
@@ -1393,7 +1406,7 @@ public class GlRenderer : IDisposable
     /// The debug VAO's layout is position(3) + normal(3) -- normals are ignored in
     /// flat mode but must be written to keep the stride consistent.
     /// </summary>
-    private void DrawMeasurementLines(ref Matrix4 view, ref Matrix4 projection)
+    private void DrawMeasurementLines(ref Matrix4 view, ref Matrix4 projection, int viewportWidth, int viewportHeight)
     {
         if (_debugShader == null) return;
         if (MeasurementLines.Count == 0 && RegionOverlayLines.Count == 0 && RegionWireLines.Count == 0) return;
@@ -1410,33 +1423,50 @@ public class GlRenderer : IDisposable
         bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
         GL.Disable(EnableCap.DepthTest);
 
-        // Two verts per line, 6 floats per vert (pos + unused normal).
-        var buf = new float[12];
+        // Two verts per line, 6 floats per vert (pos + unused normal); the quad fallback needs
+        // six verts (two triangles) per segment.
+        var buf = new float[_wideLinesSupported ? 12 : 36];
+        var viewProj = view * projection;
 
         // Thick channels (measurement overlay + region cap-loop contour). Thicker than the historical
         // 2.5 so the overlay reads at typical zoom levels against busy body textures; 4.5 stays under
         // the typical driver-clamped maximum (5–10 for aliased lines).
-        GL.LineWidth(4.5f);
-        DrawLineSegmentList(MeasurementLines, buf);
-        DrawLineSegmentList(RegionOverlayLines, buf);
+        const float thickWidth = 4.5f;
+        if (_wideLinesSupported) GL.LineWidth(thickWidth);
+        DrawLineSegmentList(MeasurementLines, buf, thickWidth, ref viewProj, viewportWidth, viewportHeight);
+        DrawLineSegmentList(RegionOverlayLines, buf, thickWidth, ref viewProj, viewportWidth, viewportHeight);
 
         // Thin channel: the Solid-mode region wireframe (dense triangle edges read as a wireframe).
         if (RegionWireLines.Count > 0)
         {
-            GL.LineWidth(RegionWireWidth);
-            DrawLineSegmentList(RegionWireLines, buf);
+            if (_wideLinesSupported) GL.LineWidth(RegionWireWidth);
+            DrawLineSegmentList(RegionWireLines, buf, RegionWireWidth, ref viewProj, viewportWidth, viewportHeight);
         }
 
-        GL.LineWidth(1.0f);
+        if (_wideLinesSupported) GL.LineWidth(1.0f);
         if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
         GL.BindVertexArray(0);
     }
 
     /// <summary>Uploads + draws each segment in <paramref name="lines"/> through the bound debug
-    /// VAO/VBO. Caller sets shader, line width, and depth state and passes a reusable 12-float
-    /// scratch buffer. Shared by the measurement-line and region cap-loop overlay channels.</summary>
-    private void DrawLineSegmentList(List<MeasurementLineSegment> lines, float[] buf)
+    /// VAO/VBO. Caller sets shader, line width, and depth state and passes a reusable scratch buffer
+    /// (12 floats for GL lines, 36 for the quad fallback). Shared by the measurement-line and region
+    /// cap-loop overlay channels.
+    /// <para>When the context rejects wide lines (<see cref="_wideLinesSupported"/> false -- a
+    /// forward-compatible core context such as the offscreen renderer's), each segment is instead
+    /// expanded on the CPU into a screen-aligned quad <paramref name="widthPixels"/> wide, emitted
+    /// directly in NDC with identity view/projection. Without this the overlay silently draws at
+    /// 1 px, which vanishes in a scaled-down thumbnail.</para></summary>
+    private void DrawLineSegmentList(List<MeasurementLineSegment> lines, float[] buf, float widthPixels,
+        ref Matrix4 viewProj, int viewportWidth, int viewportHeight)
     {
+        if (lines.Count == 0) return;
+        if (!_wideLinesSupported)
+        {
+            DrawLineSegmentListAsQuads(lines, buf, widthPixels, ref viewProj, viewportWidth, viewportHeight);
+            return;
+        }
+
         for (int i = 0; i < lines.Count; i++)
         {
             var seg = lines[i];
@@ -1447,9 +1477,71 @@ public class GlRenderer : IDisposable
             buf[6] = b.X; buf[7] = b.Y; buf[8] = b.Z; buf[9] = 0f; buf[10] = 0f; buf[11] = 0f;
 
             _debugShader!.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
-            GL.BufferData(BufferTarget.ArrayBuffer, buf.Length * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, 12 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
             GL.DrawArrays(PrimitiveType.Lines, 0, 2);
         }
+    }
+
+    /// <summary>Quad fallback for <see cref="DrawLineSegmentList"/>: projects both endpoints to NDC,
+    /// offsets them by half of <paramref name="widthPixels"/> perpendicular to the segment in pixel
+    /// space, and draws two triangles with identity view/projection (restored afterwards). Z is
+    /// pinned to 0 -- depth test is off for the overlay pass, and this keeps the quad inside the
+    /// near/far clip range. Segments with an endpoint behind the camera (w &lt;= 0) are skipped;
+    /// overlay endpoints sit on the body, so that only happens with the camera inside the mesh.</summary>
+    private void DrawLineSegmentListAsQuads(List<MeasurementLineSegment> lines, float[] buf, float widthPixels,
+        ref Matrix4 viewProj, int viewportWidth, int viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0) return;
+
+        var identity = Matrix4.Identity;
+        _debugShader!.SetMatrix4("u_view", ref identity);
+        _debugShader.SetMatrix4("u_projection", ref identity);
+
+        // Quad winding follows the segment's screen direction, so either face may point at the camera.
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        GL.Disable(EnableCap.CullFace);
+
+        float halfWidth = MathF.Max(widthPixels, 1f) * 0.5f;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var seg = lines[i];
+            var ca = new Vector4(seg.A * ModelScale, 1f) * viewProj;
+            var cb = new Vector4(seg.B * ModelScale, 1f) * viewProj;
+            if (ca.W <= 1e-6f || cb.W <= 1e-6f) continue;
+
+            var na = ca.Xy / ca.W;
+            var nb = cb.Xy / cb.W;
+            // Direction in pixel space, so the perpendicular offset is a true pixel width even when
+            // the viewport isn't square.
+            var dirPx = new Vector2((nb.X - na.X) * viewportWidth, (nb.Y - na.Y) * viewportHeight);
+            float len = dirPx.Length;
+            Vector2 perpPx = len > 1e-6f
+                ? new Vector2(-dirPx.Y, dirPx.X) / len * halfWidth
+                : new Vector2(0f, halfWidth); // zero-length: a small square dot
+            var off = new Vector2(perpPx.X * 2f / viewportWidth, perpPx.Y * 2f / viewportHeight);
+            if (len <= 1e-6f)
+            {
+                var along = new Vector2(halfWidth * 2f / viewportWidth, 0f);
+                na -= along;
+                nb += along;
+            }
+
+            var p0 = na + off; var p1 = na - off; var p2 = nb + off; var p3 = nb - off;
+            int k = 0;
+            void Put(Vector2 p)
+            {
+                buf[k++] = p.X; buf[k++] = p.Y; buf[k++] = 0f;
+                buf[k++] = 0f; buf[k++] = 0f; buf[k++] = 0f;
+            }
+            Put(p0); Put(p1); Put(p2);
+            Put(p2); Put(p1); Put(p3);
+
+            _debugShader.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            GL.BufferData(BufferTarget.ArrayBuffer, 36 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        }
+
+        if (cullWasEnabled) GL.Enable(EnableCap.CullFace);
     }
 
     /// <summary>
@@ -1964,11 +2056,21 @@ public class GlRenderer : IDisposable
     {
         if (_bloomShader == null || _ssaoFullscreenVao == -1) return;
         if (width <= 0 || height <= 0) return;
-        if (!EnsureBloomFbos(width, height)) return;
 
         // The bound draw FBO is the host's scene target (GLWpfControl's FBO or
         // the offscreen MSAA FBO). Capture it so we can read from / restore it.
+        // Captured BEFORE EnsureBloomFbos: (re)creating the bloom FBOs leaves the
+        // last one bound, and capturing after that "restored" to a bloom FBO, so the
+        // composite and every overlay draw after it (measurement lines, markers)
+        // landed off-screen. The live viewer only hit that on its first frame / a
+        // resize; the offscreen renderer builds a fresh GlRenderer per render, so
+        // every bloom-enabled offscreen image lost both its bloom and its overlay.
         GL.GetInteger(GetPName.DrawFramebufferBinding, out int hostFbo);
+        if (!EnsureBloomFbos(width, height))
+        {
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
+            return;
+        }
 
         // Add the (display-encoded) glow directly to the (display-encoded)
         // scene: disable sRGB encoding for every bloom stage so no stage
