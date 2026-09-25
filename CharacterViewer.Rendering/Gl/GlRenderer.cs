@@ -480,6 +480,17 @@ public class GlRenderer : IDisposable
     /// markers/edges drawn on top of it.</summary>
     public Vector3 RegionSolidColor { get; set; } = new Vector3(1.0f, 0.10f, 0.85f);
 
+    /// <summary>Opacity of the region surface. 1 (the default, used by the editor's Solid view) draws
+    /// it opaque; below 1 it is alpha-blended over the body as a translucent tint. Destination alpha is
+    /// left untouched so an offscreen readback stays opaque.</summary>
+    public float RegionSolidAlpha { get; set; } = 1f;
+
+    /// <summary>When true, the region surface is depth-tested against the body (with a small polygon
+    /// offset, since the patch lies exactly on the body surface) instead of drawing through it: the
+    /// patch tints the skin where it is visible, the far side and the caps buried inside the body stay
+    /// hidden. Off (the default) keeps the editor's always-on-top Solid view. Show Spread turns it on.</summary>
+    public bool RegionSolidDepthTested { get; set; }
+
     /// <summary>Slider-morph heatmap geometry (Label by Sliders annotator): the surface patch of the
     /// vertices a designated BodySlide slider moves, as interleaved triangle vertices with 9 floats each
     /// (position.xyz + normal.xyz + color.rgb), in the same pre-ModelScale local space as
@@ -1321,8 +1332,41 @@ public class GlRenderer : IDisposable
         }
 
         _debugShader!.SetVector3("u_color", RegionSolidColor.X, RegionSolidColor.Y, RegionSolidColor.Z);
+
+        // Optional translucent / depth-tested variant (Show Spread's surface tint). Blending keeps the
+        // destination alpha (Zero, One) so the offscreen BGRA readback doesn't turn semi-transparent.
+        bool translucent = RegionSolidAlpha < 1f;
+        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
+        if (translucent)
+        {
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFuncSeparate(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
+                BlendingFactorSrc.Zero, BlendingFactorDest.One);
+            GL.DepthMask(false);
+            _debugShader.SetFloat("u_alpha", RegionSolidAlpha);
+        }
+        if (RegionSolidDepthTested)
+        {
+            GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.PolygonOffsetFill);
+            GL.PolygonOffset(-1.0f, -2.0f);
+        }
+
         GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
         GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+
+        // Back to the marker pass's state: depth off, opaque, depth writes on.
+        if (RegionSolidDepthTested)
+        {
+            GL.Disable(EnableCap.PolygonOffsetFill);
+            GL.Disable(EnableCap.DepthTest);
+        }
+        if (translucent)
+        {
+            GL.DepthMask(true);
+            if (!blendWasEnabled) GL.Disable(EnableCap.Blend);
+            _debugShader.SetFloat("u_alpha", 1f);
+        }
     }
 
     /// <summary>Uploads + draws <see cref="SliderHeatmapTriangles"/> as an unlit, per-vertex-colored

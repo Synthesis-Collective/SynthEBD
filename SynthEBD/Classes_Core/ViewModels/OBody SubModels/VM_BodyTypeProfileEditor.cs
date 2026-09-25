@@ -7545,11 +7545,13 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Everything Show Spread needs to draw measurement lines on an offscreen render,
     /// snapshotted on the UI thread so the render thread only reads immutable copies: the key
     /// vertices by name, the Regions resolved against the sliders-0 mesh (preset-independent, so
-    /// safe to reuse for every preset), and each measurement's line spec by name (first row wins,
-    /// matching the evaluator).</summary>
+    /// safe to reuse for every preset), each measurement's line spec by name (first row wins,
+    /// matching the evaluator), and the Regions each measurement depends on by name (a RegionVolume
+    /// measurement's own region plus the region behind any Region-strategy key vertex it references).</summary>
     internal (IReadOnlyDictionary<string, NamedKeyVertex> KeyVertsByName,
               IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? ResolvedRegions,
-              IReadOnlyDictionary<string, VM_BodyTypeProfile.MeasurementLineSpec> SpecsByName)
+              IReadOnlyDictionary<string, VM_BodyTypeProfile.MeasurementLineSpec> SpecsByName,
+              IReadOnlyDictionary<string, IReadOnlyList<string>> RegionNamesByMeasurement)
         SnapshotMeasurementOverlayInputs(VM_CharacterViewer viewer)
     {
         var keyVertsByName = KeyVertices
@@ -7557,9 +7559,26 @@ public class VM_BodyTypeProfile : VM
             .GroupBy(k => k.Name)
             .ToDictionary(g => g.Key, g => g.First().DumpToModel(), StringComparer.Ordinal);
 
+        var regionNamesByMeasurement = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        foreach (var m in Measurements)
+        {
+            if (m == null || string.IsNullOrEmpty(m.Name) || regionNamesByMeasurement.ContainsKey(m.Name)) continue;
+            var names = new List<string>();
+            if (m.Kind == MeasurementKind.RegionVolume && !string.IsNullOrEmpty(m.RegionRefName))
+                names.Add(m.RegionRefName);
+            foreach (var vref in new[] { m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD })
+            {
+                if (!string.IsNullOrEmpty(vref) && keyVertsByName.TryGetValue(vref, out var kv)
+                    && kv.Strategy == KeyVertexStrategy.Region && !string.IsNullOrEmpty(kv.RegionRefName))
+                    names.Add(kv.RegionRefName);
+            }
+            regionNamesByMeasurement[m.Name] = names.Distinct(StringComparer.Ordinal).ToList();
+        }
+
         Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
         if (viewer != null && Regions.Count > 0
-            && KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region))
+            && (KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region)
+                || regionNamesByMeasurement.Values.Any(n => n.Count > 0)))
         {
             resolvedRegions = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
             foreach (var r in Regions)
@@ -7579,7 +7598,7 @@ public class VM_BodyTypeProfile : VM
                 m.Kind, m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD,
                 m.Axis, m.NumeratorAxis, m.DenominatorAxis);
         }
-        return (keyVertsByName, resolvedRegions, specs);
+        return (keyVertsByName, resolvedRegions, specs, regionNamesByMeasurement);
     }
 
     public void RefreshMeasurementValues()
