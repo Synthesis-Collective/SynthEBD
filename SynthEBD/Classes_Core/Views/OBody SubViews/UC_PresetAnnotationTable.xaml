@@ -108,6 +108,13 @@
                   Sorting="OnDataGridSorting">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Preset" Binding="{Binding PresetLabel}" SortMemberPath="PresetLabel" Width="200"/>
+                <DataGridTemplateColumn Header="" Width="Auto" CanUserSort="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="HD" Margin="0" Padding="3,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Gender" Binding="{Binding Gender}" SortMemberPath="Gender" Width="64"/>
                 <DataGridTextColumn Header="Weight" Binding="{Binding Weight}" SortMemberPath="Weight" Width="64"/>
                 <DataGridTextColumn Header="#Annot" Binding="{Binding AnnotationCount}" SortMemberPath="AnnotationCount" Width="60"

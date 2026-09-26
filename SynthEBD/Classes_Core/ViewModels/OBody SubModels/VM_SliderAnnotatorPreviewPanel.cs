@@ -104,6 +104,16 @@ public class VM_SliderAnnotatorPreviewPanel : VM
             .Subscribe(x => lk = x)
             .DisposeWith(this);
 
+        HideAndDisablePresetCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                if (x is not VM_AnnotatorPresetRow row) return;
+                row.PlaceHolder.HideAndDisable();
+                _presetRows.Remove(row);
+                FilteredPresetRows.Remove(row);
+            });
+
         // Re-filter the preset list when any "Filter Presets" checkbox flips or a filtered rule's
         // conditions are edited. The signal is static and fires for EVERY rule edit anywhere, so
         // it's throttled (per-keystroke threshold typing collapses to one rebuild) and the handler
@@ -236,6 +246,9 @@ public class VM_SliderAnnotatorPreviewPanel : VM
     public bool IsFindingNpcs { get; private set; }
 
     public RelayCommand FindNpcsCommand { get; }
+    /// <summary>Row-level "HD" button in the preset browser: hides the row's preset and disables its
+    /// random distribution, then drops the row in place (keeping the grid's sort and scroll).</summary>
+    public RelayCommand HideAndDisablePresetCommand { get; }
 
     /// <summary>
     /// First-load hook (called from the view's Loaded handler): rebuilds the preset list and

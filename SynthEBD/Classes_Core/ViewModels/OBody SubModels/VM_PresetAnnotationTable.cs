@@ -47,6 +47,10 @@ public class VM_PresetAnnotationTable : VM
             canExecute: x => x is VM_PresetAnnotationRow && !IsScanning,
             execute: x => { if (x is VM_PresetAnnotationRow row) LoadRowInViewer(row); });
 
+        HideAndDisablePresetCommand = new RelayCommand(
+            canExecute: x => x is VM_PresetAnnotationRow && !IsScanning,
+            execute: x => { if (x is VM_PresetAnnotationRow row) _editor.HideAndDisablePreset(row.PresetLabel, row.Gender); });
+
         ToggleColumnVisibilityCommand = new RelayCommand(
             canExecute: x => x is VM_AnnotationColumn,
             execute: x => { if (x is VM_AnnotationColumn col) ToggleColumnVisibility(col); });
@@ -99,6 +103,9 @@ public class VM_PresetAnnotationTable : VM
     public RelayCommand ScanCommand { get; }
     public RelayCommand CancelScanCommand { get; }
     public RelayCommand LoadRowInViewerCommand { get; }
+    /// <summary>Row-level "HD" button: hides and disables the row's preset via the editor, which drops
+    /// its rows from this table and the editor's other lists.</summary>
+    public RelayCommand HideAndDisablePresetCommand { get; }
     public RelayCommand ToggleColumnVisibilityCommand { get; }
 
     /// <summary>Loads a row's preset+weight into the editor's viewer using the same routing as

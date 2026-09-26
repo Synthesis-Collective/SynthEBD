@@ -181,6 +181,17 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => true,
             execute: _ => RebuildAvailablePresets());
 
+        HideAndDisablePresetCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: x =>
+            {
+                switch (x)
+                {
+                    case VM_PresetScanRow r: HideAndDisablePreset(r.PresetLabel, r.Gender); break;
+                    case VM_RuleNodeMatchRow r: HideAndDisablePreset(r.PresetLabel, r.Gender); break;
+                }
+            });
+
         ScanAllPresetsCommand = new RelayCommand(
             canExecute: _ => !IsScanning && SelectedProfile != null,
             execute: _ => _ = RunScanAsync());
@@ -415,6 +426,8 @@ public class VM_BodyTypeProfileEditor : VM
     public RelayCommand ImportProfile { get; }
     public RelayCommand DuplicateSelectedProfile { get; }
     public RelayCommand RefreshPresetList { get; }
+    /// <summary>Row-level "HD" button on the Match Presets and Rules-tab lists; parameter is the row.</summary>
+    public RelayCommand HideAndDisablePresetCommand { get; }
     public RelayCommand ScanAllPresetsCommand { get; }
 
     /// <summary>Opens Show Spread for the Category selected in the Rules-tab tree.</summary>
@@ -4033,6 +4046,42 @@ public class VM_BodyTypeProfileEditor : VM
         PreviewGender = gender;
         PreviewWeight = weight;
         SelectedPreset = ph;
+    }
+
+    /// <summary>Raised after <see cref="HideAndDisablePreset"/> excludes a preset, so open Show Spread
+    /// windows can drop its slices.</summary>
+    internal event Action<string, Gender>? PresetHiddenAndDisabled;
+
+    /// <summary>Row-level "HD" action shared by every preset list in this editor: hides the preset and
+    /// disables its random distribution (<see cref="VM_BodySlidePlaceHolder.HideAndDisable"/>), then
+    /// drops its rows from the open lists in place (keeping scroll position and sort) rather than
+    /// rebuilding them. Score badges and closest-assignment gaps pick up the smaller population's sigmas
+    /// on the lists' next rebuild. The viewer's preset picker keeps the entry while it is the loaded
+    /// preset, so the viewer isn't blanked under the user.</summary>
+    internal void HideAndDisablePreset(string presetLabel, Gender gender)
+    {
+        var ph = FindPresetPlaceHolder(presetLabel, gender);
+        if (ph == null) return;
+        ph.HideAndDisable();
+
+        bool IsTarget(string label, Gender g) => g == gender && string.Equals(label, presetLabel, StringComparison.Ordinal);
+        RemoveWhere(MatchingPresets, r => IsTarget(r.PresetLabel, r.Gender));
+        if (SelectedProfile != null) RemoveWhere(SelectedProfile.SelectedNodeMatchingPresets, r => IsTarget(r.PresetLabel, r.Gender));
+        if (AnnotationTable != null) RemoveWhere(AnnotationTable.Rows, r => IsTarget(r.PresetLabel, r.Gender));
+        if (!ReferenceEquals(SelectedPreset, ph))
+        {
+            AvailablePresets.Remove(ph);
+            FilteredPresets.Remove(ph);
+        }
+        PresetHiddenAndDisabled?.Invoke(presetLabel, gender);
+    }
+
+    private static void RemoveWhere<T>(ObservableCollection<T> collection, Func<T, bool> predicate)
+    {
+        for (int i = collection.Count - 1; i >= 0; i--)
+        {
+            if (predicate(collection[i])) collection.RemoveAt(i);
+        }
     }
 
     private VM_BodySlidePlaceHolder? FindPresetPlaceHolder(string presetLabel, Gender gender)

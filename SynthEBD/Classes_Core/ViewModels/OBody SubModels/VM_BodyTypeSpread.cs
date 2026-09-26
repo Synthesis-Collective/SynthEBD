@@ -59,6 +59,7 @@ public class VM_BodyTypeSpread : VM
 
     private readonly Logger _logger;
     private readonly VM_BodyTypeProfileEditor _editor;
+    private readonly VM_BodyTypeProfile _profile;
     private readonly SceneInputsSnapshot _scene;
     private readonly VM_CharacterViewer _renderSettingsSource;
     private readonly Func<string, BodySlideSetting?> _presetLookup;
@@ -107,6 +108,7 @@ public class VM_BodyTypeSpread : VM
         Logger logger)
     {
         _editor = editor;
+        _profile = profile;
         _scene = scene;
         _renderSettingsSource = renderSettingsSource;
         _presetLookup = presetLookup;
@@ -225,6 +227,31 @@ public class VM_BodyTypeSpread : VM
                 RebuildRows();
             })
             .DisposeWith(this);
+
+        _editor.PresetHiddenAndDisabled += OnPresetHiddenAndDisabled;
+    }
+
+    /// <summary>A preset was hidden-and-disabled (from this window's HD button or any other editor list):
+    /// drop its slices, recompute the sigmas the Score metric normalizes by over the smaller population,
+    /// and re-pick every row's representatives.</summary>
+    private void OnPresetHiddenAndDisabled(string presetLabel, Gender gender)
+    {
+        if (gender != Gender) return;
+        int removed = _slices.RemoveAll(s => string.Equals(s.PresetLabel, presetLabel, StringComparison.Ordinal));
+        if (removed == 0) return;
+        foreach (var key in _sliceByKey.Keys.Where(k => k.Gender == gender && string.Equals(k.PresetLabel, presetLabel, StringComparison.Ordinal)).ToList())
+        {
+            _sliceByKey.Remove(key);
+        }
+        _stdDevs = VM_BodyTypeProfileEditor.ComputeStdDevsForAllRules(_profile);
+        RebuildMembership();
+        RebuildRows();
+    }
+
+    /// <summary>Row-level "HD" button on a cell: hides and disables the cell's preset via the editor.</summary>
+    internal void HideAndDisablePreset(VM_BodyTypeSpreadCell cell)
+    {
+        _editor.HideAndDisablePreset(cell.PresetLabel, cell.Gender);
     }
 
     /// <summary>When on (the default), rows hold presets purely by rule compliance: manual / library
@@ -332,7 +359,7 @@ public class VM_BodyTypeSpread : VM
     /// precisely enough to tell a value from the boundary it sits beside.</summary>
     private readonly Dictionary<string, HashSet<double>> _thresholdsByMeasurement = new(StringComparer.Ordinal);
     private readonly IReadOnlyDictionary<string, string> _defaultsByCategory;
-    private readonly Dictionary<string, double> _stdDevs;
+    private Dictionary<string, double> _stdDevs;
 
     public string Title { get; }
     public string Category { get; }
@@ -677,6 +704,7 @@ public class VM_BodyTypeSpread : VM
 
     public override void Dispose()
     {
+        _editor.PresetHiddenAndDisabled -= OnPresetHiddenAndDisabled;
         _cts.Cancel();
         base.Dispose();
     }
@@ -728,6 +756,7 @@ public class VM_BodyTypeSpreadCell : VM
         Caption = $"W{Weight} · {value}"
             + (between ? $"  ({Statistic} {FormatNumber(pick.StatisticValue)}{unit})" : "");
         LoadInViewerCommand = new RelayCommand(_ => true, _ => parent.LoadInEditorViewer(this));
+        HideAndDisableCommand = new RelayCommand(_ => true, _ => parent.HideAndDisablePreset(this));
     }
 
     public SpreadStatistic Statistic { get; }
@@ -749,6 +778,7 @@ public class VM_BodyTypeSpreadCell : VM
     public bool IsSideFailed { get; private set; }
 
     public RelayCommand LoadInViewerCommand { get; }
+    public RelayCommand HideAndDisableCommand { get; }
 
     internal void SetImages((bool Ready, BitmapSource? Image) primary, (bool Ready, BitmapSource? Image) side)
     {

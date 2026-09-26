@@ -20,7 +20,7 @@ public partial class UC_PresetAnnotationTable : UserControl
 {
     // Static columns defined in XAML before the dynamic measurement columns. Used as the index
     // boundary when rebuilding -- everything at or after this index is dynamic and gets cleared.
-    private const int FixedColumnCount = 5;
+    private const int FixedColumnCount = 6; // Preset, HD button, Gender, Weight, #Annot, Annotations
 
     private VM_PresetAnnotationTable _vm;
 

@@ -82,6 +82,13 @@
                       local:DocTooltip.Key="OBody.AnnotatorPresetList">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Preset" Binding="{Binding Label}" Width="*"/>
+                    <DataGridTemplateColumn Header="" Width="Auto" CanUserSort="False">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="HD" Margin="0" Padding="3,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Low" Binding="{Binding Low}" Width="Auto"/>
                     <DataGridTextColumn Header="High" Binding="{Binding High}" Width="Auto"/>
                     <DataGridTextColumn Header="Interp" Binding="{Binding Interpolated, StringFormat={}{0:0.##}}" Width="Auto"/>
