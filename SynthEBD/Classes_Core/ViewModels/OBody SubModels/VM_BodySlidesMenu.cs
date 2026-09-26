@@ -266,6 +266,23 @@ public class VM_BodySlidesMenu : VM
     private Dictionary<string, HashSet<string>> _selectedDescriptors = new();
     private VM_BodySlidePlaceHolder _stashedPlaceHolder;
 
+    /// <summary>(model Label, gender) of every preset that is both hidden and disabled
+    /// (<see cref="VM_BodySlidePlaceHolder.IsHiddenAndDisabled"/>) - the keys the Label by Measurements
+    /// measurement cache uses, so cache-driven views can drop those slices.</summary>
+    public HashSet<(string Label, Gender Gender)> GetHiddenAndDisabledPresetKeys()
+    {
+        var keys = new HashSet<(string, Gender)>();
+        foreach (var ph in BodySlidesMale)
+        {
+            if (ph?.AssociatedModel != null && ph.IsHiddenAndDisabled) keys.Add((ph.AssociatedModel.Label ?? "", Gender.Male));
+        }
+        foreach (var ph in BodySlidesFemale)
+        {
+            if (ph?.AssociatedModel != null && ph.IsHiddenAndDisabled) keys.Add((ph.AssociatedModel.Label ?? "", Gender.Female));
+        }
+        return keys;
+    }
+
     private void TogglePresetVisibility()
     {
         var bodySlides = BodySlidesMale.And(BodySlidesFemale).ToList();

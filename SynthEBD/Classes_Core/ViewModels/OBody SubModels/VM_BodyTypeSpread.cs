@@ -129,7 +129,7 @@ public class VM_BodyTypeSpread : VM
         var profileModel = profile.DumpToModel();
         var seedContext = editor.BuildExternalDescriptorSeedContext();
         _slices = new List<SliceData>();
-        foreach (var kv in profile.MeasurementCache)
+        foreach (var kv in profile.ListedMeasurementCache())
         {
             if (kv.Key.Gender != gender || kv.Value?.Measurements == null) continue;
             profile.ScanResults.TryGetValue(kv.Key, out var classifier);

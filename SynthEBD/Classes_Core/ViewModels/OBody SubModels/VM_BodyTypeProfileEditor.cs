@@ -121,7 +121,7 @@ public class VM_BodyTypeProfileEditor : VM
             compareFactory,
             () => new BodySlideCompareSeed(
                 PreviewGender, PreviewWeight, PreviewNpcOverride,
-                SelectedPreset?.AssociatedModel),
+                SelectedPreset?.AssociatedModel, ExcludeHiddenAndDisabled: true),
             logger);
 
         // ApplyBodySlide may defer to _pendingBodySlide when the scene isn't yet rebuilt
@@ -1058,7 +1058,7 @@ public class VM_BodyTypeProfileEditor : VM
         {
             foreach (var ph in source.OrderBy(p => p?.Label ?? "", StringComparer.OrdinalIgnoreCase))
             {
-                if (ph == null) continue;
+                if (ph == null || ph.IsHiddenAndDisabled) continue;
                 AvailablePresets.Add(ph);
             }
         }
@@ -1291,13 +1291,13 @@ public class VM_BodyTypeProfileEditor : VM
             var targets = new List<(VM_BodySlidePlaceHolder ph, Gender gender)>();
             foreach (var ph in menu.BodySlidesMale)
             {
-                if (ph?.AssociatedModel == null) continue;
+                if (ph?.AssociatedModel == null || ph.IsHiddenAndDisabled) continue;
                 if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
                 targets.Add((ph, Gender.Male));
             }
             foreach (var ph in menu.BodySlidesFemale)
             {
-                if (ph?.AssociatedModel == null) continue;
+                if (ph?.AssociatedModel == null || ph.IsHiddenAndDisabled) continue;
                 if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
                 targets.Add((ph, Gender.Female));
             }
@@ -2437,7 +2437,9 @@ public class VM_BodyTypeProfileEditor : VM
         // short-circuits below anyway.
         bool weightFilterActive = WeightFilterOptions.Count > 0;
 
+        var excluded = GetExcludedPresetKeys();
         var ordered = profile.ScanResults
+            .Where(kv => !excluded.Contains((kv.Key.PresetLabel, kv.Key.Gender)))
             .OrderBy(kv => kv.Key.Gender)
             .ThenBy(kv => kv.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
             .ThenBy(kv => kv.Key.Weight);
@@ -2926,8 +2928,8 @@ public class VM_BodyTypeProfileEditor : VM
         profile.UpdateSelectedMeasurements(picked);
     }
 
-    /// <summary>Welford-style single-pass std-dev across the profile's full
-    /// <see cref="VM_BodyTypeProfile.MeasurementCache"/> for every measurement name that
+    /// <summary>Welford-style single-pass std-dev across the profile's
+    /// <see cref="VM_BodyTypeProfile.ListedMeasurementCache"/> (hidden-and-disabled presets excluded) for every measurement name that
     /// appears in any continuous (≤, &lt;, ≥, &gt;) condition inside <paramref name="rules"/>
     /// — or inside any rule reachable from them through DescriptorRef conditions, since the
     /// scorer tunnels into referenced rules and their measurements need sigmas from the same
@@ -2967,7 +2969,7 @@ public class VM_BodyTypeProfileEditor : VM
         {
             int n = 0;
             double mean = 0, m2 = 0;
-            foreach (var entry in profile.MeasurementCache.Values)
+            foreach (var entry in profile.ListedMeasurementCache().Select(kv => kv.Value))
             {
                 if (entry == null) continue;
                 if (!entry.Measurements.TryGetValue(name, out var v) || !v.HasValue) continue;
@@ -4277,6 +4279,12 @@ public class VM_BodyTypeProfileEditor : VM
     /// <summary>Internal accessor so the new annotation table can iterate the same preset list
     /// as Match Presets without re-implementing the lazy <c>_oBodyVM</c> resolution.</summary>
     internal VM_BodySlidesMenu GetBodySlidesMenu() => _oBodyVM?.Invoke()?.BodySlidesUI;
+
+    /// <summary>(Label, gender) of presets that are hidden AND disabled in the BodySlides menu. These are
+    /// kept out of every preset list this editor shows. The measurement cache and ScanResults still hold
+    /// their slices; only the views filter them, so restoring a preset needs no rescan.</summary>
+    internal HashSet<(string Label, Gender Gender)> GetExcludedPresetKeys()
+        => GetBodySlidesMenu()?.GetHiddenAndDisabledPresetKeys() ?? new HashSet<(string, Gender)>();
 
     /// <summary>Assembles everything the classifier's external-descriptor seeding needs for one
     /// derive operation (see <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/>).
@@ -9908,6 +9916,21 @@ public class VM_BodyTypeProfile : VM
     /// invalidate it via <see cref="MarkMeasurementCacheStale"/>.</summary>
     public Dictionary<(string PresetLabel, Gender Gender, int Weight), MeasurementCacheEntry> MeasurementCache { get; } = new();
 
+    /// <summary>(Label, gender) of presets hidden AND disabled in the BodySlides menu; empty without an editor parent.</summary>
+    internal HashSet<(string Label, Gender Gender)> GetExcludedPresetKeys()
+        => _parent?.GetExcludedPresetKeys() ?? new HashSet<(string, Gender)>();
+
+    /// <summary><see cref="MeasurementCache"/> minus the slices of hidden-and-disabled presets: the view
+    /// every preset-listing consumer (Rules-tab matches, Show Spread, histogram, annotation table) reads.
+    /// The cache itself keeps those slices so un-hiding a preset needs no rescan.</summary>
+    internal IEnumerable<KeyValuePair<(string PresetLabel, Gender Gender, int Weight), MeasurementCacheEntry>> ListedMeasurementCache()
+    {
+        var excluded = GetExcludedPresetKeys();
+        return excluded.Count == 0
+            ? MeasurementCache
+            : MeasurementCache.Where(kv => !excluded.Contains((kv.Key.PresetLabel, kv.Key.Gender)));
+    }
+
     /// <summary>True when the measurements cache may not reflect the current key vertices /
     /// measurement definitions. Set by <see cref="MarkMeasurementCacheStale"/>; cleared
     /// after a scan repopulates the cache. Implies <see cref="ScanResultsStale"/> too —
@@ -10637,7 +10660,9 @@ public class VM_BodyTypeProfile : VM
         // PopulateMatchingPresets, which applies the user's chosen sort before display.
         var rows = new List<VM_RuleNodeMatchRow>();
         int matches = 0;
+        var excluded = GetExcludedPresetKeys();
         foreach (var kv in ScanResults
+                     .Where(p => !excluded.Contains((p.Key.PresetLabel, p.Key.Gender)))
                      .OrderBy(p => p.Key.Gender)
                      .ThenBy(p => p.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(p => p.Key.Weight))
@@ -10794,7 +10819,7 @@ public class VM_BodyTypeProfile : VM
         var set = new HashSet<(string, Gender, int)>();
         if (ruleModel == null) return set;
         var seedContext = _parent?.BuildExternalDescriptorSeedContext();
-        foreach (var kv in MeasurementCache)
+        foreach (var kv in ListedMeasurementCache())
         {
             var entry = kv.Value;
             if (entry?.Measurements == null) continue;

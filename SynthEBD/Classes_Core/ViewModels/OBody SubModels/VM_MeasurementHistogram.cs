@@ -144,7 +144,7 @@ public class VM_MeasurementHistogram : VM
         // referencing it later would risk reading mid-rebuild. Tuple stays small (8B
         // gender enum + 4B float).
         _samples = new List<(Gender Gender, float Value)>();
-        foreach (var kv in profile.MeasurementCache)
+        foreach (var kv in profile.ListedMeasurementCache())
         {
             var entry = kv.Value;
             if (entry == null) continue;

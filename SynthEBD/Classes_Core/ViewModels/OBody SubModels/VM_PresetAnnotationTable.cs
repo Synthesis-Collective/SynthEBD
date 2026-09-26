@@ -154,13 +154,13 @@ public class VM_PresetAnnotationTable : VM
             var targets = new List<(VM_BodySlidePlaceHolder ph, Gender gender)>();
             foreach (var ph in menu.BodySlidesMale)
             {
-                if (ph?.AssociatedModel == null) continue;
+                if (ph?.AssociatedModel == null || ph.IsHiddenAndDisabled) continue;
                 if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
                 targets.Add((ph, Gender.Male));
             }
             foreach (var ph in menu.BodySlidesFemale)
             {
-                if (ph?.AssociatedModel == null) continue;
+                if (ph?.AssociatedModel == null || ph.IsHiddenAndDisabled) continue;
                 if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
                 targets.Add((ph, Gender.Female));
             }
@@ -425,7 +425,7 @@ public class VM_PresetAnnotationTable : VM
 
         // Stable order: gender, then preset label, then weight — matches the live scan's
         // output ordering so re-scanning a populated table doesn't reorder rows.
-        var ordered = profile.MeasurementCache
+        var ordered = profile.ListedMeasurementCache()
             .Where(kv => allowedWeights.Contains(kv.Key.Weight))
             .OrderBy(kv => kv.Key.Gender)
             .ThenBy(kv => kv.Key.PresetLabel, StringComparer.OrdinalIgnoreCase)

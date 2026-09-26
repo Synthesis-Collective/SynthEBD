@@ -108,9 +108,13 @@ public class VM_BodySlideCompare : VM
     /// user was already looking at. Pane B is primed to the same NPC/weight but is left
     /// without a preset, so the first thing the user does is pick B's preset — the comparison
     /// the window exists for. Null/absent values are simply skipped.
+    /// <para><paramref name="excludeHiddenAndDisabled"/> drops hidden-and-disabled presets from both
+    /// panes' pickers, for launches from the Label by Measurements / Label by Sliders menus.</para>
     /// </summary>
-    public void SeedFrom(Gender gender, int weight, FormKey previewNpc, BodySlideSetting? preset)
+    public void SeedFrom(Gender gender, int weight, FormKey previewNpc, BodySlideSetting? preset, bool excludeHiddenAndDisabled = false)
     {
+        PaneA.SetExcludeHiddenAndDisabled(excludeHiddenAndDisabled);
+        PaneB.SetExcludeHiddenAndDisabled(excludeHiddenAndDisabled);
         PaneA.Seed(gender, weight, previewNpc, preset);
         PaneB.Seed(gender, weight, previewNpc, preset: null);
     }
@@ -164,9 +168,11 @@ public class VM_BodySlideCompare : VM
 /// The opening state a menu hands to the Compare window: what that menu is previewing right
 /// now. <see cref="Preset"/> may be null (nothing selected yet) and <see cref="PreviewNpc"/>
 /// may be <see cref="FormKey.Null"/> (the menu is relying on the per-weight default table).
+/// <see cref="ExcludeHiddenAndDisabled"/> hides presets that are both hidden and disabled from the
+/// window's pickers (set by the Label by Measurements / Label by Sliders hosts).
 /// </summary>
 public readonly record struct BodySlideCompareSeed(
-    Gender Gender, int Weight, FormKey PreviewNpc, BodySlideSetting? Preset);
+    Gender Gender, int Weight, FormKey PreviewNpc, BodySlideSetting? Preset, bool ExcludeHiddenAndDisabled = false);
 
 /// <summary>
 /// Builds the "Compare" command shared by the three OBody-menu CharacterViewer hosts.
@@ -198,7 +204,7 @@ public static class BodySlideCompareLauncher
                 {
                     var vm = compareFactory();
                     var seed = seedProvider();
-                    vm.SeedFrom(seed.Gender, seed.Weight, seed.PreviewNpc, seed.Preset);
+                    vm.SeedFrom(seed.Gender, seed.Weight, seed.PreviewNpc, seed.Preset, seed.ExcludeHiddenAndDisabled);
 
                     var window = new Window_BodySlideCompare { DataContext = vm };
                     // Owner keeps Compare above the main window and closes it with the app,
@@ -237,6 +243,9 @@ public class VM_BodySlideComparePane : VM
 
     /// <summary>All presets for the current gender, before <see cref="PresetFilterText"/>.</summary>
     private readonly List<VM_BodySlidePlaceHolder> _allPresets = new();
+
+    /// <summary>When set, <see cref="RebuildPresetList"/> skips hidden-and-disabled presets.</summary>
+    private bool _excludeHiddenAndDisabled;
 
     /// <summary>Guards overlapping <see cref="RefreshPreviewAsync"/> calls: only the newest
     /// generation applies its BodySlide, so rapid input changes can't land a stale preset
@@ -465,6 +474,14 @@ public class VM_BodySlideComparePane : VM
         }
     }
 
+    /// <summary>Sets whether hidden-and-disabled presets are left out of this pane's picker; rebuilds the list on change.</summary>
+    public void SetExcludeHiddenAndDisabled(bool exclude)
+    {
+        if (_excludeHiddenAndDisabled == exclude) return;
+        _excludeHiddenAndDisabled = exclude;
+        RebuildPresetList();
+    }
+
     /// <summary>Rebuilds the gendered preset list and re-applies the text filter.</summary>
     private void RebuildPresetList()
     {
@@ -479,6 +496,7 @@ public class VM_BodySlideComparePane : VM
             foreach (var placeHolder in source.OrderBy(p => p?.Label ?? "", StringComparer.OrdinalIgnoreCase))
             {
                 if (placeHolder?.AssociatedModel == null) continue;
+                if (_excludeHiddenAndDisabled && placeHolder.IsHiddenAndDisabled) continue;
                 _allPresets.Add(placeHolder);
             }
         }

@@ -72,6 +72,12 @@ namespace SynthEBD
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
 
+        /// <summary>True when the preset is both hidden and excluded from random distribution (the state the
+        /// list's HD button and the import-time outfit/refit rule produce). Such presets are left out of the
+        /// Label by Measurements / Label by Sliders menus. Reads the editor VM's live checkbox when one is attached,
+        /// since the model's AllowRandom is only refreshed on deselect.</summary>
+        public bool IsHiddenAndDisabled => IsHidden && !(AssociatedViewModel?.bAllowRandom ?? AssociatedModel.AllowRandom);
+
         /// <summary>Flips the hidden flag, writing it through to the model (unselected placeholders persist AssociatedModel as-is) and to the editor VM's Hide button text when one is attached. Without an attached VM the border color is recomputed here, since the VM-driven color mirror isn't active.</summary>
         public void ToggleHidden()
         {

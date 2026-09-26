@@ -80,7 +80,7 @@ public class VM_SliderAnnotatorPreviewPanel : VM
             compareFactory,
             () => new BodySlideCompareSeed(
                 PreviewGender, PreviewWeight, PreviewNpcOverride,
-                SelectedPresetRow?.PlaceHolder.AssociatedModel),
+                SelectedPresetRow?.PlaceHolder.AssociatedModel, ExcludeHiddenAndDisabled: true),
             logger);
         // Lock the model scale like the Body Type Profile editor does: this rail exists to
         // compare body shapes across presets/weights, so the preview NPC's record Height
@@ -294,7 +294,7 @@ public class VM_SliderAnnotatorPreviewPanel : VM
             {
                 foreach (var placeHolder in source.OrderBy(p => p?.Label ?? "", StringComparer.OrdinalIgnoreCase))
                 {
-                    if (placeHolder?.AssociatedModel == null) continue;
+                    if (placeHolder?.AssociatedModel == null || placeHolder.IsHiddenAndDisabled) continue;
                     if (!string.Equals(placeHolder.AssociatedModel.SliderGroup, _currentBodyType, StringComparison.OrdinalIgnoreCase)) continue;
                     _presetRows.Add(new VM_AnnotatorPresetRow(placeHolder));
                 }
