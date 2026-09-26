@@ -7563,16 +7563,7 @@ public class VM_BodyTypeProfile : VM
         foreach (var m in Measurements)
         {
             if (m == null || string.IsNullOrEmpty(m.Name) || regionNamesByMeasurement.ContainsKey(m.Name)) continue;
-            var names = new List<string>();
-            if (m.Kind == MeasurementKind.RegionVolume && !string.IsNullOrEmpty(m.RegionRefName))
-                names.Add(m.RegionRefName);
-            foreach (var vref in new[] { m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD })
-            {
-                if (!string.IsNullOrEmpty(vref) && keyVertsByName.TryGetValue(vref, out var kv)
-                    && kv.Strategy == KeyVertexStrategy.Region && !string.IsNullOrEmpty(kv.RegionRefName))
-                    names.Add(kv.RegionRefName);
-            }
-            regionNamesByMeasurement[m.Name] = names.Distinct(StringComparer.Ordinal).ToList();
+            regionNamesByMeasurement[m.Name] = CollectMeasurementRegionNames(m, keyVertsByName);
         }
 
         Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
@@ -8024,6 +8015,8 @@ public class VM_BodyTypeProfile : VM
         var viewer = ActiveViewer;
         if (viewer == null) return;
         if (!ShowBulgeOverlay) return;
+        // The bulge debug overlay owns the measurement overlay while on: no region tint under it.
+        viewer.SetMeasurementRegionTint(null);
 
         string? shapeName;
         float minX, minY, minZ, maxX, maxY, maxZ;
@@ -8139,6 +8132,7 @@ public class VM_BodyTypeProfile : VM
         if (sels.Count == 0)
         {
             viewer.SetMeasurementLines(null);
+            viewer.SetMeasurementRegionTint(null);
             return;
         }
 
@@ -8262,6 +8256,10 @@ public class VM_BodyTypeProfile : VM
                 name, Resolve, PairSlot, segments);
         }
 
+        // Tint every region the selected measurements use. Pushed before the empty-segments early
+        // return: a RegionVolume selection has no lines, and the tint is then all there is to see.
+        viewer.SetMeasurementRegionTint(BuildMeasurementRegionTint(viewer, sels, keyVertsByName));
+
         if (segments.Count == 0)
         {
             viewer.SetMeasurementLines(null);
@@ -8269,6 +8267,103 @@ public class VM_BodyTypeProfile : VM
         }
 
         viewer.SetMeasurementLines(segments);
+    }
+
+    /// <summary>The Regions a measurement depends on, deduplicated: a RegionVolume measurement's own
+    /// region, plus the region behind any Region-strategy key vertex among its vertex refs. These are
+    /// the regions the measurement overlays tint (live viewer and Show Spread).</summary>
+    internal static List<string> CollectMeasurementRegionNames(VM_MeasurementDefinition m,
+        IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
+    {
+        var names = new List<string>();
+        if (m.Kind == MeasurementKind.RegionVolume && !string.IsNullOrEmpty(m.RegionRefName))
+            names.Add(m.RegionRefName);
+        foreach (var vref in new[] { m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD })
+        {
+            if (!string.IsNullOrEmpty(vref) && keyVertsByName.TryGetValue(vref, out var kv)
+                && kv.Strategy == KeyVertexStrategy.Region && !string.IsNullOrEmpty(kv.RegionRefName))
+                names.Add(kv.RegionRefName);
+        }
+        return names.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>Live-viewer counterpart of Show Spread's region tint: the surface patches of every
+    /// region <paramref name="sels"/> use, on the viewer's current deformed mesh, in the
+    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/> layout. Regions are resolved through
+    /// the same sliders-0 cache as the region editor (<see cref="GetOrResolveRegion"/>), so they follow
+    /// the previewed preset. Empty when no selected measurement uses a region.</summary>
+    private List<float> BuildMeasurementRegionTint(VM_CharacterViewer viewer,
+        IReadOnlyList<VM_MeasurementDefinition> sels, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
+    {
+        var tint = new List<float>();
+        var regionNames = sels
+            .SelectMany(m => CollectMeasurementRegionNames(m, keyVertsByName))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (regionNames.Count == 0) return tint;
+
+        var resolved = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
+        foreach (var r in Regions)
+        {
+            var rm = r?.DumpToModel();
+            if (rm == null || string.IsNullOrEmpty(rm.Name) || resolved.ContainsKey(rm.Name)
+                || !regionNames.Contains(rm.Name, StringComparer.Ordinal)) continue;
+            var rr = GetOrResolveRegion(viewer, rm);
+            if (rr != null) resolved[rm.Name] = rr;
+        }
+        foreach (var name in regionNames)
+            AppendMeasurementRegionTint(viewer, resolved, name, tint);
+        return tint;
+    }
+
+    /// <summary>Appends <paramref name="regionName"/>'s surface on <paramref name="vm"/>'s current
+    /// deformed mesh to <paramref name="tint"/> as interleaved position + flat-normal triangles (the
+    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/> layout). A valid region contributes its
+    /// baked patch (box-clipped, so it matches the measured surface exactly); an invalid one -- a Region
+    /// key vertex only needs the member set, not a closed volume -- falls back to the mesh triangles
+    /// whose three vertices are all members. The caps are left out: they lie inside the body, and the
+    /// tint is depth-tested. Shared by the live viewer and Show Spread's offscreen render thread (it only
+    /// reads <paramref name="vm"/> and the immutable resolved regions). Returns false when the region
+    /// couldn't be drawn.</summary>
+    internal static bool AppendMeasurementRegionTint(VM_CharacterViewer vm,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? regions, string regionName, List<float> tint)
+    {
+        if (regions == null || !regions.TryGetValue(regionName, out var rr) || rr == null) return false;
+        var deformed = vm.GetShapePositions(rr.ShapeName);
+        if (deformed == null || deformed.Length == 0) return false;
+        int before = tint.Count;
+
+        void EmitTri(OpenTK.Mathematics.Vector3 a, OpenTK.Mathematics.Vector3 b, OpenTK.Mathematics.Vector3 c)
+        {
+            var n = OpenTK.Mathematics.Vector3.Cross(b - a, c - a);
+            n = n.LengthSquared > 1e-24f ? n.Normalized() : OpenTK.Mathematics.Vector3.UnitY;
+            foreach (var p in new[] { a, b, c })
+            {
+                tint.Add(p.X); tint.Add(p.Y); tint.Add(p.Z);
+                tint.Add(n.X); tint.Add(n.Y); tint.Add(n.Z);
+            }
+        }
+
+        if (rr.IsValid && rr.PatchTriangles.Length >= 3 && rr.Vertices.Length > 0)
+        {
+            var pos = new OpenTK.Mathematics.Vector3[rr.Vertices.Length];
+            for (int i = 0; i < pos.Length; i++) pos[i] = rr.Vertices[i].Evaluate(deformed);
+            var tris = rr.PatchTriangles;
+            for (int i = 0; i + 2 < tris.Length; i += 3)
+                EmitTri(pos[tris[i]], pos[tris[i + 1]], pos[tris[i + 2]]);
+        }
+        else if (rr.MemberVertexIndices.Length > 0 && vm.GetShapeIndices(rr.ShapeName) is { Length: >= 3 } idx)
+        {
+            var members = new HashSet<int>(rr.MemberVertexIndices);
+            for (int t = 0; t + 2 < idx.Length; t += 3)
+            {
+                int a = idx[t], b = idx[t + 1], c = idx[t + 2];
+                if (a >= deformed.Length || b >= deformed.Length || c >= deformed.Length) continue;
+                if (members.Contains(a) && members.Contains(b) && members.Contains(c))
+                    EmitTri(deformed[a], deformed[b], deformed[c]);
+            }
+        }
+        return tint.Count > before;
     }
 
     /// <summary>Endpoints and axes of one measurement, as <see cref="AppendMeasurementLineSegments"/>

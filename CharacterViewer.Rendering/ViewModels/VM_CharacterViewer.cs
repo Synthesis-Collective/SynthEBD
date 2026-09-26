@@ -4011,6 +4011,19 @@ public partial class VM_CharacterViewer : ViewerVm
             Renderer.RegionWireLines.Add(new GlRenderer.MeasurementLineSegment { A = s.A, B = s.B, Color = s.Color });
     }
 
+    /// <summary>Replaces the measurement-region tint (<see cref="GlRenderer.MeasurementRegionTriangles"/>):
+    /// the surface patches of the regions the displayed measurements use, as interleaved triangle
+    /// vertices (6 floats each: position.xyz + normal.xyz) in the same pre-ModelScale space as the
+    /// markers. Drawn translucent and depth-tested, so it shades the visible skin. Independent of the
+    /// region editor's channels (<see cref="SetRegionSolid"/> / <see cref="ClearRegionOverlay"/> never
+    /// touch it). Pass null/empty to clear.</summary>
+    public void SetMeasurementRegionTint(IEnumerable<float>? interleavedTriangles)
+    {
+        Renderer.MeasurementRegionTriangles.Clear();
+        if (interleavedTriangles != null)
+            Renderer.MeasurementRegionTriangles.AddRange(interleavedTriangles);
+    }
+
     /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface + wireframe).
     /// Called when the editor deselects its region row or switches profiles.</summary>
     public void ClearRegionOverlay()

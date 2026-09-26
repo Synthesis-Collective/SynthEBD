@@ -480,16 +480,20 @@ public class GlRenderer : IDisposable
     /// markers/edges drawn on top of it.</summary>
     public Vector3 RegionSolidColor { get; set; } = new Vector3(1.0f, 0.10f, 0.85f);
 
-    /// <summary>Opacity of the region surface. 1 (the default, used by the editor's Solid view) draws
-    /// it opaque; below 1 it is alpha-blended over the body as a translucent tint. Destination alpha is
-    /// left untouched so an offscreen readback stays opaque.</summary>
-    public float RegionSolidAlpha { get; set; } = 1f;
+    /// <summary>Measurement-region tint geometry: the surface patches of the regions the displayed
+    /// measurements use (a RegionVolume's region, or the region behind a Region-strategy key vertex),
+    /// in the same 6-float interleaved layout and pre-ModelScale space as <see cref="RegionSolidTriangles"/>.
+    /// Unlike that channel it is drawn <b>translucent and depth-tested</b> (<see cref="DrawMeasurementRegions"/>),
+    /// so it reads as a tint on the visible skin rather than a solid seen through the body. Kept separate
+    /// from the region editor's channel so the two never clear each other. Pushed by
+    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/>.</summary>
+    public List<float> MeasurementRegionTriangles { get; } = new();
 
-    /// <summary>When true, the region surface is depth-tested against the body (with a small polygon
-    /// offset, since the patch lies exactly on the body surface) instead of drawing through it: the
-    /// patch tints the skin where it is visible, the far side and the caps buried inside the body stay
-    /// hidden. Off (the default) keeps the editor's always-on-top Solid view. Show Spread turns it on.</summary>
-    public bool RegionSolidDepthTested { get; set; }
+    /// <summary>RGB color of the measurement-region tint. Cyan, matching the region cap-loop color.</summary>
+    public Vector3 MeasurementRegionColor { get; set; } = new Vector3(0.20f, 0.90f, 1.0f);
+
+    /// <summary>Opacity of the measurement-region tint (0..1).</summary>
+    public float MeasurementRegionAlpha { get; set; } = 0.45f;
 
     /// <summary>Slider-morph heatmap geometry (Label by Sliders annotator): the surface patch of the
     /// vertices a designated BodySlide slider moves, as interleaved triangle vertices with 9 floats each
@@ -1268,6 +1272,7 @@ public class GlRenderer : IDisposable
             && PreviewPickMarkers.Count == 0
             && RegionCapMarkers.Count == 0
             && RegionSolidTriangles.Count == 0
+            && MeasurementRegionTriangles.Count == 0
             && SliderHeatmapTriangles.Count == 0) return;
 
         _debugShader.Use();
@@ -1287,7 +1292,11 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.CullFace);
         GL.CullFace(CullFaceMode.Back);
 
-        // Solid region surface first, so the cyan cap markers/edges layer on top of it. Lit
+        // Measurement-region tint first: depth-tested, so it only shades visible skin, and everything
+        // that follows (the editor's always-on-top region solid, markers) layers over it.
+        DrawMeasurementRegions();
+
+        // Solid region surface next, so the cyan cap markers/edges layer on top of it. Lit
         // (u_shaded=1) + depth-off makes it read as a solid object visible through the body — the
         // same always-on-top trick the markers use, no transparency needed.
         DrawRegionSolid();
@@ -1318,55 +1327,62 @@ public class GlRenderer : IDisposable
     private float[]? _regionSolidScratch;
     private void DrawRegionSolid()
     {
-        int floats = RegionSolidTriangles.Count;
-        if (floats < 18) return; // need at least one triangle (3 verts * 6 floats)
+        int floats = UploadScaledPosNormal(RegionSolidTriangles, ref _regionSolidScratch);
+        if (floats == 0) return;
+        _debugShader!.SetVector3("u_color", RegionSolidColor.X, RegionSolidColor.Y, RegionSolidColor.Z);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+    }
 
-        var src = RegionSolidTriangles;
-        var buf = _regionSolidScratch;
-        if (buf == null || buf.Length < floats) buf = _regionSolidScratch = new float[floats];
+    /// <summary>Uploads + draws <see cref="MeasurementRegionTriangles"/> as a lit, translucent,
+    /// depth-tested tint. Same caller contract as <see cref="DrawRegionSolid"/> (depth off, back-face
+    /// cull, u_shaded=1, debug VAO bound); this draw alone re-enables the depth test with a small
+    /// polygon offset (the patch lies exactly on the body surface and would z-fight) and blends with
+    /// the destination alpha kept at 1, so an offscreen BGRA readback stays opaque. It relies on the
+    /// scene FBO's depth buffer still holding the body, as the wireframe overlay does. Restores
+    /// depth-off / opaque / depth-writes-on before returning.</summary>
+    private float[]? _measurementRegionScratch;
+    private void DrawMeasurementRegions()
+    {
+        int floats = UploadScaledPosNormal(MeasurementRegionTriangles, ref _measurementRegionScratch);
+        if (floats == 0) return;
+
+        _debugShader!.SetVector3("u_color", MeasurementRegionColor.X, MeasurementRegionColor.Y, MeasurementRegionColor.Z);
+        _debugShader.SetFloat("u_alpha", MeasurementRegionAlpha);
+        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFuncSeparate(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
+            BlendingFactorSrc.Zero, BlendingFactorDest.One);
+        GL.DepthMask(false);
+        GL.Enable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.PolygonOffsetFill);
+        GL.PolygonOffset(-1.0f, -2.0f);
+
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+
+        GL.Disable(EnableCap.PolygonOffsetFill);
+        GL.Disable(EnableCap.DepthTest);
+        GL.DepthMask(true);
+        if (!blendWasEnabled) GL.Disable(EnableCap.Blend);
+        _debugShader.SetFloat("u_alpha", 1f);
+    }
+
+    /// <summary>Copies a 6-float (position + normal) triangle list into <paramref name="scratch"/> with
+    /// positions scaled by ModelScale, and uploads it to the bound debug VBO. Returns the float count,
+    /// or 0 (nothing uploaded) when the list holds less than one triangle.</summary>
+    private int UploadScaledPosNormal(List<float> src, ref float[]? scratch)
+    {
+        int floats = src.Count;
+        if (floats < 18) return 0; // need at least one triangle (3 verts * 6 floats)
+        var buf = scratch;
+        if (buf == null || buf.Length < floats) buf = scratch = new float[floats];
         float s = ModelScale;
         for (int i = 0; i < floats; i += 6)
         {
             buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
             buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
         }
-
-        _debugShader!.SetVector3("u_color", RegionSolidColor.X, RegionSolidColor.Y, RegionSolidColor.Z);
-
-        // Optional translucent / depth-tested variant (Show Spread's surface tint). Blending keeps the
-        // destination alpha (Zero, One) so the offscreen BGRA readback doesn't turn semi-transparent.
-        bool translucent = RegionSolidAlpha < 1f;
-        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
-        if (translucent)
-        {
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFuncSeparate(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
-                BlendingFactorSrc.Zero, BlendingFactorDest.One);
-            GL.DepthMask(false);
-            _debugShader.SetFloat("u_alpha", RegionSolidAlpha);
-        }
-        if (RegionSolidDepthTested)
-        {
-            GL.Enable(EnableCap.DepthTest);
-            GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffset(-1.0f, -2.0f);
-        }
-
         GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
-        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
-
-        // Back to the marker pass's state: depth off, opaque, depth writes on.
-        if (RegionSolidDepthTested)
-        {
-            GL.Disable(EnableCap.PolygonOffsetFill);
-            GL.Disable(EnableCap.DepthTest);
-        }
-        if (translucent)
-        {
-            GL.DepthMask(true);
-            if (!blendWasEnabled) GL.Disable(EnableCap.Blend);
-            _debugShader.SetFloat("u_alpha", 1f);
-        }
+        return floats;
     }
 
     /// <summary>Uploads + draws <see cref="SliderHeatmapTriangles"/> as an unlit, per-vertex-colored

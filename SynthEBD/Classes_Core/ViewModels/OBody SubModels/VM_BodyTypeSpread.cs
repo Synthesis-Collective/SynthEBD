@@ -582,7 +582,7 @@ public class VM_BodyTypeSpread : VM
     /// different body. Runs on the render thread, so it only reads the immutable snapshots taken at
     /// open time. RegionVolume measurements have no line geometry; they, and measurements whose key
     /// vertices come from a Region, instead tint that region's surface translucent cyan
-    /// (<see cref="AppendRegionTint"/>).
+    /// (<see cref="VM_BodyTypeProfile.AppendMeasurementRegionTint"/>).
     /// <para><paramref name="diag"/> receives a one-line summary (specs found, each vertex ref's
     /// resolution, segment count, region tints, loaded shapes -- or the exception) for the caller to
     /// log on the UI thread, so an overlay that renders nothing says why.</para></summary>
@@ -632,15 +632,10 @@ public class VM_BodyTypeSpread : VM
                 var tintResults = new List<string>();
                 foreach (var regionName in regionNames)
                 {
-                    tintResults.Add(regionName + (AppendRegionTint(vm, regions, regionName, tint) ? "=ok" : "=UNRESOLVED"));
+                    tintResults.Add(regionName
+                        + (VM_BodyTypeProfile.AppendMeasurementRegionTint(vm, regions, regionName, tint) ? "=ok" : "=UNRESOLVED"));
                 }
-                if (tint.Count > 0)
-                {
-                    vm.Renderer.RegionSolidColor = RegionTintColor;
-                    vm.Renderer.RegionSolidAlpha = RegionTintAlpha;
-                    vm.Renderer.RegionSolidDepthTested = true;
-                    vm.SetRegionSolid(tint);
-                }
+                vm.SetMeasurementRegionTint(tint);
 
                 diag.Value = $"{specs.Count}/{measurementNames.Count} measurement(s) have line specs; "
                     + $"refs [{string.Join(", ", refResults.Distinct())}]; {segments.Count} segment(s); "
@@ -654,59 +649,6 @@ public class VM_BodyTypeSpread : VM
                 throw;
             }
         };
-    }
-
-    /// <summary>Translucent cyan for the region tint: reads against skin in every theme and stays
-    /// distinct from the yellow / white measurement lines drawn over it.</summary>
-    private static readonly OpenTK.Mathematics.Vector3 RegionTintColor = new(0.20f, 0.90f, 1.0f);
-    private const float RegionTintAlpha = 0.45f;
-
-    /// <summary>Appends <paramref name="regionName"/>'s surface on this render's deformed mesh to
-    /// <paramref name="tint"/> as interleaved position + flat-normal triangles (the
-    /// <see cref="VM_CharacterViewer.SetRegionSolid"/> layout). A valid region contributes its baked
-    /// patch (box-clipped, so it matches the measured surface exactly); an invalid one -- a Region key
-    /// vertex only needs the member set, not a closed volume -- falls back to the mesh triangles whose
-    /// three vertices are all members. The caps are left out: they lie inside the body, and the tint
-    /// is depth-tested. Render thread only. Returns false when the region couldn't be drawn.</summary>
-    private static bool AppendRegionTint(VM_CharacterViewer vm,
-        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? regions, string regionName, List<float> tint)
-    {
-        if (regions == null || !regions.TryGetValue(regionName, out var rr) || rr == null) return false;
-        var deformed = vm.GetShapePositions(rr.ShapeName);
-        if (deformed == null || deformed.Length == 0) return false;
-        int before = tint.Count;
-
-        void EmitTri(OpenTK.Mathematics.Vector3 a, OpenTK.Mathematics.Vector3 b, OpenTK.Mathematics.Vector3 c)
-        {
-            var n = OpenTK.Mathematics.Vector3.Cross(b - a, c - a);
-            n = n.LengthSquared > 1e-24f ? n.Normalized() : OpenTK.Mathematics.Vector3.UnitY;
-            foreach (var p in new[] { a, b, c })
-            {
-                tint.Add(p.X); tint.Add(p.Y); tint.Add(p.Z);
-                tint.Add(n.X); tint.Add(n.Y); tint.Add(n.Z);
-            }
-        }
-
-        if (rr.IsValid && rr.PatchTriangles.Length >= 3 && rr.Vertices.Length > 0)
-        {
-            var pos = new OpenTK.Mathematics.Vector3[rr.Vertices.Length];
-            for (int i = 0; i < pos.Length; i++) pos[i] = rr.Vertices[i].Evaluate(deformed);
-            var tris = rr.PatchTriangles;
-            for (int i = 0; i + 2 < tris.Length; i += 3)
-                EmitTri(pos[tris[i]], pos[tris[i + 1]], pos[tris[i + 2]]);
-        }
-        else if (rr.MemberVertexIndices.Length > 0 && vm.GetShapeIndices(rr.ShapeName) is { Length: >= 3 } idx)
-        {
-            var members = new HashSet<int>(rr.MemberVertexIndices);
-            for (int t = 0; t + 2 < idx.Length; t += 3)
-            {
-                int a = idx[t], b = idx[t + 1], c = idx[t + 2];
-                if (a >= deformed.Length || b >= deformed.Length || c >= deformed.Length) continue;
-                if (members.Contains(a) && members.Contains(b) && members.Contains(c))
-                    EmitTri(deformed[a], deformed[b], deformed[c]);
-            }
-        }
-        return tint.Count > before;
     }
 
     /// <summary>Diagnostic: the offscreen context's line-relevant GL state (profile / flags, the
