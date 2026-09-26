@@ -85,7 +85,7 @@
                     <DataGridTemplateColumn Header="" Width="Auto" CanUserSort="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="HD" Margin="0" Padding="3,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                                <Button Content="HD" Margin="0" Padding="3,0" VerticalAlignment="Center" Foreground="Firebrick" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

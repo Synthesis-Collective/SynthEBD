@@ -1293,7 +1293,7 @@
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
-                                                        <Button Content="HD" Margin="6,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                                                        <Button Content="HD" Margin="6,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="Firebrick" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
                                                         <!-- Runner-up readout, empty (and therefore invisible) unless the
                                                              "Show Closest Assignment" toggle above is on. Same calm blue as
                                                              the Match Presets score badge - it's the same kind of number. -->
@@ -1589,7 +1589,7 @@
                                                         </ToolTip>
                                                     </StackPanel.ToolTip>
                                                     <TextBlock Text="{Binding Display}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                                    <Button Content="HD" Margin="6,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                                                    <Button Content="HD" Margin="6,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="Firebrick" Command="{Binding DataContext.HideAndDisablePresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
                                                     <!-- Score badge: empty string when no sort is active so the
                                                          TextBlock collapses; visible (and colored a calm blue
                                                          so it doesn't compete with the "stale results" red)

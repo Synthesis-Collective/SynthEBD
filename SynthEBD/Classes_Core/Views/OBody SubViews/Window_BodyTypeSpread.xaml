@@ -69,7 +69,7 @@
                         <!-- Orange + explanatory tooltip when the preset's manual annotation
                              contradicts the rules (only while annotations are included). -->
                         <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="HD" Margin="4,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" Command="{Binding HideAndDisableCommand}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                        <Button DockPanel.Dock="Right" Content="HD" Margin="4,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="Firebrick" Command="{Binding HideAndDisableCommand}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
                         <TextBlock Text="{Binding PresetLabel}" FontWeight="Bold" TextTrimming="CharacterEllipsis">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
