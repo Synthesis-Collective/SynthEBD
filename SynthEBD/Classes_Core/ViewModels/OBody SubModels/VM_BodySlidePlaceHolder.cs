@@ -72,6 +72,35 @@ namespace SynthEBD
         public VM_BodySlideSetting? AssociatedViewModel { get; set; }
         public ObservableCollection<VM_BodySlidePlaceHolder> ParentCollection { get; set; }
 
+        /// <summary>Flips the hidden flag, writing it through to the model (unselected placeholders persist AssociatedModel as-is) and to the editor VM's Hide button text when one is attached. Without an attached VM the border color is recomputed here, since the VM-driven color mirror isn't active.</summary>
+        public void ToggleHidden()
+        {
+            IsHidden = !IsHidden;
+            AssociatedModel.HideInMenu = IsHidden;
+            if (AssociatedViewModel != null)
+            {
+                AssociatedViewModel.HideButtonText = IsHidden ? "Unhide" : "Hide";
+            }
+            else
+            {
+                InitializeBorderColor();
+            }
+        }
+
+        /// <summary>One-way list action: hides the preset (if not already hidden) and disables random distribution (AllowRandom = false), matching the import-time treatment of outfit/refit presets. Writes through to both the model and the editor VM when one is attached.</summary>
+        public void HideAndDisable()
+        {
+            AssociatedModel.AllowRandom = false;
+            if (AssociatedViewModel != null)
+            {
+                AssociatedViewModel.bAllowRandom = false;
+            }
+            if (!IsHidden)
+            {
+                ToggleHidden();
+            }
+        }
+
         /// <summary>Marks the model as manually annotated if any manual descriptors exist, then (when auto-apply is enabled) runs the annotation-library and rule-based annotators in sequence.</summary>
         private void InitializeAnnotation()
         {

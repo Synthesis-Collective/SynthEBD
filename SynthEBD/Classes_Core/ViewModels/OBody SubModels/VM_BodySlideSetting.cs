@@ -124,19 +124,7 @@ public class VM_BodySlideSetting : VM
 
         ToggleHide = new RelayCommand(
             canExecute: _ => true,
-            execute: _ =>
-            {
-                if (AssociatedPlaceHolder.IsHidden)
-                {
-                    AssociatedPlaceHolder.IsHidden = false;
-                    HideButtonText = "Hide";
-                }
-                else
-                {
-                    AssociatedPlaceHolder.IsHidden = true;
-                    HideButtonText = "Unhide";
-                }
-            }
+            execute: _ => AssociatedPlaceHolder.ToggleHidden()
         );
 
         CloneCommand = new RelayCommand(

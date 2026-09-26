@@ -135,6 +135,11 @@ public static partial class UiDocs
             technical: "Toggles the placeholder's IsHidden flag, persisted as BodySlideSetting.HideInMenu. Hidden presets appear only when Show Hidden is checked, are skipped by the exchange Export, and survive the Delete All button; the patcher ignores the flag entirely. Outfit/refit-style presets are auto-hidden at import (paired with AllowRandom = false).",
             motivation: "Large BodySlide libraries drown the list in refits and utility presets; hiding keeps the working set readable without deleting entries or changing distribution.");
 
+        Add("BodySlides.HideAndDisableListButton",
+            layperson: "Hides this preset from the list AND stops it from being randomly given to NPCs (unchecks 'Distribute to non-forced NPCs'). It can still be assigned through Force If rules or specific NPC assignments. To undo, check Show Hidden, open the preset, and use its Unhide button and distribution checkbox.",
+            technical: "One-way action via VM_BodySlidePlaceHolder.HideAndDisable: sets BodySlideSetting.AllowRandom = false and, if not already hidden, HideInMenu = true (mirrored to the editor VM when the preset is selected). Same pairing the importer applies to outfit/refit presets.",
+            motivation: "Lets you sweep refits and utility presets out of both the list and the random pool in one click, without opening each one first.");
+
         Add("BodySlides.ClonePreset",
             layperson: "Makes a copy of this entry that controls the same BodySlide preset. Useful when one preset should carry different rules or labels in different situations - for example when its shape changes drastically with NPC weight.",
             technical: "Runs VM_BodySlideSetting.Clone: duplicates the model (rules, per-weight descriptors, notes), appends an index to the display Name, and inserts the copy after the original; both keep the same ReferencedBodySlide. The exchange import matches multi-entry presets by count, cloning on the receiving end when unambiguous.",

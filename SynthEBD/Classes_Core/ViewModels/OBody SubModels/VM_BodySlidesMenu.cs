@@ -31,6 +31,11 @@ public class VM_BodySlidesMenu : VM
             execute: x => CurrentlyDisplayedBodySlides.Remove((VM_BodySlidePlaceHolder)x)
         );
 
+        HideAndDisablePreset = new RelayCommand(
+            canExecute: _ => true,
+            execute: x => ((VM_BodySlidePlaceHolder)x).HideAndDisable()
+        );
+
         RemovePresetsMissing = new RelayCommand(
             canExecute: _ => true,
             execute: x =>
@@ -247,6 +252,7 @@ public class VM_BodySlidesMenu : VM
 
     public RelayCommand AddPreset { get; }
     public RelayCommand RemovePreset { get; }
+    public RelayCommand HideAndDisablePreset { get; }
 
     public RelayCommand RemovePresetsUnannotated { get; }
     public RelayCommand RemovePresetsMissing { get; }
