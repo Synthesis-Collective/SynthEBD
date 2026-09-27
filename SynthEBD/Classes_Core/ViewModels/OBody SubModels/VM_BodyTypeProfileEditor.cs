@@ -6027,12 +6027,22 @@ public class VM_BodyTypeProfile : VM
     /// region box is being edited.</summary>
     private OpenTK.Mathematics.Vector3[]? _pendingRegionDeformedPositions;
 
-    /// <summary>The pending box exactly as a region edit-session opened it (the framed display box).
-    /// On Confirm, if the current pending box still equals this, the user never touched the box, so we
-    /// keep the region's STORED zeroed box verbatim instead of re-converting it — re-converting after a
-    /// preset/weight change captures the wrong vertices and corrupts the box ("Bad box"). Null when no
-    /// region box session is active.</summary>
-    private RegionVolumeEvaluator.RegionAabb? _pendingRegionSessionBox;
+    /// <summary>The zeroed-space box the live pending box currently stands for — the region edit session's
+    /// source of truth. Seeded from the region's STORED box when the session opens and replaced only when
+    /// the user actually moves the box (see <see cref="_pendingRegionSyncedBox"/>). The "Show zeroed body"
+    /// flip, the live overlay preview and Confirm all read it rather than re-converting the displayed box:
+    /// ConvertBoxByVertexSet is not an exact inverse (each conversion re-captures a slightly larger vertex
+    /// set), so round-tripping the displayed box grew it on every flip, and re-converting after a
+    /// preset/weight change captures the wrong vertices ("Bad box"). Null when no region box session is
+    /// active.</summary>
+    private RegionVolumeEvaluator.RegionAabb? _pendingRegionZeroedBox;
+
+    /// <summary>The pending-box coords exactly as the region edit session last wrote them (the framed
+    /// display box, or the box a zeroed-body flip re-expressed). While the live pending box still equals
+    /// this, the user hasn't touched it and <see cref="_pendingRegionZeroedBox"/> is authoritative; once
+    /// they differ, the user moved the box and it is converted afresh. Null when no region box session is
+    /// active.</summary>
+    private RegionVolumeEvaluator.RegionAabb? _pendingRegionSyncedBox;
 
     /// <summary>True while a region box is open and the body has been flipped to its zeroed state, so
     /// the pending-box coords are currently in ZEROED space (vs deformed). Tracks the viewer's
@@ -6101,7 +6111,8 @@ public class VM_BodyTypeProfile : VM
                     _pendingBoxEditTarget = null;
                     _pendingRegionEditTarget = null;
                     _pendingRegionDeformedPositions = null;
-                    _pendingRegionSessionBox = null;
+                    _pendingRegionZeroedBox = null;
+                    _pendingRegionSyncedBox = null;
                     _pendingRegionBoxIsZeroed = false;
                 }
             });
@@ -6253,10 +6264,10 @@ public class VM_BodyTypeProfile : VM
 
     /// <summary>While a region box is being edited, resolve the LIVE pending-box coords into a
     /// transient region and push its cyan cap-loop overlay (and solid, in Solid view mode), so
-    /// adjusting the box spinners updates the region preview in place — before Confirm. The pending
-    /// box is in deformed space unless the user flipped to zeroed; convert to zeroed accordingly so
-    /// the resolve matches what Confirm will store. Deformed positions for evaluation come from the
-    /// currently-shown mesh.</summary>
+    /// adjusting the box spinners updates the region preview in place — before Confirm. The pending box
+    /// is mapped to zeroed space by <see cref="ResolvePendingRegionZeroedBox"/>, the same resolution
+    /// Confirm uses, so the preview shows exactly the region Confirm will store. Positions for
+    /// evaluation come from the currently-shown mesh.</summary>
     private void RefreshSelectedRegionFromPendingBox(VM_CharacterViewer viewer)
     {
         var target = _pendingRegionEditTarget;
@@ -6270,18 +6281,13 @@ public class VM_BodyTypeProfile : VM
         var shown = viewer.GetShapePositions(shapeName); // body currently displayed (deformed or zeroed)
         if (zeroed == null || zeroed.Length == 0) { viewer.ClearRegionOverlay(); return; }
 
-        // Current pending box, in the space of the shown body.
+        // Current pending box, in the space the session last put it in (tracked, not read off the viewer's
+        // flag, so a flip that is mid-flight still resolves the coords in the space they are actually in).
         var pendingBox = new RegionVolumeEvaluator.RegionAabb(
             new OpenTK.Mathematics.Vector3(viewer.PendingBoxMinX, viewer.PendingBoxMinY, viewer.PendingBoxMinZ),
             new OpenTK.Mathematics.Vector3(viewer.PendingBoxMaxX, viewer.PendingBoxMaxY, viewer.PendingBoxMaxZ));
-
-        // Convert to zeroed space if the box is currently shown against the deformed body.
-        var zeroedBox = pendingBox;
-        if (!viewer.PendingBoxShowZeroed && shown != null && shown.Length == zeroed.Length)
-        {
-            var conv = RegionVolumeEvaluator.ConvertBoxByVertexSet(shown, zeroed, pendingBox);
-            if (conv.HasValue) zeroedBox = conv.Value;
-        }
+        var zeroedBox = ResolvePendingRegionZeroedBox(viewer, shapeName, weight, pendingBox, _pendingRegionBoxIsZeroed)
+            ?? pendingBox;
 
         // Resolve a transient region from the live box (not cached — it changes every spinner tick).
         var model = target.DumpToModel();
@@ -6291,15 +6297,16 @@ public class VM_BodyTypeProfile : VM
             new[] { model },
             s => viewer.GetZeroedShapePositions(s, weight),
             s => viewer.GetShapeIndices(s));
-        if (!resolved.TryGetValue(model.Name, out var rr) || rr == null || !rr.IsValid)
-        {
-            viewer.ClearRegionOverlay();
-            return;
-        }
 
         // Evaluate the transient region against the CURRENTLY SHOWN body so the overlay sits on it.
         var evalPositions = shown ?? zeroed;
-        PushRegionOverlay(viewer, rr, evalPositions, MatchRegionEditsForOverlay(viewer, model));
+        var matched = MatchRegionEditsForOverlay(viewer, model);
+        if (!resolved.TryGetValue(model.Name, out var rr) || rr == null || !rr.IsValid)
+        {
+            ShowUnresolvedRegionOverlay(viewer, model.ShapeName, evalPositions, matched);
+            return;
+        }
+        PushRegionOverlay(viewer, rr, evalPositions, matched);
     }
 
     /// <summary>Expands an authoring-time <see cref="BoxCriterionSelection"/> into the one
@@ -6794,7 +6801,9 @@ public class VM_BodyTypeProfile : VM
         }
 
         _pendingRegionEditTarget = region;
-        _pendingRegionSessionBox = displayBox; // remember the framed box so Confirm can tell "untouched"
+        // The stored box is the session's source of truth until the user moves the framed display box.
+        _pendingRegionZeroedBox = zeroedBox;
+        _pendingRegionSyncedBox = displayBox;
         // Start a fresh edit session: snapshot the baseline (for Cancel-revert) and clear undo/redo.
         BeginRegionEditSession(region);
         // Criterion is irrelevant for regions; pass a default. BeginPendingBox resets ShowZeroed=false,
@@ -6832,14 +6841,46 @@ public class VM_BodyTypeProfile : VM
             new OpenTK.Mathematics.Vector3(viewer.PendingBoxMinX, viewer.PendingBoxMinY, viewer.PendingBoxMinZ),
             new OpenTK.Mathematics.Vector3(viewer.PendingBoxMaxX, viewer.PendingBoxMaxY, viewer.PendingBoxMaxZ));
 
-        // showZeroed: convert current (deformed) box -> zeroed (author against zeroed, read deformed).
-        // !showZeroed: convert current (zeroed) box -> deformed.
-        var conv = showZeroed
-            ? RegionVolumeEvaluator.ConvertBoxByVertexSet(deformed, zeroed, cur)
-            : RegionVolumeEvaluator.ConvertBoxByVertexSet(zeroed, deformed, cur);
-        if (conv.HasValue)
-            viewer.SetPendingBoxCoords(conv.Value.Min, conv.Value.Max);
+        // Re-express from the canonical zeroed box, never by converting the displayed box back and forth:
+        // the conversion is not an exact inverse, so a deformed→zeroed→deformed round trip re-captured a
+        // slightly larger vertex set and the box grew on every flip. Only a box the user actually moved is
+        // converted (once); an untouched box maps straight back to the canonical one.
+        var zeroedBox = ResolvePendingRegionZeroedBox(viewer, shapeName, weight, cur, _pendingRegionBoxIsZeroed);
+        if (!zeroedBox.HasValue) { _pendingRegionBoxIsZeroed = showZeroed; return; }
+
+        // showZeroed: show the zeroed box itself. !showZeroed: map it onto the deformed mesh (deterministic
+        // from the canonical box, so repeated flips always land on the same display box).
+        var display = showZeroed
+            ? zeroedBox.Value
+            : RegionVolumeEvaluator.ConvertBoxByVertexSet(zeroed, deformed, zeroedBox.Value) ?? cur;
+
+        // Commit the session state BEFORE moving the coords: SetPendingBoxCoords fires the live-preview
+        // subscription, which must see the new space + synced box to resolve to the canonical box.
+        _pendingRegionZeroedBox = zeroedBox.Value;
+        _pendingRegionSyncedBox = display;
         _pendingRegionBoxIsZeroed = showZeroed;
+        viewer.SetPendingBoxCoords(display.Min, display.Max);
+    }
+
+    /// <summary>The zeroed-space box that <paramref name="current"/> (pending-box coords, in zeroed space when
+    /// <paramref name="currentIsZeroed"/>, else deformed) stands for. While the box is untouched since the
+    /// region edit session last synced it, returns the session's canonical zeroed box verbatim; otherwise
+    /// converts the moved box once, against the framing-time deformed mesh so a mid-edit preset/weight
+    /// change doesn't shift it. Shared by the zeroed-body flip, the live overlay preview and Confirm so all
+    /// three agree on what the box means. Null when a conversion is needed but has no data (no sliders-0
+    /// snapshot, or the box captures no vertices).</summary>
+    private RegionVolumeEvaluator.RegionAabb? ResolvePendingRegionZeroedBox(VM_CharacterViewer viewer, string shapeName, int weight,
+        RegionVolumeEvaluator.RegionAabb current, bool currentIsZeroed)
+    {
+        if (_pendingRegionZeroedBox.HasValue && _pendingRegionSyncedBox.HasValue
+            && BoxApproxEqual(current.Min, current.Max, _pendingRegionSyncedBox.Value, 1e-3f))
+            return _pendingRegionZeroedBox.Value;
+        if (currentIsZeroed) return current;
+
+        var deformed = _pendingRegionDeformedPositions ?? viewer.GetShapePositions(shapeName);
+        var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+        if (deformed == null || zeroed == null) return null;
+        return RegionVolumeEvaluator.ConvertBoxByVertexSet(deformed, zeroed, current);
     }
 
     private static void UpdateBoxRow(
@@ -6882,20 +6923,21 @@ public class VM_BodyTypeProfile : VM
             ? sessionRegion!.DefiningWeight
             : (_parent?.PreviewWeight ?? 0);
 
-        // If this is an edit session and the user never TOUCHED the box (the pending box still equals the
-        // one the session framed), keep the region's STORED zeroed box verbatim — don't re-convert. The
-        // box is already correct in zeroed space; re-converting it (especially after a mid-edit preset or
-        // weight change, which is NOT re-framed onto the pending box) would capture the wrong vertices and
-        // corrupt it ("Bad box"). Keeping the stored box also correctly leaves "Defined On" unchanged.
+        // If this is an edit session and the user never TOUCHED the box since the session last synced it
+        // (opened it, or re-expressed it on a zeroed-body flip), keep the session's canonical zeroed box —
+        // the region's STORED box unless the user moved it — verbatim; don't re-convert. Re-converting
+        // (especially after a mid-edit preset or weight change, which is NOT re-framed onto the pending box)
+        // would capture the wrong vertices and corrupt it ("Bad box"), and after a flip it would grow it.
+        // Keeping the stored box also correctly leaves "Defined On" unchanged.
         bool boxUntouched = sessionRegion != null && Regions.Contains(sessionRegion)
-            && _pendingRegionSessionBox.HasValue
-            && BoxApproxEqual(pick.BoxMin, pick.BoxMax, _pendingRegionSessionBox.Value, 1e-3f);
+            && _pendingRegionZeroedBox.HasValue && _pendingRegionSyncedBox.HasValue
+            && BoxApproxEqual(pick.BoxMin, pick.BoxMax, _pendingRegionSyncedBox.Value, 1e-3f);
 
         bool alreadyZeroed = viewer.PendingBoxShowZeroed;
         if (boxUntouched)
         {
-            boxMin = new OpenTK.Mathematics.Vector3(sessionRegion!.BoxMinX, sessionRegion.BoxMinY, sessionRegion.BoxMinZ);
-            boxMax = new OpenTK.Mathematics.Vector3(sessionRegion.BoxMaxX, sessionRegion.BoxMaxY, sessionRegion.BoxMaxZ);
+            boxMin = _pendingRegionZeroedBox!.Value.Min;
+            boxMax = _pendingRegionZeroedBox.Value.Max;
         }
         else if (!alreadyZeroed)
         {
@@ -7301,6 +7343,16 @@ public class VM_BodyTypeProfile : VM
             return;
         }
 
+        // While this region's box is open in the pending-box editor, show the box being EDITED (what
+        // Confirm will store), not the region's saved box. Otherwise every other repaint trigger — the
+        // End-Cap/Solid view-mode switch, a preset/weight change, a vertex edit — silently swapped the live
+        // preview for the stale saved region while the box panel still showed the edited coords.
+        if (ReferenceEquals(_pendingRegionEditTarget, region) && viewer.HasPendingBox)
+        {
+            RefreshSelectedRegionFromPendingBox(viewer);
+            return;
+        }
+
         var model = region.DumpToModel();
         if (string.IsNullOrEmpty(model.Name) || string.IsNullOrEmpty(model.ShapeName))
         {
@@ -7321,18 +7373,25 @@ public class VM_BodyTypeProfile : VM
         var rr = GetOrResolveRegion(viewer, model);
         if (rr == null || !rr.IsValid)
         {
-            viewer.ClearRegionOverlay();
-            // Region is unresolvable/invalid, but still show the curated edit nodes (red removed / green
-            // added crosses) so the user can see and fix a bad edited region.
-            if (matched != null && !matched.IsEmpty)
-                viewer.SetRegionWireColored(BuildEditNodeCrosses(null, deformed, matched, EstimateShapeEdgeLength(viewer, model.ShapeName, deformed) * 0.6f));
-            else
-                viewer.SetRegionWireColored(null);
-            viewer.SetPreviewPickMarkers(null);
+            ShowUnresolvedRegionOverlay(viewer, model.ShapeName, deformed, matched);
             return;
         }
 
         PushRegionOverlay(viewer, rr, deformed, matched);
+    }
+
+    /// <summary>Overlay for a selected region that doesn't resolve: clears the patch but still shows the
+    /// curated edit nodes (red removed / green added crosses) so the user can see and fix a bad edited
+    /// region. Shared by the saved-region and live pending-box overlay paths.</summary>
+    private void ShowUnresolvedRegionOverlay(VM_CharacterViewer viewer, string shapeName,
+        OpenTK.Mathematics.Vector3[] deformed, RegionVolumeEvaluator.MatchedEdits? matched)
+    {
+        viewer.ClearRegionOverlay();
+        if (matched != null && !matched.IsEmpty)
+            viewer.SetRegionWireColored(BuildEditNodeCrosses(null, deformed, matched, EstimateShapeEdgeLength(viewer, shapeName, deformed) * 0.6f));
+        else
+            viewer.SetRegionWireColored(null);
+        viewer.SetPreviewPickMarkers(null);
     }
 
     /// <summary>Rough mean triangle-edge length of a shape's current mesh, for sizing edit-node glyphs
