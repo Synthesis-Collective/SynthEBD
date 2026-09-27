@@ -134,7 +134,7 @@ A pure box selects a clean rectangular prism of surface. To carve an **irregular
 - the box: `BoxMin/Max X/Y/Z` (zeroed-space), `RotX/Y/Z`
 - `ExpectedCapCount`, `CapMode`
 - `VertexEdits` — the curated add/remove layer, each a zeroed-space position + sign + index hint (see [Vertex-edit layer](#vertex-edit-layer-curated-regions)); empty for a plain box.
-- `DefiningPresetLabel` / `DefiningWeight` — recordkeeping only (which preset+weight the box was framed against, for re-editing); **not** in the fingerprint.
+- `DefiningPresetLabel` / `DefiningWeight` — recordkeeping only (which preset+weight the box was framed against, for re-editing); **not** in the fingerprint. The label is `(Zeroed Sliders)` when the box was confirmed with "Show zeroed body" on; an edit session that confirms a *moved* box re-records it (an untouched box keeps it).
 
 Everything else — the resolved patch, boundary loops, baked refs, cached volumes — is **recomputed each session** from (box + edits + zeroed mesh). Vertex indices are never persisted (only zeroed positions, re-matched per session), because a body-mod update or reinstall can renumber them; the box and the edit positions, defined in mesh-local 3D space, survive that.
 

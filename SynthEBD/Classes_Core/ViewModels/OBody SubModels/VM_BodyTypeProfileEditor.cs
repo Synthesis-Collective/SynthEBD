@@ -6044,6 +6044,12 @@ public class VM_BodyTypeProfile : VM
     /// active.</summary>
     private RegionVolumeEvaluator.RegionAabb? _pendingRegionSyncedBox;
 
+    /// <summary>Label of the preset loaded when the region edit session opened — the body
+    /// <see cref="_pendingRegionDeformedPositions"/> was captured from, so the one a box moved in deformed
+    /// space is converted against. Recorded as the region's "Defined On" when such an edit is confirmed.
+    /// Null when no region box session is active.</summary>
+    private string? _pendingRegionSessionPresetLabel;
+
     /// <summary>True while a region box is open and the body has been flipped to its zeroed state, so
     /// the pending-box coords are currently in ZEROED space (vs deformed). Tracks the viewer's
     /// PendingBoxShowZeroed for the region edit path so confirm/flip convert in the right direction.</summary>
@@ -6113,6 +6119,7 @@ public class VM_BodyTypeProfile : VM
                     _pendingRegionDeformedPositions = null;
                     _pendingRegionZeroedBox = null;
                     _pendingRegionSyncedBox = null;
+                    _pendingRegionSessionPresetLabel = null;
                     _pendingRegionBoxIsZeroed = false;
                 }
             });
@@ -6789,6 +6796,7 @@ public class VM_BodyTypeProfile : VM
         var deformed = viewer.GetShapePositions(shapeName);
         var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
         _pendingRegionDeformedPositions = deformed;
+        _pendingRegionSessionPresetLabel = _parent?.SelectedPreset?.AssociatedModel?.Label ?? "";
         _pendingRegionBoxIsZeroed = viewer.PendingBoxShowZeroed;
 
         // Choose the display box for the body currently shown: if deformed and we can convert, map the
@@ -6970,13 +6978,25 @@ public class VM_BodyTypeProfile : VM
         VM_NamedRegion? duplicateSource = pick.IsDuplicate ? editTarget : null;
         if (pick.IsDuplicate) editTarget = null;
 
+        // "Defined On" = the body the box was actually framed against: the zeroed body when "Show zeroed
+        // body" was on (the coords were taken as-is), else the preset whose mesh the deformed→zeroed
+        // conversion used — the session-start preset for an edit session (the conversion reads the
+        // framing-time mesh, not the live one), the loaded preset for a fresh draw.
+        string definingLabel = alreadyZeroed
+            ? ZeroedSlidersDefiningLabel
+            : (sessionRegion != null && _pendingRegionSessionPresetLabel != null
+                ? _pendingRegionSessionPresetLabel
+                : _parent?.SelectedPreset?.AssociatedModel?.Label ?? "");
+
         VM_NamedRegion target;
         if (editTarget != null)
         {
-            // Update the existing region's box in place; keep its name / caps / mode / defining preset.
+            // Update the existing region's box in place; keep its name / caps / mode. The defining preset
+            // follows the box: an untouched box keeps it, a moved box records where it was re-framed.
             editTarget.ShapeName = shapeName;
             editTarget.BoxMinX = boxMin.X; editTarget.BoxMinY = boxMin.Y; editTarget.BoxMinZ = boxMin.Z;
             editTarget.BoxMaxX = boxMax.X; editTarget.BoxMaxY = boxMax.Y; editTarget.BoxMaxZ = boxMax.Z;
+            if (!boxUntouched) editTarget.DefiningPresetLabel = definingLabel;
             target = editTarget;
             _pendingRegionEditTarget = null;
         }
@@ -6993,8 +7013,7 @@ public class VM_BodyTypeProfile : VM
         else
         {
             // Fresh draw (or duplicate with no active region session): create a region from the drawn box.
-            var presetLabel = _parent?.SelectedPreset?.AssociatedModel?.Label ?? "";
-            target = AddRegionRow(shapeName, boxMin, boxMax, presetLabel, weight);
+            target = AddRegionRow(shapeName, boxMin, boxMax, definingLabel, weight);
         }
 
         // For a fresh draw / in-place box edit, select the (new/updated) row. For a DUPLICATE, leave the
@@ -7225,6 +7244,11 @@ public class VM_BodyTypeProfile : VM
         Regions.Add(vm);
         return vm;
     }
+
+    /// <summary>"Defined On" label recorded for a region box framed against the zeroed (sliders-0) body
+    /// via "Show zeroed body", rather than against a preset. Parenthesized so it can't be mistaken for a
+    /// real BodySlide preset name.</summary>
+    public const string ZeroedSlidersDefiningLabel = "(Zeroed Sliders)";
 
     private VM_NamedRegion AddRegionRow(
         string shapeName,
