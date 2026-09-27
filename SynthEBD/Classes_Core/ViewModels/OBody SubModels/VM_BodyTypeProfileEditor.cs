@@ -6820,6 +6820,13 @@ public class VM_BodyTypeProfile : VM
             shapeName, displayBox.Min, displayBox.Max, default);
         viewer.BeginPendingBox(initial);
         _pendingRegionBoxIsZeroed = false; // BeginPendingBox forced ShowZeroed off → deformed display
+
+        // A region authored against the zeroed body reopens on the zeroed body, so its spinners show the
+        // stored zeroed coords as typed — editing them on a deformed preset instead would silently convert
+        // the typed values and grow the box. The flip handler maps the untouched box straight to the
+        // canonical (stored) zeroed box; the viewer restores the preset when the box is confirmed/cancelled.
+        if (string.Equals(region.DefiningPresetLabel, ZeroedSlidersDefiningLabel, StringComparison.Ordinal))
+            viewer.PendingBoxShowZeroed = true;
     }
 
     /// <summary>Handles the "Show zeroed body" flip while a REGION box is open: re-expresses the live

@@ -126,7 +126,7 @@ public static partial class UiDocs
 
         Add("BodyTypeProfiles.RegionDefinedOn",
             layperson: "Which preset and weight were loaded when this Region's box was drawn or last moved. '(Zeroed Sliders)' means it was drawn with 'Show zeroed body' on, so its coordinates are the zeroed body's own.",
-            technical: "Read-only DefiningPresetLabel / DefiningWeight recordkeeping. The box itself is stored in undeformed (sliders-0) space; these fields only record the authoring context so the same slice can be reloaded for re-editing. Set on a fresh draw and updated when an edit session confirms a moved box (an untouched box keeps it); '(Zeroed Sliders)' when the box was confirmed with 'Show zeroed body' on, else the preset whose mesh the box was converted from.",
+            technical: "Read-only DefiningPresetLabel / DefiningWeight recordkeeping. The box itself is stored in undeformed (sliders-0) space; these fields only record the authoring context so the same slice can be reloaded for re-editing. Set on a fresh draw and updated when an edit session confirms a moved box (an untouched box keeps it); '(Zeroed Sliders)' when the box was confirmed with 'Show zeroed body' on, else the preset whose mesh the box was converted from. Selecting a '(Zeroed Sliders)' region reopens its box on the zeroed body so typed coords are stored as-is.",
             motivation: "A box drawn against one preset can look misplaced against another; knowing the original context removes the guesswork when refining it later.");
 
         Add("BodyTypeProfiles.RegionRotation",
