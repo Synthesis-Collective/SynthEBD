@@ -319,6 +319,11 @@ public static partial class UiDocs
             technical: "Writes an AnnotationVerdictPayload through JSONhandler. Alias families are emitted once rather than once per member, so a family counts as a single observation; 'value' carries the first descriptor value for readers expecting one label per row and 'values' carries the full tag set.",
             motivation: "The sampling policy, seed and random fraction travel with the verdicts because a verdict set is only interpretable alongside how it was drawn - reconstructing that from memory months later is exactly how a boundary-only sample gets mistaken for a representative one.");
 
+        Add("BodySlides.QueueApplyToPresets",
+            layperson: "Your labels here are NOT put on the presets automatically - they only train the rule suggestions. Press this to copy them onto the presets as manual labels. If a preset already has a different manual label in that category at that weight, you are shown the list and can cancel.",
+            technical: "PresetAnnotationApplier over the selected body type's PresetAnnotations: resolves each (preset label, gender), then for each annotated (weight slot, category) replaces the slot's descriptors in that category (any source) with Manual entries. Missing presets, missing weight slots and descriptors absent from the catalog are skipped and reported. The text beside the button is a dry-run count of slots that would change.",
+            motivation: "Annotations and preset descriptors are separate stores by design (annotations are training data), which made it easy to assume committed verdicts already labeled the presets. Putting the explicit apply step in the labelling panel makes the separation visible where it matters.");
+
         // ---------- Body Type Profile editor: Suggest Rules panel ----------
 
         Add("BodySlides.SuggestRulesAlgorithm",

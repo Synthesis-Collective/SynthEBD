@@ -39,6 +39,12 @@ public class PatcherState
     public List<SkyrimMod> RecordTemplatePlugins { get; set; }
     public HashSet<NPCAssignment> SpecificNPCAssignments { get; set; }
 
+    /// <summary>Every <see cref="BodyTypeRuleSet"/> file found in <c>Body Type Rules\</c>, active or
+    /// not. The active one per body type is projected into
+    /// <see cref="Settings_OBody.BodySlideClassificationRules"/> / <see cref="Settings_OBody.BodyTypeProfiles"/>
+    /// by <see cref="SettingsIO_BodyTypeRules"/>.</summary>
+    public List<BodyTypeRuleSet> BodyTypeRuleSets { get; set; } = new();
+
     /// <summary>
     /// Builds a human-readable, null-safe summary of the current patcher state (active settings
     /// modes, selected/available config files, BodyGen and BodySlide counts, head part counts,

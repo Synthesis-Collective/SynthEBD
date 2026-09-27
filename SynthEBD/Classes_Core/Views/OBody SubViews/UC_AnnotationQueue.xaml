@@ -305,6 +305,17 @@
                             Padding="6,2" Margin="4,0,0,0" local:DocTooltip.Key="BodySlides.QueueExportVerdicts"/>
                 </StackPanel>
             </Grid>
+
+            <!-- ============ Row 4: apply verdicts to the presets ============
+                 Committed verdicts are training data only; they do not label the preset. This row sits
+                 in the labelling panel on purpose, where a user would otherwise assume they already do. -->
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <Button Content="Apply Annotations to Presets" Command="{Binding ApplyToPresetsCommand}"
+                        Click="OnCommandButtonClick" Padding="8,2" Foreground="{DynamicResource ActionGoodForeground}"
+                        local:DocTooltip.Key="BodySlides.QueueApplyToPresets"/>
+                <TextBlock Text="{Binding PendingApplyText}" VerticalAlignment="Center" Margin="8,0,0,0"
+                           TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
         </StackPanel>
     </Border>
 </UserControl>

@@ -477,6 +477,8 @@ public static class BodySlideMeasurementEvaluator
 
     /// <summary>
     /// Merges classifier-sourced descriptors into <paramref name="slot"/> under the locked policy:
+    ///   - Skip writes for any Category the slot holds a Manual descriptor in -- a hand label overrules every
+    ///     suggestion for its category in its slot (see <see cref="FilterManualOverridden"/>).
     ///   - Skip writes for any (Category, Value) that already exists with Source = Manual / Library / RulesBased.
     ///   - Remove existing Source = Classifier entries first so re-runs reflect updated rules.
     ///   - Add the supplied descriptors (already tagged Classifier by <see cref="Evaluate"/>).
@@ -501,7 +503,7 @@ public static class BodySlideMeasurementEvaluator
         }
 
         int added = 0;
-        foreach (var d in classifierResults)
+        foreach (var d in FilterManualOverridden(slot, classifierResults))
         {
             if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
             string key = d.Category + "::" + d.Value;
@@ -511,6 +513,28 @@ public static class BodySlideMeasurementEvaluator
             added++;
         }
         return added;
+    }
+
+    /// <summary>
+    /// Drops every classifier result whose Category <paramref name="slot"/> already holds a Manual
+    /// descriptor in. Manual annotations win per (weight slot, category): with a hand-set Arms:Thick, a
+    /// measurement-derived Arms:Athletic must neither be merged into the slot nor shown selected in the
+    /// preset's descriptor menu, or the preset would carry two Arms values. Shared by
+    /// <see cref="MergeIntoSlot"/> and the live-preview menu update so the two can't disagree.
+    /// </summary>
+    public static List<AnnotatedDescriptorSignature> FilterManualOverridden(IEnumerable<AnnotatedDescriptorSignature>? slot, IEnumerable<AnnotatedDescriptorSignature>? classifierResults)
+    {
+        var manualCategories = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var existing in slot ?? Enumerable.Empty<AnnotatedDescriptorSignature>())
+        {
+            if (existing != null && existing.Source == BodyShapeAnnotationSource.Manual && !string.IsNullOrEmpty(existing.Category))
+            {
+                manualCategories.Add(existing.Category);
+            }
+        }
+        return (classifierResults ?? Enumerable.Empty<AnnotatedDescriptorSignature>())
+            .Where(d => d != null && !manualCategories.Contains(d.Category ?? ""))
+            .ToList();
     }
 
     /// <summary>
@@ -562,37 +586,15 @@ public static class BodySlideMeasurementEvaluator
 
         bool haveLiveRules = sliderClassificationRules != null;
 
-        var slots = preset.BodyShapeDescriptorsByWeight;
-        if (slots != null && slots.Count > 0)
+        var slot = PerWeightDescriptorLookup.GetSlotAtOrNearest(preset, weight);
+        foreach (var d in slot ?? Enumerable.Empty<AnnotatedDescriptorSignature>())
         {
-            if (!slots.TryGetValue(weight, out var slot) || slot == null)
-            {
-                int bestKey = 0;
-                int bestDist = int.MaxValue;
-                foreach (var key in slots.Keys)
-                {
-                    int dist = Math.Abs(key - weight);
-                    if (dist < bestDist || (dist == bestDist && key < bestKey))
-                    {
-                        bestDist = dist;
-                        bestKey = key;
-                    }
-                }
-                slot = slots[bestKey];
-            }
-
-            if (slot != null)
-            {
-                foreach (var d in slot)
-                {
-                    if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
-                    bool seedFromStorage = (includeStoredAnnotations
-                            && (d.Source == BodyShapeAnnotationSource.Manual
-                                || d.Source == BodyShapeAnnotationSource.Library))
-                        || (!haveLiveRules && d.Source == BodyShapeAnnotationSource.RulesBased);
-                    if (seedFromStorage) result.Add((d.Category, d.Value));
-                }
-            }
+            if (d == null || string.IsNullOrEmpty(d.Category) || string.IsNullOrEmpty(d.Value)) continue;
+            bool seedFromStorage = (includeStoredAnnotations
+                    && (d.Source == BodyShapeAnnotationSource.Manual
+                        || d.Source == BodyShapeAnnotationSource.Library))
+                || (!haveLiveRules && d.Source == BodyShapeAnnotationSource.RulesBased);
+            if (seedFromStorage) result.Add((d.Category, d.Value));
         }
 
         if (haveLiveRules)

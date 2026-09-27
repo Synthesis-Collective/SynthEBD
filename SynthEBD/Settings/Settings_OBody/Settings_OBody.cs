@@ -87,18 +87,46 @@ public class Settings_OBody
     public List<BodyTypeRegistryEntry> BodyTypeRegistry { get; set; } = new();
 
     /// <summary>
-    /// User-authored BodySlide Classifier profiles (Phase 3 of the classifier pipeline). Each
-    /// profile pairs a body type from <see cref="BodyTypeRegistry"/> with a set of key vertices,
-    /// measurement definitions, and classification rules. Authored once per body type in the
-    /// Body Type Profile Editor and reused across every preset that shares the body's topology.
-    /// Empty list = no profiles authored yet (safe default; classifier simply no-ops).
+    /// Label by Measurements profiles of the <b>active</b> rule file for each body type -- a runtime
+    /// view, not persisted here. The source of truth is the <see cref="BodyTypeRuleSet"/> files in
+    /// <c>Body Type Rules\</c>; <see cref="SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews"/> fills
+    /// this at load, the profile editor dumps into it, and
+    /// <see cref="SettingsIO_BodyTypeRules.SaveRuleSets"/> folds it back into the files. At most one
+    /// profile per body type. Empty = classifier no-ops.
     /// </summary>
+    [JsonIgnore]
     public List<BodyTypeProfile> BodyTypeProfiles { get; set; } = new();
 
     public bool bUseVerboseScripts { get; set; } = false;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
-    public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new(); // key is Slider Group (e.g. CBBE, UNP, etc)
+    /// <summary>Label by Sliders rules of the active rule file for each body type, keyed by slider
+    /// group (= body type name). Runtime view like <see cref="BodyTypeProfiles"/>: not persisted here,
+    /// filled from and folded back into the <see cref="BodyTypeRuleSet"/> files.</summary>
+    [JsonIgnore]
+    public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new();
+
+    /// <summary>Active rule file per body type: body type name → <see cref="BodyTypeRuleSet.FileName"/>
+    /// (case-insensitive). Set by the Misc menu's per-body-type combobox. A body type with no entry,
+    /// or whose entry names a file that no longer exists, falls back to the first file for that body
+    /// type by display name.</summary>
+    public Dictionary<string, string> SelectedRuleFileByBodyType { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The user's Label-then-suggest verdicts (worklist / annotation queue / annotation
+    /// table), each tagged with its <see cref="PresetAnnotation.BodyTypeName"/>. Kept here rather than
+    /// in the rule files because they are the user's own judgments, and kept separate from the presets'
+    /// descriptors: they only become real Manual descriptors when the user runs "Apply to Presets"
+    /// (<see cref="PresetAnnotationApplier"/>).</summary>
+    public List<PresetAnnotation> PresetAnnotations { get; set; } = new();
+
+    /// <summary>Label-then-suggest UI preferences per body type (see <see cref="AnnotatorPreferences"/>).</summary>
+    public Dictionary<string, AnnotatorPreferences> AnnotatorPrefsByBodyType { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Descriptor definitions the user declined to import from a rule file, as
+    /// <see cref="BodyTypeRuleSet.DeclineKey"/> strings, so the import prompt isn't repeated every
+    /// launch. Scoped to the file name: the same descriptor arriving in a different file asks again.</summary>
+    public HashSet<string> DeclinedDescriptorImports { get; set; } = new(StringComparer.Ordinal);
+
     public bool AutoApplyMissingAnnotations { get; set; } = true;
 
     /// <summary>
@@ -126,11 +154,12 @@ public class Settings_OBody
     public string LastSelectedSliderAnnotationBodyType { get; set; } = "";
 
     /// <summary>
-    /// <see cref="BodyTypeProfile.Id"/> of the profile most recently selected in the Label by
-    /// Measurements editor, so the editor reopens on it next session instead of the first profile
-    /// (or the installed-body auto-detection result). Empty = never selected.
+    /// Body type most recently selected in the Label by Measurements editor, so the editor reopens on
+    /// it next session instead of the first body type (or the installed-body auto-detection result).
+    /// Stored by body type rather than profile Id because the profile shown for a body type depends
+    /// on which rule file is active. Empty = never selected.
     /// </summary>
-    public string LastSelectedBodyTypeProfileId { get; set; } = "";
+    public string LastSelectedMeasurementBodyType { get; set; } = "";
 
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();

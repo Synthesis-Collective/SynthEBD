@@ -37,6 +37,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<SettingsIO_AssetPack>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_BodyGen>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_OBody>().AsSelf().SingleInstance().AsImplementedInterfaces();
+        builder.RegisterType<SettingsIO_BodyTypeRules>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_SpecificNPCAssignments>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_BlockList>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsIO_HeadParts>().AsSelf().SingleInstance().AsImplementedInterfaces();

@@ -143,39 +143,20 @@ public class VM_BodyTypeProfileEditor : VM
 
         AvailableWeights = new ObservableCollection<int> { 0, 25, 50, 75, 100 };
 
-        AddProfile = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ =>
-            {
-                var profile = new VM_BodyTypeProfile(new BodyTypeProfile { Name = "New Profile" }, this);
-                Profiles.Add(profile);
-                SelectedProfile = profile;
-            });
+        // Profiles are no longer added, duplicated, imported or exported here: each body type's profile
+        // lives in its active Body Type Rules file, and the OBody Misc menu picks / duplicates files.
+        // This menu only creates the profile for a body type whose active file has none yet, or removes it.
+        CreateProfileCommand = new RelayCommand(
+            canExecute: _ => !string.IsNullOrWhiteSpace(SelectedBodyType) && SelectedProfile == null,
+            execute: _ => CreateProfileForSelectedBodyType());
 
-        DeleteSelectedProfile = new RelayCommand(
+        RemoveProfileCommand = new RelayCommand(
             canExecute: _ => SelectedProfile != null,
-            execute: _ =>
-            {
-                var p = SelectedProfile;
-                if (p == null) return;
-                int idx = Profiles.IndexOf(p);
-                Profiles.Remove(p);
-                SelectedProfile = Profiles.Count == 0
-                    ? null
-                    : Profiles[Math.Min(idx, Profiles.Count - 1)];
-            });
+            execute: _ => RemoveSelectedProfile());
 
-        ExportSelectedProfile = new RelayCommand(
-            canExecute: _ => SelectedProfile != null,
-            execute: _ => ExportProfile(SelectedProfile));
-
-        ImportProfile = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => DoImportProfile());
-
-        DuplicateSelectedProfile = new RelayCommand(
-            canExecute: _ => SelectedProfile != null,
-            execute: _ => DoDuplicateProfile(SelectedProfile));
+        ApplyAnnotationsToPresetsCommand = new RelayCommand(
+            canExecute: _ => SelectedProfile != null && SelectedProfile.PresetAnnotations.Count > 0,
+            execute: _ => ApplyAnnotationsToPresets(SelectedProfile));
 
         RefreshPresetList = new RelayCommand(
             canExecute: _ => true,
@@ -271,7 +252,35 @@ public class VM_BodyTypeProfileEditor : VM
                 case nameof(PreviewNpcOverride):
                     _ = RefreshPreviewAsync();
                     break;
+                case nameof(SelectedBodyType):
+                    if (!_syncingBodyTypeSelection)
+                    {
+                        _syncingBodyTypeSelection = true;
+                        try
+                        {
+                            SelectedProfile = Profiles.FirstOrDefault(p => string.Equals(p.BodyTypeName, SelectedBodyType, StringComparison.OrdinalIgnoreCase));
+                        }
+                        finally
+                        {
+                            _syncingBodyTypeSelection = false;
+                        }
+                    }
+                    RefreshActiveRuleFileLabel();
+                    break;
                 case nameof(SelectedProfile):
+                    if (!_syncingBodyTypeSelection && SelectedProfile != null)
+                    {
+                        _syncingBodyTypeSelection = true;
+                        try
+                        {
+                            SelectedBodyType = SelectedProfile.BodyTypeName;
+                        }
+                        finally
+                        {
+                            _syncingBodyTypeSelection = false;
+                        }
+                        RefreshActiveRuleFileLabel();
+                    }
                     // Swap BodyTypeName-change subscription from the previous profile to the
                     // new one so the preset dropdown re-filters when the user edits the
                     // profile's body-type field, then rebuild now to reflect the new profile.
@@ -420,11 +429,35 @@ public class VM_BodyTypeProfileEditor : VM
     /// <summary>Descriptor signatures available for use in rules/labeled examples. Sourced from <see cref="Settings_OBody.TemplateDescriptors"/>.</summary>
     public ObservableCollection<BodyShapeDescriptor.LabelSignature> AvailableDescriptors { get; } = new();
 
-    public RelayCommand AddProfile { get; }
-    public RelayCommand DeleteSelectedProfile { get; }
-    public RelayCommand ExportSelectedProfile { get; }
-    public RelayCommand ImportProfile { get; }
-    public RelayCommand DuplicateSelectedProfile { get; }
+    /// <summary>Creates an empty measurement profile for <see cref="SelectedBodyType"/> in its active rule
+    /// file (creating the file if the body type has none).</summary>
+    public RelayCommand CreateProfileCommand { get; }
+
+    /// <summary>Removes the selected body type's measurement profile from its active rule file (the file
+    /// keeps its slider rules). Confirms first.</summary>
+    public RelayCommand RemoveProfileCommand { get; }
+
+    /// <summary>Writes the selected body type's worklist annotations onto the presets as Manual
+    /// descriptors (see <see cref="PresetAnnotationApplier"/>). Bound in the annotation queue panel.</summary>
+    public RelayCommand ApplyAnnotationsToPresetsCommand { get; }
+
+    /// <summary>Body type shown in the editor's top picker. Two-way synced with
+    /// <see cref="SelectedProfile"/>: picking a body type selects its profile (null when its active
+    /// rule file has none, which surfaces the Create button), and selecting a profile programmatically
+    /// (installed-body auto-detection) moves the picker.</summary>
+    public string? SelectedBodyType { get; set; }
+
+    /// <summary>Display name + file name of the rule file currently active for
+    /// <see cref="SelectedBodyType"/>, or a hint when none exists yet.</summary>
+    public string ActiveRuleFileLabel { get; set; } = "";
+
+    /// <summary>True while the SelectedBodyType ↔ SelectedProfile sync is writing, so the echo is ignored.</summary>
+    private bool _syncingBodyTypeSelection;
+
+    /// <summary>Annotations / prefs of body types that currently have no profile VM (no profile in the
+    /// active file). Held so they survive a save and re-attach when a profile appears.</summary>
+    private readonly Dictionary<string, List<PresetAnnotation>> _detachedAnnotations = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, AnnotatorPreferences> _detachedPrefs = new(StringComparer.OrdinalIgnoreCase);
     public RelayCommand RefreshPresetList { get; }
     /// <summary>Row-level "HD" button on the Match Presets and Rules-tab lists; parameter is the row.</summary>
     public RelayCommand HideAndDisablePresetCommand { get; }
@@ -739,6 +772,8 @@ public class VM_BodyTypeProfileEditor : VM
         Profiles.Clear();
         AvailableBodyTypeNames.Clear();
         AvailableDescriptors.Clear();
+        _detachedAnnotations.Clear();
+        _detachedPrefs.Clear();
 
         if (model == null) return;
 
@@ -760,36 +795,236 @@ public class VM_BodyTypeProfileEditor : VM
             }
         }
 
+        // The user's annotations and annotator prefs persist in OBodySettings keyed by body type (not in
+        // the shareable rule files). Park them all as detached first; each profile then claims its own.
+        foreach (var pa in model.PresetAnnotations ?? new List<PresetAnnotation>())
+        {
+            if (pa == null) continue;
+            var bodyType = pa.BodyTypeName ?? "";
+            if (!_detachedAnnotations.TryGetValue(bodyType, out var list))
+            {
+                list = new List<PresetAnnotation>();
+                _detachedAnnotations[bodyType] = list;
+            }
+            list.Add(pa);
+        }
+        foreach (var kv in model.AnnotatorPrefsByBodyType ?? new Dictionary<string, AnnotatorPreferences>())
+        {
+            if (!string.IsNullOrWhiteSpace(kv.Key) && kv.Value != null) _detachedPrefs[kv.Key] = kv.Value;
+        }
+
+        // BodyTypeProfiles holds the active rule file's profile for each body type (one per body type).
         if (model.BodyTypeProfiles != null)
         {
             foreach (var p in model.BodyTypeProfiles)
             {
                 if (p == null) continue;
+                AttachPersonalState(p);
                 Profiles.Add(new VM_BodyTypeProfile(p, this));
+                if (!string.IsNullOrWhiteSpace(p.BodyTypeName) && !AvailableBodyTypeNames.Contains(p.BodyTypeName))
+                {
+                    AvailableBodyTypeNames.Add(p.BodyTypeName);
+                }
             }
         }
 
-        // Reopen on the profile the user was last working on (persisted by Id via
-        // LastSelectedBodyTypeProfileId); fall back to the first profile when nothing was saved
-        // or the saved profile no longer exists. A successful restore also suppresses
+        // Reopen on the body type the user was last working on; fall back to the first profile when
+        // nothing was saved or that body type is gone. A successful restore also suppresses
         // BeginAutoSelectProfileFromInstalledBody so the remembered choice isn't clobbered.
-        var savedProfile = model.LastSelectedBodyTypeProfileId.IsNullOrWhitespace()
+        var savedBodyType = model.LastSelectedMeasurementBodyType;
+        var restored = savedBodyType.IsNullOrWhitespace()
             ? null
-            : Profiles.FirstOrDefault(p => p.Id == model.LastSelectedBodyTypeProfileId);
-        _restoredLastSessionProfileSelection = savedProfile != null;
-        SelectedProfile = savedProfile ?? Profiles.FirstOrDefault();
+            : AvailableBodyTypeNames.FirstOrDefault(x => string.Equals(x, savedBodyType, StringComparison.OrdinalIgnoreCase));
+        _restoredLastSessionProfileSelection = restored != null;
+        var targetBodyType = restored ?? Profiles.FirstOrDefault()?.BodyTypeName ?? AvailableBodyTypeNames.FirstOrDefault();
+
+        // Assign both sides explicitly rather than relying on the SelectedBodyType -> SelectedProfile sync:
+        // on a reload the body type is often unchanged, so no change notification would fire and
+        // SelectedProfile would keep pointing at a VM that Profiles.Clear() just dropped. A fresh profile
+        // VM is always a new reference, so the SelectedProfile handler (viewer, caches, scan state) runs.
+        _syncingBodyTypeSelection = true;
+        try
+        {
+            SelectedBodyType = targetBodyType;
+            SelectedProfile = Profiles.FirstOrDefault(p => string.Equals(p.BodyTypeName, targetBodyType, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            _syncingBodyTypeSelection = false;
+        }
+        RefreshActiveRuleFileLabel();
     }
 
     public void DumpViewModelToModel(Settings_OBody model)
     {
         if (model == null) return;
         model.BodyTypeProfiles = new List<BodyTypeProfile>();
+        model.PresetAnnotations = new List<PresetAnnotation>();
+        model.AnnotatorPrefsByBodyType = new Dictionary<string, AnnotatorPreferences>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var vm in Profiles)
         {
-            model.BodyTypeProfiles.Add(vm.DumpToModel());
+            var profileModel = vm.DumpToModel();
+            model.BodyTypeProfiles.Add(profileModel);
+
+            // Split the personal state back out of the profile. Annotations created during the session
+            // (queue / annotation table) don't know their body type yet -- stamp it here.
+            foreach (var pa in profileModel.PresetAnnotations ?? new List<PresetAnnotation>())
+            {
+                if (pa == null) continue;
+                pa.BodyTypeName = profileModel.BodyTypeName;
+                model.PresetAnnotations.Add(pa);
+            }
+            if (!string.IsNullOrWhiteSpace(profileModel.BodyTypeName) && profileModel.AnnotatorPrefs != null)
+            {
+                model.AnnotatorPrefsByBodyType[profileModel.BodyTypeName] = profileModel.AnnotatorPrefs;
+            }
         }
-        model.LastSelectedBodyTypeProfileId = SelectedProfile?.Id ?? "";
+
+        foreach (var kv in _detachedAnnotations)
+        {
+            foreach (var pa in kv.Value)
+            {
+                if (pa == null) continue;
+                pa.BodyTypeName = kv.Key;
+                model.PresetAnnotations.Add(pa);
+            }
+        }
+        foreach (var kv in _detachedPrefs)
+        {
+            if (!model.AnnotatorPrefsByBodyType.ContainsKey(kv.Key)) model.AnnotatorPrefsByBodyType[kv.Key] = kv.Value;
+        }
+
+        model.LastSelectedMeasurementBodyType = SelectedBodyType ?? "";
     }
+
+    /// <summary>Moves the detached annotations / prefs of <paramref name="profile"/>'s body type onto it.</summary>
+    private void AttachPersonalState(BodyTypeProfile profile)
+    {
+        var bodyType = profile.BodyTypeName ?? "";
+        profile.PresetAnnotations = _detachedAnnotations.TryGetValue(bodyType, out var annotations)
+            ? annotations
+            : new List<PresetAnnotation>();
+        _detachedAnnotations.Remove(bodyType);
+
+        profile.AnnotatorPrefs = _detachedPrefs.TryGetValue(bodyType, out var prefs)
+            ? prefs
+            : new AnnotatorPreferences();
+        _detachedPrefs.Remove(bodyType);
+    }
+
+    /// <summary>Parks <paramref name="vm"/>'s annotations / prefs as detached before the VM is dropped,
+    /// so removing or swapping a profile never loses the user's verdicts.</summary>
+    private void DetachPersonalState(VM_BodyTypeProfile vm)
+    {
+        var model = vm.DumpToModel();
+        var bodyType = model.BodyTypeName ?? "";
+        _detachedAnnotations[bodyType] = model.PresetAnnotations ?? new List<PresetAnnotation>();
+        _detachedPrefs[bodyType] = model.AnnotatorPrefs ?? new AnnotatorPreferences();
+    }
+
+    /// <summary>Current state of <paramref name="bodyType"/>'s profile as a model with the personal state
+    /// stripped (what belongs in a rule file), or null when the body type has no profile. Used to flush
+    /// edits into the outgoing file before a Misc-menu file switch.</summary>
+    public BodyTypeProfile? DumpProfileForRuleFile(string bodyType)
+    {
+        var vm = Profiles.FirstOrDefault(p => string.Equals(p.BodyTypeName, bodyType, StringComparison.OrdinalIgnoreCase));
+        if (vm == null) return null;
+        var model = vm.DumpToModel();
+        model.PresetAnnotations = new List<PresetAnnotation>();
+        model.AnnotatorPrefs = new AnnotatorPreferences();
+        return model;
+    }
+
+    /// <summary>
+    /// Swaps the profile shown for <paramref name="bodyType"/> for <paramref name="newProfile"/> (null =
+    /// the body type has no profile). Called when the Misc menu switches the body type's active rule file,
+    /// and by Create / Remove. The user's annotations and prefs for the body type carry over to the new
+    /// profile. If the body type was selected, the selection follows the swap so the viewer, caches and
+    /// scan results rewire through the normal SelectedProfile path.
+    /// </summary>
+    public VM_BodyTypeProfile? ReplaceProfileForBodyType(string bodyType, BodyTypeProfile? newProfile)
+    {
+        bool bodyTypeSelected = string.Equals(SelectedBodyType, bodyType, StringComparison.OrdinalIgnoreCase);
+
+        var existing = Profiles.FirstOrDefault(p => string.Equals(p.BodyTypeName, bodyType, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            if (ReferenceEquals(SelectedProfile, existing))
+            {
+                _syncingBodyTypeSelection = true;
+                try { SelectedProfile = null; }
+                finally { _syncingBodyTypeSelection = false; }
+            }
+            DetachPersonalState(existing);
+            Profiles.Remove(existing);
+        }
+
+        VM_BodyTypeProfile? vm = null;
+        if (newProfile != null)
+        {
+            newProfile.BodyTypeName = bodyType;
+            AttachPersonalState(newProfile);
+            vm = new VM_BodyTypeProfile(newProfile, this);
+            Profiles.Add(vm);
+            if (!AvailableBodyTypeNames.Contains(bodyType, StringComparer.OrdinalIgnoreCase)) AvailableBodyTypeNames.Add(bodyType);
+        }
+
+        if (bodyTypeSelected)
+        {
+            _syncingBodyTypeSelection = true;
+            try { SelectedProfile = vm; }
+            finally { _syncingBodyTypeSelection = false; }
+        }
+        RefreshActiveRuleFileLabel();
+        return vm;
+    }
+
+    private void CreateProfileForSelectedBodyType()
+    {
+        var bodyType = SelectedBodyType;
+        if (string.IsNullOrWhiteSpace(bodyType)) return;
+        // Make sure the body type has an active rule file for the profile to live in.
+        _oBodyVM()?.MiscUI?.EnsureRuleFileForBodyType(bodyType);
+        var vm = ReplaceProfileForBodyType(bodyType, new BodyTypeProfile { Name = bodyType, BodyTypeName = bodyType });
+        if (vm != null) Synchronizer?.ReconcileProfile(vm);
+        _logger?.LogMessage("BodyTypeProfileEditor: created a measurement profile for body type '" + bodyType + "'.");
+    }
+
+    private void RemoveSelectedProfile()
+    {
+        var profile = SelectedProfile;
+        if (profile == null) return;
+        if (!MessageWindow.DisplayNotificationYesNo("Remove Measurement Profile?",
+                "This removes the Label by Measurements profile (key vertices, regions, measurements and rules) for body type '"
+                + profile.BodyTypeName + "' from its active rule file (" + ActiveRuleFileLabel + ").\n\n"
+                + "The file's Label by Sliders rules and your worklist annotations are kept. The file is rewritten on the next save. Continue?"))
+        {
+            return;
+        }
+        ReplaceProfileForBodyType(profile.BodyTypeName, null);
+        _logger?.LogMessage("BodyTypeProfileEditor: removed the measurement profile for body type '" + profile.BodyTypeName + "'.");
+    }
+
+    /// <summary>Refreshes <see cref="ActiveRuleFileLabel"/> from the Misc menu's current selection.</summary>
+    public void RefreshActiveRuleFileLabel()
+    {
+        var bodyType = SelectedBodyType;
+        if (string.IsNullOrWhiteSpace(bodyType))
+        {
+            ActiveRuleFileLabel = "";
+            return;
+        }
+        var active = _miscSettingsAccessor?.Invoke()?.GetActiveRuleFile(bodyType);
+        ActiveRuleFileLabel = active == null
+            ? "none yet -- created on save"
+            : active.Name + " (" + (string.IsNullOrEmpty(active.FileName) ? "unsaved" : active.FileName) + ")";
+    }
+
+    /// <summary>Resolves the Misc menu lazily. Set by <see cref="VM_SettingsOBody"/> once construction is
+    /// finished: resolving VM_SettingsOBody from inside this editor's own construction / early hydration
+    /// would re-enter Autofac (the same trap the preset list avoids -- see the end of the ctor).</summary>
+    internal Func<VM_OBodyMiscSettings?>? _miscSettingsAccessor;
 
     /// <summary>
     /// Non-blocking startup helper: detects the player's installed default body by surveying the
@@ -871,100 +1106,88 @@ public class VM_BodyTypeProfileEditor : VM
         });
     }
 
-    private void ExportProfile(VM_BodyTypeProfile? profile)
+    /// <summary>Dry-run of <see cref="ApplyAnnotationsToPresets"/>: what applying
+    /// <paramref name="profile"/>'s annotations would change right now. Null when the BodySlides menu
+    /// isn't available. Resolves presets by (label, gender), first match wins -- the same policy as the
+    /// other label-based preset lookups in this editor.</summary>
+    internal PresetAnnotationApplier.ApplyPlan? BuildAnnotationApplyPlan(VM_BodyTypeProfile? profile)
+    {
+        if (profile == null) return null;
+        VM_SettingsOBody? oBody;
+        try { oBody = _oBodyVM(); } catch { return null; }
+        var menu = oBody?.BodySlidesUI;
+        if (menu == null) return null;
+
+        var lookup = new Dictionary<(string Label, Gender Gender), BodySlideSetting>();
+        foreach (var ph in menu.BodySlidesMale)
+        {
+            if (ph?.AssociatedModel != null) lookup.TryAdd((ph.AssociatedModel.Label ?? "", Gender.Male), ph.AssociatedModel);
+        }
+        foreach (var ph in menu.BodySlidesFemale)
+        {
+            if (ph?.AssociatedModel != null) lookup.TryAdd((ph.AssociatedModel.Label ?? "", Gender.Female), ph.AssociatedModel);
+        }
+
+        var knownDescriptors = (oBody!.DescriptorUI?.DumpToViewModels() ?? _patcherState?.OBodySettings?.TemplateDescriptors)?
+            .Flatten()
+            .Where(d => d?.ID != null)
+            .Select(d => (d.ID.Category, d.ID.Value))
+            .ToHashSet();
+
+        return PresetAnnotationApplier.Plan(profile.PresetAnnotations,
+            (label, gender) => lookup.TryGetValue((label, gender), out var m) ? m : null,
+            knownDescriptors);
+    }
+
+    /// <summary>
+    /// Writes <paramref name="profile"/>'s worklist annotations onto the presets as Manual descriptors.
+    /// Worklist verdicts are otherwise only training data for Suggest Measurements / Suggest Rules; this
+    /// is the one place they become real preset labels. When any target slot already holds a different
+    /// Manual value in the same category, the user is shown the conflicts and may cancel.
+    /// </summary>
+    private void ApplyAnnotationsToPresets(VM_BodyTypeProfile? profile)
     {
         if (profile == null) return;
-        var model = profile.DumpToModel();
-        string defaultName = string.IsNullOrWhiteSpace(model.Name) ? "BodyTypeProfile.json" : SanitizeFileName(model.Name) + ".json";
-        if (!IO_Aux.SelectFileSave("", "BodyType Profile (*.json)|*.json", ".json", "Export BodyType Profile", out string path, defaultName))
-        {
-            return;
-        }
-        JSONhandler<BodyTypeProfile>.SaveJSONFile(model, path, out bool success, out string exception);
-        if (!success)
-        {
-            MessageWindow.DisplayNotificationOK("Export Failed", exception);
-            return;
-        }
-        _logger?.LogMessage("BodyTypeProfileEditor: exported profile '" + model.Name + "' to " + path);
-    }
+        var menu = _oBodyVM()?.BodySlidesUI;
+        var plan = BuildAnnotationApplyPlan(profile);
+        if (menu == null || plan == null) return;
 
-    private void DoImportProfile()
-    {
-        if (!IO_Aux.SelectFile("", "BodyType Profile (*.json)|*.json", "Import BodyType Profile", out string path))
+        if (plan.Changes.Count == 0)
         {
-            return;
-        }
-        var loaded = JSONhandler<BodyTypeProfile>.LoadJSONFile(path, out bool success, out string exception);
-        if (!success || loaded == null)
-        {
-            MessageWindow.DisplayNotificationOK("Import Failed", exception);
+            MessageWindow.DisplayNotificationOK("Apply Annotations to Presets",
+                "Nothing to apply: every annotation for " + profile.BodyTypeName + " is already on its preset as a manual descriptor."
+                + PresetAnnotationApplier.FormatSkips(plan));
             return;
         }
 
-        // Always assign a fresh Id so imported profiles don't collide with existing ones.
-        loaded.Id = Guid.NewGuid().ToString("N");
-        if (string.IsNullOrWhiteSpace(loaded.Name)) loaded.Name = "Imported Profile";
-
-        var existingNames = new HashSet<string>(Profiles.Select(p => p.Name ?? ""), StringComparer.OrdinalIgnoreCase);
-        string baseName = loaded.Name;
-        int suffix = 2;
-        while (existingNames.Contains(loaded.Name))
+        if (plan.Conflicts.Count > 0)
         {
-            loaded.Name = baseName + " (" + suffix + ")";
-            suffix++;
+            var lines = plan.Conflicts.Take(25).Select(c => "  " + c).ToList();
+            if (plan.Conflicts.Count > 25) lines.Add("  ... and " + (plan.Conflicts.Count - 25) + " more");
+            bool proceed = MessageWindow.DisplayNotificationYesNo("Replace Existing Manual Descriptors?",
+                plan.Conflicts.Count + " preset weight slot(s) already carry a different manual descriptor in the annotated category. "
+                + "Applying will replace them with your worklist verdicts:\n\n" + string.Join("\n", lines)
+                + "\n\nReplace them? (No cancels the whole apply.)");
+            if (!proceed) return;
         }
 
-        var vm = new VM_BodyTypeProfile(loaded, this);
-        Profiles.Add(vm);
-        SelectedProfile = vm;
-        // The import may carry per-category defaults for a body type whose slider menu / sibling
-        // profiles disagree — reconcile now (per the Misc conflict policy) instead of waiting for
-        // the next settings load.
-        Synchronizer?.ReconcileProfile(vm);
-        _logger?.LogMessage("BodyTypeProfileEditor: imported profile '" + loaded.Name + "' from " + path);
-    }
-
-    /// <summary>Duplicates <paramref name="source"/> in place — equivalent to
-    /// Export-then-Import without the disk round-trip. Round-trips through DumpToModel so
-    /// the copy is a fully independent deep clone (no shared row VMs, no shared
-    /// MeasurementCache, no shared annotation entries); a fresh Id keeps it distinct from
-    /// the original; the default Name is "<original> - copy" with the same
-    /// " (N)" collision suffix the import path uses. The new profile is selected so the
-    /// user can immediately edit it.</summary>
-    private void DoDuplicateProfile(VM_BodyTypeProfile? source)
-    {
-        if (source == null) return;
-        var clone = source.DumpToModel();
-        // Fresh Id — the model's own Id field is the stable cross-session reference and
-        // must be unique. Without this the duplicate would shadow the original in any
-        // lookup keyed by Id.
-        clone.Id = Guid.NewGuid().ToString("N");
-
-        string baseName = string.IsNullOrWhiteSpace(clone.Name)
-            ? "Profile - copy"
-            : clone.Name.TrimEnd() + " - copy";
-        var existingNames = new HashSet<string>(Profiles.Select(p => p.Name ?? ""), StringComparer.OrdinalIgnoreCase);
-        clone.Name = baseName;
-        int suffix = 2;
-        while (existingNames.Contains(clone.Name))
+        // The preset shown in the BodySlides menu keeps its own editable copy of its descriptors and
+        // writes it back on save; stash it so this apply isn't overwritten by stale UI state.
+        menu.StashAndNullDisplayedBodySlide();
+        try
         {
-            clone.Name = baseName + " (" + suffix + ")";
-            suffix++;
+            PresetAnnotationApplier.Execute(plan);
+        }
+        finally
+        {
+            menu.RestoreStashedBodySlide();
         }
 
-        var vm = new VM_BodyTypeProfile(clone, this);
-        Profiles.Add(vm);
-        SelectedProfile = vm;
-        _logger?.LogMessage("BodyTypeProfileEditor: duplicated profile '" + source.Name
-            + "' as '" + clone.Name + "'");
-    }
-
-    private static string SanitizeFileName(string name)
-    {
-        var invalid = System.IO.Path.GetInvalidFileNameChars();
-        var chars = name.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
-        return new string(chars);
+        _logger?.LogMessage($"BodyTypeProfileEditor: applied {plan.Changes.Count} annotation slot(s) for {profile.BodyTypeName} as manual descriptors ({plan.Conflicts.Count} replaced an existing manual value).");
+        MessageWindow.DisplayNotificationOK("Apply Annotations to Presets",
+            $"Applied {plan.Changes.Count} annotated weight slot(s) across {plan.Changes.Select(c => c.Preset).Distinct().Count()} preset(s) as manual descriptors."
+            + PresetAnnotationApplier.FormatSkips(plan));
+        AnnotationQueue?.RefreshPendingApplyCount();
     }
 
     private void OnAnyKeyVertexPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)

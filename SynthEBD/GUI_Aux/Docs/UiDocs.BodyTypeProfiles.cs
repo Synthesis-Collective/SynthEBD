@@ -18,20 +18,30 @@ public static partial class UiDocs
             technical: "Opens a window with a hand-maintained reference of the editor's InputBindings: the per-tab Ctrl+S/Ctrl+L JSON snapshot and patch shortcuts, the CSV exports, clipboard copies, region undo/redo, and the global preset-iteration shortcuts. The text is hard-coded in UC_BodyTypeProfileEditor.xaml.cs (KeyboardShortcuts_Click) and updated alongside the XAML KeyBindings.",
             motivation: "WPF InputBindings are invisible in the UI; without a consolidated list the import/export shortcuts would be undiscoverable.");
 
-        Add("BodyTypeProfiles.DuplicateProfile",
-            layperson: "Makes a copy of the selected profile right here in the list, so you can experiment without touching the original.",
-            technical: "Runs DoDuplicateProfile: round-trips the profile through DumpToModel for a fully independent deep clone (no shared row VMs, measurement cache, or annotations), assigns a fresh Id, names the copy '<name> - copy' (with an ' (N)' suffix on collision), and selects it for editing.",
-            motivation: "Equivalent to Export-then-Import without the disk round-trip - the quickest way to branch a working profile before risky edits.");
+        Add("BodyTypeProfiles.BodyTypePicker",
+            layperson: "Picks which body type you are working on. Each body type has at most one measurement profile at a time: the one inside the rule file currently chosen for it in OBody Misc settings.",
+            technical: "Bound to VM_BodyTypeProfileEditor.SelectedBodyType (registry body types plus any body type with a loaded profile), two-way synced with SelectedProfile. A body type whose active BodyTypeRuleSet has no MeasurementProfile selects no profile and enables Create Profile.",
+            motivation: "Profiles now live in shareable per-body-type rule files, so the editor chooses a body type rather than a free-standing profile; which file supplies the profile is decided in one place (Misc) for both labeling menus.");
 
-        Add("BodyTypeProfiles.ExportProfile",
-            layperson: "Saves the selected profile to a JSON file so you can share it or keep a backup.",
-            technical: "Serializes SelectedProfile.DumpToModel() to JSON via a save dialog; the suggested filename is the sanitized profile name. Everything the profile owns - key vertices, regions, measurements, rules, annotations - goes into the one file.",
-            motivation: "A profile encodes hours of per-body-type authoring; a single-file export makes that work shareable and survivable across installs.");
+        Add("BodyTypeProfiles.ActiveRuleFile",
+            layperson: "The rule file this body type's measurement profile (and its Label by Sliders rules) is saved into. Change it in OBody Misc settings > Body Type Rules.",
+            technical: "VM_OBodyMiscSettings.GetActiveRuleFile(SelectedBodyType): display name and file name of the active BodyTypeRuleSet in 'Body Type Rules\\'. 'none yet' means the body type has no file; one is created on save once something is authored.",
+            motivation: "Several rule files can exist for one body type (your defaults plus downloaded variants); showing which one is being edited prevents editing the wrong file.");
 
-        Add("BodyTypeProfiles.ImportProfile",
-            layperson: "Loads a profile from a JSON file and adds it to the list alongside your existing profiles.",
-            technical: "Deserializes a BodyTypeProfile JSON (as written by Export) and appends it to the Profiles collection; a name collision gets the same ' (N)' suffix the Duplicate path uses.",
-            motivation: "Lets users install profiles authored by others, or restore backups, without hand-editing the settings file.");
+        Add("BodyTypeProfiles.CreateProfile",
+            layperson: "Starts an empty measurement profile for the selected body type, stored in its active rule file.",
+            technical: "Ensures the body type has an active BodyTypeRuleSet (VM_OBodyMiscSettings.EnsureRuleFileForBodyType creates an unsaved one named after the body type if needed), then adds a new BodyTypeProfile via ReplaceProfileForBodyType and reconciles its category defaults with Label by Sliders. Enabled only when the body type has no profile.",
+            motivation: "Replaces the old free-form Add: a profile always belongs to exactly one rule file and body type, so creating one is tied to the selected body type.");
+
+        Add("BodyTypeProfiles.RemoveProfile",
+            layperson: "Deletes the selected body type's measurement profile from its rule file. The file's Label by Sliders rules and your worklist annotations are kept.",
+            technical: "Confirms, then ReplaceProfileForBodyType(bodyType, null): the profile VM is dropped (its PresetAnnotations / AnnotatorPrefs are parked and survive the save) and the active BodyTypeRuleSet's MeasurementProfile becomes null when the views are folded back on save.",
+            motivation: "A rule file may legitimately carry slider rules only; this is the way back to that state without deleting the file.");
+
+        Add("BodyTypeProfiles.ProfileName",
+            layperson: "The profile's own name, used in log messages and to name its measurement cache file. The rule file's name is set separately in OBody Misc settings.",
+            technical: "BodyTypeProfile.Name. MeasurementCacheStore.FilenameFor derives the cache file name from (Name, BodyTypeName, Id), so renaming a profile makes the next scan write a new cache file.",
+            motivation: "Kept separate from the rule file's display name so renaming or duplicating a file doesn't orphan an expensive measurement cache.");
 
         Add("BodyTypeProfiles.ViewerSplitter",
             layperson: "Drag left or right to change how much space the profile editor and the 3D preview get.",

@@ -486,17 +486,18 @@ public class ClassifierDefaultTimingTests
     }
 
     [Fact]
-    public void CollectExternalDescriptors_WithRules_ManualCategoryBlocksSliderDerivation()
+    public void CollectExternalDescriptors_WithRules_ManualCategoryBlocksSliderDerivationInItsSlotOnly()
     {
-        // Manual precedence mirrors the annotate pass: a category hand-labeled anywhere on the
-        // preset is never rules-derived. The Manual entry itself seeds only at its own slot.
+        // Manual precedence mirrors the annotate pass, per (weight slot, category): the slot the user
+        // hand-labeled is never rules-derived, while other slots still derive from the rules. The
+        // Manual entry itself seeds only at its own slot.
         var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
         preset.BodyShapeDescriptorsByWeight[0].Add(Annotated("Belly", "Chubby", BodyShapeAnnotationSource.Manual));
         var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
         var universe = SliderUniverse("Belly", "Muscular", "Normal");
 
         BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, rules, universe)
-            .Should().BeEmpty();
+            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
         BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, rules, universe)
             .Should().BeEquivalentTo(new[] { ("Belly", "Chubby") });
     }

@@ -255,8 +255,11 @@ public class BodySlideAnnotatorTests
     }
 
     [Fact]
-    public void ManuallyAnnotatedCategory_IsNeverRewritten()
+    public void ManualAnnotation_OverridesItsCategoryOnlyInItsOwnSlot()
     {
+        // Manual labels are per (weight slot, category): the hand label at weight 0 is never rewritten,
+        // but the other slots are still rules-annotated. (Before descriptors were split by weight, one
+        // manual label anywhere on the preset suppressed the category everywhere.)
         var preset = MakePreset(("ShoulderWidth", 0, 100));
         preset.BodyShapeDescriptorsByWeight[0].Add(new AnnotatedDescriptorSignature(
             new BodyShapeDescriptor.LabelSignature { Category = Category, Value = "Broad" }, BodyShapeAnnotationSource.Manual));
@@ -265,9 +268,45 @@ public class BodySlideAnnotatorTests
 
         var applied = Annotate(preset, rules, Universe("Narrow", "Broad"));
 
-        applied.Should().BeEmpty();
-        preset.EnumerateAllDescriptors().Should().OnlyContain(d => d.Value == "Broad" && d.Source == BodyShapeAnnotationSource.Manual);
-        preset.AnnotationState.Should().Be(BodyShapeAnnotationState.Manual);
+        applied.Select(d => d.Value).Should().Equal("Narrow");
+        preset.BodyShapeDescriptorsByWeight[0].Should().ContainSingle()
+            .Which.Should().Match<AnnotatedDescriptorSignature>(d => d.Value == "Broad" && d.Source == BodyShapeAnnotationSource.Manual);
+        SlotValues(preset, 25).Should().Equal("Narrow");
+        SlotValues(preset, 50).Should().Equal("Narrow");
+        SlotValues(preset, 75).Should().BeEmpty();
+        SlotValues(preset, 100).Should().BeEmpty();
+        preset.AnnotationState.Should().Be(BodyShapeAnnotationState.Mix_Manual_RulesBased);
+    }
+
+    [Fact]
+    public void ManualAnnotation_DefaultDoesNotFillTheManualSlot()
+    {
+        var preset = MakePreset(("ShoulderWidth", 0, 100));
+        preset.BodyShapeDescriptorsByWeight[100].Add(new AnnotatedDescriptorSignature(
+            new BodyShapeDescriptor.LabelSignature { Category = Category, Value = "Broad" }, BodyShapeAnnotationSource.Manual));
+        var rules = Rules(defaultValue: "Average");
+
+        Annotate(preset, rules, Universe("Average", "Broad"));
+
+        SlotValues(preset, 0).Should().Equal("Average");
+        SlotValues(preset, 75).Should().Equal("Average");
+        SlotValues(preset, 100).Should().Equal("Broad");
+    }
+
+    [Fact]
+    public void DeriveDescriptorsForSlot_SkipsCategoryOnlyWhereThatSlotIsManual()
+    {
+        var preset = MakePreset(("ShoulderWidth", 0, 100));
+        preset.BodyShapeDescriptorsByWeight[0].Add(new AnnotatedDescriptorSignature(
+            new BodyShapeDescriptor.LabelSignature { Category = Category, Value = "Broad" }, BodyShapeAnnotationSource.Manual));
+        var rules = Rules(defaultValue: null,
+            ValueRule("Narrow", new[] { Condition("ShoulderWidth", BodySliderType.Interpolated, "<=", 50) }));
+
+        // Weight 0 (and 10, whose nearest slot is 0) is hand-labeled; weight 25 is not.
+        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, Universe("Narrow", "Broad"), 0).Should().BeEmpty();
+        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, Universe("Narrow", "Broad"), 10).Should().BeEmpty();
+        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, Universe("Narrow", "Broad"), 25)
+            .Select(d => d.Value).Should().Equal("Narrow");
     }
 
     [Fact]

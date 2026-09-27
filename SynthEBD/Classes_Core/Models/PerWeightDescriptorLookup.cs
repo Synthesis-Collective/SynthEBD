@@ -47,4 +47,38 @@ public static class PerWeightDescriptorLookup
 
         return result;
     }
+
+    /// <summary>
+    /// The slot keyed exactly at <paramref name="weight"/> when the preset has one (an existing-but-empty
+    /// slot counts: it means "nothing assigned here"), otherwise the nearest slot by key with ties rounding
+    /// down. Unlike <see cref="GetDescriptorsForWeight"/> this never walks outward to a non-empty slot --
+    /// callers asking "what is true at this weight" must not borrow another weight's labels. Null when the
+    /// preset has no slots.
+    /// </summary>
+    public static HashSet<AnnotatedDescriptorSignature>? GetSlotAtOrNearest(BodySlideSetting? preset, int weight)
+    {
+        var slots = preset?.BodyShapeDescriptorsByWeight;
+        if (slots == null || slots.Count == 0) return null;
+        if (slots.TryGetValue(weight, out var exact) && exact != null) return exact;
+
+        int bestKey = 0;
+        int bestDist = int.MaxValue;
+        foreach (var key in slots.Keys)
+        {
+            int dist = Math.Abs(key - weight);
+            if (dist < bestDist || (dist == bestDist && key < bestKey))
+            {
+                bestDist = dist;
+                bestKey = key;
+            }
+        }
+        return slots[bestKey];
+    }
+
+    /// <summary>True when <paramref name="slot"/> holds a Manual descriptor in <paramref name="category"/>.
+    /// A manual label is per (weight slot, category): it overrules every rule-derived suggestion for that
+    /// category in that slot only, so a manual label at weight 0 leaves weight 100 to the rules.</summary>
+    public static bool HasManualInCategory(IEnumerable<AnnotatedDescriptorSignature>? slot, string category)
+        => slot != null && slot.Any(x => x != null && x.Source == BodyShapeAnnotationSource.Manual
+                                         && string.Equals(x.Category, category, StringComparison.Ordinal));
 }

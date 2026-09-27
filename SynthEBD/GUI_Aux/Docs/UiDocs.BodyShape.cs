@@ -36,7 +36,7 @@ public static partial class UiDocs
 
         Add("OBody.AnnotatorMenu",
             layperson: "Opens the rule editor that labels body presets automatically. You describe what slider values mean (for example, a high weight slider means a chubby build) and SynthEBD applies the matching labels to presets for you.",
-            technical: "Edits Settings_OBody.BodySlideClassificationRules (SliderClassificationRulesByBodyType keyed by slider group). BodySlideAnnotator evaluates these rules once per descriptor weight slot to assign body shape descriptors: Small/Big/Either conditions read the preset's authored endpoint slider values (labeling all slots or none), while Interpolated conditions read the weight-blended value at each slot, so their labels can apply to just part of the weight range. Rule-derived annotations are marked as non-manual and are recomputed rather than saved.",
+            technical: "Edits the Label by Sliders rules of each body type's active Body Type Rules file (BodyTypeRuleSet.SliderRules; at runtime Settings_OBody.BodySlideClassificationRules, keyed by slider group). A manual label in a (weight slot, category) blocks rule-derived labels for that category in that slot only. BodySlideAnnotator evaluates these rules once per descriptor weight slot to assign body shape descriptors: Small/Big/Either conditions read the preset's authored endpoint slider values (labeling all slots or none), while Interpolated conditions read the weight-blended value at each slot, so their labels can apply to just part of the weight range. Rule-derived annotations are marked as non-manual and are recomputed rather than saved.",
             motivation: "Manually annotating hundreds of installed presets is tedious. Authoring rules once per body type lets every current and future preset be labeled automatically and consistently.");
 
         Add("OBody.AnnotatorViewerSplitter",
@@ -139,7 +139,7 @@ public static partial class UiDocs
 
         Add("OBody.BodyTypeProfilesMenu",
             layperson: "Opens the editor where each body type gets measurement instructions for the 3D shape analyzer: which points on the mesh to track and what measurements mean which body shape labels.",
-            technical: "Edits Settings_OBody.BodyTypeProfiles. Each BodyTypeProfile pairs a body type from the registry with key vertices, measurement definitions, and classification rules used by the 3D-mesh BodySlide classifier. A profile is authored once per body type and reused for every preset sharing that body's mesh topology.",
+            technical: "Edits the measurement profile of each body type's active Body Type Rules file (BodyTypeRuleSet.MeasurementProfile; at runtime Settings_OBody.BodyTypeProfiles). Each BodyTypeProfile pairs a body type from the registry with key vertices, measurement definitions, and classification rules used by the 3D-mesh BodySlide classifier. A profile is authored once per body type and reused for every preset sharing that body's mesh topology.",
             motivation: "Slider-value rules cannot see the actual mesh; measuring the morphed 3D shape gives more reliable classification, but requires per-body-type reference points, which is what these profiles record.");
 
         // ---------- (O/Auto)Body Integration: Misc Settings page ----------
@@ -158,6 +158,31 @@ public static partial class UiDocs
             layperson: "The Label by Sliders and Label by Measurements menus share one default label per body type and category, and they stay in sync automatically. This picks which menu's value wins if loaded settings arrive with the two already disagreeing: checked means Label by Sliders wins, unchecked means Label by Measurements wins.",
             technical: "Mirror of Settings_OBody.PreferSliderDefaultsOnConflict, read live by DescriptorDefaultSynchronizer. After settings hydration (and on profile import/duplicate/BodyTypeName retarget) the synchronizer reconciles every (body type, category) default: an empty side always adopts the non-empty side; a true conflict (both non-empty, different) resolves to the slider side when checked, the measurement side when unchecked, with the overwrite logged. Live edits in either menu always propagate both ways regardless of this flag.",
             motivation: "Both labeling systems carry a per-category default, and DescriptorRef seeding makes the slider side's copy the operative one at evaluation time - so a disagreement would leave one menu displaying a default that silently never fires. Sync removes the divergence; this toggle only decides which value survives when old or imported settings already disagree.");
+
+        Add("OBody.BodyTypeRuleFiles",
+            layperson: "Your Label by Sliders and Label by Measurements rules are stored as separate files, one or more per body type, so they can be shared. Each row picks which file a body type uses; the choice applies to both labeling menus.",
+            technical: "One VM_BodyTypeRuleFileSelection per body type with at least one BodyTypeRuleSet in 'Body Type Rules\\'. The selection persists in Settings_OBody.SelectedRuleFileByBodyType (by file name). SettingsIO_BodyTypeRules projects each active file into Settings_OBody.BodySlideClassificationRules / BodyTypeProfiles at load and folds the menus' state back into the active files on save. Switching flushes the menus' current state into the file being left, then reloads that body type in both menus from the new file.",
+            motivation: "Measurement rules can depend on slider-rule output (DescriptorRef conditions) and the two menus share per-category defaults, so they travel together in one file; separate files per body type make a tuned rule set easy to share or swap without touching the rest of the settings.");
+
+        Add("OBody.BodyTypeRuleFilesOpenFolder",
+            layperson: "Opens the Body Type Rules folder. Drop rule files you downloaded here, then restart SynthEBD to pick them up.",
+            technical: "WinExplorerOpener.OpenFolder(SynthEBDPaths.BodyTypeRulesDirPath). Files are scanned at settings load (SettingsIO_BodyTypeRules.LoadRuleSets); unreadable files are logged and skipped, never overwritten.",
+            motivation: "Rule files are meant to be exchanged like asset-pack configs; this is the quickest way to install or back one up.");
+
+        Add("OBody.BodyTypeRuleFileSelect",
+            layperson: "Chooses the active rule file for this body type. If the file uses body shape descriptors you don't have, you're asked whether to import them; your existing descriptors are never changed.",
+            technical: "Setting VM_BodyTypeRuleFileSelection.SelectedFile calls VM_SettingsOBody.SwitchActiveRuleFile: flush the menus into the previous file, offer missing DescriptorDefinitions (DescriptorUI.MergeInMissingModels, Skip mode; a skip is remembered in Settings_OBody.DeclinedDescriptorImports), then ReplaceBodyTypeRules / ReplaceProfileForBodyType inside a DescriptorDefaultSynchronizer hydration pass.",
+            motivation: "One selection drives both menus so a measurement profile is never paired with slider rules it wasn't written against.");
+
+        Add("OBody.BodyTypeRuleFileName",
+            layperson: "The display name of the selected rule file, shown in the list. The file keeps its name on disk.",
+            technical: "Edits BodyTypeRuleSet.Name in place; written on the next save. The file name (and therefore the saved selection key) is unaffected.",
+            motivation: "Two downloaded files can share a file name; a separate display name lets them be told apart without renaming files on disk.");
+
+        Add("OBody.BodyTypeRuleFileDuplicate",
+            layperson: "Copies the selected rule file, including any unsaved edits, and switches this body type to the copy - handy for making your own variant of a shared file.",
+            technical: "FlushLabelingStateIntoRuleFile into the source, then SettingsIO_BodyTypeRules.Duplicate: a deep copy named '<Name> (copy)' with a unique file path, added to PatcherState.BodyTypeRuleSets and selected. The copy's measurement profile keeps its Id and Name so it shares the measurement cache. Written on the next save.",
+            motivation: "Modifying a shipped or downloaded file in place makes it impossible to tell your edits from the original; duplicating first keeps both.");
 
         Add("OBody.OBodyAssignmentMode",
             layperson: "Chooses how your body assignments reach OBody in the game. Native writes them straight into OBody's own settings file; Script uses a small in-game script to apply them instead.",

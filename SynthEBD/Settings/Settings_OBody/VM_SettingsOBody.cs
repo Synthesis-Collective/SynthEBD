@@ -26,6 +26,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_BodySlideAnnotator.Factory _bodySlideAnnotatorFactory;
     private readonly DescriptorDefaultSynchronizer _descriptorDefaultSynchronizer;
     private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
+    private readonly PatcherState _patcherState;
+
+    /// <summary>Carried from the model to the model: descriptor imports the user declined
+    /// (<see cref="Settings_OBody.DeclinedDescriptorImports"/>), extended by this session's prompts.</summary>
+    private HashSet<string> _declinedDescriptorImports = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Builds the descriptor / BodySlides / attribute-group / misc / annotator sub-menus, wires
@@ -45,9 +50,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_OBodyTrainer obodyTrainer,
         VM_BodyTypeRegistry bodyTypeRegistry,
         VM_BodyTypeProfileEditor bodyTypeProfileEditor,
-        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer
+        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer,
+        PatcherState patcherState
         )
     {
+        _patcherState = patcherState;
         _logger = logger;
         _attributeGroupFactory = attributeGroupFactory;
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
@@ -63,6 +70,9 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         AnnotatorUI = _bodySlideAnnotatorFactory(DescriptorUI, BodySlidesUI, MiscUI);
         BodyTypeRegistryUI = bodyTypeRegistry;
         BodyTypeProfileEditorUI = bodyTypeProfileEditor;
+        // The editor reads the active rule file from the Misc menu; hand it a direct accessor now that
+        // both exist, rather than letting it resolve this VM (which would re-enter Autofac mid-build).
+        BodyTypeProfileEditorUI._miscSettingsAccessor = () => MiscUI;
 
         BodySlidesUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         BodyTypeProfileEditorUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
@@ -170,6 +180,18 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _descriptorDefaultSynchronizer.BeginHydration();
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
+        // Active rule files may reference descriptors this user doesn't have (a downloaded file carries
+        // their definitions). Offer them before the descriptor menu loads, so accepted ones show up in
+        // both labeling menus straight away.
+        _declinedDescriptorImports = new HashSet<string>(model.DeclinedDescriptorImports ?? new HashSet<string>(), StringComparer.Ordinal);
+        foreach (var bodyType in SettingsIO_BodyTypeRules.BodyTypesWithFiles(_patcherState.BodyTypeRuleSets))
+        {
+            var active = SettingsIO_BodyTypeRules.ResolveActive(model, _patcherState.BodyTypeRuleSets, bodyType);
+            if (active == null) continue;
+            var accepted = OfferDescriptorImport(active, model.TemplateDescriptors);
+            if (accepted.Count > 0) BodyTypeRuleSet.MergeMissingDescriptorDefinitions(model.TemplateDescriptors, accepted);
+        }
+
         DescriptorUI.CopyInViewModelsFromModels(model.TemplateDescriptors);
 
         BodySlidesUI.CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides; // must load before presets
@@ -241,6 +263,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         }
 
         MiscUI.CopyInViewModelFromModel(model);
+        MiscUI.RebuildRuleFileSelections(model);
 
         BodyTypeRegistryUI.CopyInViewModelFromModel(model);
 
@@ -308,7 +331,102 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         model.LastSelectedSliderAnnotationBodyType = AnnotatorUI.LastSelectedBodyTypeGroup;
 
         model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
+        model.DeclinedDescriptorImports = new HashSet<string>(_declinedDescriptorImports, StringComparer.Ordinal);
         return model;
+    }
+
+    /// <summary>
+    /// Writes the labeling menus' current state for <paramref name="bodyType"/> (Label by Sliders rules and
+    /// the measurement profile, including unsaved edits) into <paramref name="ruleFile"/>. Used before a
+    /// file switch -- so the file being left keeps its edits and is written on the next save -- and
+    /// before Duplicate, so the copy includes them.
+    /// </summary>
+    public void FlushLabelingStateIntoRuleFile(string bodyType, BodyTypeRuleSet ruleFile)
+    {
+        if (ruleFile == null) return;
+        ruleFile.SliderRules = AnnotatorUI.DumpRulesForBodyType(bodyType);
+        ruleFile.MeasurementProfile = BodyTypeProfileEditorUI.DumpProfileForRuleFile(bodyType);
+        ruleFile.NormalizeBodyType();
+    }
+
+    /// <summary>
+    /// Makes <paramref name="next"/> the active rule file for <paramref name="bodyType"/>: flushes the menus
+    /// into <paramref name="previous"/>, offers any descriptor definitions <paramref name="next"/> needs, then
+    /// reloads the body type in both labeling menus from <paramref name="next"/> (deep copies, so the menus
+    /// never alias a file object). Wrapped in a synchronizer hydration pass so the default-descriptor sync
+    /// doesn't push half-swapped values between the menus.
+    /// </summary>
+    public void SwitchActiveRuleFile(string bodyType, BodyTypeRuleSet? previous, BodyTypeRuleSet next)
+    {
+        if (next == null) return;
+        if (previous != null) FlushLabelingStateIntoRuleFile(bodyType, previous);
+
+        var accepted = OfferDescriptorImport(next, DescriptorUI.DumpToViewModels());
+        if (accepted.Count > 0)
+        {
+            DescriptorUI.MergeInMissingModels(accepted, DescriptorRulesMergeMode.Skip, new List<string>());
+        }
+
+        _descriptorDefaultSynchronizer.BeginHydration();
+        try
+        {
+            AnnotatorUI.ReplaceBodyTypeRules(bodyType,
+                JSONhandler<SliderClassificationRulesByBodyType>.CloneViaJSON(next.SliderRules ?? new SliderClassificationRulesByBodyType()));
+            BodyTypeProfileEditorUI.ReplaceProfileForBodyType(bodyType,
+                next.MeasurementProfile == null ? null : JSONhandler<BodyTypeProfile>.CloneViaJSON(next.MeasurementProfile));
+        }
+        finally
+        {
+            _descriptorDefaultSynchronizer.EndHydrationAndReconcile();
+        }
+        BodyTypeProfileEditorUI.RefreshActiveRuleFileLabel();
+        _logger.LogMessage("Body Type Rules: '" + bodyType + "' now uses '" + next.Name + "' (" + next.FileName + ").");
+    }
+
+    /// <summary>
+    /// Asks whether to import the descriptor definitions <paramref name="ruleFile"/> carries that
+    /// <paramref name="templateDescriptors"/> lacks. Returns the definitions to import (empty when there
+    /// are none or the user skips). A skip is remembered per file and descriptor so it isn't asked again.
+    /// Existing definitions are never overwritten -- only missing ones are ever offered. When dialogs are
+    /// suppressed (headless harness) nothing is imported and nothing is recorded as declined.
+    /// </summary>
+    private List<BodyShapeDescriptorShell> OfferDescriptorImport(BodyTypeRuleSet ruleFile, IEnumerable<BodyShapeDescriptorShell> templateDescriptors)
+    {
+        var missing = ruleFile.FindMissingDescriptorDefinitions(templateDescriptors, _declinedDescriptorImports);
+        if (missing.Count == 0) return missing;
+
+        var lines = missing
+            .SelectMany(s => s.Descriptors.Select(d => "  " + BodyShapeDescriptor.LabelSignature.ToSignatureString(s.Category, d.ID.Value)))
+            .ToList();
+        if (MessageWindow.SuppressAllDialogs)
+        {
+            _logger.LogMessage("Body Type Rules: '" + ruleFile.FileName + "' uses " + lines.Count + " descriptor(s) not in your settings; import prompt suppressed, not imported.");
+            return new List<BodyShapeDescriptorShell>();
+        }
+
+        var shown = lines.Take(30).ToList();
+        if (lines.Count > 30) shown.Add("  ... and " + (lines.Count - 30) + " more");
+        bool import = MessageWindow.DisplayNotificationYesNo("Import Body Shape Descriptors?",
+            "The body type rule file '" + ruleFile.Name + "' (" + ruleFile.FileName + ") uses " + lines.Count
+            + " body shape descriptor(s) that aren't in your settings:\n\n" + string.Join("\n", shown)
+            + "\n\nImport them? Your existing descriptors are never changed.\n"
+            + "If you skip, rules that assign these descriptors will have no effect, and you won't be asked again for this file.");
+
+        if (import)
+        {
+            _logger.LogMessage("Body Type Rules: imported " + lines.Count + " descriptor definition(s) from '" + ruleFile.FileName + "'.");
+            return missing;
+        }
+
+        foreach (var shell in missing)
+        {
+            foreach (var d in shell.Descriptors)
+            {
+                _declinedDescriptorImports.Add(BodyTypeRuleSet.DeclineKey(ruleFile.FileName, shell.Category, d.ID.Value));
+            }
+        }
+        _logger.LogMessage("Body Type Rules: skipped importing " + lines.Count + " descriptor definition(s) from '" + ruleFile.FileName + "'.");
+        return new List<BodyShapeDescriptorShell>();
     }
 
     /// <summary>Propagates a descriptor (category, value) rename across all BodySlides and asset-pack subgroup descriptor lists.</summary>

@@ -404,6 +404,34 @@ public class VM_BodySlideAnnotator : VM
         return bodySlideClassificationRules;
     }
 
+    /// <summary>The current rules for <paramref name="bodyType"/> -- from its rule-set VM when the body type
+    /// is shown, else from the stash of rules for unloaded body types -- or an empty rule set. Used to flush
+    /// edits into the outgoing rule file before the Misc menu switches the body type's active file.</summary>
+    public SliderClassificationRulesByBodyType DumpRulesForBodyType(string bodyType)
+    {
+        var vm = AnnotationRules.FirstOrDefault(x => string.Equals(x.BodyTypeGroup, bodyType, StringComparison.OrdinalIgnoreCase));
+        if (vm != null) return vm.DumpToModel();
+        var stashed = _stashedUnloadedBodyTypeRules.FirstOrDefault(x => string.Equals(x.BodyTypeGroup, bodyType, StringComparison.OrdinalIgnoreCase));
+        return stashed ?? new SliderClassificationRulesByBodyType { BodyTypeGroup = bodyType };
+    }
+
+    /// <summary>Replaces <paramref name="bodyType"/>'s rules with <paramref name="model"/> (the newly active
+    /// rule file's). Categories the model doesn't mention are cleared, so nothing from the previous file
+    /// lingers. The caller brackets this in a <see cref="DescriptorDefaultSynchronizer"/> hydration pass.</summary>
+    public void ReplaceBodyTypeRules(string bodyType, SliderClassificationRulesByBodyType model)
+    {
+        model ??= new SliderClassificationRulesByBodyType();
+        model.BodyTypeGroup = bodyType;
+        var vm = AnnotationRules.FirstOrDefault(x => string.Equals(x.BodyTypeGroup, bodyType, StringComparison.OrdinalIgnoreCase));
+        if (vm != null)
+        {
+            vm.ReplaceFromModel(model);
+            return;
+        }
+        _stashedUnloadedBodyTypeRules.RemoveAll(x => string.Equals(x.BodyTypeGroup, bodyType, StringComparison.OrdinalIgnoreCase));
+        _stashedUnloadedBodyTypeRules.Add(model);
+    }
+
     /// <summary>Runs the rule-based annotator over the loaded BodySlides (optionally filtered to one slider group and/or one descriptor category), refreshes border colors, and posts a status notification.</summary>
     public void ApplyAnnotations(string? specifiedSliderGroup, string? specifiedDescriptorCategory)
     {
@@ -611,6 +639,22 @@ public class VM_SliderClassificationRulesByBodyType : VM // contains a list of r
         // appends them unsorted); rebuild so they land in sorted position and survive future
         // toggle rebuilds via EnumerateReferencedSliderNames.
         RebuildAvailableSliderNames();
+    }
+
+    /// <summary>Like <see cref="CopyInFromModel"/>, but first resets every category the model doesn't
+    /// mention (empty default, no rules). CopyInFromModel only overwrites categories present in the model,
+    /// which is right for a fresh load but would leave the previous rule file's rules behind on a switch.</summary>
+    public void ReplaceFromModel(SliderClassificationRulesByBodyType model)
+    {
+        var mentioned = new HashSet<string>((model?.DescriptorClassifiers ?? new()).Where(x => x != null).Select(x => x.DescriptorCategory ?? ""), StringComparer.Ordinal);
+        foreach (var classifier in DescriptorClassifiers)
+        {
+            if (!mentioned.Contains(classifier.DescriptorCategory ?? ""))
+            {
+                classifier.CopyInFromModel(new DescriptorClassificationRuleSet { DescriptorCategory = classifier.DescriptorCategory, DefaultDescriptorValue = "" });
+            }
+        }
+        CopyInFromModel(model ?? new SliderClassificationRulesByBodyType());
     }
 
     /// <summary>Serializes the child descriptor rule-set VMs (plus stashed unloaded rules) into a <see cref="SliderClassificationRulesByBodyType"/> model.</summary>

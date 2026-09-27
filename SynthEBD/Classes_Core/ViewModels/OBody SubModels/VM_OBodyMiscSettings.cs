@@ -14,14 +14,25 @@ public class VM_OBodyMiscSettings : VM
     private readonly RaceMenuIniHandler _raceMenuHandler;
     private readonly VM_Settings_General _generalSettingsVM;
     private readonly Func<VM_SettingsOBody> _parentMenu;
+    private readonly PatcherState _patcherState;
+    private readonly SynthEBDPaths _paths;
+
+    /// <summary>True while rows are being (re)built, so the SelectedFile setters don't trigger file switches.</summary>
+    private bool _suppressRuleFileSwitch;
     public delegate VM_OBodyMiscSettings Factory();
-    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu, VM_OBodyPreviewNpcSettings previewNpcs, DescriptorDefaultSynchronizer descriptorDefaultSynchronizer)
+    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu, VM_OBodyPreviewNpcSettings previewNpcs, DescriptorDefaultSynchronizer descriptorDefaultSynchronizer, PatcherState patcherState, SynthEBDPaths paths)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
         _generalSettingsVM = generalSettingsVM;
         _parentMenu = parentMenu;
+        _patcherState = patcherState;
+        _paths = paths;
         PreviewNpcs = previewNpcs;
+
+        OpenRuleFolderCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => WinExplorerOpener.OpenFolder(_paths.BodyTypeRulesDirPath));
         // The synchronizer reads PreferSliderDefaultsOnConflict live from this VM at each
         // reconcile, so mid-session toggle changes apply to the next import/retarget without
         // waiting for a save round-trip.
@@ -139,6 +150,108 @@ public class VM_OBodyMiscSettings : VM
     /// Section B: per-weight preview NPC mapping consumed by the BodySlide preview viewer.
     /// </summary>
     public VM_OBodyPreviewNpcSettings PreviewNpcs { get; }
+
+    /// <summary>One row per body type that has at least one Body Type Rules file: a combobox choosing the
+    /// active file, which drives both Label by Sliders and Label by Measurements for that body type.</summary>
+    public ObservableCollection<VM_BodyTypeRuleFileSelection> RuleFileSelections { get; } = new();
+
+    /// <summary>Opens the Body Type Rules folder in Explorer (where shared rule files are dropped in).</summary>
+    public RelayCommand OpenRuleFolderCommand { get; }
+
+    /// <summary>Rebuilds <see cref="RuleFileSelections"/> from <see cref="PatcherState.BodyTypeRuleSets"/>,
+    /// selecting each body type's active file per <paramref name="model"/>. Never triggers a switch.</summary>
+    public void RebuildRuleFileSelections(Settings_OBody model)
+    {
+        _suppressRuleFileSwitch = true;
+        try
+        {
+            RuleFileSelections.Clear();
+            var ruleSets = _patcherState.BodyTypeRuleSets ?? new List<BodyTypeRuleSet>();
+            foreach (var bodyType in SettingsIO_BodyTypeRules.BodyTypesWithFiles(ruleSets).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                var row = new VM_BodyTypeRuleFileSelection(bodyType, this);
+                foreach (var file in SettingsIO_BodyTypeRules.FilesForBodyType(ruleSets, bodyType))
+                {
+                    row.Files.Add(new VM_BodyTypeRuleFileOption(file));
+                }
+                var active = SettingsIO_BodyTypeRules.ResolveActive(model, ruleSets, bodyType);
+                row.SelectedFile = row.Files.FirstOrDefault(f => ReferenceEquals(f.Model, active));
+                RuleFileSelections.Add(row);
+            }
+        }
+        finally
+        {
+            _suppressRuleFileSwitch = false;
+        }
+    }
+
+    /// <summary>The rule file currently active for <paramref name="bodyType"/>, or null when it has none.</summary>
+    public BodyTypeRuleSet? GetActiveRuleFile(string bodyType)
+        => RuleFileSelections.FirstOrDefault(r => string.Equals(r.BodyTypeName, bodyType, StringComparison.OrdinalIgnoreCase))?.SelectedFile?.Model;
+
+    /// <summary>Makes sure <paramref name="bodyType"/> has an active rule file, creating an empty
+    /// (not yet saved) one named after the body type if needed. Returns the active file.</summary>
+    public BodyTypeRuleSet EnsureRuleFileForBodyType(string bodyType)
+    {
+        var existing = GetActiveRuleFile(bodyType);
+        if (existing != null) return existing;
+
+        var ruleSets = _patcherState.BodyTypeRuleSets ??= new List<BodyTypeRuleSet>();
+        var created = new BodyTypeRuleSet
+        {
+            Name = bodyType,
+            BodyTypeName = bodyType,
+            FilePath = SettingsIO_BodyTypeRules.UniqueFilePath(_paths.BodyTypeRulesDirPath, bodyType, ruleSets),
+        };
+        created.NormalizeBodyType();
+        ruleSets.Add(created);
+        AddFileToRow(created, select: true);
+        _logger.LogMessage("Body Type Rules: created rule file '" + created.FileName + "' for body type '" + bodyType + "' (written on next save).");
+        return created;
+    }
+
+    /// <summary>Duplicates <paramref name="row"/>'s active file -- including unsaved edits in the labeling
+    /// menus -- and makes the copy active, so the user can start modifying a variant right away.</summary>
+    internal void DuplicateActiveRuleFile(VM_BodyTypeRuleFileSelection row)
+    {
+        var source = row?.SelectedFile?.Model;
+        if (row == null || source == null) return;
+        _parentMenu().FlushLabelingStateIntoRuleFile(row.BodyTypeName, source);
+        var copy = SettingsIO_BodyTypeRules.Duplicate(source, _paths.BodyTypeRulesDirPath, _patcherState.BodyTypeRuleSets);
+        _patcherState.BodyTypeRuleSets.Add(copy);
+        // The copy's content equals the live menus' content, so selecting it needs no reload.
+        AddFileToRow(copy, select: true);
+        _logger.LogMessage("Body Type Rules: duplicated '" + source.Name + "' as '" + copy.Name + "' (" + copy.FileName + ", written on next save).");
+    }
+
+    private void AddFileToRow(BodyTypeRuleSet file, bool select)
+    {
+        _suppressRuleFileSwitch = true;
+        try
+        {
+            var row = RuleFileSelections.FirstOrDefault(r => string.Equals(r.BodyTypeName, file.BodyTypeName, StringComparison.OrdinalIgnoreCase));
+            if (row == null)
+            {
+                row = new VM_BodyTypeRuleFileSelection(file.BodyTypeName, this);
+                RuleFileSelections.Add(row);
+            }
+            var option = new VM_BodyTypeRuleFileOption(file);
+            row.Files.Add(option);
+            if (select) row.SelectedFile = option;
+        }
+        finally
+        {
+            _suppressRuleFileSwitch = false;
+        }
+        _parentMenu().BodyTypeProfileEditorUI?.RefreshActiveRuleFileLabel();
+    }
+
+    /// <summary>Called by a row when the user picks a different file.</summary>
+    internal void HandleRuleFileSelectionChanged(VM_BodyTypeRuleFileSelection row, VM_BodyTypeRuleFileOption? previous, VM_BodyTypeRuleFileOption? current)
+    {
+        if (_suppressRuleFileSwitch || current == null || ReferenceEquals(previous, current)) return;
+        _parentMenu().SwitchActiveRuleFile(row.BodyTypeName, previous?.Model, current.Model);
+    }
 
     public void CopyInViewModelFromModel(Settings_OBody model)
     {
@@ -261,6 +374,13 @@ public class VM_OBodyMiscSettings : VM
         }
 
         model.PreviewNpcs = PreviewNpcs.DumpToModel();
+
+        model.SelectedRuleFileByBodyType = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in RuleFileSelections)
+        {
+            var fileName = row.SelectedFile?.Model?.FileName;
+            if (!string.IsNullOrEmpty(fileName)) model.SelectedRuleFileByBodyType[row.BodyTypeName] = fileName;
+        }
     }
 
     public List<string> ResetTroubleShootingToDefault(bool preparationMode)
@@ -281,6 +401,74 @@ public class VM_OBodyMiscSettings : VM
 
         return changes;
     }
+}
+
+/// <summary>
+/// Row of the Misc menu's "Body Type Rules" list: the rule files available for one body type and which
+/// one is active. Changing <see cref="SelectedFile"/> switches both labeling menus to that file.
+/// </summary>
+public class VM_BodyTypeRuleFileSelection : VM
+{
+    private readonly VM_OBodyMiscSettings _parent;
+    private VM_BodyTypeRuleFileOption? _selectedFile;
+
+    public VM_BodyTypeRuleFileSelection(string bodyTypeName, VM_OBodyMiscSettings parent)
+    {
+        BodyTypeName = bodyTypeName;
+        _parent = parent;
+        DuplicateCommand = new RelayCommand(
+            canExecute: _ => SelectedFile != null,
+            execute: _ => _parent.DuplicateActiveRuleFile(this));
+    }
+
+    public string BodyTypeName { get; }
+    public ObservableCollection<VM_BodyTypeRuleFileOption> Files { get; } = new();
+
+    /// <summary>The active file. Hand-written (not a Fody auto-property) because the switch needs the
+    /// previous value, to flush unsaved menu edits into the file being left.</summary>
+    public VM_BodyTypeRuleFileOption? SelectedFile
+    {
+        get => _selectedFile;
+        set
+        {
+            if (ReferenceEquals(_selectedFile, value)) return;
+            var previous = _selectedFile;
+            _selectedFile = value;
+            ManuallyRaisePropertyChanged(nameof(SelectedFile));
+            _parent.HandleRuleFileSelectionChanged(this, previous, value);
+        }
+    }
+
+    /// <summary>Copies the active file (with unsaved edits) and makes the copy active.</summary>
+    public RelayCommand DuplicateCommand { get; }
+}
+
+/// <summary>One file in a <see cref="VM_BodyTypeRuleFileSelection"/>'s combobox. <see cref="Name"/> edits
+/// the file's display name in place (the file itself keeps its name on disk).</summary>
+public class VM_BodyTypeRuleFileOption : VM
+{
+    public VM_BodyTypeRuleFileOption(BodyTypeRuleSet model)
+    {
+        Model = model;
+    }
+
+    public BodyTypeRuleSet Model { get; }
+
+    public string Name
+    {
+        get => Model.Name;
+        set
+        {
+            if (string.Equals(Model.Name, value, StringComparison.Ordinal)) return;
+            Model.Name = value ?? "";
+            ManuallyRaisePropertyChanged(nameof(Name));
+            ManuallyRaisePropertyChanged(nameof(Display));
+        }
+    }
+
+    /// <summary>"Name (file.json)" -- the file name is shown too so two files with the same display name
+    /// can still be told apart.</summary>
+    public string Display => Model.Name + "  (" + (string.IsNullOrEmpty(Model.FileName) ? "unsaved" : Model.FileName) + ")";
 }
 
 /// <summary>

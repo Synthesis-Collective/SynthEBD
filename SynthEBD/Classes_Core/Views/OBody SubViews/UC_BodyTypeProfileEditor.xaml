@@ -266,21 +266,22 @@
                 <Button DockPanel.Dock="Right" Content="Keyboard Shortcuts"
                         Click="KeyboardShortcuts_Click" Padding="8,1"
                         local:DocTooltip.Key="BodyTypeProfiles.KeyboardShortcuts"/>
-                <TextBlock Text="Body Type Profiles:" FontWeight="Bold"
+                <TextBlock Text="Body Type:" FontWeight="Bold"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ComboBox ItemsSource="{Binding Profiles}"
-                          SelectedItem="{Binding SelectedProfile}"
-                          DisplayMemberPath="Name"
-                          MinWidth="220" Margin="0,0,12,0"
-                          VerticalAlignment="Center"/>
-                <Button Content="Add" Command="{Binding AddProfile}" Padding="6,1" Margin="0,0,4,0"/>
-                <Button Content="Delete" Command="{Binding DeleteSelectedProfile}" Padding="6,1" Margin="0,0,4,0"/>
-                <Button Content="Duplicate" Command="{Binding DuplicateSelectedProfile}" Padding="6,1" Margin="0,0,12,0"
-                        local:DocTooltip.Key="BodyTypeProfiles.DuplicateProfile"/>
-                <Button Content="Export" Command="{Binding ExportSelectedProfile}" Padding="6,1" Margin="0,0,4,0"
-                        local:DocTooltip.Key="BodyTypeProfiles.ExportProfile"/>
-                <Button Content="Import" Command="{Binding ImportProfile}" Padding="6,1"
-                        local:DocTooltip.Key="BodyTypeProfiles.ImportProfile"/>
+                <ComboBox ItemsSource="{Binding AvailableBodyTypeNames}"
+                          SelectedItem="{Binding SelectedBodyType}"
+                          MinWidth="180" Margin="0,0,12,0"
+                          VerticalAlignment="Center"
+                          local:DocTooltip.Key="BodyTypeProfiles.BodyTypePicker"/>
+                <TextBlock Text="Rule file:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBlock Text="{Binding ActiveRuleFileLabel}" VerticalAlignment="Center" Margin="0,0,12,0"
+                           FontStyle="Italic" local:DocTooltip.Key="BodyTypeProfiles.ActiveRuleFile"/>
+                <Button Content="Create Profile" Command="{Binding CreateProfileCommand}" Padding="6,1" Margin="0,0,4,0"
+                        Foreground="{DynamicResource ActionGoodForeground}"
+                        local:DocTooltip.Key="BodyTypeProfiles.CreateProfile"/>
+                <Button Content="Remove Profile" Command="{Binding RemoveProfileCommand}" Padding="6,1" Margin="0,0,4,0"
+                        Foreground="FireBrick"
+                        local:DocTooltip.Key="BodyTypeProfiles.RemoveProfile"/>
             </DockPanel>
         </Border>
 
@@ -372,14 +373,13 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Profile name:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0"
+                                         local:DocTooltip.Key="BodyTypeProfiles.ProfileName"/>
 
+                                <!-- Read-only: the body type is fixed by the rule file the profile lives in. -->
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Body Type:" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="0" Grid.Column="3"
-                                          ItemsSource="{Binding AvailableBodyTypeNames}"
-                                          IsEditable="True"
-                                          Text="{Binding BodyTypeName, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding BodyTypeName}" VerticalAlignment="Center"/>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="0,5,0,0">
                                     <TextBlock Text="Topology fingerprint:" Margin="0,0,5,0" VerticalAlignment="Center"/>

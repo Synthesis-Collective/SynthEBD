@@ -792,6 +792,7 @@ public class VM_AnnotationQueue : VM
                      + (slice.Members.Count > 1 ? " (+" + (slice.Members.Count - 1) + " alias)" : "")
                      + ".";
             RefreshTally();
+            RefreshPendingApplyCount();
         }
 
         AdvanceTo(_cursor + 1, countAsServed: true);
@@ -1180,7 +1181,32 @@ public class VM_AnnotationQueue : VM
         LoadSettingsFromProfile();
         RefreshValueHints();
         RefreshTally();
+        RefreshPendingApplyCount();
         Status = profile == null ? "No profile selected." : "Pick a Category and press Build Queue.";
+    }
+
+    /// <summary>Applies this body type's worklist verdicts to the presets as Manual descriptors. Lives on
+    /// the queue panel because committing a verdict here does NOT label the preset -- the verdicts are
+    /// training data until applied, and the panel is where a user would otherwise assume they already are.</summary>
+    public RelayCommand ApplyToPresetsCommand => _editor.ApplyAnnotationsToPresetsCommand;
+
+    /// <summary>"N annotated slot(s) not yet on their presets" -- the number of (preset, weight, category)
+    /// entries Apply would write right now. Empty when there is nothing pending.</summary>
+    public string PendingApplyText { get; set; } = "";
+
+    /// <summary>True when <see cref="PendingApplyText"/> reports pending entries.</summary>
+    public bool HasPendingApply { get; set; }
+
+    /// <summary>Recomputes <see cref="PendingApplyText"/> with a dry run of the apply plan.</summary>
+    public void RefreshPendingApplyCount()
+    {
+        var plan = _editor.BuildAnnotationApplyPlan(_watchedProfile);
+        int pending = plan?.Changes.Count ?? 0;
+        HasPendingApply = pending > 0;
+        PendingApplyText = pending == 0
+            ? "All annotations are applied to their presets."
+            : pending + " annotated slot(s) not yet applied to their presets"
+              + (plan!.Conflicts.Count > 0 ? " (" + plan.Conflicts.Count + " would replace a different manual value)" : "") + ".";
     }
 
     private void LoadSettingsFromProfile()

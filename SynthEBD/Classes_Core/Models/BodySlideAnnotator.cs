@@ -17,8 +17,10 @@ namespace SynthEBD;
 /// <see cref="BodySliderType.Interpolated"/> conditions test the linearly weight-blended value at each slot —
 /// so a rule with only endpoint conditions annotates all slots or none (legacy whole-preset behavior), and a
 /// rule with an Interpolated condition annotates just the slots where it passes. A category's default
-/// descriptor fills only the slots no rule in that category matched. Honors manual annotations (never
-/// overwriting them) and tracks each preset's annotation state (none / rules-based / manual / mixed).
+/// descriptor fills only the slots no rule in that category matched. Honors manual annotations per (weight
+/// slot, category): a slot the user hand-labeled in a category gets no rule-derived descriptor in that
+/// category, while the preset's other slots are still annotated. Tracks each preset's annotation state
+/// (none / rules-based / manual / mixed).
 /// </summary>
 public class BodySlideAnnotator
 {
@@ -54,7 +56,7 @@ public class BodySlideAnnotator
     /// <summary>
     /// Annotates a single preset: for each descriptor category, evaluates its rules once per weight slot and
     /// adds the matching descriptor to the slots where the rule passed (the category default fills any slots
-    /// no rule matched) — skipping categories already manually annotated, and optionally clearing prior
+    /// no rule matched) — skipping, per slot, categories the user manually annotated in that slot, and optionally clearing prior
     /// auto-annotations first. Updates the preset's annotation state. Static so tests can drive it without a
     /// <see cref="Logger"/>; <paramref name="logMessage"/> may be null to suppress logging.
     /// </summary>
@@ -95,12 +97,8 @@ public class BodySlideAnnotator
                 bodySlide.RemoveDescriptorsFromAllSlots(x => x.Category == ruleSet.DescriptorCategory && x.Source != BodyShapeAnnotationSource.Manual);
             }
 
-            // skip over the category if it's already manually annotated in any slot
-            if (bodySlide.EnumerateAllDescriptors().Any(x => x.Category == ruleSet.DescriptorCategory && x.Source == BodyShapeAnnotationSource.Manual))
-            {
-                continue;
-            }
-
+            // Slots the user hand-labeled in this category are skipped inside ApplyDescriptorCategoryRuleSet;
+            // the preset's remaining slots are still rules-annotated.
             annotatedDescriptors.AddRange(ApplyDescriptorCategoryRuleSet(bodySlide, ruleSet, currentDescriptors.Where(x => x.Category == ruleSet.DescriptorCategory).Select(x => x.Value).ToHashSet(), logMessage));
         }
 
@@ -125,7 +123,8 @@ public class BodySlideAnnotator
     /// <paramref name="weightSlot"/>, without touching the preset. Applies the same gates as the annotate
     /// pass — keep them in lockstep: rules must exist for the preset's SliderGroup; the category and its
     /// values must exist in <paramref name="currentDescriptors"/> (null skips that filtering); a category
-    /// with any Manual annotation anywhere on the preset is skipped (rules never overwrite hand labels);
+    /// with a Manual annotation in the slot at <paramref name="weightSlot"/> (exact, else nearest -- see
+    /// <see cref="PerWeightDescriptorLookup.GetSlotAtOrNearest"/>) is skipped (rules never overrule hand labels);
     /// and the category default fills the slot when no rule matches there.
     ///
     /// Unlike the annotate pass this evaluates at ANY weight 0-100 (Interpolated conditions blend to the
@@ -160,15 +159,16 @@ public class BodySlideAnnotator
         }
 
         var currentCategories = currentDescriptors?.Select(x => x.Category).ToHashSet();
+        var slotAtWeight = PerWeightDescriptorLookup.GetSlotAtOrNearest(bodySlide, weightSlot);
 
         foreach (var ruleSet in rulesForBodyType.DescriptorClassifiers)
         {
             if (ruleSet == null || ruleSet.RuleList == null) continue;
             if (currentCategories != null && !currentCategories.Contains(ruleSet.DescriptorCategory)) continue;
 
-            // Manual precedence, same as the annotate pass: a category the user hand-labeled
-            // anywhere on this preset is never rules-annotated, so it must not derive here either.
-            if (bodySlide.EnumerateAllDescriptors().Any(x => x.Category == ruleSet.DescriptorCategory && x.Source == BodyShapeAnnotationSource.Manual))
+            // Manual precedence, same as the annotate pass: a category the user hand-labeled in
+            // this weight's slot is never rules-annotated there, so it must not derive here either.
+            if (PerWeightDescriptorLookup.HasManualInCategory(slotAtWeight, ruleSet.DescriptorCategory))
             {
                 continue;
             }
@@ -214,8 +214,18 @@ public class BodySlideAnnotator
     {
         List<BodyShapeDescriptor.LabelSignature> annotatedDescriptors = new();
 
-        var weightSlots = bodySlide.BodyShapeDescriptorsByWeight?.Keys.OrderBy(x => x).ToList();
-        if (weightSlots == null || !weightSlots.Any())
+        var allSlots = bodySlide.BodyShapeDescriptorsByWeight?.Keys.OrderBy(x => x).ToList();
+        if (allSlots == null || !allSlots.Any())
+        {
+            return annotatedDescriptors;
+        }
+        int totalSlotCount = allSlots.Count;
+
+        // A slot the user hand-labeled in this category is the user's call: no rule or default lands there.
+        var weightSlots = allSlots
+            .Where(w => !PerWeightDescriptorLookup.HasManualInCategory(bodySlide.BodyShapeDescriptorsByWeight![w], ruleSet.DescriptorCategory))
+            .ToList();
+        if (!weightSlots.Any())
         {
             return annotatedDescriptors;
         }
@@ -241,7 +251,7 @@ public class BodySlideAnnotator
                 bodySlide.BodyShapeDescriptorsByWeight[weight].Add(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
                 matchedSlots.Add(weight);
             }
-            logMessage?.Invoke("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString() + FormatWeightSlotSuffix(passingSlots, weightSlots.Count));
+            logMessage?.Invoke("BodySlide Preset " + bodySlide.Label + " annotated as " + descriptorSignature.ToString() + FormatWeightSlotSuffix(passingSlots, totalSlotCount));
             annotatedDescriptors.Add(descriptorSignature);
         }
 
@@ -255,7 +265,7 @@ public class BodySlideAnnotator
                 {
                     bodySlide.BodyShapeDescriptorsByWeight[weight].Add(new AnnotatedDescriptorSignature(descriptorSignature, BodyShapeAnnotationSource.RulesBased));
                 }
-                logMessage?.Invoke("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString() + FormatWeightSlotSuffix(defaultSlots, weightSlots.Count));
+                logMessage?.Invoke("BodySlide Preset " + bodySlide.Label + " annotated as (default) " + descriptorSignature.ToString() + FormatWeightSlotSuffix(defaultSlots, totalSlotCount));
                 annotatedDescriptors.Add(descriptorSignature);
             }
         }

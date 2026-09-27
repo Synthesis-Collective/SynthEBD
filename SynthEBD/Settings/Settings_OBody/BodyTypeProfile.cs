@@ -87,14 +87,22 @@ public class BodyTypeProfile
     /// records the full descriptor signatures the user assigned to one (preset, gender, weight)
     /// slice. Persisted as drafts and used as input to the Suggest Measurements / Suggest Rules
     /// algorithms. Never consumed by the evaluator directly.
+    /// <para><b>Not part of the shareable rule file.</b> These are the user's own verdicts, so they
+    /// persist in <see cref="Settings_OBody.PresetAnnotations"/> (keyed by body type) and are attached
+    /// to the in-memory profile by the editor; <c>[JsonIgnore]</c> keeps them out of
+    /// <see cref="BodyTypeRuleSet"/> files.</para>
     /// </summary>
+    [JsonIgnore]
     public List<PresetAnnotation> PresetAnnotations { get; set; } = new();
 
     /// <summary>
     /// Persisted preferences for the Label-then-suggest UI: which weight slots to enumerate,
     /// which measurement columns are visible in the annotation table, and which algorithms
     /// the Suggest Measurements / Suggest Rules panels default to.
+    /// <para>UI state, not rules: persisted in <see cref="Settings_OBody.AnnotatorPrefsByBodyType"/>
+    /// and kept out of <see cref="BodyTypeRuleSet"/> files, like <see cref="PresetAnnotations"/>.</para>
     /// </summary>
+    [JsonIgnore]
     public AnnotatorPreferences AnnotatorPrefs { get; set; } = new();
 }
 
@@ -697,6 +705,12 @@ public class MeasurementRule
 [DebuggerDisplay("{PresetLabel}[{Weight}] -> {Descriptors.Count} descriptors")]
 public class PresetAnnotation
 {
+    /// <summary>Body type the annotation was made under (the owning profile's
+    /// <see cref="BodyTypeProfile.BodyTypeName"/>). Lets the flat
+    /// <see cref="Settings_OBody.PresetAnnotations"/> list re-attach each entry to the right profile
+    /// regardless of which rule file is active for that body type.</summary>
+    public string BodyTypeName { get; set; } = "";
+
     /// <summary>BodySlide preset identifier. Uses <see cref="BodySlideSetting.Label"/> -- the same
     /// stable human-readable key used elsewhere in the editor. If the preset is renamed the
     /// annotation becomes orphaned and the suggest passes skip it.</summary>
@@ -767,8 +781,9 @@ public enum RuleSynthesisAlgorithm
 
 /// <summary>
 /// Persisted preferences for the Label-then-suggest UI on a <see cref="BodyTypeProfile"/>.
-/// Lives on the profile (not on Settings_OBody) because column visibility is per-measurement-set
-/// and weight-slot needs vary by body type / authoring task.
+/// Scoped per body type because column visibility is per-measurement-set and weight-slot needs vary
+/// by body type / authoring task; persisted in <see cref="Settings_OBody.AnnotatorPrefsByBodyType"/>
+/// rather than in the shareable rule file.
 /// </summary>
 public class AnnotatorPreferences
 {

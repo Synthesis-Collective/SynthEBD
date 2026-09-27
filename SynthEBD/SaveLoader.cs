@@ -29,6 +29,7 @@ public class SaveLoader
     private readonly SettingsIO_AssetPack _assetIO;
     private readonly SettingsIO_BodyGen _bodyGenIO;
     private readonly SettingsIO_OBody _oBodyIO;
+    private readonly SettingsIO_BodyTypeRules _bodyTypeRulesIO;
     private readonly SettingsIO_HeadParts _headpartIO;
     private readonly SettingsIO_Height _heightIO;
     private readonly SettingsIO_BlockList _blockListIO;
@@ -54,7 +55,8 @@ public class SaveLoader
         SettingsIO_Height heightIO,
         SettingsIO_BlockList blockListIO,
         SettingsIO_ModManager modManagerIO,
-        SettingsIO_SpecificNPCAssignments specificNPCassignmentsIO)
+        SettingsIO_SpecificNPCAssignments specificNPCassignmentsIO,
+        SettingsIO_BodyTypeRules bodyTypeRulesIO)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -68,6 +70,7 @@ public class SaveLoader
         _assetIO = assetIO;
         _bodyGenIO = bodyGenIO;
         _oBodyIO = oBodyIO;
+        _bodyTypeRulesIO = bodyTypeRulesIO;
         _headpartIO = headpartIO;
         _heightIO = heightIO;
         _blockListIO = blockListIO;
@@ -98,6 +101,10 @@ public class SaveLoader
         _patcherState.TexMeshSettings = _assetIO.LoadTexMeshSettings(out loadSuccess); // Load texture and mesh settings
         _patcherState.BodyGenSettings = _bodyGenIO.LoadBodyGenSettings(out loadSuccess);
         _patcherState.OBodySettings = _oBodyIO.LoadOBodySettings(out loadSuccess);
+        // Label by Sliders / Label by Measurements rules live in their own shareable files; project the
+        // active file per body type into the OBody settings' runtime views before anything reads them.
+        _patcherState.BodyTypeRuleSets = _bodyTypeRulesIO.LoadRuleSets();
+        SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews(_patcherState.OBodySettings, _patcherState.BodyTypeRuleSets);
         // Stage 4: load slider catalogs and seed the classifier before importing presets so that
         // catalog-driven group/gender detection (instead of <Group> tag matching) is in effect.
         var bodySlideClassifier = _oBodyIO.LoadSliderCatalogs(_patcherState.OBodySettings);
@@ -215,6 +222,13 @@ public class SaveLoader
         if (!saveSuccess) 
         {
             captionStr = "Error saving OBody/AutoBody Settings: ";
+            _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
+        }
+
+        _bodyTypeRulesIO.SaveRuleSets(_patcherState.OBodySettings, _patcherState.BodyTypeRuleSets, out exceptionStr);
+        if (!string.IsNullOrEmpty(exceptionStr))
+        {
+            captionStr = "Error saving Body Type Rules: ";
             _logger.LogError(captionStr + exceptionStr); allExceptions += captionStr + exceptionStr + Environment.NewLine; showFinalExceptions = true;
         }
 

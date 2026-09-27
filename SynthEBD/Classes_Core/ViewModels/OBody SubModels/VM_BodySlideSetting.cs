@@ -283,7 +283,10 @@ public class VM_BodySlideSetting : VM
             var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile, evaluationGender: ResolveGender(),
                 externalDescriptors: externalDescriptors);
             BodySlideMeasurementEvaluator.MergeIntoSlot(modelSlot, result.Descriptors);
-            slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(result.Descriptors);
+            // Same manual-overrides-category filter MergeIntoSlot applies, so the menu never shows a
+            // classifier value selected in a category the user hand-labeled in this slot.
+            slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(
+                BodySlideMeasurementEvaluator.FilterManualOverridden(modelSlot, result.Descriptors));
             UpdateAggregateAnnotationState();
 
             // Parallel diagnostic to the Match Presets scan: when the viewer's

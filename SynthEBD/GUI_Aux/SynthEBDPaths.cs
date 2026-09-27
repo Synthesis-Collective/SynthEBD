@@ -25,6 +25,7 @@ public class SynthEBDPaths : VM
     private const string bodyGenDirRelPath = "BodyGen Configurations";
     private const string NPCConfigDirRelPath = "NPC Configuration";
     private const string recordTemplatesDirRelPath = "Record Templates";
+    private const string bodyTypeRulesDirRelPath = "Body Type Rules";
 
     private readonly PatcherSettingsSourceProvider _settingsSourceProvider;
     private readonly IEnvironmentStateProvider _environmentProvider;
@@ -83,6 +84,11 @@ public class SynthEBDPaths : VM
         {
             Directory.CreateDirectory(recordTemplatesDirPath);
         }
+        string bodyTypeRulesDirPath = Path.Combine(_rootPath, bodyTypeRulesDirRelPath);
+        if (Directory.Exists(bodyTypeRulesDirPath) == false)
+        {
+            Directory.CreateDirectory(bodyTypeRulesDirPath);
+        }
     }
 
     public string LogFolderPath => Path.Combine(_rootPath, "Logs");
@@ -94,6 +100,11 @@ public class SynthEBDPaths : VM
     public string BodyGenSettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "BodyGenSettings.json");
     public string BodyGenConfigDirPath => Path.Combine(_rootPath, bodyGenDirRelPath);
     public string OBodySettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "OBodySettings.json");
+
+    /// <summary>Directory of shareable <see cref="BodyTypeRuleSet"/> files (Label by Sliders + Label by
+    /// Measurements rules, one or more files per body type). A top-level sibling of Asset Packs and
+    /// BodyGen Configurations because, like them, these are files users exchange.</summary>
+    public string BodyTypeRulesDirPath => Path.Combine(_rootPath, bodyTypeRulesDirRelPath);
 
     /// <summary>Directory holding per-profile measurement caches (one
     /// <c>&lt;ProfileId&gt;.measurement_cache.json</c> per <see cref="BodyTypeProfile"/>).
