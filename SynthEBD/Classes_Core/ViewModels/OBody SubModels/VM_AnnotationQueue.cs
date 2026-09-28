@@ -64,8 +64,9 @@ public class VM_AnnotationQueue : VM
         BuildQueueCommand = new RelayCommand(
             canExecute: _ => _editor.SelectedProfile != null
                              && !_editor.AnnotationTable.IsScanning
+                             && !_editor.IsScanning
                              && !string.IsNullOrEmpty(TargetCategory),
-            execute: _ => BuildQueue());
+            execute: _ => _ = BuildQueueEnsuringCacheAsync());
 
         CommitAndNextCommand = new RelayCommand(
             canExecute: _ => CurrentSlice != null,
@@ -115,6 +116,7 @@ public class VM_AnnotationQueue : VM
 
         _editor.PropertyChanged += OnEditorPropertyChanged;
         _editor.AnnotationTable.PropertyChanged += OnAnnotationTablePropertyChanged;
+        _editor.AnnotationTable.RowsReloaded += OnTableRowsReloaded;
 
         PropertyChanged += (_, args) =>
         {
@@ -127,8 +129,9 @@ public class VM_AnnotationQueue : VM
                     if (_suppressPersist) break;
                     RefreshValueHints();
                     RefreshTally();
-                    InvalidateQueue("Target category changed -- press Build Queue.");
+                    InvalidateQueue("Target category changed -- rebuilding the queue.");
                     PersistSettings();
+                    ScheduleAutoBuild();
                     break;
                 case nameof(Policy):
                     IsListPolicy = Policy == AnnotationQueuePolicy.List;
@@ -139,13 +142,15 @@ public class VM_AnnotationQueue : VM
                 case nameof(IncludeAnnotated):
                 case nameof(DedupeAliases):
                 case nameof(WeightCoherent):
-                    InvalidateQueue("Sampling settings changed -- press Build Queue.");
+                    InvalidateQueue("Sampling settings changed -- rebuilding the queue.");
                     PersistSettings();
+                    if (!_suppressPersist) ScheduleAutoBuild();
                     break;
                 case nameof(RandomFraction):
                     ShowRandomFractionWarning = RandomFraction <= 0.0;
-                    InvalidateQueue("Sampling settings changed -- press Build Queue.");
+                    InvalidateQueue("Sampling settings changed -- rebuilding the queue.");
                     PersistSettings();
+                    if (!_suppressPersist) ScheduleAutoBuild();
                     break;
                 case nameof(PrefetchEnabled):
                     PersistSettings();
@@ -318,6 +323,7 @@ public class VM_AnnotationQueue : VM
     {
         _editor.PropertyChanged -= OnEditorPropertyChanged;
         _editor.AnnotationTable.PropertyChanged -= OnAnnotationTablePropertyChanged;
+        _editor.AnnotationTable.RowsReloaded -= OnTableRowsReloaded;
         if (_shellMenu != null) _shellMenu.DescriptorShells.CollectionChanged -= OnDescriptorShellsChanged;
         CancelPrefetch();
         base.Dispose();
@@ -325,9 +331,126 @@ public class VM_AnnotationQueue : VM
 
     // ---------- queue construction ----------
 
+    /// <summary>True when the profile's shared measurement cache is populated and current -- the only
+    /// state <see cref="BuildQueue"/> can build from without a scan.</summary>
+    private static bool CacheIsCurrent(VM_BodyTypeProfile profile)
+        => profile != null && profile.MeasurementCache.Count > 0 && !profile.MeasurementCacheStale;
+
+    private bool _autoBuildScheduled;
+
+    /// <summary>Queues one <see cref="TryAutoBuild"/> for after the current dispatcher work. Deferred
+    /// (and coalesced) because the triggers arrive mid-sequence: a profile switch fires the queue's,
+    /// the table's and the editor's handlers in turn, and the cache is only hydrated and re-validated
+    /// once all of them have run.</summary>
+    private void ScheduleAutoBuild()
+    {
+        if (_autoBuildScheduled) return;
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null) return; // headless (tests / CLI): nothing to render a queue into
+        _autoBuildScheduled = true;
+        dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+        {
+            _autoBuildScheduled = false;
+            TryAutoBuild();
+        }));
+    }
+
+    /// <summary>Builds the queue without any user input when that is possible: a profile and target
+    /// Category are set, no scan is running, a worklist is loaded (List mode), the cache is current,
+    /// and the build needs no confirmation (a zero random fraction asks first). Otherwise it only
+    /// says, in <see cref="Status"/>, what Build Queue will do. Never scans and never opens a dialog;
+    /// never replaces a queue that is already being served.</summary>
+    private void TryAutoBuild()
+    {
+        var profile = _editor.SelectedProfile;
+        if (profile == null || HasQueue || string.IsNullOrEmpty(TargetCategory)) return;
+        if (_editor.IsScanning || _editor.AnnotationTable.IsScanning) return; // the scan's end reloads the table and re-triggers
+
+        if (Policy == AnnotationQueuePolicy.List)
+        {
+            if (_caseList.Count == 0) TryReloadPersistedCaseList();
+            if (_caseList.Count == 0) { Status = "Load a worklist (Load list or Paste) to build the queue."; return; }
+        }
+        else if (RandomFraction <= 0.0)
+        {
+            Status = "Random fraction is 0 -- press Build Queue to confirm and build.";
+            return;
+        }
+
+        if (!CacheIsCurrent(profile))
+        {
+            Status = profile.MeasurementCache.Count == 0
+                ? "No measurements cached yet -- press Build Queue to scan the presets and build."
+                : "Cached measurements are out of date -- press Build Queue to re-scan and build.";
+            return;
+        }
+
+        if (_editor.AnnotationTable.Rows.Count == 0) _editor.AnnotationTable.ReloadFromCache();
+        if (_editor.AnnotationTable.Rows.Count == 0) return;
+        BuildQueue();
+    }
+
+    /// <summary>The Build Queue button, and the automatic build after a worklist is loaded: builds from
+    /// the cache when it is current; otherwise explains why a scan is needed and offers one (the Match
+    /// Presets scan, which computes only the missing or out-of-date values), then builds when it
+    /// completes. Declining leaves the queue unbuilt.</summary>
+    private async System.Threading.Tasks.Task BuildQueueEnsuringCacheAsync()
+    {
+        var profile = _editor.SelectedProfile;
+        if (profile == null) { Status = "No profile selected."; return; }
+        if (string.IsNullOrEmpty(TargetCategory)) { Status = "Pick a target Category first."; return; }
+        if (_editor.IsScanning || _editor.AnnotationTable.IsScanning) { Status = "A scan is running -- the queue builds when it finishes."; return; }
+
+        if (!CacheIsCurrent(profile))
+        {
+            string why = profile.MeasurementCache.Count == 0
+                ? "No measurements are cached for this profile yet."
+                : "The cached measurements are out of date (" + profile.DescribeStaleReason() + ").";
+            bool scan = MessageWindow.DisplayNotificationYesNo(
+                "Scan presets?",
+                why + Environment.NewLine + Environment.NewLine
+                + "The queue is built from current measurements. Scan the presets now? Only missing or "
+                + "out-of-date values are computed, but a large preset collection can still take a while."
+                + Environment.NewLine + Environment.NewLine
+                + "The queue builds automatically when the scan finishes.");
+            if (!scan)
+            {
+                Status = "Queue not built -- the presets need a scan. Press Build Queue when ready.";
+                return;
+            }
+
+            Status = "Scanning presets for the queue...";
+            await _editor.RunScanAsync();
+            if (!CacheIsCurrent(profile))
+            {
+                Status = "The scan did not complete -- queue not built. Press Build Queue to try again.";
+                return;
+            }
+            // The table reloads itself when the editor's scan ends; this only covers a table that
+            // somehow missed it.
+        }
+        if (_editor.AnnotationTable.Rows.Count == 0) _editor.AnnotationTable.ReloadFromCache();
+
+        BuildQueue();
+    }
+
+    /// <summary>The table replaced its row objects (profile bind, a finished scan, a cache reload). A
+    /// built queue holds references to the old rows, so drop it; then build afresh if that needs no
+    /// input.</summary>
+    private void OnTableRowsReloaded()
+    {
+        if (HasQueue)
+        {
+            ClearQueue();
+            Status = "Table reloaded -- rebuilding the queue.";
+        }
+        ScheduleAutoBuild();
+    }
+
     /// <summary>
     /// Rebuilds the queue from the table's current rows under the active settings, then serves the
-    /// first slice. Pure re-read of already-cached measurements -- never scans.
+    /// first slice. Pure re-read of already-cached measurements -- never scans (see
+    /// <see cref="BuildQueueEnsuringCacheAsync"/> for the path that offers one).
     /// </summary>
     public void BuildQueue()
     {
@@ -602,6 +725,8 @@ public class VM_AnnotationQueue : VM
             return;
         }
 
+        // A worklist only means anything in List mode; loading one is choosing that mode.
+        if (Policy != AnnotationQueuePolicy.List) Policy = AnnotationQueuePolicy.List;
         SetCaseList(parsed, sourceName, persistPath: true, path: persistPath);
 
         // Warnings are surfaced rather than logged quietly: a line that silently did not become a
@@ -615,6 +740,9 @@ public class VM_AnnotationQueue : VM
                 + string.Join(Environment.NewLine, warnings.Take(10))
                 + (warnings.Count > 10 ? Environment.NewLine + "..." : ""));
         }
+
+        // Build straight away -- from the cache when it is current, else after offering a scan.
+        _ = BuildQueueEnsuringCacheAsync();
     }
 
     private void SetCaseList(List<AnnotationCase> cases, string sourceName, bool persistPath, string path = "")
@@ -632,7 +760,7 @@ public class VM_AnnotationQueue : VM
 
         InvalidateQueue(_caseList.Count == 0
             ? "Worklist cleared -- load one, or pick another sampling mode."
-            : CaseListSummary + " -- press Build Queue.");
+            : CaseListSummary + ".");
     }
 
     /// <summary>Re-reads the worklist file remembered on the profile, so resuming a session does not
@@ -1182,7 +1310,9 @@ public class VM_AnnotationQueue : VM
         RefreshValueHints();
         RefreshTally();
         RefreshPendingApplyCount();
-        Status = profile == null ? "No profile selected." : "Pick a Category and press Build Queue.";
+        Status = profile == null ? "No profile selected." : "Pick a Category to build the queue.";
+        // Builds on its own once the cache is hydrated and a Category is known, if no input is needed.
+        ScheduleAutoBuild();
     }
 
     /// <summary>Applies this body type's worklist verdicts to the presets as Manual descriptors. Lives on
@@ -1306,6 +1436,9 @@ public class VM_AnnotationQueue : VM
 
         RefreshValueHints();
         RefreshTally();
+        // The category list arrives late (see InitializeAfterMenu); this is when a persisted target
+        // first becomes valid, so it is also the first moment an automatic build can succeed.
+        ScheduleAutoBuild();
     }
 
     private void RefreshAvailableMeasurements()

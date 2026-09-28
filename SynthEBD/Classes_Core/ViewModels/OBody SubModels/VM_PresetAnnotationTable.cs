@@ -382,7 +382,27 @@ public class VM_PresetAnnotationTable : VM
         {
             BindToProfile(_editor.SelectedProfile);
         }
+        else if (e.PropertyName == nameof(VM_BodyTypeProfileEditor.IsScanning) && !_editor.IsScanning && !IsScanning)
+        {
+            // A Match Presets scan (Scan All Presets, or one the annotation queue started) filled the
+            // shared cache; without this the table kept serving the rows it had before the scan.
+            ReloadFromCache();
+        }
     }
+
+    /// <summary>Rebuilds <see cref="Rows"/> from the shared measurement cache (no scan, no mesh work)
+    /// and reports the result in <see cref="ScanStatus"/>. Used when the cache changed underneath the
+    /// table — after an editor-side scan, or when the annotation queue needs rows before it builds.</summary>
+    public void ReloadFromCache()
+    {
+        PopulateRowsFromCache();
+        ScanStatus = Rows.Count > 0 ? $"Loaded {Rows.Count} row(s) from cache." : "Press Scan to populate the table.";
+    }
+
+    /// <summary>Raised after <see cref="Rows"/> is rebuilt from the cache (profile bind, scan end,
+    /// <see cref="ReloadFromCache"/>). Row objects are replaced wholesale, so anything holding
+    /// references to the old rows — the annotation queue's slices — must rebuild.</summary>
+    public event Action? RowsReloaded;
 
     private void BindToProfile(VM_BodyTypeProfile profile)
     {
@@ -422,7 +442,7 @@ public class VM_PresetAnnotationTable : VM
     {
         Rows.Clear();
         var profile = _watchedProfile;
-        if (profile == null || profile.MeasurementCache.Count == 0) return;
+        if (profile == null || profile.MeasurementCache.Count == 0) { RowsReloaded?.Invoke(); return; }
 
         var allowedWeights = new HashSet<int>(WeightSlots);
         var defs = profile.Measurements
@@ -473,6 +493,7 @@ public class VM_PresetAnnotationTable : VM
 
             Rows.Add(row);
         }
+        RowsReloaded?.Invoke();
     }
 
     private void OnProfileMeasurementsChanged(object sender, NotifyCollectionChangedEventArgs e)

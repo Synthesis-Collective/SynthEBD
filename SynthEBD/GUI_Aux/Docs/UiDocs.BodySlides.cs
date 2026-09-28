@@ -235,13 +235,13 @@ public static partial class UiDocs
             motivation: "Loading the body is the real bottleneck in a labelling run, not the clicking. Turn this off only if background asset reads compete with something else for disk.");
 
         Add("BodySlides.QueueLoadList",
-            layperson: "Loads a worklist of specific bodies to judge, from a text or JSON file. Use this when someone hands you a list of particular presets to look at.",
-            technical: "Parsed by AnnotationCaseList. Plain text is one case per line as 'Preset | weight | note' - the separator may also be a tab, or the weight may simply trail the name ('Preset 75', 'Preset, 75'), and lines starting with # or // are comments. JSON may be a bare array or an object with a 'rows' array, with case-insensitive preset/weight/gender/note fields and unknown fields ignored, so a verdict export loads back unchanged. The file path is remembered per profile and re-read on the next Build Queue.",
+            layperson: "Loads a worklist of specific bodies to judge, from a text or JSON file, and builds the queue from it straight away. Use this when someone hands you a list of particular presets to look at.",
+            technical: "Parsed by AnnotationCaseList. Plain text is one case per line as 'Preset | weight | note' - the separator may also be a tab, or the weight may simply trail the name ('Preset 75', 'Preset, 75'), and lines starting with # or // are comments. JSON may be a bare array or an object with a 'rows' array, with case-insensitive preset/weight/gender/note fields and unknown fields ignored, so a verdict export loads back unchanged. Loading switches Sampling to List and runs the same build as Build Queue (building from the cache, or offering a scan first when the cache is missing or out of date). The file path is remembered per profile and re-read when the queue next builds.",
             motivation: "Turns 'here are fourteen bodies worth a second look' into a task you can work through without hunting each one in the table - and because a verdict export is itself a valid worklist, a set of labels can be handed back for re-judging as-is.");
 
         Add("BodySlides.QueuePasteList",
-            layperson: "Loads a worklist straight from the clipboard, so a list someone sent you can go in without saving a file first.",
-            technical: "Reads the clipboard and parses it exactly as Load list does, accepting the same plain-text and JSON shapes. No path is remembered, since a paste has no file to come back to next session.",
+            layperson: "Loads a worklist straight from the clipboard, so a list someone sent you can go in without saving a file first. The queue builds from it straight away.",
+            technical: "Reads the clipboard and parses it exactly as Load list does, accepting the same plain-text and JSON shapes, then switches Sampling to List and builds as Load list does. No path is remembered, since a paste has no file to come back to next session.",
             motivation: "A worklist usually arrives in a message rather than as a file, and making the user stop to save it first is friction for no benefit.");
 
         Add("BodySlides.QueueClearList",
@@ -260,9 +260,9 @@ public static partial class UiDocs
             motivation: "A reviewer told that a body sits just above the Chubby threshold is answering a sharper question than one working through anonymous rows, and the answer is correspondingly more useful to whoever fits the rule.");
 
         Add("BodySlides.QueueBuild",
-            layperson: "Builds the list of bodies to serve from the current settings and shows you the first one.",
-            technical: "Runs VM_AnnotationQueue.BuildQueue: filters the annotation table's rows, groups aliases, scores each candidate for the chosen policy, orders them, optionally coalesces weight runs, then selects the first slice. It reads only the profile's cached measurements and never starts a scan. Any change to the sampling settings drops the built queue so a stale ordering cannot be served.",
-            motivation: "Building is explicit so the sample is a deliberate act with settings you can state, rather than something that quietly shifts under you while you label.");
+            layperson: "Builds the list of bodies to serve from the current settings and shows you the first one. The queue usually builds by itself; press this when it tells you it needs a scan, or to start over from the first body.",
+            technical: "Runs VM_AnnotationQueue.BuildQueueEnsuringCacheAsync: when the profile's measurement cache is current it goes straight to BuildQueue (filter the annotation table's rows, group aliases, score each candidate for the chosen policy, order them, optionally coalesce weight runs, select the first slice); when the cache is empty or stale it explains why and offers the Match Presets scan (RunScanAsync, which computes only missing or out-of-date values), building when the scan completes. The queue also builds itself without a dialog (TryAutoBuild) whenever that needs no input - on profile load, once the Category list arrives, after the table reloads from a scan, and after any change to the target Category or sampling settings - and never replaces a queue that is being served except when a setting change drops it.",
+            motivation: "The sample is still defined entirely by settings you can state, but you should not have to click through load, build, scan and build again to get the first body on screen.");
 
         Add("BodySlides.QueueCommitAndNext",
             layperson: "Saves whatever you have ticked for this body and immediately loads the next one. Spacebar and Enter do the same thing.",
