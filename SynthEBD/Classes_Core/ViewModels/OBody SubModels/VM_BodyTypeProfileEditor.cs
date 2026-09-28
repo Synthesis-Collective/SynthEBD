@@ -4553,8 +4553,10 @@ public class VM_BodyTypeProfileEditor : VM
     internal VM_BodySlidesMenu GetBodySlidesMenu() => _oBodyVM?.Invoke()?.BodySlidesUI;
 
     /// <summary>(Label, gender) of presets that are hidden AND disabled in the BodySlides menu. These are
-    /// kept out of every preset list this editor shows. The measurement cache and ScanResults still hold
-    /// their slices; only the views filter them, so restoring a preset needs no rescan.</summary>
+    /// kept out of every preset list this editor shows, out of the scan, and out of the cache staleness
+    /// checks. The measurement cache and ScanResults still hold their slices; only the views filter them,
+    /// so restoring a preset needs no rescan — unless a measurement changed while it was hidden, in which
+    /// case its entry is incomplete and the cache reads stale again until a scan fills it.</summary>
     internal HashSet<(string Label, Gender Gender)> GetExcludedPresetKeys()
         => GetBodySlidesMenu()?.GetHiddenAndDisabledPresetKeys() ?? new HashSet<(string, Gender)>();
 
@@ -10482,7 +10484,12 @@ public class VM_BodyTypeProfile : VM
         else ClearMeasurementCacheBaseline();
     }
 
-    /// <summary>True when every cache entry already holds every currently-defined measurement keyed
+    /// <summary>Cache entries the staleness checks judge: all but the hidden-and-disabled presets', which
+    /// the scan skips — see <see cref="MeasurementCacheStore.EntriesSubjectToScan"/>.</summary>
+    private IEnumerable<MeasurementCacheEntry> EntriesSubjectToScan()
+        => MeasurementCacheStore.EntriesSubjectToScan(MeasurementCache, _parent?.GetExcludedPresetKeys());
+
+    /// <summary>True when every scanned cache entry already holds every currently-defined measurement keyed
     /// under a fingerprint matching the current definition (vertex + measurement defs). Walks the
     /// cache, so it is meant for load-time validation, not per-edit checks. Only inspects existing
     /// entries — a slice that was never scanned isn't "incomplete", but a slice missing a now-drifted
@@ -10497,7 +10504,7 @@ public class VM_BodyTypeProfile : VM
     {
         if (MeasurementCache.Count == 0) return false;
         var current = CurrentMeasurementFingerprints();
-        foreach (var entry in MeasurementCache.Values)
+        foreach (var entry in EntriesSubjectToScan())
         {
             if (entry?.Measurements == null) return false;
             // Per-entry decision lives in MeasurementCacheStore so it's unit-testable without the VM.
@@ -10560,10 +10567,11 @@ public class VM_BodyTypeProfile : VM
             // incomplete cache, not a definition change. Conflating the two is misleading (the user
             // sees "changed" for measurements they never touched — e.g. a partial cache holding only
             // one measurement), so they're reported with distinct verbs.
+            var judged = EntriesSubjectToScan().ToList();
             foreach (var kv in current)
             {
                 bool mismatch = false, missing = false;
-                foreach (var entry in MeasurementCache.Values)
+                foreach (var entry in judged)
                 {
                     if (entry == null) continue;
                     // A present key with a null value is a valid scanned result (see

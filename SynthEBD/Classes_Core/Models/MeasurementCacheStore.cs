@@ -429,6 +429,24 @@ public static class MeasurementCacheStore
         return Sha256Hex(sb.ToString());
     }
 
+    /// <summary>The cache entries a staleness verdict should judge: every entry except those of presets
+    /// the scan deliberately skips (<paramref name="skippedPresets"/> — the hidden-and-disabled presets,
+    /// matched on label + gender at every weight). A skipped preset's entry keeps its old values but is
+    /// never refreshed, so after a measurement edit it stays missing that measurement for good; judging
+    /// it would flag the whole cache "not yet scanned" in a way no re-scan can clear. Un-skipping a
+    /// preset brings its entry back under judgement, where it then reads stale until a scan fills it.
+    /// A null set skips nothing.</summary>
+    public static IEnumerable<TEntry> EntriesSubjectToScan<TEntry>(
+        IEnumerable<KeyValuePair<(string PresetLabel, Gender Gender, int Weight), TEntry>> cache,
+        IReadOnlySet<(string Label, Gender Gender)>? skippedPresets)
+    {
+        foreach (var kv in cache)
+        {
+            if (skippedPresets != null && skippedPresets.Contains((kv.Key.PresetLabel, kv.Key.Gender))) continue;
+            yield return kv.Value;
+        }
+    }
+
     /// <summary>Decides whether a single cache entry is complete-and-current relative to the
     /// supplied current fingerprints: it must hold every current measurement <i>key</i> under a
     /// fingerprint that matches. A present key with a <c>null</c> value is current — null is a valid
