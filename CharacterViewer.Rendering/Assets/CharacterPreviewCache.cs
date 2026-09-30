@@ -57,6 +57,23 @@ public readonly record struct DdsCubemapPixels(byte[][] Faces, int Width, int He
 /// </summary>
 public class CharacterPreviewCache
 {
+    private int? _ddsMaximumFinalMipDimension;
+    /// <summary>Frozen for this cache's lifetime. Null uses decoded pixels and generated mips.
+    /// Otherwise, the last supplied DDS mip must have both dimensions at most this value.
+    /// One requires a full chain; int.MaxValue permits single-level textures. Sampling clamps
+    /// to the last supplied mip. This is an eligibility limit, not a visual error bound.</summary>
+    public int? DdsMaximumFinalMipDimension
+    {
+        get => _ddsMaximumFinalMipDimension;
+        init => _ddsMaximumFinalMipDimension = value is <= 0
+            ? throw new ArgumentOutOfRangeException(nameof(value), "Final mip dimension must be positive.") : value;
+    }
+
+    private long _decodeCalls, _decodedBytes;
+    public long TotalDecodeCalls => System.Threading.Interlocked.Read(ref _decodeCalls);
+    public long TotalDecodedBytes => System.Threading.Interlocked.Read(ref _decodedBytes);
+    public long CachedDecodedBytes { get { lock (_pixelLock) return _pixelBytes; } }
+
     private readonly ICharacterViewerLogger _logger;
     private readonly CharacterViewerLogGate _logGate;
     private readonly INpcMeshDataSource _dataSource;
@@ -150,6 +167,8 @@ public class CharacterPreviewCache
         _dataSource = dataSource;
         _assetResolver = assetResolver;
         _logger = logger;
+        try { DdsMaximumFinalMipDimension = DdsMipPolicy.Parse(Environment.GetEnvironmentVariable(DdsMipPolicy.EnvironmentVariable)); }
+        catch (ArgumentException ex) { logger.LogError($"{DdsMipPolicy.EnvironmentVariable}: {ex.Message} Using decoded textures."); }
         _logGate = logGate;
         _settings = settings;
         MeshBuilder = new NifMeshBuilder(logger, logGate, assetResolver, settings);
@@ -414,9 +433,11 @@ public class CharacterPreviewCache
 
         try
         {
+            System.Threading.Interlocked.Increment(ref _decodeCalls);
             using var image = Pfimage.FromFile(resolved);
             byte[]? bgra = PfimageToBgra32(image, relativeGamePath);
             if (bgra == null) return null;
+            System.Threading.Interlocked.Add(ref _decodedBytes, bgra.LongLength);
             return new DdsPixels(bgra, image.Width, image.Height);
         }
         catch (Exception ex)
@@ -569,8 +590,10 @@ public class CharacterPreviewCache
                 Buffer.BlockCopy(fileBytes, 128 + i * perFaceLen, faceFile, 128, perFaceLen);
 
                 using var stream = new MemoryStream(faceFile, writable: false);
+                System.Threading.Interlocked.Increment(ref _decodeCalls);
                 using var image = Pfimage.FromStream(stream);
                 byte[]? bgra = PfimageToBgra32(image, relativeGamePath);
+                if (bgra != null) System.Threading.Interlocked.Add(ref _decodedBytes, bgra.LongLength);
                 if (bgra == null) return null;
 
                 faces[i] = bgra;
@@ -812,11 +835,11 @@ public class CharacterPreviewCache
                 if (string.IsNullOrWhiteSpace(path)) continue;
                 if (slot == 4)
                 {
-                    if (GetOrLoadDdsCubemap(path) == null) GetOrLoadDdsPixels(path);
+                    if (GetOrLoadDdsCubemap(path) == null) PrewarmTexture(path);
                 }
                 else
                 {
-                    GetOrLoadDdsPixels(path);
+                    PrewarmTexture(path, slot == 0);
                 }
             }
         }
@@ -831,11 +854,11 @@ public class CharacterPreviewCache
                 if (string.IsNullOrWhiteSpace(path)) continue;
                 if (slot == 4)
                 {
-                    if (GetOrLoadDdsCubemap(path) == null) GetOrLoadDdsPixels(path);
+                    if (GetOrLoadDdsCubemap(path) == null) PrewarmTexture(path);
                 }
                 else
                 {
-                    GetOrLoadDdsPixels(path);
+                    PrewarmTexture(path, slot == 0);
                 }
             }
         }
@@ -929,13 +952,27 @@ public class CharacterPreviewCache
             {
                 // Env map slot: the render loads it via the cubemap cache first,
                 // falling back to a 2D decode — warm the same cache it will read.
-                if (GetOrLoadDdsCubemap(path) == null) GetOrLoadDdsPixels(path);
+                if (GetOrLoadDdsCubemap(path) == null) PrewarmTexture(path);
             }
             else
             {
-                GetOrLoadDdsPixels(path);
+                PrewarmTexture(path, slot == 0);
             }
         }
+    }
+
+    // Diffuse still needs decoded alpha for collision-proxy classification.
+    // Other eligible 2D slots stay lazy. Inspection reads only the header, checks
+    // the payload length, and retains no second CPU block cache. If the current
+    // GL context lacks support, LoadTexture performs the ordinary lazy decode.
+    private void PrewarmTexture(string path, bool requirePixels = false)
+    {
+        if (!requirePixels && DdsMaximumFinalMipDimension is int maximum)
+        {
+            string? disk = ResolveAssetPath(path);
+            if (disk != null && CompressedDds.Inspect(disk, maximum, out _) == DdsReadStatus.Eligible) return;
+        }
+        GetOrLoadDdsPixels(path);
     }
 
     /// <summary>Derives the weight-0 companion for a NIF path ending in

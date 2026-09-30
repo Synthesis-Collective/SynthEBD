@@ -6,6 +6,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
 
 ## Table of contents
 
+0. [DDS upload policy](#dds-upload-policy)
 1. [Pipeline overview](#pipeline-overview)
 2. [Part 1 — NIF parsing](#part-1--nif-parsing)
    - [Geometry](#geometry)
@@ -42,6 +43,84 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
 9. [Appendix C — Texture slot inventory](#appendix-c--texture-slot-inventory)
 
 ---
+
+## DDS upload policy
+
+The default remains decoded BGRA pixels uploaded as RGBA8 with generated mips.
+Set `CVR_DDS_MAX_FINAL_MIP_DIMENSION` before constructing `CharacterPreviewCache`,
+or initialize its nullable `DdsMaximumFinalMipDimension` property. This bounds
+both dimensions of the **last supplied mip**, not level-zero resolution:
+
+| Value | Eligibility |
+| --- | --- |
+| Unset / `decoded` / property `null` | Established decoded route |
+| `1` | Full chain through 1x1 |
+| `2`, `4`, `16`, or any positive integer | Final mip's maximum dimension at most the limit |
+| `unlimited` / property `int.MaxValue` | Any valid supported chain, including one level |
+
+Invalid environment values log an error and use decoded textures. Invalid API
+values throw. The setting is fixed for a cache lifetime; recreate the cache when
+changing it. The former experimental `CVR_DDS_UPLOAD` switch has been removed.
+
+This opt-in **changes minification**: it uses the original DDS mip chain. It is
+not an equality-preserving performance switch, and evidence renders requiring
+the established answer must use `decoded`. GPU-generated compressed mips also
+recompress filtered values and are not equivalent to the RGBA8 chain.
+
+| DDS | Authored route |
+| --- | --- |
+| Legacy DXT1/3/5, DX10 BC1/2/3 UNORM and sRGB | S3TC, subject to active context support |
+| ATI1 / BC4U / DX10 BC4 UNORM | RGTC red, swizzled to grayscale RGB, alpha one |
+| ATI2 / BC5U / DX10 BC5 UNORM | RGTC RG, blue zero and alpha one, matching the decoder |
+| DX10 BC7 UNORM and sRGB | BPTC when supported |
+| Signed BC4/5, typeless, BC6H, DXT2/4, premultiplied DX10 | Decoded fallback; no reinterpretation |
+| Cubes, arrays, volumes, uncompressed images | Existing decoded/layout-specific route |
+| Final supplied mip exceeds configured limit | Decoded fallback with generated full chain |
+| Malformed header, overflow, truncated declared supported chain | Explicit error and missing texture; never counted as an upload |
+
+All accepted chains include level zero and every declared mip. Dimensions,
+layouts, alpha metadata, mip count and each block span use checked arithmetic.
+No top levels are dropped or missing levels generated. GL max level clamps
+sampling to the final supplied mip. Incomplete chains can alias when minified
+beyond that level; a single-level image has no mip filtering. The parameter is
+an eligibility limit, not a visual error bound. Linear GL formats remain intentional even for
+sRGB labels: shader gamma/tint math is unchanged. Texture wrap, trilinear
+filtering and up to 8x anisotropy follow the ordinary path. Driver queries must
+confirm compressed storage and the exact block bytes at every level.
+
+CPU face/hair tint APIs continue to clone decoded pixels. Transparency
+classification still decodes the same diffuse alpha and caches the result by
+physical source. Prewarming retains diffuse/FaceTint and cube decodes; eligible
+other 2D slots inspect their headers and defer uploading, avoiding an eager
+decode. Unsupported GL contexts decode lazily on demand. There is no additional
+persistent compressed CPU cache: block buffers are temporary upload inputs.
+
+Resident keys include the numeric threshold and distinguish authored requests from decoded requests while
+retaining the resolved physical path. Handles remain context-owned; per-viewer
+clear cannot delete resident handles. Resident accounting uses queried block
+bytes for compressed levels and exact RGBA8 mip dimensions for decoded levels,
+including tiny/rectangular images. Explicit cache clear remains required after
+on-disk changes. GL allocation/errors refuse the compressed upload, delete its
+partial handle and report missing/error diagnostics; OOM also lowers the
+resident budget.
+
+`GlTextureManager.UploadDiagnostics` exposes route, fallback reason, dimensions,
+mips, bytes, read/parse and CPU submission times. Eligible compressed reads also
+split file open/read (`ReadMs`) from header validation/allocation (`ParseMs`).
+`DecodeLookupMs` measures the decoded cache lookup and any synchronous decode;
+Pfim's existing decode timer includes its own file I/O and format parsing, which
+are not separately instrumented. Null stage fields mean unavailable, not zero.
+`CVR_DDS_DIAGNOSTICS=1` writes these and the loaded assembly path/SHA256 to the
+host logger. Hosts may still filter messages; viewprobe needs `VP_CV_VERBOSE=1`.
+Cache counters
+`TotalDecodeCalls`, `TotalDecodedBytes`, `CachedDecodedBytes`, and existing decode
+timers report real decoded work (including CPU consumers), not inferred savings.
+Submission time is not GPU completion time. `CharacterViewer.TextureProbe` uses
+`GL.Finish` for completed workload timings, exercises actual shader samples and
+keeps fresh, warm decoded-cache and resident GPU reuse observations separate.
+
+See [the probe instructions](../CharacterViewer.TextureProbe/README.md) for
+fixtures, measurement boundaries and the retained local validation report.
 
 ## Pipeline overview
 

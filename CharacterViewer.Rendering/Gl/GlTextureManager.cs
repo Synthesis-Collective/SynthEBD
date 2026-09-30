@@ -13,6 +13,23 @@ namespace CharacterViewer.Rendering;
 /// </summary>
 public class GlTextureManager : IDisposable
 {
+    private GlCompressedTexture? _compressedUploader;
+    private readonly List<TextureUploadDiagnostic> _uploadDiagnostics = new();
+    public IReadOnlyList<TextureUploadDiagnostic> UploadDiagnostics => _uploadDiagnostics.AsReadOnly();
+    /// <summary>Optional deny-only capability seam for validation. Cannot enable an unsupported GL format.</summary>
+    public Func<DdsBlockFormat, bool>? CompressedFormatFilter { get; init; }
+
+    private void ObserveUpload(string path, string route, string reason, string format,
+        int width, int height, int mips, long bytes, double readMs, double uploadMs,
+        double? fileReadMs = null, double? parseMs = null, double decodeLookupMs = 0)
+    {
+        var item = new TextureUploadDiagnostic(path, route, reason, format, width, height, mips,
+            bytes, readMs, uploadMs, _previewCache.TotalDecodeCalls, _previewCache.TotalDecodedBytes,
+            fileReadMs, parseMs, decodeLookupMs);
+        _uploadDiagnostics.Add(item);
+        if ((_logGate?.Verbose ?? false) || Environment.GetEnvironmentVariable("CVR_DDS_DIAGNOSTICS") == "1")
+            _logger.LogMessage("[DdsUpload] " + System.Text.Json.JsonSerializer.Serialize(item));
+    }
     private readonly CharacterPreviewCache _previewCache;
     private readonly ICharacterViewerLogger _logger;
     // Gate for the verbose per-texture resolution trace (game path -> disk path ->
@@ -71,6 +88,13 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public void Initialize()
     {
+        if (Environment.GetEnvironmentVariable("CVR_DDS_DIAGNOSTICS") == "1")
+        {
+            string assembly = typeof(GlTextureManager).Assembly.Location;
+            string hash = string.IsNullOrEmpty(assembly) ? "bundled" :
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(assembly)));
+            _logger.LogMessage($"[DdsRuntime] path='{assembly}' sha256={hash} maximumFinalMipDimension={_previewCache.DdsMaximumFinalMipDimension?.ToString() ?? "decoded"}");
+        }
         WhiteTexture = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, WhiteTexture);
         byte[] white = { 255, 255, 255, 255 };
@@ -100,18 +124,69 @@ public class GlTextureManager : IDisposable
 
         // Resident (offscreen) path: share the GL texture across renders, keyed on
         // the resolved disk path (correct under the strict per-mod scope chain).
-        string? diskPath = _resident != null ? _previewCache.ResolveAssetPath(relativeGamePath) : null;
-        if (diskPath != null)
+        int? maximumFinalMipDimension = _previewCache.DdsMaximumFinalMipDimension;
+        bool compressedMode = maximumFinalMipDimension.HasValue;
+        string? diskPath = _resident != null || compressedMode ? _previewCache.ResolveAssetPath(relativeGamePath) : null;
+        string? residentKey = compressedMode && diskPath != null ? $"dds-authored-v2:{maximumFinalMipDimension}:" + diskPath : diskPath;
+        if (diskPath != null && _resident != null)
         {
-            int residentHandle = _resident!.TryGet(diskPath);
+            int residentHandle = _resident.TryGet(residentKey);
             if (residentHandle != -1)
             {
                 _textureCache[relativeGamePath] = residentHandle;
                 LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' -> '{diskPath}' RESIDENT-HIT handle={residentHandle}");
+                ObserveUpload(diskPath, "resident", "cache-hit", "cached", 0, 0, 0, 0, 0, 0);
                 return residentHandle;
             }
         }
 
+        string fallbackReason = compressedMode ? "missing-source" : "disabled";
+        double readMs = 0;
+        if (compressedMode && diskPath != null)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var status = CompressedDds.Read(diskPath, out var dds, out fallbackReason, maximumFinalMipDimension!.Value);
+            readMs = timer.Elapsed.TotalMilliseconds;
+            if (status == DdsReadStatus.Invalid)
+            {
+                _missingTexturePaths.Add(relativeGamePath);
+                _logger.LogError($"DDS '{relativeGamePath}' -> '{diskPath}': {fallbackReason}");
+                ObserveUpload(diskPath, "error", fallbackReason, "invalid", 0, 0, 0, 0, readMs, 0);
+                return WhiteTexture;
+            }
+            if (dds != null)
+            {
+                _compressedUploader ??= new GlCompressedTexture();
+                if (_compressedUploader.Supports(dds) && (CompressedFormatFilter?.Invoke(dds.Format) ?? true))
+                {
+                    try
+                    {
+                        // Preserve prior GL errors, particularly an allocation refusal;
+                        // never drain one and turn it into a successful optimization.
+                        GlCompressedTexture.CheckError("before DDS upload");
+                        timer.Restart();
+                        int compressedHandle = _compressedUploader.Upload(dds, out long storedBytes);
+                        double uploadMs = timer.Elapsed.TotalMilliseconds;
+                        if (_resident != null) _resident.Add(residentKey, compressedHandle, storedBytes);
+                        else _allTextures.Add(compressedHandle);
+                        _textureCache[relativeGamePath] = compressedHandle;
+                        ObserveUpload(diskPath, "compressed-authored", "eligible", dds.Format + (dds.IsSrgb ? "-sRGB-label-linear-sampling" : "-linear"),
+                            dds.Width, dds.Height, dds.Mips.Count, storedBytes, readMs, uploadMs, dds.ReadMs, dds.ParseMs);
+                        return compressedHandle;
+                    }
+                    catch (Exception ex) when (ex is OutOfMemoryException or InvalidOperationException)
+                    {
+                        if (ex is OutOfMemoryException) _resident?.ReduceBudgetAfterOom();
+                        _missingTexturePaths.Add(relativeGamePath);
+                        _logger.LogError($"DDS upload refused for '{relativeGamePath}': {ex.Message}");
+                        ObserveUpload(diskPath, "error", ex.Message, dds.Format.ToString(), dds.Width, dds.Height, dds.Mips.Count, 0, readMs, 0);
+                        return WhiteTexture;
+                    }
+                }
+                fallbackReason = "unsupported-context-or-format-filter";
+            }
+        }
+        var decodeTimer = System.Diagnostics.Stopwatch.StartNew();
         var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
@@ -119,12 +194,20 @@ public class GlTextureManager : IDisposable
             // when the host actually asked for a path — empty/null paths
             // (above) are normal "shape doesn't use this slot" cases.
             _missingTexturePaths.Add(relativeGamePath);
+            ObserveUpload(diskPath ?? relativeGamePath, "error", "missing-or-decode-failed: " + fallbackReason,
+                "unknown", 0, 0, 0, 0, readMs, 0);
             LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' -> '{diskPath ?? "(unresolved)"}' " +
                 "MISSING pixels (WhiteTexture; shape flagged wireframe)");
             return WhiteTexture;
         }
 
-        int handle = UploadTexture2DOwned(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height, diskPath);
+        double decodeLookupMs = decodeTimer.Elapsed.TotalMilliseconds;
+        decodeTimer.Restart();
+        int handle = UploadTexture2DOwned(pixels.Value.Data, pixels.Value.Width, pixels.Value.Height, residentKey);
+        ObserveUpload(diskPath ?? relativeGamePath, handle == WhiteTexture ? "error" : "decoded", fallbackReason, "RGBA8",
+            pixels.Value.Width, pixels.Value.Height, MipCount(pixels.Value.Width, pixels.Value.Height),
+            handle == WhiteTexture ? 0 : EstimateTextureBytes(pixels.Value.Width, pixels.Value.Height), readMs, decodeTimer.Elapsed.TotalMilliseconds,
+            decodeLookupMs: decodeLookupMs);
         _textureCache[relativeGamePath] = handle;
         LogVerbose($"[GlTex] LoadTexture '{relativeGamePath}' -> '{diskPath ?? "(per-VM)"}' " +
             $"UPLOAD handle={handle} {pixels.Value.Width}x{pixels.Value.Height} resident={diskPath != null}");
@@ -321,8 +404,15 @@ public class GlTextureManager : IDisposable
         return handle;
     }
 
-    // Rough VRAM footprint of an RGBA8 texture incl. its mip chain (~+1/3).
-    private static long EstimateTextureBytes(int width, int height) => (long)width * height * 4 * 4 / 3;
+    // Exact logical RGBA8 mip storage, including rectangular and tiny levels.
+    private static long EstimateTextureBytes(int width, int height)
+    {
+        long bytes = 0;
+        do { bytes += (long)width * height * 4; if (width == 1 && height == 1) break;
+            width = Math.Max(1, width / 2); height = Math.Max(1, height / 2); } while (true);
+        return bytes;
+    }
+    private static int MipCount(int width, int height) => 1 + (int)Math.Log2(Math.Max(width, height));
 
     /// <summary>Uploads a 2D texture and assigns ownership: to the resident cache
     /// (keyed by <paramref name="residentDiskPath"/>) when both are present, else
@@ -463,6 +553,7 @@ public class GlTextureManager : IDisposable
                 GL.DeleteTexture(tex);
         }
         _textureCache.Clear();
+        _uploadDiagnostics.Clear();
         _allTextures.RemoveAll(t => t != WhiteTexture);
     }
 
@@ -484,6 +575,7 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public void ForgetResourcesFromDeadContext()
     {
+        _compressedUploader = null;
         _textureCache.Clear();
         _allTextures.Clear();
         WhiteTexture = 0;
