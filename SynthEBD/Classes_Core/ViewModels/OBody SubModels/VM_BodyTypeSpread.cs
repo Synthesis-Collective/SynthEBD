@@ -1,10 +1,6 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Reactive.Linq;
-using System.Threading;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using CharacterViewer.Rendering.Offscreen;
 using Noggog;
 using ReactiveUI;
 
@@ -24,34 +20,16 @@ namespace SynthEBD;
 /// weight, so a statistic is drawn at whatever weight its slice was measured at. Re-open the window
 /// after a re-scan to see new numbers.</para>
 ///
-/// <para><b>Rendering.</b> Uses the app's single shared <see cref="IOffscreenRenderer"/> (a FIFO queue
-/// on its own GL thread) rather than live viewers — the Compare window already warns against more
-/// concurrent GL contexts. This VM feeds it one request at a time, always choosing the first
-/// still-missing image in display order, so switching metric or view re-prioritizes immediately
-/// instead of waiting behind a backlog. Images are cached per (preset, weight, view angle) for the
-/// window's lifetime, so flipping back to an earlier metric is instant.</para>
-///
-/// <para><b>Camera.</b> Every image uses one fixed <see cref="CameraFraming.OrbitState"/> framing the
-/// whole body. Auto-framing (<see cref="CameraFraming.MeshAware"/>) would fit each body's own bounds,
-/// scaling a large preset down and a small one up — hiding exactly the size differences being judged.</para>
+/// <para><b>Rendering.</b> Through a <see cref="SpreadThumbnailRenderer"/> (shared offscreen renderer,
+/// one request at a time, first still-missing image in display order first, fixed whole-body
+/// camera). Images are cached per (preset, weight, view angle) for the window's lifetime, so flipping
+/// back to an earlier metric is instant.</para>
 /// </summary>
 public class VM_BodyTypeSpread : VM
 {
-    /// <summary>Azimuths in the orbit camera's convention: 180 faces the character's front
-    /// (Skyrim characters face -Z), 0 its back, 90 its side.</summary>
-    private const float FrontAzimuth = 180f;
-    private const float BackAzimuth = 0f;
-    private const float SideAzimuth = 90f;
-
-    /// <summary>Whole-body framing at model scale 1: the body spans roughly Y 0..128 (the head sits at
-    /// Y 120), so the camera orbits the midpoint and backs off far enough for the orbit camera's 25°
-    /// vertical FOV to fit ~140 units of height (70 / tan 12.5° ≈ 316).</summary>
-    private const float CameraTargetY = 64f;
-    private const float CameraDistance = 320f;
-
-    /// <summary>Render size per image; 5:9 portrait to suit a standing body. The view scales it to the cell.</summary>
-    internal const int ImageWidth = 240;
-    internal const int ImageHeight = 432;
+    private const float FrontAzimuth = SpreadThumbnailRenderer.FrontAzimuth;
+    private const float BackAzimuth = SpreadThumbnailRenderer.BackAzimuth;
+    private const float SideAzimuth = SpreadThumbnailRenderer.SideAzimuth;
 
     /// <summary>Row label for slices that carry no value in the Category (no rule fired and the
     /// Category has no default).</summary>
@@ -60,26 +38,11 @@ public class VM_BodyTypeSpread : VM
     private readonly Logger _logger;
     private readonly VM_BodyTypeProfileEditor _editor;
     private readonly VM_BodyTypeProfile _profile;
-    private readonly SceneInputsSnapshot _scene;
-    private readonly VM_CharacterViewer _renderSettingsSource;
-    private readonly Func<string, BodySlideSetting?> _presetLookup;
     private readonly List<SliceData> _slices;
     private readonly Dictionary<(string PresetLabel, Gender Gender, int Weight), SliceData> _sliceByKey = new();
     private readonly List<RowData> _rowMembers;
     private readonly string? _primaryMeasurement;
-    private readonly IReadOnlyDictionary<string, NamedKeyVertex> _keyVertsByName;
-    private readonly IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? _resolvedRegions;
-    private readonly IReadOnlyDictionary<string, VM_BodyTypeProfile.MeasurementLineSpec> _lineSpecs;
-    private readonly IReadOnlyDictionary<string, IReadOnlyList<string>> _regionNamesByMeasurement;
-    private readonly Dictionary<RenderKey, BitmapSource?> _images = new();
-    private readonly CancellationTokenSource _cts = new();
-    private bool _pumping;
-    private bool _loggedFirstRender;
-    private bool _loggedFirstOverlay;
-
-    /// <summary>Overlay is the measurement-line set drawn on the image ("" = none), so toggling
-    /// Show Measurements, or switching metric with it on, caches a separate image.</summary>
-    private readonly record struct RenderKey(string PresetLabel, int Weight, float Azimuth, string Overlay);
+    private readonly SpreadThumbnailRenderer _renderer;
 
     /// <summary>One descriptor value's row membership, in display order (reordered by the user or
     /// by Sort Rows; RebuildRows follows this list).</summary>
@@ -109,9 +72,6 @@ public class VM_BodyTypeSpread : VM
     {
         _editor = editor;
         _profile = profile;
-        _scene = scene;
-        _renderSettingsSource = renderSettingsSource;
-        _presetLookup = presetLookup;
         _logger = logger;
         Category = category;
         Gender = gender;
@@ -189,7 +149,8 @@ public class VM_BodyTypeSpread : VM
                 }
             }
         }
-        (_keyVertsByName, _resolvedRegions, _lineSpecs, _regionNamesByMeasurement) = profile.SnapshotMeasurementOverlayInputs(renderSettingsSource);
+        _renderer = new SpreadThumbnailRenderer(profile, scene, renderSettingsSource, presetLookup, logger,
+            "Show Spread", WantedKeys, ApplyImagesAndPump);
 
         // Natural row order: sort by each value's median on the measurement the Category's own
         // rules test most, so thresholds read low -> high (Skinny, Normal, Thick) instead of
@@ -280,6 +241,13 @@ public class VM_BodyTypeSpread : VM
     /// enabled, gender-eligible rules (ties go to the earlier metric in the picker), or null when
     /// those rules test no measurement directly.</summary>
     private string? FindPrimaryMeasurement(VM_BodyTypeProfile profile, string category, Gender gender)
+        => FindPrimaryMeasurement(profile, category, gender,
+            Metrics.Where(m => !m.IsScore).Select(m => m.MeasurementName!).ToList());
+
+    /// <summary>As above, with ties going to the earlier name in <paramref name="metricOrder"/>, and
+    /// only names in it eligible. Shared with the annotation Panel's default metric.</summary>
+    internal static string? FindPrimaryMeasurement(VM_BodyTypeProfile profile, string category, Gender gender,
+        IReadOnlyList<string> metricOrder)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var rule in profile.Rules)
@@ -297,10 +265,9 @@ public class VM_BodyTypeSpread : VM
             }
         }
         if (counts.Count == 0) return null;
-        return Metrics
-            .Where(m => !m.IsScore && counts.ContainsKey(m.MeasurementName!))
-            .OrderByDescending(m => counts[m.MeasurementName!])
-            .Select(m => m.MeasurementName)
+        return metricOrder
+            .Where(counts.ContainsKey)
+            .OrderByDescending(m => counts[m])
             .FirstOrDefault();
     }
 
@@ -350,7 +317,7 @@ public class VM_BodyTypeSpread : VM
         var names = SelectedMetric.IsScore
             ? Metrics.Where(m => !m.IsScore).Select(m => m.MeasurementName!)
             : new[] { SelectedMetric.MeasurementName! };
-        return string.Join('\u001f', names);
+        return SpreadThumbnailRenderer.JoinOverlay(names);
     }
 
     private readonly List<VM_MeasurementRule> _allRules;
@@ -451,249 +418,24 @@ public class VM_BodyTypeSpread : VM
             cell.SetImages(Lookup(cell, primaryAz), Lookup(cell, SideAzimuth));
         }
         UpdateRenderStatus();
-        PumpRenders();
+        _renderer.Pump();
     }
 
     private (bool Ready, BitmapSource? Image) Lookup(VM_BodyTypeSpreadCell cell, float azimuth)
-        => _images.TryGetValue(new RenderKey(cell.PresetLabel, cell.Weight, azimuth, CurrentOverlay()), out var img) ? (true, img) : (false, null);
+        => _renderer.Lookup(cell.PresetLabel, cell.Weight, azimuth, CurrentOverlay());
 
-    private IEnumerable<RenderKey> WantedKeys()
+    private IEnumerable<SpreadThumbnailRenderer.RenderKey> WantedKeys()
     {
         float primaryAz = ShowBack ? BackAzimuth : FrontAzimuth;
         string overlay = CurrentOverlay();
         foreach (var cell in Rows.SelectMany(r => r.Cells))
         {
-            yield return new RenderKey(cell.PresetLabel, cell.Weight, primaryAz, overlay);
-            yield return new RenderKey(cell.PresetLabel, cell.Weight, SideAzimuth, overlay);
+            yield return new SpreadThumbnailRenderer.RenderKey(cell.PresetLabel, cell.Weight, primaryAz, overlay);
+            yield return new SpreadThumbnailRenderer.RenderKey(cell.PresetLabel, cell.Weight, SideAzimuth, overlay);
         }
     }
 
-    private void UpdateRenderStatus()
-    {
-        var wanted = WantedKeys().Distinct().ToList();
-        int done = wanted.Count(k => _images.ContainsKey(k));
-        RenderStatus = done < wanted.Count ? $"Rendering {done} / {wanted.Count}..." : "";
-    }
-
-    /// <summary>Renders missing images one at a time on the UI thread's async flow (the renderer does
-    /// the GL work on its own thread). Re-reads the wanted list after every image, so the current
-    /// metric/view always renders first. Re-entrant calls while running are no-ops.</summary>
-    private async void PumpRenders()
-    {
-        if (_pumping) return;
-        _pumping = true;
-        try
-        {
-            while (!_cts.IsCancellationRequested)
-            {
-                RenderKey? next = null;
-                foreach (var k in WantedKeys())
-                {
-                    if (!_images.ContainsKey(k)) { next = k; break; }
-                }
-                if (next == null) break;
-
-                BitmapSource? image = null;
-                try
-                {
-                    image = await RenderAsync(next.Value);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError($"Show Spread: render of '{next.Value.PresetLabel}' W{next.Value.Weight} failed: "
-                        + ExceptionLogger.GetExceptionStack(ex));
-                }
-                if (_cts.IsCancellationRequested) break;
-                _images[next.Value] = image;
-                ApplyImagesAndPump();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError("Show Spread: render queue stopped: " + ExceptionLogger.GetExceptionStack(ex));
-        }
-        finally
-        {
-            _pumping = false;
-        }
-    }
-
-    private async Task<BitmapSource?> RenderAsync(RenderKey key)
-    {
-        var preset = _presetLookup(key.PresetLabel);
-        if (preset == null)
-        {
-            _logger?.LogMessage($"Show Spread: preset '{key.PresetLabel}' is no longer in the BodySlide list; skipping its render.");
-            return null;
-        }
-
-        var vm = _renderSettingsSource;
-        var overlayDiag = new System.Runtime.CompilerServices.StrongBox<string?>();
-        var request = new OffscreenRenderRequest
-        {
-            MeshPaths = _scene.MeshPaths,
-            OverrideHeadMeshAbsolutePath = _scene.OverrideHeadMeshAbsolutePath,
-            TextureOverrides = _scene.TextureOverrides,
-            MeshOverrides = _scene.MeshOverrides,
-            Morphs = SynthEbdViewerHostState.ToMorphSet(preset),
-            MorphWeight = key.Weight,
-            Width = ImageWidth,
-            Height = ImageHeight,
-            Lighting = _scene.Lighting,
-            Colors = _scene.Colors,
-            BackgroundRgb = _scene.BackgroundRgb,
-            Camera = new CameraFraming.OrbitState(CameraDistance, key.Azimuth, 0f, 0f, CameraTargetY, 0f),
-            Cancellation = _cts.Token,
-            AdditionalScopes = _scene.AdditionalScopes,
-            AdditionalDataFolders = _scene.AdditionalDataFolders,
-            VanillaLooseOverridesBsa = _scene.VanillaLooseOverridesBsa,
-            VanillaLooseOverridesModLoose = _scene.VanillaLooseOverridesModLoose,
-            AllowLoadOrderFallback = _scene.AllowLoadOrderFallback,
-            // Same render-quality state as the editor's live viewer, as the software fallback does.
-            RenderMissingTextureAsWireframe = vm.RenderMissingTextureAsWireframe,
-            EnableToneMapping = vm.EnableToneMapping,
-            EnableShadows = vm.EnableShadows,
-            EnableAmbientOcclusion = vm.EnableAmbientOcclusion,
-            SsaoRadius = vm.SsaoRadius,
-            SsaoBias = vm.SsaoBias,
-            SsaoIntensity = vm.SsaoIntensity,
-            SsaoThickness = vm.SsaoThickness,
-            SsaoHairGap = vm.SsaoHairGap,
-            EnableEyeCatchlight = vm.EnableEyeCatchlight,
-            SubsurfaceStrength = vm.SubsurfaceStrength,
-            SkinSaturationBoost = vm.SkinSaturationBoost,
-            VignetteRadius = vm.VignetteRadius,
-            VignetteIntensity = vm.VignetteIntensity,
-            Exposure = vm.Exposure,
-            TonemapHairRelief = vm.TonemapHairRelief,
-            HairAlbedoCompensate = vm.HairAlbedoCompensate,
-            DaylightBoost = vm.DaylightBoost,
-            DaylightBoostIntensity = vm.DaylightBoostIntensity,
-            EnableBloom = vm.EnableBloom,
-            BloomIntensity = vm.BloomIntensity,
-            MissingMeshPathsOut = new List<string>(),
-            BeforeDraw = key.Overlay.Length == 0 ? null : BuildMeasurementOverlayHook(key.Overlay.Split('\u001f'), overlayDiag),
-        };
-
-        var sw = Stopwatch.StartNew();
-        byte[] bgra = await FallbackPreviewControllerRegistry.SharedRenderer.RenderToBgra32Async(request);
-        sw.Stop();
-        if (key.Overlay.Length > 0 && !_loggedFirstOverlay)
-        {
-            _loggedFirstOverlay = true;
-            _logger?.LogMessage($"Show Spread: first measurement overlay ('{key.PresetLabel}' W{key.Weight}): "
-                + (overlayDiag.Value ?? "hook never ran"));
-        }
-        if (!_loggedFirstRender)
-        {
-            _loggedFirstRender = true;
-            _logger?.LogMessage($"Show Spread: first render took {sw.ElapsedMilliseconds} ms "
-                + $"({ImageWidth}x{ImageHeight}, {request.MissingMeshPathsOut!.Count} missing mesh(es)).");
-        }
-
-        int stride = ImageWidth * 4;
-        if (bgra == null || bgra.Length < stride * ImageHeight) return null;
-        var bitmap = BitmapSource.Create(ImageWidth, ImageHeight, 96, 96, PixelFormats.Bgra32, null, bgra, stride);
-        bitmap.Freeze();
-        return bitmap;
-    }
-
-    /// <summary>Builds the offscreen <see cref="OffscreenRenderRequest.BeforeDraw"/> hook that draws
-    /// <paramref name="measurementNames"/>' lines on the render's own deformed mesh. Key vertices
-    /// resolve through <see cref="MeasurementMath.TryResolveKeyVertex"/> -- the same resolution the
-    /// scan used for this preset -- rather than the live preview's cached indices, which belong to a
-    /// different body. Runs on the render thread, so it only reads the immutable snapshots taken at
-    /// open time. RegionVolume measurements have no line geometry; they, and measurements whose key
-    /// vertices come from a Region, instead tint that region's surface translucent cyan
-    /// (<see cref="VM_BodyTypeProfile.AppendMeasurementRegionTint"/>).
-    /// <para><paramref name="diag"/> receives a one-line summary (specs found, each vertex ref's
-    /// resolution, segment count, region tints, loaded shapes -- or the exception) for the caller to
-    /// log on the UI thread, so an overlay that renders nothing says why.</para></summary>
-    private Action<VM_CharacterViewer> BuildMeasurementOverlayHook(IReadOnlyList<string> measurementNames,
-        System.Runtime.CompilerServices.StrongBox<string?> diag)
-    {
-        var keyVerts = _keyVertsByName;
-        var regions = _resolvedRegions;
-        var specs = measurementNames
-            .Where(n => _lineSpecs.ContainsKey(n))
-            .Select(n => _lineSpecs[n])
-            .ToList();
-        var regionNames = measurementNames
-            .SelectMany(n => _regionNamesByMeasurement.TryGetValue(n, out var r) ? r : Array.Empty<string>())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        return vm =>
-        {
-            var refResults = new List<string>();
-            try
-            {
-                OpenTK.Mathematics.Vector3? Resolve(string refName)
-                {
-                    OpenTK.Mathematics.Vector3? r = MeasurementMath.TryResolveKeyVertex(refName, keyVerts,
-                        (shape, idx) => vm.TryGetCurrentVertex(shape, idx, out var p) ? p : null,
-                        shape => vm.GetShapePositions(shape),
-                        shape => vm.GetShapeBoneInfo(shape),
-                        regions,
-                        shape => vm.GetZeroedShapePositions(shape, 0),
-                        out var pos)
-                        ? pos
-                        : null;
-                    if (!string.IsNullOrEmpty(refName))
-                        refResults.Add(refName + (r.HasValue ? "=ok" : "=UNRESOLVED"));
-                    return r;
-                }
-
-                var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
-                foreach (var spec in specs)
-                {
-                    VM_BodyTypeProfile.AppendMeasurementLineSegments(
-                        spec, "", Resolve, (_, _, _) => "", segments);
-                }
-                vm.SetMeasurementLines(segments);
-
-                var tint = new List<float>();
-                var tintResults = new List<string>();
-                foreach (var regionName in regionNames)
-                {
-                    tintResults.Add(regionName
-                        + (VM_BodyTypeProfile.AppendMeasurementRegionTint(vm, regions, regionName, tint) ? "=ok" : "=UNRESOLVED"));
-                }
-                vm.SetMeasurementRegionTint(tint);
-
-                diag.Value = $"{specs.Count}/{measurementNames.Count} measurement(s) have line specs; "
-                    + $"refs [{string.Join(", ", refResults.Distinct())}]; {segments.Count} segment(s); "
-                    + $"regions [{string.Join(", ", tintResults)}]; "
-                    + $"shapes [{string.Join(", ", vm.GetCurrentShapeVertexCounts().Keys)}]; "
-                    + DescribeLineGlState(segments.Count > 0 ? segments[0].A : null);
-            }
-            catch (Exception ex)
-            {
-                diag.Value = $"hook threw after refs [{string.Join(", ", refResults)}]: {ex.GetType().Name}: {ex.Message}";
-                throw;
-            }
-        };
-    }
-
-    /// <summary>Diagnostic: the offscreen context's line-relevant GL state (profile / flags, the
-    /// aliased line-width range, whether the renderer's 4.5 px line width is accepted), plus the
-    /// first segment's endpoint so it can be sanity-checked against the mesh. Render thread only.</summary>
-    private static string DescribeLineGlState(OpenTK.Mathematics.Vector3? firstPoint)
-    {
-        while (OpenTK.Graphics.OpenGL4.GL.GetError() != OpenTK.Graphics.OpenGL4.ErrorCode.NoError) { } // drain stale errors
-        OpenTK.Graphics.OpenGL4.GL.GetInteger(OpenTK.Graphics.OpenGL4.GetPName.ContextFlags, out int flags);
-        OpenTK.Graphics.OpenGL4.GL.GetInteger((OpenTK.Graphics.OpenGL4.GetPName)0x9126 /* GL_CONTEXT_PROFILE_MASK */, out int profile);
-        var range = new float[2];
-        OpenTK.Graphics.OpenGL4.GL.GetFloat(OpenTK.Graphics.OpenGL4.GetPName.AliasedLineWidthRange, range);
-        OpenTK.Graphics.OpenGL4.GL.LineWidth(4.5f);
-        var lineWidthError = OpenTK.Graphics.OpenGL4.GL.GetError();
-        OpenTK.Graphics.OpenGL4.GL.LineWidth(1f);
-        return $"GL flags=0x{flags:X} profileMask=0x{profile:X} aliasedLineWidth=[{range[0]}, {range[1]}] "
-            + $"LineWidth(4.5)->{lineWidthError}; firstPoint={firstPoint?.ToString() ?? "none"}";
-    }
+    private void UpdateRenderStatus() => RenderStatus = _renderer.DescribeProgress(WantedKeys());
 
     /// <summary>Loads a cell's slice into the Body Type Profile editor's live viewer for close
     /// inspection (rotate, zoom, measurement readouts).</summary>
@@ -705,7 +447,7 @@ public class VM_BodyTypeSpread : VM
     public override void Dispose()
     {
         _editor.PresetHiddenAndDisabled -= OnPresetHiddenAndDisabled;
-        _cts.Cancel();
+        _renderer.Dispose();
         base.Dispose();
     }
 }

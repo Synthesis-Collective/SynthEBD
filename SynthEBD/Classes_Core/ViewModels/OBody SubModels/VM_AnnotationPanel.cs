@@ -1,0 +1,473 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Reactive.Linq;
+using System.Windows.Media.Imaging;
+using Noggog;
+using ReactiveUI;
+
+namespace SynthEBD;
+
+/// <summary>Where the annotation Panel's slices come from.</summary>
+public enum AnnotationPanelSource
+{
+    /// <summary>The queue's built slices (whatever policy built it decides the set; the Panel only sorts).</summary>
+    QueueSlices,
+
+    /// <summary>N slices at even quantiles of the metric over the queue's whole candidate population.</summary>
+    EvenlySpaced,
+}
+
+/// <summary>
+/// View model for <see cref="Window_AnnotationPanel"/>, the annotation queue's Panel: the queue's
+/// slices for one Category side by side, sorted low to high by a metric and paged 24 at a time, each
+/// rendered like a Show Spread cell with a row of value toggles underneath that save immediately.
+///
+/// <para><b>Why.</b> A Category that is a continuum cut into bands (Butt = Flat / Normal / Round /
+/// Large) drifts when judged one slice at a time. Side by side and sorted, neighbours are compared
+/// directly, and a preset that looks out of order points at what the metric misses.</para>
+///
+/// <para><b>Blind by default.</b> Captions show only the weight (and the alias count): printing the
+/// metric value or today's rule label anchors judgement, and the sort already conveys order. Show
+/// values adds both, for review after judging.</para>
+///
+/// <para><b>Snapshot.</b> The slice list is read on open and whenever Source, N or the metric
+/// changes. A queue rebuild, or a change of the queue's target Category, marks the Panel stale: its
+/// toggles are disabled and a banner asks for a reopen, so no verdict lands through rows the table
+/// has replaced or in a Category the Panel was not opened for.</para>
+///
+/// <para><b>Writes</b> go through <see cref="VM_AnnotationQueue.WriteVerdict"/> for the cell's whole
+/// alias family, without moving the annotation table's selection. Rendering is a
+/// <see cref="SpreadThumbnailRenderer"/> fed the current page first, then the next page.</para>
+/// </summary>
+public class VM_AnnotationPanel : VM
+{
+    private readonly Logger _logger;
+    private readonly VM_BodyTypeProfileEditor _editor;
+    private readonly VM_AnnotationQueue _queue;
+    private readonly VM_BodyTypeProfile _profile;
+    private readonly int _queueGenerationAtOpen;
+    private readonly IReadOnlyList<string> _values;
+    private readonly SpreadThumbnailRenderer _renderer;
+    private readonly HashSet<VM_AnnotationQueueSlice> _countedLabelled = new();
+    private readonly Dictionary<(string PresetLabel, int Weight), string> _ruleLabels = new();
+    private BodyTypeProfile? _profileModel;
+    private ExternalDescriptorSeedContext? _seedContext;
+    private List<Entry> _ordered = new();
+    private bool _suppressRebuild;
+
+    /// <summary>One slice in display order with its value on the current metric.</summary>
+    private sealed record Entry(VM_AnnotationQueueSlice Slice, double? Value);
+
+    internal VM_AnnotationPanel(
+        VM_BodyTypeProfileEditor editor,
+        VM_AnnotationQueue queue,
+        VM_BodyTypeProfile profile,
+        string category,
+        Gender gender,
+        SceneInputsSnapshot scene,
+        VM_CharacterViewer renderSettingsSource,
+        Func<string, BodySlideSetting?> presetLookup,
+        Logger logger)
+    {
+        _editor = editor;
+        _queue = queue;
+        _profile = profile;
+        _logger = logger;
+        Category = category;
+        Gender = gender;
+        Title = $"Panel: {category} ({profile.Name}, {gender})";
+        _queueGenerationAtOpen = queue.QueueGeneration;
+        IsListQueue = queue.IsListPolicy;
+
+        // Values in the order the queue's digit legend shows them (the annotation menu's order).
+        _values = editor.AnnotationEditor?.GetCategoryValues(category)?.ToList() ?? new List<string>();
+
+        // Metrics: the measurements that can decide the Category (no Score: a per-value margin gives
+        // no single ordering across cells). Default: the queue's Spread measurement when it is one of
+        // them, else the Category's primary measurement, else the first.
+        foreach (var name in VM_BodyTypeProfileEditor.CollectCategoryMeasurementNames(profile, category, gender))
+        {
+            Metrics.Add(name);
+        }
+        string? primary = VM_BodyTypeSpread.FindPrimaryMeasurement(profile, category, gender, Metrics.ToList());
+        SelectedMetric = Metrics.Contains(queue.SpreadMeasurement) ? queue.SpreadMeasurement
+            : primary ?? Metrics.FirstOrDefault() ?? "";
+
+        _renderer = new SpreadThumbnailRenderer(profile, scene, renderSettingsSource, presetLookup, logger,
+            "Annotation Panel", WantedKeys, ApplyImagesAndPump);
+
+        PrevPageCommand = new RelayCommand(canExecute: _ => PageIndex > 0, execute: _ => GoToPage(PageIndex - 1));
+        NextPageCommand = new RelayCommand(canExecute: _ => PageIndex < PageCount - 1, execute: _ => GoToPage(PageIndex + 1));
+
+        Rebuild();
+
+        this.WhenAnyValue(x => x.SelectedMetric, x => x.Source, x => x.EvenlySpacedCount)
+            .Skip(1)
+            .Subscribe(_ => Rebuild())
+            .DisposeWith(this);
+        this.WhenAnyValue(x => x.ShowBack, x => x.ShowMeasurements)
+            .Skip(1)
+            .Subscribe(_ => ApplyImagesAndPump())
+            .DisposeWith(this);
+        this.WhenAnyValue(x => x.ShowValues)
+            .Skip(1)
+            .Subscribe(_ => RefreshCaptions())
+            .DisposeWith(this);
+
+        _queue.PropertyChanged += HandleQueuePropertyChanged;
+        _editor.PresetHiddenAndDisabled += OnPresetHiddenAndDisabled;
+    }
+
+    public string Title { get; }
+    public string Category { get; }
+    public Gender Gender { get; }
+
+    /// <summary>Measurements the cells can be sorted by.</summary>
+    public ObservableCollection<string> Metrics { get; } = new();
+    public string SelectedMetric { get; set; }
+
+    /// <summary>When on, each cell's first image shows the back instead of the front.</summary>
+    public bool ShowBack { get; set; }
+
+    /// <summary>When on, each image also draws the metric's measurement lines.</summary>
+    public bool ShowMeasurements { get; set; }
+
+    /// <summary>Adds each slice's metric value and current rule label to its caption. Off by default
+    /// and not persisted: numbers and labels anchor judgement.</summary>
+    public bool ShowValues { get; set; }
+
+    public AnnotationPanelSource Source { get; set; } = AnnotationPanelSource.QueueSlices;
+    public IReadOnlyList<AnnotationPanelSource> SourceOptions { get; } = Enum.GetValues<AnnotationPanelSource>();
+
+    /// <summary>True when the queue is a List (worklist) queue, which disables Evenly spaced: a worklist
+    /// is already a deliberate sample.</summary>
+    public bool IsListQueue { get; }
+    public bool CanChooseSource => !IsListQueue;
+
+    /// <summary>N for <see cref="AnnotationPanelSource.EvenlySpaced"/>.</summary>
+    public int EvenlySpacedCount { get; set; } = AnnotationPanelLayout.DefaultEvenlySpacedCount;
+    public bool IsEvenlySpaced => Source == AnnotationPanelSource.EvenlySpaced;
+
+    public ObservableCollection<VM_AnnotationPanelCell> Cells { get; } = new();
+
+    public int PageIndex { get; private set; }
+    public int PageCount { get; private set; } = 1;
+    public string PageText { get; private set; } = "";
+    public RelayCommand PrevPageCommand { get; }
+    public RelayCommand NextPageCommand { get; }
+
+    /// <summary>"N slice(s), sorted by X" (plus how many have no value), for the toolbar.</summary>
+    public string Summary { get; private set; } = "";
+
+    /// <summary>Render progress readout ("Rendering 12 / 48..."), empty when idle.</summary>
+    public string RenderStatus { get; set; } = "";
+
+    /// <summary>True once the queue this Panel was opened over has been rebuilt or re-targeted.</summary>
+    public bool IsStale { get; private set; }
+    public bool CanEdit => !IsStale;
+    public string StaleMessage { get; private set; } = "";
+
+    // ---------- slices ----------
+
+    private double? ValueOf(VM_AnnotationQueueSlice slice)
+        => !string.IsNullOrEmpty(SelectedMetric)
+           && slice.Row.MeasurementValues != null
+           && slice.Row.MeasurementValues.TryGetValue(SelectedMetric, out var v) && v.HasValue
+            ? v.Value
+            : null;
+
+    /// <summary>Re-reads the slice list from the queue for the current Source / N / metric, re-sorts,
+    /// and returns to the first page.</summary>
+    private void Rebuild()
+    {
+        if (_suppressRebuild) return;
+        if (IsListQueue && Source != AnnotationPanelSource.QueueSlices)
+        {
+            _suppressRebuild = true;
+            try { Source = AnnotationPanelSource.QueueSlices; }
+            finally { _suppressRebuild = false; }
+        }
+
+        var slices = Source == AnnotationPanelSource.EvenlySpaced
+            ? _queue.BuildCandidatePopulation()
+            : _queue.Slices.ToList();
+        var samples = slices.Select(s => new PanelSample(s.Row.PresetLabel, s.Row.Weight, ValueOf(s))).ToList();
+
+        IReadOnlyList<int> order;
+        int populationSize = slices.Count;
+        if (Source == AnnotationPanelSource.EvenlySpaced)
+        {
+            order = AnnotationPanelLayout.PickEvenlySpaced(samples, Math.Max(1, EvenlySpacedCount));
+        }
+        else if (!string.IsNullOrEmpty(SelectedMetric))
+        {
+            order = AnnotationPanelLayout.SortByValue(samples);
+        }
+        else
+        {
+            // No metric to sort by (an aggregator Category): keep the queue's order.
+            order = Enumerable.Range(0, slices.Count).ToList();
+        }
+
+        _ordered = order.Select(i => new Entry(slices[i], samples[i].Value)).ToList();
+
+        int missing = _ordered.Count(e => !e.Value.HasValue);
+        Summary = Source == AnnotationPanelSource.EvenlySpaced
+            ? $"{_ordered.Count} of {populationSize} candidate slice(s), evenly spaced on {SelectedMetric}"
+            : $"{_ordered.Count} queue slice(s)" + (!string.IsNullOrEmpty(SelectedMetric) ? $", sorted by {SelectedMetric}" : ", in queue order")
+              + (missing > 0 && !string.IsNullOrEmpty(SelectedMetric) ? $" ({missing} with no value, last)" : "");
+
+        PageIndex = 0;
+        BuildPage();
+    }
+
+    private void GoToPage(int pageIndex)
+    {
+        PageIndex = Math.Clamp(pageIndex, 0, PageCount - 1);
+        BuildPage();
+    }
+
+    private void BuildPage()
+    {
+        PageCount = AnnotationPanelLayout.PageCount(_ordered.Count);
+        var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex);
+        PageIndex = _ordered.Count == 0 ? 0 : start / AnnotationPanelLayout.PageSize;
+        PageText = $"Page {PageIndex + 1} / {PageCount}";
+
+        Cells.Clear();
+        foreach (var entry in _ordered.Skip(start).Take(count))
+        {
+            var cell = new VM_AnnotationPanelCell(entry.Slice, entry.Value, _values, this);
+            cell.RefreshSelection(StoredValues(entry.Slice));
+            Cells.Add(cell);
+        }
+        RefreshCaptions();
+        ApplyImagesAndPump();
+    }
+
+    private void RefreshCaptions()
+    {
+        string format = "F" + SpreadStatistics.DecimalsToDistinguish(Cells.Where(c => c.Value.HasValue).Select(c => c.Value!.Value));
+        foreach (var cell in Cells)
+        {
+            var parts = new List<string> { $"W{cell.Weight}" };
+            if (ShowValues)
+            {
+                parts.Add(cell.Value.HasValue ? cell.Value.Value.ToString(format) : "no value");
+                parts.Add("rules: " + RuleLabel(cell.Slice));
+            }
+            else if (!cell.Value.HasValue && !string.IsNullOrEmpty(SelectedMetric))
+            {
+                parts.Add($"no {SelectedMetric} value");
+            }
+            if (cell.Slice.Members.Count > 1) parts.Add($"+{cell.Slice.Members.Count - 1} alias");
+            cell.Caption = string.Join(" · ", parts);
+        }
+    }
+
+    /// <summary>What the rules alone assign the slice in this Category (annotations re-derived out),
+    /// computed on first use: Show values is the only reader.</summary>
+    private string RuleLabel(VM_AnnotationQueueSlice slice)
+    {
+        var key = (slice.Row.PresetLabel, slice.Row.Weight);
+        if (_ruleLabels.TryGetValue(key, out var cached)) return cached;
+        string label;
+        try
+        {
+            _profileModel ??= _profile.DumpToModel();
+            _seedContext ??= _editor.BuildExternalDescriptorSeedContext();
+            var values = _profile.DeriveRuleOnlyDescriptors((slice.Row.PresetLabel, slice.Row.Gender, slice.Row.Weight), _profileModel, _seedContext)
+                .Where(p => string.Equals(p.Category, Category, StringComparison.Ordinal) && !string.IsNullOrEmpty(p.Value))
+                .Select(p => p.Value)
+                .OrderBy(v => v, StringComparer.Ordinal)
+                .ToList();
+            label = values.Count == 0 ? "(none)" : string.Join(" + ", values);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Annotation Panel: rule label for '" + slice.Row.PresetLabel + "' failed: " + ExceptionLogger.GetExceptionStack(ex));
+            label = "?";
+        }
+        _ruleLabels[key] = label;
+        return label;
+    }
+
+    // ---------- verdicts ----------
+
+    private IReadOnlyList<string> StoredValues(VM_AnnotationQueueSlice slice)
+        => AnnotationVerdictWriter.ReadValues(_profile.PresetAnnotations, slice.Row.PresetLabel, slice.Row.Gender, slice.Row.Weight, Category);
+
+    /// <summary>A value toggle on a cell: flips <paramref name="value"/> in the slice's stored verdict
+    /// and saves it for the whole alias family at once (a tag set, not a radio group -- D23).</summary>
+    internal void ToggleValue(VM_AnnotationPanelCell cell, string value)
+    {
+        if (IsStale) return;
+        var current = StoredValues(cell.Slice).ToHashSet(StringComparer.Ordinal);
+        if (!current.Remove(value)) current.Add(value);
+        // Menu order, with any value the menu no longer lists kept at the end.
+        var next = _values.Where(current.Contains).Concat(current.Where(v => !_values.Contains(v))).ToList();
+
+        _queue.WriteVerdict(cell.Slice, Category, next);
+        if (next.Count > 0 && _countedLabelled.Add(cell.Slice)) _queue.CountPanelLabel(cell.Slice);
+        cell.RefreshSelection(StoredValues(cell.Slice));
+    }
+
+    private void HandleQueuePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (IsStale) return;
+        if (e.PropertyName == nameof(VM_AnnotationQueue.QueueGeneration) && _queue.QueueGeneration != _queueGenerationAtOpen)
+        {
+            MarkStale("The queue was rebuilt or cleared since this panel opened -- close it and press Open Panel again. Editing is disabled.");
+        }
+        else if (e.PropertyName == nameof(VM_AnnotationQueue.TargetCategory)
+                 && !string.Equals(_queue.TargetCategory, Category, StringComparison.Ordinal))
+        {
+            MarkStale($"The queue's target Category is no longer {Category} -- close this panel and reopen it. Editing is disabled.");
+        }
+    }
+
+    private void MarkStale(string message)
+    {
+        IsStale = true;
+        StaleMessage = message;
+        foreach (var cell in Cells) cell.CanEdit = false;
+    }
+
+    // ---------- HD ----------
+
+    internal void HideAndDisablePreset(VM_AnnotationPanelCell cell) => _editor.HideAndDisablePreset(cell.PresetLabel, cell.Gender);
+
+    /// <summary>A preset was hidden-and-disabled (here or anywhere in the editor): drop its cells and
+    /// re-page, keeping the page the user is on where possible.</summary>
+    private void OnPresetHiddenAndDisabled(string presetLabel, Gender gender)
+    {
+        if (gender != Gender) return;
+        int removed = _ordered.RemoveAll(e => string.Equals(e.Slice.Row.PresetLabel, presetLabel, StringComparison.Ordinal));
+        if (removed == 0) return;
+        BuildPage();
+    }
+
+    internal void LoadInEditorViewer(VM_AnnotationPanelCell cell) => _editor.LoadSliceInViewer(cell.PresetLabel, cell.Gender, cell.Weight);
+
+    // ---------- rendering ----------
+
+    public string PrimaryViewLabel => ShowBack ? "Back" : "Front";
+
+    private string CurrentOverlay()
+        => ShowMeasurements && !string.IsNullOrEmpty(SelectedMetric) ? SpreadThumbnailRenderer.JoinOverlay(new[] { SelectedMetric }) : "";
+
+    /// <summary>Current page's images first (in display order), then the next page's, so paging
+    /// forward usually finds its images ready.</summary>
+    private IEnumerable<SpreadThumbnailRenderer.RenderKey> WantedKeys()
+    {
+        float primaryAz = ShowBack ? SpreadThumbnailRenderer.BackAzimuth : SpreadThumbnailRenderer.FrontAzimuth;
+        string overlay = CurrentOverlay();
+        var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex);
+        int end = Math.Min(_ordered.Count, start + count + AnnotationPanelLayout.PageSize);
+        for (int i = start; i < end; i++)
+        {
+            var row = _ordered[i].Slice.Row;
+            yield return new SpreadThumbnailRenderer.RenderKey(row.PresetLabel, row.Weight, primaryAz, overlay);
+            yield return new SpreadThumbnailRenderer.RenderKey(row.PresetLabel, row.Weight, SpreadThumbnailRenderer.SideAzimuth, overlay);
+        }
+    }
+
+    private void ApplyImagesAndPump()
+    {
+        ManuallyRaisePropertyChanged(nameof(PrimaryViewLabel));
+        float primaryAz = ShowBack ? SpreadThumbnailRenderer.BackAzimuth : SpreadThumbnailRenderer.FrontAzimuth;
+        string overlay = CurrentOverlay();
+        foreach (var cell in Cells)
+        {
+            cell.SetImages(_renderer.Lookup(cell.PresetLabel, cell.Weight, primaryAz, overlay),
+                _renderer.Lookup(cell.PresetLabel, cell.Weight, SpreadThumbnailRenderer.SideAzimuth, overlay));
+        }
+        RenderStatus = _renderer.DescribeProgress(WantedKeys());
+        _renderer.Pump();
+    }
+
+    public override void Dispose()
+    {
+        _queue.PropertyChanged -= HandleQueuePropertyChanged;
+        _editor.PresetHiddenAndDisabled -= OnPresetHiddenAndDisabled;
+        _renderer.Dispose();
+        base.Dispose();
+    }
+}
+
+/// <summary>One slice in the annotation Panel: images, caption, and a toggle per Category value.</summary>
+public class VM_AnnotationPanelCell : VM
+{
+    internal VM_AnnotationPanelCell(VM_AnnotationQueueSlice slice, double? value, IReadOnlyList<string> values, VM_AnnotationPanel parent)
+    {
+        Slice = slice;
+        Value = value;
+        PresetLabel = slice.Row.PresetLabel;
+        Gender = slice.Row.Gender;
+        Weight = slice.Row.Weight;
+        CanEdit = !parent.IsStale;
+        foreach (var v in values)
+        {
+            Toggles.Add(new VM_AnnotationPanelToggle(v, this, parent));
+        }
+        LoadInViewerCommand = new RelayCommand(_ => true, _ => parent.LoadInEditorViewer(this));
+        HideAndDisableCommand = new RelayCommand(_ => true, _ => parent.HideAndDisablePreset(this));
+    }
+
+    internal VM_AnnotationQueueSlice Slice { get; }
+    internal double? Value { get; }
+    public string PresetLabel { get; }
+    public Gender Gender { get; }
+    public int Weight { get; }
+    public string Caption { get; set; } = "";
+
+    /// <summary>"Also covers: X, Y" for an alias family; the label's tooltip.</summary>
+    public string AliasTooltip => Slice.Members.Count > 1
+        ? PresetLabel + Environment.NewLine + "Also covers: " + string.Join(", ", Slice.Members.Where(m => !ReferenceEquals(m, Slice.Row)).Select(m => m.PresetLabel))
+        : PresetLabel;
+
+    /// <summary>False once the Panel is stale; disables the toggles.</summary>
+    public bool CanEdit { get; set; }
+
+    public ObservableCollection<VM_AnnotationPanelToggle> Toggles { get; } = new();
+
+    public BitmapSource? PrimaryImage { get; private set; }
+    public BitmapSource? SideImage { get; private set; }
+    public bool IsPrimaryLoading { get; private set; } = true;
+    public bool IsSideLoading { get; private set; } = true;
+    public bool IsPrimaryFailed { get; private set; }
+    public bool IsSideFailed { get; private set; }
+
+    public RelayCommand LoadInViewerCommand { get; }
+    public RelayCommand HideAndDisableCommand { get; }
+
+    internal void RefreshSelection(IReadOnlyList<string> stored)
+    {
+        var set = stored.ToHashSet(StringComparer.Ordinal);
+        foreach (var t in Toggles) t.IsSelected = set.Contains(t.Value);
+    }
+
+    internal void SetImages((bool Ready, BitmapSource? Image) primary, (bool Ready, BitmapSource? Image) side)
+    {
+        PrimaryImage = primary.Image;
+        IsPrimaryLoading = !primary.Ready;
+        IsPrimaryFailed = primary.Ready && primary.Image == null;
+        SideImage = side.Image;
+        IsSideLoading = !side.Ready;
+        IsSideFailed = side.Ready && side.Image == null;
+    }
+}
+
+/// <summary>One value toggle under a Panel cell. Reflects what is stored; clicking saves.</summary>
+public class VM_AnnotationPanelToggle : VM
+{
+    internal VM_AnnotationPanelToggle(string value, VM_AnnotationPanelCell cell, VM_AnnotationPanel parent)
+    {
+        Value = value;
+        ToggleCommand = new RelayCommand(_ => cell.CanEdit, _ => parent.ToggleValue(cell, value));
+    }
+
+    public string Value { get; }
+    public bool IsSelected { get; set; }
+    public RelayCommand ToggleCommand { get; }
+}

@@ -4329,15 +4329,42 @@ public class VM_BodyTypeProfileEditor : VM
         var profile = SelectedProfile;
         if (profile == null || string.IsNullOrEmpty(category) || IsScanning) return;
 
+        var prepared = await PrepareThumbnailWindowAsync(profile, "Show Spread");
+        if (prepared == null) return;
+        var (gender, scene) = prepared.Value;
+
+        try
+        {
+            var vm = new VM_BodyTypeSpread(this, profile, category, gender, scene, CharacterViewer,
+                PresetLookupFor(gender), _logger);
+            var window = new Window_BodyTypeSpread { DataContext = vm };
+            window.Owner = System.Windows.Application.Current?.MainWindow;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Failed to open the Show Spread window: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>The shared preamble of the offscreen-thumbnail windows (Show Spread, the annotation
+    /// queue's Panel): drives a scan first when <paramref name="profile"/>'s measurement cache is stale
+    /// or empty, re-derives descriptors (CPU only) when only the rules changed, and returns the body
+    /// type's gender plus a scene to render on -- the editor viewer's, when it shows that gender, else
+    /// the configured default preview NPC's. Null (after telling the user why) when there is no data
+    /// or no NPC. <paramref name="windowName"/> names the window in those messages.</summary>
+    internal async System.Threading.Tasks.Task<(Gender Gender, SceneInputsSnapshot Scene)?> PrepareThumbnailWindowAsync(
+        VM_BodyTypeProfile profile, string windowName)
+    {
         if (profile.MeasurementCacheStale || profile.MeasurementCache.Count == 0)
         {
             await RunScanAsync();
             if (profile.MeasurementCache.Count == 0)
             {
                 MessageWindow.DisplayNotificationOK(
-                    "No data for Show Spread",
+                    $"No data for {windowName}",
                     "The scan returned no (preset, weight) entries — check that this profile's Body Type matches at least one preset's SliderGroup.");
-                return;
+                return null;
             }
         }
         if (profile.ScanResultsStale)
@@ -4355,23 +4382,57 @@ public class VM_BodyTypeProfileEditor : VM
             if (scene == null)
             {
                 MessageWindow.DisplayNotificationOK(
-                    "Show Spread needs a preview NPC",
+                    $"{windowName} needs a preview NPC",
                     $"No {gender} preview NPC is configured in the OBody Misc settings' per-weight table, so there is no NPC to render the presets on. Set one there, or preview a {gender} preset in this editor, then try again.");
-                return;
+                return null;
             }
         }
+        return (gender, scene);
+    }
 
+    /// <summary>Resolves a preset label to its BodySlide setting in <paramref name="gender"/>'s preset
+    /// list, for the thumbnail windows' renders. Null once the preset has left the list.</summary>
+    internal Func<string, BodySlideSetting?> PresetLookupFor(Gender gender)
+        => label => FindPresetPlaceHolder(label, gender)?.AssociatedModel;
+
+    /// <summary>Opens the annotation queue's Panel (<see cref="Window_AnnotationPanel"/>): the queue's
+    /// slices for <paramref name="category"/> side by side, sorted by a metric, each with a value
+    /// selector that saves through <paramref name="queue"/>. Same preamble as Show Spread.
+    /// Non-modal.</summary>
+    internal async System.Threading.Tasks.Task OpenAnnotationPanelAsync(VM_AnnotationQueue queue, string category)
+    {
+        var profile = SelectedProfile;
+        if (profile == null || string.IsNullOrEmpty(category) || IsScanning) return;
+
+        var prepared = await PrepareThumbnailWindowAsync(profile, "The annotation panel");
+        if (prepared == null) return;
+        var (gender, scene) = prepared.Value;
+
+        // The preamble can scan, which reloads the table and drops the queue: re-check before
+        // snapshotting its slices.
+        if (!ReferenceEquals(SelectedProfile, profile) || !queue.HasQueue
+            || !string.Equals(queue.TargetCategory, category, StringComparison.Ordinal))
+        {
+            MessageWindow.DisplayNotificationOK("Queue changed",
+                "The annotation queue was rebuilt or cleared while the panel was preparing. Build the queue again, then reopen the panel.");
+            return;
+        }
+
+        VM_AnnotationPanel? vm = null;
         try
         {
-            var vm = new VM_BodyTypeSpread(this, profile, category, gender, scene, CharacterViewer,
-                label => FindPresetPlaceHolder(label, gender)?.AssociatedModel, _logger);
-            var window = new Window_BodyTypeSpread { DataContext = vm };
+            vm = new VM_AnnotationPanel(this, queue, profile, category, gender, scene, CharacterViewer,
+                PresetLookupFor(gender), _logger);
+            var window = new Window_AnnotationPanel { DataContext = vm };
             window.Owner = System.Windows.Application.Current?.MainWindow;
             window.Show();
         }
         catch (Exception ex)
         {
-            _logger?.LogError("Failed to open the Show Spread window: " + ExceptionLogger.GetExceptionStack(ex));
+            // The VM starts rendering and hooks the queue / editor on construction: release it when
+            // the window never came up to own it.
+            vm?.Dispose();
+            _logger?.LogError("Failed to open the annotation panel: " + ExceptionLogger.GetExceptionStack(ex));
         }
     }
 

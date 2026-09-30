@@ -126,9 +126,14 @@
                     </Border>
                 </Popup>
 
-                <Button Grid.Column="5" Content="Build Queue" Command="{Binding BuildQueueCommand}"
-                        Click="OnCommandButtonClick" Padding="10,2" Margin="6,0,0,0"
-                        local:DocTooltip.Key="BodySlides.QueueBuild"/>
+                <StackPanel Grid.Column="5" Orientation="Horizontal">
+                    <Button Content="Build Queue" Command="{Binding BuildQueueCommand}"
+                            Click="OnCommandButtonClick" Padding="10,2" Margin="6,0,0,0"
+                            local:DocTooltip.Key="BodySlides.QueueBuild"/>
+                    <Button Content="Open Panel" Command="{Binding OpenPanelCommand}"
+                            Click="OnCommandButtonClick" Padding="10,2" Margin="6,0,0,0"
+                            local:DocTooltip.Key="BodySlides.QueueOpenPanel"/>
+                </StackPanel>
 
                 <TextBlock Grid.Column="6" Text="{Binding Status}" VerticalAlignment="Center" Margin="10,0,0,0"
                            TextTrimming="CharacterEllipsis"/>

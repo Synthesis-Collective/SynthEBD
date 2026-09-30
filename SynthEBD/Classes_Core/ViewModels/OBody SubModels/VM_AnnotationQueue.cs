@@ -114,6 +114,11 @@ public class VM_AnnotationQueue : VM
             canExecute: _ => ServedCount > 0 || LabelledCount > 0 || SkippedCount > 0,
             execute: _ => ResetSessionCounters());
 
+        OpenPanelCommand = new RelayCommand(
+            canExecute: _ => HasQueue && _editor.SelectedProfile != null && !string.IsNullOrEmpty(TargetCategory)
+                             && !_editor.IsScanning && !_editor.AnnotationTable.IsScanning,
+            execute: _ => _ = _editor.OpenAnnotationPanelAsync(this, TargetCategory));
+
         _editor.PropertyChanged += OnEditorPropertyChanged;
         _editor.AnnotationTable.PropertyChanged += OnAnnotationTablePropertyChanged;
         _editor.AnnotationTable.RowsReloaded += OnTableRowsReloaded;
@@ -288,6 +293,16 @@ public class VM_AnnotationQueue : VM
     /// <summary>Toggles the Nth value of the target Category. Bound to the digit KeyBindings and to
     /// the clickable entries of the digit legend.</summary>
     public RelayCommand ToggleValueCommand { get; }
+
+    /// <summary>Opens the Panel window (<see cref="VM_AnnotationPanel"/>) over the built queue.</summary>
+    public RelayCommand OpenPanelCommand { get; }
+
+    /// <summary>Bumped whenever the queue's slice list is replaced or cleared. An open Panel snapshots
+    /// the slices, so it watches this (and <see cref="TargetCategory"/>) to know its snapshot is stale.</summary>
+    public int QueueGeneration { get; private set; }
+
+    /// <summary>The built queue's slices, in queue order. The Panel's "Queue slices" source.</summary>
+    internal IReadOnlyList<VM_AnnotationQueueSlice> Slices => _slices.ToList();
 
     /// <summary>
     /// Second-phase init, called once the annotation editor's descriptor menu exists (it is built
@@ -475,19 +490,10 @@ public class VM_AnnotationQueue : VM
 
         if (RandomFraction <= 0.0 && !ConfirmZeroRandomFraction()) return;
 
-        var measurementNames = profile.Measurements
-            .Where(m => m != null && !string.IsNullOrEmpty(m.Name))
-            .Select(m => m.Name)
-            .ToList();
+        var measurementNames = ProfileMeasurementNames(profile);
 
         // 1. Candidate filter: drop slices already judged in this Category unless re-judging.
-        var candidates = new List<VM_PresetAnnotationRow>();
-        foreach (var row in rows)
-        {
-            if (row == null) continue;
-            if (!IncludeAnnotated && HasVerdictInTargetCategory(profile, row)) continue;
-            candidates.Add(row);
-        }
+        var candidates = CollectCandidates(profile, rows);
         if (candidates.Count == 0)
         {
             ClearQueue();
@@ -560,6 +566,7 @@ public class VM_AnnotationQueue : VM
 
         _slices.Clear();
         _slices.AddRange(built);
+        QueueGeneration++;
         QueueLength = _slices.Count;
         HasQueue = QueueLength > 0;
         _cursor = -1;
@@ -648,6 +655,7 @@ public class VM_AnnotationQueue : VM
 
         _slices.Clear();
         _slices.AddRange(built);
+        QueueGeneration++;
         QueueLength = _slices.Count;
         HasQueue = QueueLength > 0;
         _cursor = -1;
@@ -794,6 +802,7 @@ public class VM_AnnotationQueue : VM
     private void ClearQueue()
     {
         CancelPrefetch();
+        if (_slices.Count > 0) QueueGeneration++;
         _slices.Clear();
         _cursor = -1;
         QueueLength = 0;
@@ -804,6 +813,39 @@ public class VM_AnnotationQueue : VM
         CurrentAliasSummary = "";
         CurrentCaseNote = "";
         CurrentSliceLabel = "No queue. Pick a Category and press Build Queue.";
+    }
+
+    private static List<string> ProfileMeasurementNames(VM_BodyTypeProfile profile) => profile.Measurements
+        .Where(m => m != null && !string.IsNullOrEmpty(m.Name))
+        .Select(m => m.Name)
+        .ToList();
+
+    /// <summary>Rows <see cref="BuildQueue"/> may serve: every row, less those already judged in the
+    /// target Category unless <see cref="IncludeAnnotated"/> is on.</summary>
+    private List<VM_PresetAnnotationRow> CollectCandidates(VM_BodyTypeProfile profile, IEnumerable<VM_PresetAnnotationRow> rows)
+    {
+        var candidates = new List<VM_PresetAnnotationRow>();
+        foreach (var row in rows)
+        {
+            if (row == null) continue;
+            if (!IncludeAnnotated && HasVerdictInTargetCategory(profile, row)) continue;
+            candidates.Add(row);
+        }
+        return candidates;
+    }
+
+    /// <summary>The population a Spread / Uncertainty queue samples from -- the candidate filter and
+    /// alias grouping of <see cref="BuildQueue"/>, one slice per family, unordered -- for the Panel's
+    /// Evenly spaced source. Empty under List policy or without a profile / Category.</summary>
+    internal List<VM_AnnotationQueueSlice> BuildCandidatePopulation()
+    {
+        var profile = _editor.SelectedProfile;
+        if (profile == null || string.IsNullOrEmpty(TargetCategory) || Policy == AnnotationQueuePolicy.List)
+            return new List<VM_AnnotationQueueSlice>();
+        var candidates = CollectCandidates(profile, _editor.AnnotationTable.Rows);
+        return GroupAliases(candidates, ProfileMeasurementNames(profile))
+            .Select(g => new VM_AnnotationQueueSlice(g.Representative, g.Members, fromRandomDraw: false))
+            .ToList();
     }
 
     /// <summary>
@@ -913,14 +955,12 @@ public class VM_AnnotationQueue : VM
         }
         else
         {
-            if (profile != null) PropagateToAliases(profile, slice, selectedValues);
+            if (profile != null) WriteVerdict(slice, TargetCategory, selectedValues);
             LabelledCount++;
             if (slice.FromRandomDraw) RandomLabelledCount++;
             Status = "Committed " + TargetCategory + " = " + string.Join(" + ", selectedValues)
                      + (slice.Members.Count > 1 ? " (+" + (slice.Members.Count - 1) + " alias)" : "")
                      + ".";
-            RefreshTally();
-            RefreshPendingApplyCount();
         }
 
         AdvanceTo(_cursor + 1, countAsServed: true);
@@ -1051,69 +1091,50 @@ public class VM_AnnotationQueue : VM
     // ---------- alias propagation ----------
 
     /// <summary>
-    /// Writes the representative's verdict onto every other member of its alias family, replacing
-    /// only the target Category's descriptors and leaving any other Category on those slices alone.
-    /// Each member (representative included) also records its siblings in
-    /// <see cref="PresetAnnotation.AliasLabels"/>.
-    /// <para>Propagating rather than annotating the representative alone is what makes the family
+    /// Stores <paramref name="values"/> as <paramref name="category"/>'s verdict on the slice's
+    /// representative and every alias, through the model (<see cref="AnnotationVerdictWriter"/>):
+    /// only that Category's descriptors are replaced, siblings are stamped in
+    /// <see cref="PresetAnnotation.AliasLabels"/>, and an empty set removes the verdict. Used by
+    /// Commit and by the Panel, which writes arbitrary slices without moving the table selection.
+    /// <para>Writing the whole family rather than the representative alone is what makes the family
     /// count as judged: a later queue build with de-duplication off, or a different signature
     /// rounding, would otherwise serve the siblings again as unlabelled.</para>
+    /// <para>When a written slice is the annotation editor's current row, the editor reloads its
+    /// checks from the row -- otherwise its next write-through would put back what it last showed.</para>
     /// </summary>
-    private void PropagateToAliases(VM_BodyTypeProfile profile, VM_AnnotationQueueSlice slice, IReadOnlyList<string> values)
+    internal void WriteVerdict(VM_AnnotationQueueSlice slice, string category, IReadOnlyList<string> values)
     {
-        var aliasLabels = slice.Members
-            .Select(m => m.PresetLabel ?? "")
-            .Where(l => l.Length > 0)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        var profile = _editor.SelectedProfile;
+        if (profile == null || slice == null || string.IsNullOrEmpty(category)) return;
 
-        foreach (var member in slice.Members)
+        var members = slice.Members.Where(m => m != null).ToList();
+        var written = AnnotationVerdictWriter.Write(profile.PresetAnnotations,
+            members.Select(m => (m.PresetLabel, m.Gender, m.Weight)).ToList(), category, values);
+
+        // Mirror into the rows so the annotation table's summary column agrees with what is stored,
+        // without a rebuild.
+        for (int i = 0; i < members.Count; i++) SyncRowDescriptors(members[i], written[i]);
+
+        var editorRow = _editor.AnnotationEditor?.CurrentRow;
+        if (editorRow != null && members.Any(m => ReferenceEquals(m, editorRow)))
         {
-            if (member == null) continue;
-
-            var annotation = profile.FindAnnotation(member.PresetLabel, member.Gender, member.Weight);
-            bool isRepresentative = ReferenceEquals(member, slice.Row);
-
-            if (!isRepresentative)
-            {
-                // Replace only this Category on the sibling; another Category's verdict on that
-                // slice is the user's and is none of this commit's business.
-                if (annotation == null)
-                {
-                    annotation = new PresetAnnotation
-                    {
-                        PresetLabel = member.PresetLabel,
-                        PresetGender = member.Gender,
-                        Weight = member.Weight,
-                    };
-                    profile.PresetAnnotations.Add(annotation);
-                }
-                annotation.Descriptors.RemoveAll(d => d != null
-                    && string.Equals(d.Category, TargetCategory, StringComparison.Ordinal));
-                foreach (var value in values)
-                {
-                    annotation.Descriptors.Add(new BodyShapeDescriptor.LabelSignature
-                    {
-                        Category = TargetCategory,
-                        Value = value,
-                    });
-                }
-
-                // Mirror into the row so the annotation table's summary column agrees with what is
-                // stored, without a rebuild.
-                SyncRowDescriptors(member, annotation);
-            }
-
-            if (annotation != null && aliasLabels.Count > 1)
-            {
-                annotation.AliasLabels = aliasLabels
-                    .Where(l => !string.Equals(l, member.PresetLabel ?? "", StringComparison.Ordinal))
-                    .ToList();
-            }
+            _editor.AnnotationEditor!.ReloadCurrentRow();
         }
+
+        RefreshValueHints();
+        RefreshTally();
+        RefreshPendingApplyCount();
     }
 
-    private static void SyncRowDescriptors(VM_PresetAnnotationRow row, PresetAnnotation annotation)
+    /// <summary>The Panel's session counter hook: a slice given its first non-empty verdict there
+    /// counts as labelled, as a Commit would.</summary>
+    internal void CountPanelLabel(VM_AnnotationQueueSlice slice)
+    {
+        LabelledCount++;
+        if (slice.FromRandomDraw) RandomLabelledCount++;
+    }
+
+    private static void SyncRowDescriptors(VM_PresetAnnotationRow row, PresetAnnotation? annotation)
     {
         row.CurrentDescriptors.Clear();
         if (annotation?.Descriptors == null) return;

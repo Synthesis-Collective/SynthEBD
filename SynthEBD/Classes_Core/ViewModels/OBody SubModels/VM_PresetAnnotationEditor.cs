@@ -179,6 +179,12 @@ public class VM_PresetAnnotationEditor : VM
         return result;
     }
 
+    /// <summary>Re-reads the menu's checks from <see cref="CurrentRow"/>'s descriptors. For a writer
+    /// that changed the current row's annotation behind the menu (the annotation Panel, via
+    /// <see cref="VM_AnnotationQueue.WriteVerdict"/>): without it, the menu's next write-through
+    /// would replace that change with what the menu last showed.</summary>
+    public void ReloadCurrentRow() => OnCurrentRowChanged();
+
     private VM_BodyShapeDescriptorShellSelector FindShell(string category)
     {
         if (DescriptorMenu == null || string.IsNullOrEmpty(category)) return null;
