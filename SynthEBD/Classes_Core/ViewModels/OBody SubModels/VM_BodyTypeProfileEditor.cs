@@ -4354,10 +4354,25 @@ public class VM_BodyTypeProfileEditor : VM
     /// the configured default preview NPC's. Null (after telling the user why) when there is no data
     /// or no NPC. <paramref name="windowName"/> names the window in those messages.</summary>
     internal async System.Threading.Tasks.Task<(Gender Gender, SceneInputsSnapshot Scene)?> PrepareThumbnailWindowAsync(
-        VM_BodyTypeProfile profile, string windowName)
+        VM_BodyTypeProfile profile, string windowName, bool confirmScan = false)
     {
         if (profile.MeasurementCacheStale || profile.MeasurementCache.Count == 0)
         {
+            // With confirmScan, say why a scan is needed and let the user decline it: a scan can
+            // take minutes and cannot be cancelled once started (e.g. right after adding measurements).
+            if (confirmScan)
+            {
+                string why = profile.MeasurementCache.Count == 0
+                    ? "No measurements are cached for this profile yet."
+                    : "The cached measurements are out of date (" + profile.DescribeStaleReason() + ").";
+                bool scan = MessageWindow.DisplayNotificationYesNo(
+                    "Scan presets?",
+                    why + Environment.NewLine + Environment.NewLine
+                    + windowName + " needs current measurements. Scan the presets now? Only missing or "
+                    + "out-of-date values are computed, but a large preset collection can still take a while, "
+                    + "and the scan cannot be cancelled once started.");
+                if (!scan) return null;
+            }
             await RunScanAsync();
             if (profile.MeasurementCache.Count == 0)
             {
@@ -4404,7 +4419,7 @@ public class VM_BodyTypeProfileEditor : VM
         var profile = SelectedProfile;
         if (profile == null || string.IsNullOrEmpty(category) || IsScanning) return;
 
-        var prepared = await PrepareThumbnailWindowAsync(profile, "The annotation panel");
+        var prepared = await PrepareThumbnailWindowAsync(profile, "The annotation panel", confirmScan: true);
         if (prepared == null) return;
         var (gender, scene) = prepared.Value;
 

@@ -82,16 +82,25 @@ public class VM_AnnotationPanel : VM
         // Values in the order the queue's digit legend shows them (the annotation menu's order).
         _values = editor.AnnotationEditor?.GetCategoryValues(category)?.ToList() ?? new List<string>();
 
-        // Metrics: the measurements that can decide the Category (no Score: a per-value margin gives
-        // no single ordering across cells). Default: the queue's Spread measurement when it is one of
-        // them, else the Category's primary measurement, else the first.
-        foreach (var name in VM_BodyTypeProfileEditor.CollectCategoryMeasurementNames(profile, category, gender))
+        // Metrics: first the measurements that can decide the Category (marked with it), then every
+        // other profile measurement -- including ones no rule uses yet -- so candidate measurements can
+        // be compared against the eye. No Score: a per-value margin gives no single ordering across
+        // cells. Default: the Category's primary measurement (the one its own rules test most), else
+        // the queue's Spread measurement, else the first.
+        var categoryNames = VM_BodyTypeProfileEditor.CollectCategoryMeasurementNames(profile, category, gender).ToList();
+        foreach (var name in categoryNames)
         {
-            Metrics.Add(name);
+            Metrics.Add(new PanelMetricOption($"{name}  ({category} rule)", name));
         }
-        string? primary = VM_BodyTypeSpread.FindPrimaryMeasurement(profile, category, gender, Metrics.ToList());
-        SelectedMetric = Metrics.Contains(queue.SpreadMeasurement) ? queue.SpreadMeasurement
-            : primary ?? Metrics.FirstOrDefault() ?? "";
+        foreach (var m in profile.Measurements)
+        {
+            if (m == null || string.IsNullOrEmpty(m.Name) || categoryNames.Contains(m.Name, StringComparer.Ordinal)) continue;
+            Metrics.Add(new PanelMetricOption(m.Name, m.Name));
+        }
+        string? primary = VM_BodyTypeSpread.FindPrimaryMeasurement(profile, category, gender, categoryNames);
+        SelectedMetric = primary
+            ?? (Metrics.Any(o => o.Name == queue.SpreadMeasurement) ? queue.SpreadMeasurement : null)
+            ?? Metrics.FirstOrDefault()?.Name ?? "";
 
         _renderer = new SpreadThumbnailRenderer(profile, scene, renderSettingsSource, presetLookup, logger,
             "Annotation Panel", WantedKeys, ApplyImagesAndPump);
@@ -122,8 +131,10 @@ public class VM_AnnotationPanel : VM
     public string Category { get; }
     public Gender Gender { get; }
 
-    /// <summary>Measurements the cells can be sorted by.</summary>
-    public ObservableCollection<string> Metrics { get; } = new();
+    /// <summary>Measurements the cells can be sorted by: the Category's own first, then the rest.</summary>
+    public ObservableCollection<PanelMetricOption> Metrics { get; } = new();
+
+    /// <summary>Name of the measurement sorted by (the picker binds its SelectedValue to it).</summary>
     public string SelectedMetric { get; set; }
 
     /// <summary>When on, each cell's first image shows the back instead of the front.</summary>
@@ -393,6 +404,12 @@ public class VM_AnnotationPanel : VM
         _renderer.Dispose();
         base.Dispose();
     }
+}
+
+/// <summary>One annotation Panel metric: <see cref="Display"/> marks the Category's own measurements.</summary>
+public sealed record PanelMetricOption(string Display, string Name)
+{
+    public override string ToString() => Display;
 }
 
 /// <summary>One slice in the annotation Panel: images, caption, and a toggle per Category value.</summary>

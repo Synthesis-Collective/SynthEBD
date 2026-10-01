@@ -141,9 +141,11 @@
         <!-- Controls -->
         <WrapPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
             <TextBlock Text="Metric:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
-            <ComboBox Width="240" VerticalAlignment="Center" Margin="0,0,14,0"
+            <ComboBox Width="300" VerticalAlignment="Center" Margin="0,0,14,0"
                       ItemsSource="{Binding Metrics}"
-                      SelectedItem="{Binding SelectedMetric}"
+                      DisplayMemberPath="Display"
+                      SelectedValuePath="Name"
+                      SelectedValue="{Binding SelectedMetric}"
                       local:DocTooltip.Key="AnnotationPanel.Metric"/>
             <CheckBox Content="Back view" IsChecked="{Binding ShowBack}"
                       VerticalAlignment="Center" Margin="0,0,14,0"
