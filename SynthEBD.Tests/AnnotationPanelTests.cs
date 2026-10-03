@@ -107,6 +107,35 @@ public class AnnotationPanelTests
         AnnotationPanelLayout.PageRange(0, 0).Should().Be((0, 0));
     }
 
+    // ---------- free order ----------
+
+    [Theory]
+    [InlineData(0, 3, 5, 2)]   // drag forward: insertion point after removal shifts back one
+    [InlineData(4, 1, 5, 1)]   // drag backward: lands at the insertion point
+    [InlineData(2, 2, 5, 2)]   // dropped on itself
+    [InlineData(2, 3, 5, 2)]   // dropped just after itself
+    [InlineData(1, 5, 5, 4)]   // dropped at the end
+    public void MoveTarget_AccountsForRemovalShift(int from, int insertIndex, int count, int expected)
+    {
+        AnnotationPanelLayout.MoveTarget(from, insertIndex, count).Should().Be(expected);
+    }
+
+    [Fact]
+    public void FormatOrder_RoundTripsAsWorklist()
+    {
+        var text = AnnotationPanelLayout.FormatOrder("Panel order: Butt", new (string, int, IReadOnlyList<string>)[]
+        {
+            ("Preset B", 100, new string[0]),
+            ("Preset A", 0, new[] { "Preset A Copy" }),
+        });
+        text.Should().StartWith("# Panel order: Butt");
+
+        var cases = AnnotationCaseList.Parse(text, out var warnings);
+        warnings.Should().BeEmpty();
+        cases.Select(c => (c.PresetLabel, c.Weight)).Should().Equal(("Preset B", (int?)100), ("Preset A", (int?)0));
+        cases[1].Note.Should().Be("aliases: Preset A Copy");
+    }
+
     // ---------- verdict writer ----------
 
     private static PresetAnnotation Ann(string label, int weight, params (string Cat, string Val)[] descriptors) => new()

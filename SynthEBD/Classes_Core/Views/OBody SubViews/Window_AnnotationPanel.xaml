@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:SynthEBD"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:dd="clr-namespace:GongSolutions.Wpf.DragDrop;assembly=GongSolutions.Wpf.DragDrop"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=local:VM_AnnotationPanel}"
         Title="{Binding Title}"
@@ -114,6 +115,7 @@
                                  local:DocTooltip.Key="AnnotationPanel.Cell">
                         <UniformGrid.InputBindings>
                             <MouseBinding MouseAction="LeftClick" Command="{Binding LoadInViewerCommand}"/>
+                            <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding LoadInViewerFreeCommand}"/>
                         </UniformGrid.InputBindings>
                         <Grid>
                             <Image Source="{Binding PrimaryImage}" Stretch="Uniform"/>
@@ -176,6 +178,10 @@
             <TextBlock Text="{Binding PageText}" VerticalAlignment="Center" Margin="8,0"/>
             <Button Content="Next &gt;" Command="{Binding NextPageCommand}" Padding="6,2" VerticalAlignment="Center" Margin="0,0,14,0"
                     local:DocTooltip.Key="AnnotationPanel.Paging"/>
+            <Button Content="Copy Order" Command="{Binding CopyOrderCommand}" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,0"
+                    local:DocTooltip.Key="AnnotationPanel.CopyOrder"/>
+            <TextBlock Text="{Binding CopyStatus}" VerticalAlignment="Center" Margin="0,0,14,0"
+                       Foreground="{DynamicResource SecondaryForeground}"/>
             <TextBlock Text="{Binding RenderStatus}" FontStyle="Italic" VerticalAlignment="Center"
                        Foreground="{DynamicResource SecondaryForeground}"/>
         </WrapPanel>
@@ -192,7 +198,11 @@
         </Border>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource PanelCellTemplate}">
+            <!-- Drag-and-drop reordering is live only in the Free sort mode. -->
+            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource PanelCellTemplate}"
+                          dd:DragDrop.IsDragSource="{Binding IsFreeOrder}"
+                          dd:DragDrop.IsDropTarget="{Binding IsFreeOrder}"
+                          dd:DragDrop.DropHandler="{Binding}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal"/>

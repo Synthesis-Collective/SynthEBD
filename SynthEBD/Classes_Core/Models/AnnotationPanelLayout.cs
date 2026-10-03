@@ -67,6 +67,35 @@ public static class AnnotationPanelLayout
     public static int PageCount(int total, int pageSize = PageSize)
         => Math.Max(1, (Math.Max(0, total) + pageSize - 1) / pageSize);
 
+    /// <summary>Final index of an item dragged from <paramref name="from"/> and dropped at insertion
+    /// point <paramref name="insertIndex"/> (an index into the list before the item is removed, as
+    /// drag-drop handlers report it): one less when inserting after the original position, since
+    /// removing the item first shifts everything after it.</summary>
+    public static int MoveTarget(int from, int insertIndex, int count)
+    {
+        int to = insertIndex > from ? insertIndex - 1 : insertIndex;
+        return Math.Clamp(to, 0, Math.Max(0, count - 1));
+    }
+
+    /// <summary>
+    /// The Panel's Copy Order text: a <c>#</c> header, then one <c>label | weight</c> line per slice
+    /// in order, with <c>| aliases: ...</c> appended for an alias family. This is the annotation
+    /// queue's plain-text worklist format (<see cref="AnnotationCaseList"/>), so the copied order can
+    /// be pasted back as a List queue, and is trivial to read from a script.
+    /// </summary>
+    public static string FormatOrder(string header, IEnumerable<(string PresetLabel, int Weight, IReadOnlyList<string> Aliases)> entries)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("# ").AppendLine(header);
+        foreach (var (label, weight, aliases) in entries)
+        {
+            sb.Append(label).Append(" | ").Append(weight);
+            if (aliases != null && aliases.Count > 0) sb.Append(" | aliases: ").Append(string.Join(", ", aliases));
+            sb.AppendLine();
+        }
+        return sb.ToString();
+    }
+
     /// <summary>The (start, count) item range of <paramref name="pageIndex"/> (0-based, clamped into
     /// range) for <paramref name="total"/> items.</summary>
     public static (int Start, int Count) PageRange(int total, int pageIndex, int pageSize = PageSize)

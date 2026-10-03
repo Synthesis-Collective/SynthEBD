@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Reactive.Linq;
 using System.Windows.Media.Imaging;
+using GongSolutions.Wpf.DragDrop;
 using Noggog;
 using ReactiveUI;
 
@@ -39,8 +40,11 @@ public enum AnnotationPanelSource
 /// alias family, without moving the annotation table's selection. Rendering is a
 /// <see cref="SpreadThumbnailRenderer"/> fed the current page first, then the next page.</para>
 /// </summary>
-public class VM_AnnotationPanel : VM
+public class VM_AnnotationPanel : VM, IDropTarget
 {
+    /// <summary><see cref="SelectedMetric"/> value of the Free sort mode (not a measurement name).</summary>
+    internal const string FreeOrderName = "\u0001free";
+
     private readonly Logger _logger;
     private readonly VM_BodyTypeProfileEditor _editor;
     private readonly VM_AnnotationQueue _queue;
@@ -97,20 +101,34 @@ public class VM_AnnotationPanel : VM
             if (m == null || string.IsNullOrEmpty(m.Name) || categoryNames.Contains(m.Name, StringComparer.Ordinal)) continue;
             Metrics.Add(new PanelMetricOption(m.Name, m.Name));
         }
+        Metrics.Insert(0, new PanelMetricOption("Free (drag to reorder)", FreeOrderName));
         string? primary = VM_BodyTypeSpread.FindPrimaryMeasurement(profile, category, gender, categoryNames);
         SelectedMetric = primary
             ?? (Metrics.Any(o => o.Name == queue.SpreadMeasurement) ? queue.SpreadMeasurement : null)
-            ?? Metrics.FirstOrDefault()?.Name ?? "";
+            ?? Metrics.Skip(1).FirstOrDefault()?.Name ?? "";
+        _valueMetric = SelectedMetric;
 
         _renderer = new SpreadThumbnailRenderer(profile, scene, renderSettingsSource, presetLookup, logger,
             "Annotation Panel", WantedKeys, ApplyImagesAndPump);
 
         PrevPageCommand = new RelayCommand(canExecute: _ => PageIndex > 0, execute: _ => GoToPage(PageIndex - 1));
         NextPageCommand = new RelayCommand(canExecute: _ => PageIndex < PageCount - 1, execute: _ => GoToPage(PageIndex + 1));
+        CopyOrderCommand = new RelayCommand(canExecute: _ => _ordered.Count > 0, execute: _ => CopyOrder());
 
         Rebuild();
 
-        this.WhenAnyValue(x => x.SelectedMetric, x => x.Source, x => x.EvenlySpacedCount)
+        // Free keeps the current order (and the last real metric for captions and the overlay);
+        // any other metric re-sorts. Source / N always re-read the slices.
+        this.WhenAnyValue(x => x.SelectedMetric)
+            .Skip(1)
+            .Subscribe(_ =>
+            {
+                if (IsFreeOrder) { UpdateSummary(); PageIndex = 0; BuildPage(); return; }
+                _valueMetric = SelectedMetric ?? "";
+                Rebuild();
+            })
+            .DisposeWith(this);
+        this.WhenAnyValue(x => x.Source, x => x.EvenlySpacedCount)
             .Skip(1)
             .Subscribe(_ => Rebuild())
             .DisposeWith(this);
@@ -134,8 +152,23 @@ public class VM_AnnotationPanel : VM
     /// <summary>Measurements the cells can be sorted by: the Category's own first, then the rest.</summary>
     public ObservableCollection<PanelMetricOption> Metrics { get; } = new();
 
-    /// <summary>Name of the measurement sorted by (the picker binds its SelectedValue to it).</summary>
+    /// <summary>Name of the measurement sorted by, or <see cref="FreeOrderName"/> (the picker binds its
+    /// SelectedValue to it).</summary>
     public string SelectedMetric { get; set; }
+
+    /// <summary>True in the Free sort mode: the order is the user's, tiles can be dragged, and the
+    /// whole list shows on one page so any tile can reach any position.</summary>
+    public bool IsFreeOrder => SelectedMetric == FreeOrderName;
+
+    /// <summary>The measurement captions, Show values and the overlay use: the selected metric, or in
+    /// Free mode the last one selected before it.</summary>
+    private string _valueMetric = "";
+
+    /// <summary>Copies the current order of every slice (all pages) to the clipboard as a worklist.</summary>
+    public RelayCommand CopyOrderCommand { get; }
+
+    /// <summary>Feedback for Copy Order ("Copied 22 preset(s)."), empty until used.</summary>
+    public string CopyStatus { get; private set; } = "";
 
     /// <summary>When on, each cell's first image shows the back instead of the front.</summary>
     public bool ShowBack { get; set; }
@@ -181,9 +214,9 @@ public class VM_AnnotationPanel : VM
     // ---------- slices ----------
 
     private double? ValueOf(VM_AnnotationQueueSlice slice)
-        => !string.IsNullOrEmpty(SelectedMetric)
+        => !string.IsNullOrEmpty(_valueMetric)
            && slice.Row.MeasurementValues != null
-           && slice.Row.MeasurementValues.TryGetValue(SelectedMetric, out var v) && v.HasValue
+           && slice.Row.MeasurementValues.TryGetValue(_valueMetric, out var v) && v.HasValue
             ? v.Value
             : null;
 
@@ -210,8 +243,9 @@ public class VM_AnnotationPanel : VM
         {
             order = AnnotationPanelLayout.PickEvenlySpaced(samples, Math.Max(1, EvenlySpacedCount));
         }
-        else if (!string.IsNullOrEmpty(SelectedMetric))
+        else if (!string.IsNullOrEmpty(_valueMetric))
         {
+            // In Free mode a re-read (Source / N changed) starts from the last metric's order.
             order = AnnotationPanelLayout.SortByValue(samples);
         }
         else
@@ -221,15 +255,75 @@ public class VM_AnnotationPanel : VM
         }
 
         _ordered = order.Select(i => new Entry(slices[i], samples[i].Value)).ToList();
-
-        int missing = _ordered.Count(e => !e.Value.HasValue);
-        Summary = Source == AnnotationPanelSource.EvenlySpaced
-            ? $"{_ordered.Count} of {populationSize} candidate slice(s), evenly spaced on {SelectedMetric}"
-            : $"{_ordered.Count} queue slice(s)" + (!string.IsNullOrEmpty(SelectedMetric) ? $", sorted by {SelectedMetric}" : ", in queue order")
-              + (missing > 0 && !string.IsNullOrEmpty(SelectedMetric) ? $" ({missing} with no value, last)" : "");
+        _populationSize = populationSize;
+        UpdateSummary();
 
         PageIndex = 0;
         BuildPage();
+    }
+
+    private int _populationSize;
+
+    private void UpdateSummary()
+    {
+        int missing = _ordered.Count(e => !e.Value.HasValue);
+        bool hasMetric = !string.IsNullOrEmpty(_valueMetric);
+        string set = Source == AnnotationPanelSource.EvenlySpaced
+            ? $"{_ordered.Count} of {_populationSize} candidate slice(s), evenly spaced on {_valueMetric}"
+            : $"{_ordered.Count} queue slice(s)";
+        Summary = IsFreeOrder
+            ? set + ", free order (drag tiles to reorder; double-click to load in the viewer)"
+            : Source == AnnotationPanelSource.EvenlySpaced ? set
+            : set + (hasMetric ? $", sorted by {_valueMetric}" : ", in queue order")
+              + (missing > 0 && hasMetric ? $" ({missing} with no value, last)" : "");
+    }
+
+    /// <summary>Cells per page: 24, or everything in Free mode.</summary>
+    private int PageSize => IsFreeOrder ? Math.Max(1, _ordered.Count) : AnnotationPanelLayout.PageSize;
+
+    private void CopyOrder()
+    {
+        string mode = IsFreeOrder ? "free order"
+            : Source == AnnotationPanelSource.EvenlySpaced ? $"evenly spaced on {_valueMetric}"
+            : $"sorted by {_valueMetric}";
+        string header = $"Panel order: {Category} ({_profile.Name}, {Gender}), {mode}, {DateTime.Now:yyyy-MM-dd HH:mm}";
+        string text = AnnotationPanelLayout.FormatOrder(header, _ordered.Select(e => (
+            e.Slice.Row.PresetLabel,
+            e.Slice.Row.Weight,
+            (IReadOnlyList<string>)e.Slice.Members.Where(m => !ReferenceEquals(m, e.Slice.Row)).Select(m => m.PresetLabel).ToList())));
+        try
+        {
+            System.Windows.Clipboard.SetText(text);
+            CopyStatus = $"Copied {_ordered.Count} preset(s).";
+        }
+        catch (Exception ex)
+        {
+            CopyStatus = "Copy failed: " + ex.Message;
+        }
+    }
+
+    // ---------- drag and drop (Free mode) ----------
+
+    public void DragOver(IDropInfo dropInfo)
+    {
+        if (!IsFreeOrder || dropInfo.Data is not VM_AnnotationPanelCell || !ReferenceEquals(dropInfo.TargetCollection, Cells)) return;
+        dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
+        dropInfo.Effects = System.Windows.DragDropEffects.Move;
+    }
+
+    /// <summary>Moves the dropped tile to the insertion point. Free mode shows one page, so the cell
+    /// index is also the index into the full order.</summary>
+    public void Drop(IDropInfo dropInfo)
+    {
+        if (!IsFreeOrder || dropInfo.Data is not VM_AnnotationPanelCell cell) return;
+        int from = Cells.IndexOf(cell);
+        if (from < 0) return;
+        int to = AnnotationPanelLayout.MoveTarget(from, dropInfo.InsertIndex, Cells.Count);
+        if (to == from) return;
+        Cells.Move(from, to);
+        var entry = _ordered[from];
+        _ordered.RemoveAt(from);
+        _ordered.Insert(to, entry);
     }
 
     private void GoToPage(int pageIndex)
@@ -240,9 +334,9 @@ public class VM_AnnotationPanel : VM
 
     private void BuildPage()
     {
-        PageCount = AnnotationPanelLayout.PageCount(_ordered.Count);
-        var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex);
-        PageIndex = _ordered.Count == 0 ? 0 : start / AnnotationPanelLayout.PageSize;
+        PageCount = AnnotationPanelLayout.PageCount(_ordered.Count, PageSize);
+        var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex, PageSize);
+        PageIndex = _ordered.Count == 0 ? 0 : start / PageSize;
         PageText = $"Page {PageIndex + 1} / {PageCount}";
 
         Cells.Clear();
@@ -267,9 +361,9 @@ public class VM_AnnotationPanel : VM
                 parts.Add(cell.Value.HasValue ? cell.Value.Value.ToString(format) : "no value");
                 parts.Add("rules: " + RuleLabel(cell.Slice));
             }
-            else if (!cell.Value.HasValue && !string.IsNullOrEmpty(SelectedMetric))
+            else if (!cell.Value.HasValue && !string.IsNullOrEmpty(_valueMetric))
             {
-                parts.Add($"no {SelectedMetric} value");
+                parts.Add($"no {_valueMetric} value");
             }
             if (cell.Slice.Members.Count > 1) parts.Add($"+{cell.Slice.Members.Count - 1} alias");
             cell.Caption = string.Join(" · ", parts);
@@ -365,7 +459,7 @@ public class VM_AnnotationPanel : VM
     public string PrimaryViewLabel => ShowBack ? "Back" : "Front";
 
     private string CurrentOverlay()
-        => ShowMeasurements && !string.IsNullOrEmpty(SelectedMetric) ? SpreadThumbnailRenderer.JoinOverlay(new[] { SelectedMetric }) : "";
+        => ShowMeasurements && !string.IsNullOrEmpty(_valueMetric) ? SpreadThumbnailRenderer.JoinOverlay(new[] { _valueMetric }) : "";
 
     /// <summary>Current page's images first (in display order), then the next page's, so paging
     /// forward usually finds its images ready.</summary>
@@ -373,8 +467,8 @@ public class VM_AnnotationPanel : VM
     {
         float primaryAz = ShowBack ? SpreadThumbnailRenderer.BackAzimuth : SpreadThumbnailRenderer.FrontAzimuth;
         string overlay = CurrentOverlay();
-        var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex);
-        int end = Math.Min(_ordered.Count, start + count + AnnotationPanelLayout.PageSize);
+        var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex, PageSize);
+        int end = Math.Min(_ordered.Count, start + count + PageSize);
         for (int i = start; i < end; i++)
         {
             var row = _ordered[i].Slice.Row;
@@ -427,7 +521,9 @@ public class VM_AnnotationPanelCell : VM
         {
             Toggles.Add(new VM_AnnotationPanelToggle(v, this, parent));
         }
-        LoadInViewerCommand = new RelayCommand(_ => true, _ => parent.LoadInEditorViewer(this));
+        // A single click would fire at the start of every drag in Free mode, so there it takes a double-click.
+        LoadInViewerCommand = new RelayCommand(_ => !parent.IsFreeOrder, _ => parent.LoadInEditorViewer(this));
+        LoadInViewerFreeCommand = new RelayCommand(_ => parent.IsFreeOrder, _ => parent.LoadInEditorViewer(this));
         HideAndDisableCommand = new RelayCommand(_ => true, _ => parent.HideAndDisablePreset(this));
     }
 
@@ -456,6 +552,7 @@ public class VM_AnnotationPanelCell : VM
     public bool IsSideFailed { get; private set; }
 
     public RelayCommand LoadInViewerCommand { get; }
+    public RelayCommand LoadInViewerFreeCommand { get; }
     public RelayCommand HideAndDisableCommand { get; }
 
     internal void RefreshSelection(IReadOnlyList<string> stored)
