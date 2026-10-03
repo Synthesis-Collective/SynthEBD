@@ -511,6 +511,13 @@ public enum MeasurementKind
     /// <c>RegionVolumeEvaluator</c>. Designed for "fullness" discriminators (cup size) where a 2-point
     /// distance misclassifies long/narrow vs broad/flat geometry.</summary>
     RegionVolume = 5,
+    /// <summary>Angle in degrees (0..180) between the direction of line A->B and the direction of line
+    /// C->D. Four vertex refs, like <see cref="RatioDistance"/>. 0 = the lines point the same way,
+    /// 180 = opposite. With B = C it is the turn at the shared point: A->B->D straight gives 0, and the
+    /// value grows as the path bends (e.g. knee -> gluteal fold -> backmost glute point). Optionally
+    /// viewed along one axis (<see cref="MeasurementDefinition.AngleViewAxis"/>): both lines are
+    /// projected onto the plane perpendicular to it before measuring, e.g. X = the side view.</summary>
+    Angle = 6,
 }
 
 /// <summary>World axis selector for <see cref="MeasurementKind.AxisDistance"/>.</summary>
@@ -562,6 +569,13 @@ public class MeasurementDefinition
     /// the denominator pair (C, D) is reduced to a scalar. Null = legacy 3D Euclidean.
     /// </summary>
     public MeasurementAxis? DenominatorAxis { get; set; } = null;
+
+    /// <summary>
+    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.Angle"/>: the axis the angle is
+    /// viewed along. Both lines are projected onto the plane perpendicular to it (X = side view, Y = top
+    /// view, Z = front view) before the angle is taken. Null = the full 3D angle.
+    /// </summary>
+    public MeasurementAxis? AngleViewAxis { get; set; } = null;
 }
 
 /// <summary>Threshold comparator applied between a measurement value and a constant.</summary>
@@ -915,7 +929,7 @@ public static class MeasurementMath
         value = 0f;
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
 
-        int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
+        int needed = VertexRefCount(def.Kind);
         if (def.VertexRefNames.Count < needed) return false;
 
         if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var a)) return false;
@@ -973,9 +987,43 @@ public static class MeasurementMath
                 value = num / denom;
                 return true;
 
+            case MeasurementKind.Angle:
+                {
+                    if (!TryResolve(def.VertexRefNames[2], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var c2)) return false;
+                    if (!TryResolve(def.VertexRefNames[3], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var d2)) return false;
+                    var angle = AngleBetween(b - a, d2 - c2, def.AngleViewAxis);
+                    if (!angle.HasValue) return false;
+                    value = angle.Value;
+                    return true;
+                }
+
             default:
                 return false;
         }
+    }
+
+    /// <summary>How many entries of <see cref="MeasurementDefinition.VertexRefNames"/> a kind reads:
+    /// 4 for <see cref="MeasurementKind.RatioDistance"/> and <see cref="MeasurementKind.Angle"/>, else 2
+    /// (<see cref="MeasurementKind.RegionVolume"/> reads none, but its callers check that kind first).</summary>
+    public static int VertexRefCount(MeasurementKind kind)
+        => kind == MeasurementKind.RatioDistance || kind == MeasurementKind.Angle ? 4 : 2;
+
+    /// <summary>Angle in degrees (0..180) between directions <paramref name="u"/> and <paramref name="v"/>,
+    /// after dropping the <paramref name="viewAxis"/> component of both (projection onto the plane
+    /// perpendicular to it; null = full 3D). Null when either projected direction is degenerate.
+    /// Computed with atan2(|u x v|, u . v), which stays accurate near 0 and 180 where acos does not.</summary>
+    public static float? AngleBetween(OpenTK.Mathematics.Vector3 u, OpenTK.Mathematics.Vector3 v, MeasurementAxis? viewAxis)
+    {
+        switch (viewAxis)
+        {
+            case MeasurementAxis.X: u.X = 0f; v.X = 0f; break;
+            case MeasurementAxis.Y: u.Y = 0f; v.Y = 0f; break;
+            case MeasurementAxis.Z: u.Z = 0f; v.Z = 0f; break;
+        }
+        if (u.LengthSquared < 1e-12f || v.LengthSquared < 1e-12f) return null;
+        double cross = OpenTK.Mathematics.Vector3.Cross(u, v).Length;
+        double dot = OpenTK.Mathematics.Vector3.Dot(u, v);
+        return (float)(Math.Atan2(cross, dot) * 180.0 / Math.PI);
     }
 
     /// <summary>Resolves one named key vertex to its current position exactly as

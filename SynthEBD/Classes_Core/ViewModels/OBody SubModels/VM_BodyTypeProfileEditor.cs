@@ -8035,7 +8035,7 @@ public class VM_BodyTypeProfile : VM
             if (m == null || string.IsNullOrEmpty(m.Name) || specs.ContainsKey(m.Name)) continue;
             specs[m.Name] = new VM_BodyTypeProfile.MeasurementLineSpec(
                 m.Kind, m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD,
-                m.Axis, m.NumeratorAxis, m.DenominatorAxis);
+                m.Axis, m.NumeratorAxis, m.DenominatorAxis, m.AngleViewAxis);
         }
         return (keyVertsByName, resolvedRegions, specs, regionNamesByMeasurement);
     }
@@ -8700,7 +8700,7 @@ public class VM_BodyTypeProfile : VM
 
             AppendMeasurementLineSegments(
                 new MeasurementLineSpec(sel.Kind, sel.VertexRefA, sel.VertexRefB, sel.VertexRefC, sel.VertexRefD,
-                    sel.Axis, sel.NumeratorAxis, sel.DenominatorAxis),
+                    sel.Axis, sel.NumeratorAxis, sel.DenominatorAxis, sel.AngleViewAxis),
                 name, Resolve, PairSlot, segments);
         }
 
@@ -8820,7 +8820,81 @@ public class VM_BodyTypeProfile : VM
     /// indices), so the live overlay and Show Spread's offscreen overlay read identical inputs.</summary>
     internal readonly record struct MeasurementLineSpec(
         MeasurementKind Kind, string VertexRefA, string VertexRefB, string VertexRefC, string VertexRefD,
-        MeasurementAxis Axis, MeasurementAxis? NumeratorAxis, MeasurementAxis? DenominatorAxis);
+        MeasurementAxis Axis, MeasurementAxis? NumeratorAxis, MeasurementAxis? DenominatorAxis,
+        MeasurementAxis? AngleViewAxis = null);
+
+    /// <summary>Appends the marker that shows which angle an <see cref="MeasurementKind.Angle"/> measures:
+    /// a white guide continuing line A->B's direction from the pivot C (the "straight on" reference --
+    /// the value is the angle between the two directions, so with B = C it is the turn away from
+    /// straight, not the inner angle between the arms), and an orange arc from that guide to line
+    /// C->D. Both lie in the measured plane through the pivot: the directions are projected like
+    /// <see cref="MeasurementMath.AngleBetween"/> does (view axis component dropped), so looking along
+    /// the view axis shows the arc at its true size. Radius is a third of the shorter line, clamped to
+    /// 1.5..5 units. Nothing is drawn when a projected direction is degenerate.</summary>
+    public static void AppendAngleMarker(
+        OpenTK.Mathematics.Vector3 a, OpenTK.Mathematics.Vector3 b,
+        OpenTK.Mathematics.Vector3 c, OpenTK.Mathematics.Vector3 d,
+        MeasurementAxis? viewAxis, string name,
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
+    {
+        static OpenTK.Mathematics.Vector3 Project(OpenTK.Mathematics.Vector3 v, MeasurementAxis? axis)
+        {
+            switch (axis)
+            {
+                case MeasurementAxis.X: v.X = 0f; break;
+                case MeasurementAxis.Y: v.Y = 0f; break;
+                case MeasurementAxis.Z: v.Z = 0f; break;
+            }
+            return v;
+        }
+
+        var u = Project(b - a, viewAxis);
+        var v = Project(d - c, viewAxis);
+        if (u.LengthSquared < 1e-12f || v.LengthSquared < 1e-12f) return;
+        float theta = MeasurementMath.AngleBetween(u, v, null) ?? 0f;
+        float radius = Math.Clamp(Math.Min(u.Length, v.Length) / 3f, 1.5f, 5f);
+
+        // In-plane basis: e1 along u, e2 perpendicular to it toward v. For (anti)parallel directions,
+        // any perpendicular in the measured plane will do.
+        var e1 = u.Normalized();
+        var e2 = v - OpenTK.Mathematics.Vector3.Dot(v, e1) * e1;
+        if (e2.LengthSquared < 1e-10f)
+        {
+            var planeNormal = viewAxis switch
+            {
+                MeasurementAxis.X => OpenTK.Mathematics.Vector3.UnitX,
+                MeasurementAxis.Y => OpenTK.Mathematics.Vector3.UnitY,
+                MeasurementAxis.Z => OpenTK.Mathematics.Vector3.UnitZ,
+                _ => Math.Abs(e1.Y) < 0.9f ? OpenTK.Mathematics.Vector3.UnitY : OpenTK.Mathematics.Vector3.UnitX,
+            };
+            e2 = OpenTK.Mathematics.Vector3.Cross(planeNormal, e1);
+            if (e2.LengthSquared < 1e-10f) return;
+        }
+        e2.Normalize();
+
+        var guide = new OpenTK.Mathematics.Vector3(1f, 1f, 1f);
+        var arcColor = new OpenTK.Mathematics.Vector3(1.0f, 0.45f, 0.1f);
+        string view = viewAxis switch
+        {
+            MeasurementAxis.X => "side view",
+            MeasurementAxis.Y => "top view",
+            MeasurementAxis.Z => "front view",
+            _ => "3D",
+        };
+        string label = $"{name} (angle {theta:F1} deg, {view}: from A-B's direction to C-D)";
+
+        segments.Add((c, c + e1 * radius * 1.6f, guide, $"{name} (A-B direction continued)"));
+        float rad = theta * (float)Math.PI / 180f;
+        int steps = Math.Max(4, (int)Math.Ceiling(theta / 6f));
+        var prev = c + e1 * radius;
+        for (int i = 1; i <= steps; i++)
+        {
+            float t = rad * i / steps;
+            var next = c + (e1 * (float)Math.Cos(t) + e2 * (float)Math.Sin(t)) * radius;
+            segments.Add((prev, next, arcColor, label));
+            prev = next;
+        }
+    }
 
     /// <summary>Appends the overlay line segments that depict one measurement: the A-B pair (or its
     /// axis-aligned legs for AxisDistance / an axis-locked ratio numerator) and, for RatioDistance, the
@@ -8924,6 +8998,13 @@ public class VM_BodyTypeProfile : VM
                     segments.Add((a.Value, b.Value, primary,
                         $"{name} (numerator: {pairSlot(sel.VertexRefA, sel.VertexRefB, null)})"));
                 }
+                else if (sel.Kind == MeasurementKind.Angle)
+                {
+                    // Angle: the two lines whose directions are compared, A->B yellow and C->D cyan
+                    // (below). Drawn as the real 3D lines even when the angle is taken in a
+                    // projected view; looking along the view axis shows the measured angle.
+                    segments.Add((a.Value, b.Value, primary, $"{name} (line A-B)"));
+                }
                 else
                 {
                     // PointDistance / SignedPointDistance: only one segment per measurement,
@@ -8932,6 +9013,15 @@ public class VM_BodyTypeProfile : VM
                     segments.Add((a.Value, b.Value, primary, name));
                 }
             }
+        }
+
+        if (sel.Kind == MeasurementKind.Angle)
+        {
+            var c = resolve(sel.VertexRefC);
+            var d = resolve(sel.VertexRefD);
+            if (c.HasValue && d.HasValue) segments.Add((c.Value, d.Value, secondary, $"{name} (line C-D)"));
+            if (a.HasValue && b.HasValue && c.HasValue && d.HasValue)
+                AppendAngleMarker(a.Value, b.Value, c.Value, d.Value, sel.AngleViewAxis, name, segments);
         }
 
         if (sel.Kind == MeasurementKind.RatioDistance)
@@ -9363,14 +9453,15 @@ public class VM_BodyTypeProfile : VM
         foreach (var m in Measurements)
         {
             bool isRatio = m.Kind == MeasurementKind.RatioDistance;
+            bool hasCD = MeasurementMath.VertexRefCount(m.Kind) == 4;
             string[] row =
             {
                 m.Name ?? "",
                 m.Kind.ToString(),
                 m.VertexRefA ?? "",
                 m.VertexRefB ?? "",
-                isRatio ? (m.VertexRefC ?? "") : "",
-                isRatio ? (m.VertexRefD ?? "") : "",
+                hasCD ? (m.VertexRefC ?? "") : "",
+                hasCD ? (m.VertexRefD ?? "") : "",
                 (m.Kind == MeasurementKind.AxisDistance
                  || m.Kind == MeasurementKind.SignedAxisDistance
                  || m.Kind == MeasurementKind.SignedPointDistance) ? m.Axis.ToString() : "",
@@ -12133,6 +12224,7 @@ public class VM_MeasurementDefinition : VM
         Axis = source.Axis;
         NumeratorAxis = source.NumeratorAxis;
         DenominatorAxis = source.DenominatorAxis;
+        AngleViewAxis = source.AngleViewAxis;
 
         var refs = source.VertexRefNames ?? new List<string>();
         VertexRefA = refs.Count > 0 ? refs[0] : "";
@@ -12183,6 +12275,10 @@ public class VM_MeasurementDefinition : VM
     /// Null = full 3D length (legacy). Ignored for non-ratio kinds.</summary>
     public MeasurementAxis? DenominatorAxis { get; set; }
 
+    /// <summary>For a <see cref="MeasurementKind.Angle"/> entry, the axis the angle is viewed along
+    /// (both lines projected onto the plane perpendicular to it). Null = full 3D. Ignored for other kinds.</summary>
+    public MeasurementAxis? AngleViewAxis { get; set; }
+
     public string VertexRefA { get; set; }
     public string VertexRefB { get; set; }
     public string VertexRefC { get; set; }
@@ -12232,7 +12328,16 @@ public class VM_MeasurementDefinition : VM
     public bool ShowAxisField => Kind == MeasurementKind.AxisDistance
                               || Kind == MeasurementKind.SignedAxisDistance
                               || Kind == MeasurementKind.SignedPointDistance;
-    public bool ShowSecondPair => Kind == MeasurementKind.RatioDistance;
+    /// <summary>True for the 4-ref kinds (RatioDistance, Angle): the C and D columns are live.</summary>
+    public bool ShowSecondPair => Kind == MeasurementKind.RatioDistance || Kind == MeasurementKind.Angle;
+
+    /// <summary>True for RatioDistance only: the Num Axis / Den Axis columns are live.</summary>
+    public bool ShowRatioAxisFields => Kind == MeasurementKind.RatioDistance;
+
+    /// <summary>True for Angle: the Axis cell shows the View picker (<see cref="AngleViewAxis"/>)
+    /// instead of the distance axis.</summary>
+    public bool ShowAngleViewField => Kind == MeasurementKind.Angle;
+    public bool ShowDistanceAxisPicker => Kind != MeasurementKind.Angle;
 
     /// <summary>True for RegionVolume measurements: the grid shows a Region dropdown and hides the
     /// vertex-ref columns (A..D), which this kind doesn't use.</summary>
@@ -12265,12 +12370,23 @@ public class VM_MeasurementDefinition : VM
 
     public IReadOnlyList<RatioAxisOption> RatioAxisOptionsList => RatioAxisOptions;
 
+    /// <summary>View choices for an Angle: full 3D, or projected by looking along one axis.</summary>
+    public static IReadOnlyList<RatioAxisOption> AngleViewOptions { get; } = new[]
+    {
+        new RatioAxisOption(null, "3D"),
+        new RatioAxisOption(MeasurementAxis.X, "Side view (along X)"),
+        new RatioAxisOption(MeasurementAxis.Y, "Top view (along Y)"),
+        new RatioAxisOption(MeasurementAxis.Z, "Front view (along Z)"),
+    };
+
+    public IReadOnlyList<RatioAxisOption> AngleViewOptionsList => AngleViewOptions;
+
     public MeasurementDefinition DumpToModel()
     {
         var refs = new List<string>();
         if (!string.IsNullOrEmpty(VertexRefA)) refs.Add(VertexRefA);
         if (!string.IsNullOrEmpty(VertexRefB)) refs.Add(VertexRefB);
-        if (Kind == MeasurementKind.RatioDistance)
+        if (MeasurementMath.VertexRefCount(Kind) == 4)
         {
             if (!string.IsNullOrEmpty(VertexRefC)) refs.Add(VertexRefC);
             if (!string.IsNullOrEmpty(VertexRefD)) refs.Add(VertexRefD);
@@ -12282,6 +12398,7 @@ public class VM_MeasurementDefinition : VM
             Axis = Axis,
             NumeratorAxis = Kind == MeasurementKind.RatioDistance ? NumeratorAxis : null,
             DenominatorAxis = Kind == MeasurementKind.RatioDistance ? DenominatorAxis : null,
+            AngleViewAxis = Kind == MeasurementKind.Angle ? AngleViewAxis : null,
             VertexRefNames = refs,
             RegionRefName = Kind == MeasurementKind.RegionVolume ? (RegionRefName?.Trim() ?? "") : "",
         };

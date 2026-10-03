@@ -388,6 +388,10 @@ public static class MeasurementCacheStore
         sb.Append("A=").Append((int)def.Axis).Append('|');
         sb.Append("NA=").Append(def.NumeratorAxis.HasValue ? ((int)def.NumeratorAxis.Value).ToString() : "-").Append('|');
         sb.Append("DA=").Append(def.DenominatorAxis.HasValue ? ((int)def.DenominatorAxis.Value).ToString() : "-").Append('|');
+        // Angle only: appended for that kind alone so every other measurement's fingerprint (and its
+        // cached values) is unchanged by the field's existence.
+        if (def.Kind == MeasurementKind.Angle)
+            sb.Append("AV=").Append(def.AngleViewAxis.HasValue ? ((int)def.AngleViewAxis.Value).ToString() : "-").Append('|');
         if (def.Kind == MeasurementKind.RegionVolume)
         {
             // RegionVolume reads a single named region's box, not key vertices. Like a BoundingBox

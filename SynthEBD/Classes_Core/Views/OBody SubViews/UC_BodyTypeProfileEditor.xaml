@@ -833,11 +833,21 @@
                                             <DataGridTemplateColumn Header="Axis" Width="140">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <ComboBox ItemsSource="{Binding AxisOptionsList}"
-                                                                  SelectedValuePath="Value"
-                                                                  DisplayMemberPath="Label"
-                                                                  SelectedValue="{Binding Axis, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsEnabled="{Binding ShowAxisField}"/>
+                                                        <Grid>
+                                                            <ComboBox ItemsSource="{Binding AxisOptionsList}"
+                                                                      SelectedValuePath="Value"
+                                                                      DisplayMemberPath="Label"
+                                                                      SelectedValue="{Binding Axis, UpdateSourceTrigger=PropertyChanged}"
+                                                                      IsEnabled="{Binding ShowAxisField}"
+                                                                      Visibility="{Binding ShowDistanceAxisPicker, Converter={StaticResource BoolToVis}}"/>
+                                                            <!-- Angle rows: the view the angle is taken in (3D or along an axis). -->
+                                                            <ComboBox ItemsSource="{Binding AngleViewOptionsList}"
+                                                                      SelectedValuePath="Value"
+                                                                      DisplayMemberPath="Label"
+                                                                      SelectedValue="{Binding AngleViewAxis, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowAngleViewField, Converter={StaticResource BoolToVis}}"
+                                                                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementAngleView"/>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
@@ -849,7 +859,7 @@
                                                                   SelectedValuePath="Value"
                                                                   DisplayMemberPath="Label"
                                                                   SelectedValue="{Binding NumeratorAxis, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  IsEnabled="{Binding ShowRatioAxisFields}"
                                                                   local:DocTooltip.Key="BodyTypeProfiles.MeasurementNumeratorAxis"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
@@ -861,7 +871,7 @@
                                                                   SelectedValuePath="Value"
                                                                   DisplayMemberPath="Label"
                                                                   SelectedValue="{Binding DenominatorAxis, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  IsEnabled="{Binding ShowRatioAxisFields}"
                                                                   local:DocTooltip.Key="BodyTypeProfiles.MeasurementDenominatorAxis"/>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>

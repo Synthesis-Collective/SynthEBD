@@ -725,7 +725,7 @@ public static class BodySlideMeasurementEvaluator
 
     private static MeasurementFailureReason ClassifyFailure(MeasurementDefinition def, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName, MeasurementMath.VertexLookup lookup)
     {
-        int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
+        int needed = MeasurementMath.VertexRefCount(def.Kind);
         if (def.VertexRefNames == null || def.VertexRefNames.Count < needed) return MeasurementFailureReason.MalformedDefinition;
 
         for (int i = 0; i < needed; i++)
