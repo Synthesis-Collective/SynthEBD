@@ -1479,8 +1479,15 @@ public class VM_BodyTypeProfileEditor : VM
     /// weight in <c>DefaultWeightSlots</c>, caching matched descriptors on the profile. Drives
     /// the viewer sequentially (GL is UI-thread-only) so the user sees the mesh flicker
     /// through presets; progress reports via <see cref="ScanStatus"/> and
-    /// <see cref="ScanProgressPercent"/>. Cancellable via <see cref="_scanCts"/>.</summary>
-    public async System.Threading.Tasks.Task RunScanAsync()
+    /// <see cref="ScanProgressPercent"/>. Cancellable via <see cref="_scanCts"/>.
+    /// <para><paramref name="onlySlices"/> scopes the scan to those (preset, gender, weight) slices --
+    /// the annotation queue's "Scan worklist presets only" -- so trying a new measurement on a worklist
+    /// doesn't cost a full rescan. Everything else (slider-hash drops, granular fingerprint drops,
+    /// derivation, persistence) runs as usual; only the work set is filtered. A scoped scan never
+    /// declares the whole cache current: it re-derives <see cref="VM_BodyTypeProfile.MeasurementCacheStale"/>
+    /// from the cache's contents, so slices outside the scope that still lack values keep the cache
+    /// reported stale.</para></summary>
+    public async System.Threading.Tasks.Task RunScanAsync(IReadOnlySet<(string PresetLabel, Gender Gender, int Weight)>? onlySlices = null)
     {
         var profile = SelectedProfile;
         if (profile == null || IsScanning) return;
@@ -1538,7 +1545,18 @@ public class VM_BodyTypeProfileEditor : VM
                 targets.Add((ph, Gender.Female));
             }
 
-            int total = targets.Count * weightSlots.Count;
+            // Scoped scan: keep only the presets the scope names; the weight filter is applied where the
+            // work set is built (InScope).
+            if (onlySlices != null)
+            {
+                var scopedPresets = new HashSet<(string, Gender)>(onlySlices.Select(s => (s.PresetLabel, s.Gender)));
+                targets.RemoveAll(t => !scopedPresets.Contains((t.ph.AssociatedModel.Label ?? "", t.gender)));
+            }
+            bool InScope(string label, Gender g, int w) => onlySlices == null || onlySlices.Contains((label, g, w));
+
+            int total = onlySlices == null
+                ? targets.Count * weightSlots.Count
+                : targets.Sum(t => weightSlots.Count(w => InScope(t.ph.AssociatedModel.Label ?? "", t.gender, w)));
             if (VerboseScan)
             {
                 _logger?.LogMessage($"BodyTypeProfile scan: body type '{bodyType}' matched {targets.Count} preset(s) × {weightSlots.Count} weight(s) = {total} evaluations.");
@@ -1736,6 +1754,7 @@ public class VM_BodyTypeProfileEditor : VM
                 var label = ph.AssociatedModel.Label ?? "";
                 foreach (int weight in weightSlots)
                 {
+                    if (!InScope(label, gender, weight)) continue;
                     if (!profile.MeasurementCache.TryGetValue((label, gender, weight), out var entry))
                     {
                         missing.Add((ph, gender, weight, null));
@@ -1783,9 +1802,7 @@ public class VM_BodyTypeProfileEditor : VM
                 int emptyAll = profile.ScanResults.Count - withMatchesAll;
                 ScanStatus = $"Rebuilt from cache: {total} slice(s) reused, no scan needed. {withMatchesAll} with matches, {emptyAll} empty.";
                 profile.ScanResultsStale = false;
-                profile.MeasurementCacheStale = false;
-                profile.CaptureMeasurementCacheBaseline();
-                ScanCacheStale = false;
+                MarkScanCurrent(profile, onlySlices != null);
                 ScanProgressPercent = 100;
                 RebuildWeightFilterOptions();
                 RefreshMatchingPresets();
@@ -1894,7 +1911,8 @@ public class VM_BodyTypeProfileEditor : VM
                         {
                             foreach (int weight in weightSlots)
                             {
-                                missing.Add((ph, gender, weight, null));
+                                if (InScope(ph.AssociatedModel.Label ?? "", gender, weight))
+                                    missing.Add((ph, gender, weight, null));
                             }
                         }
                         reused = 0;
@@ -2215,9 +2233,12 @@ public class VM_BodyTypeProfileEditor : VM
                     _logger?.LogMessage($"BodyTypeProfile scan summary: {withMatches} (preset, weight) combos produced ≥1 match; {empty} produced none.");
                 }
                 profile.ScanResultsStale = false;
-                profile.MeasurementCacheStale = false;
-                profile.CaptureMeasurementCacheBaseline();
-                ScanCacheStale = false;
+                MarkScanCurrent(profile, onlySlices != null);
+                if (onlySlices != null)
+                {
+                    ScanStatus = $"Worklist scan complete: {done} evaluated, {reused} cached ({total} worklist slice(s))."
+                        + (profile.MeasurementCacheStale ? " Slices outside the worklist are still out of date." : "");
+                }
             }
             RebuildWeightFilterOptions();
             RefreshMatchingPresets();
@@ -4354,15 +4375,22 @@ public class VM_BodyTypeProfileEditor : VM
     /// the configured default preview NPC's. Null (after telling the user why) when there is no data
     /// or no NPC. <paramref name="windowName"/> names the window in those messages.</summary>
     internal async System.Threading.Tasks.Task<(Gender Gender, SceneInputsSnapshot Scene)?> PrepareThumbnailWindowAsync(
-        VM_BodyTypeProfile profile, string windowName, bool confirmScan = false)
+        VM_BodyTypeProfile profile, string windowName, bool confirmScan = false,
+        IReadOnlySet<(string PresetLabel, Gender Gender, int Weight)>? onlySlices = null)
     {
-        if (profile.MeasurementCacheStale || profile.MeasurementCache.Count == 0)
+        // Scoped (worklist-only): only the window's own slices need current values.
+        bool needsScan = onlySlices != null
+            ? !profile.AreSlicesCurrent(onlySlices)
+            : profile.MeasurementCacheStale || profile.MeasurementCache.Count == 0;
+        if (needsScan)
         {
             // With confirmScan, say why a scan is needed and let the user decline it: a scan can
             // take minutes and cannot be cancelled once started (e.g. right after adding measurements).
             if (confirmScan)
             {
-                string why = profile.MeasurementCache.Count == 0
+                string why = onlySlices != null
+                    ? $"{onlySlices.Count(s => !profile.AreSlicesCurrent(new[] { s }))} of the worklist's {onlySlices.Count} slice(s) lack current measurements; only those will be scanned."
+                    : profile.MeasurementCache.Count == 0
                     ? "No measurements are cached for this profile yet."
                     : "The cached measurements are out of date (" + profile.DescribeStaleReason() + ").";
                 bool scan = MessageWindow.DisplayNotificationYesNo(
@@ -4373,7 +4401,7 @@ public class VM_BodyTypeProfileEditor : VM
                     + "and the scan cannot be cancelled once started.");
                 if (!scan) return null;
             }
-            await RunScanAsync();
+            await RunScanAsync(onlySlices);
             if (profile.MeasurementCache.Count == 0)
             {
                 MessageWindow.DisplayNotificationOK(
@@ -4405,6 +4433,67 @@ public class VM_BodyTypeProfileEditor : VM
         return (gender, scene);
     }
 
+    /// <summary>Clears the stale flags after a successful scan. A full scan makes the whole cache current
+    /// (and captures the baseline edit-then-revert detection compares against); a scoped scan only made
+    /// its own slices current, so the cache's state is re-derived from its contents instead.</summary>
+    private void MarkScanCurrent(VM_BodyTypeProfile profile, bool scoped)
+    {
+        if (scoped)
+        {
+            profile.RevalidateMeasurementCacheFromContents();
+            ScanCacheStale = profile.MeasurementCacheStale;
+            return;
+        }
+        profile.MeasurementCacheStale = false;
+        profile.CaptureMeasurementCacheBaseline();
+        ScanCacheStale = false;
+    }
+
+    /// <summary>Resolves annotation-worklist cases to the (preset, gender, weight) slices a scan would
+    /// produce for them: presets of this profile's body type (SliderGroup match, hidden-and-disabled
+    /// skipped, exactly as the scan picks its targets), matched case-insensitively by label like the
+    /// queue's List mode; a case without a weight means every default weight slot, a case without a
+    /// gender either gender. Labels come back in the preset list's own spelling.</summary>
+    internal HashSet<(string PresetLabel, Gender Gender, int Weight)> ResolveWorklistSlices(IEnumerable<AnnotationCase> cases)
+    {
+        var result = new HashSet<(string, Gender, int)>();
+        var profile = SelectedProfile;
+        var menu = _oBodyVM?.Invoke()?.BodySlidesUI;
+        if (profile == null || menu == null || cases == null) return result;
+        var weightSlots = _patcherState?.OBodySettings?.DefaultWeightSlots?.ToList();
+        if (weightSlots == null || weightSlots.Count == 0) weightSlots = new List<int> { 0, 100 };
+
+        var bodyType = profile.BodyTypeName?.Trim() ?? "";
+        var byLabel = new Dictionary<string, List<(string Label, Gender Gender)>>(StringComparer.OrdinalIgnoreCase);
+        void AddPresets(IEnumerable<VM_BodySlidePlaceHolder> source, Gender gender)
+        {
+            foreach (var ph in source)
+            {
+                if (ph?.AssociatedModel == null || ph.IsHiddenAndDisabled) continue;
+                if (bodyType.Length > 0 && !string.Equals(ph.AssociatedModel.SliderGroup, bodyType, StringComparison.OrdinalIgnoreCase)) continue;
+                var label = ph.AssociatedModel.Label ?? "";
+                if (!byLabel.TryGetValue(label, out var list)) byLabel[label] = list = new();
+                list.Add((label, gender));
+            }
+        }
+        AddPresets(menu.BodySlidesMale, Gender.Male);
+        AddPresets(menu.BodySlidesFemale, Gender.Female);
+
+        foreach (var c in cases)
+        {
+            if (c == null || string.IsNullOrEmpty(c.PresetLabel) || !byLabel.TryGetValue(c.PresetLabel.Trim(), out var matches)) continue;
+            foreach (var (label, gender) in matches)
+            {
+                if (c.Gender.HasValue && c.Gender.Value != gender) continue;
+                foreach (int w in weightSlots)
+                {
+                    if (!c.Weight.HasValue || c.Weight.Value == w) result.Add((label, gender, w));
+                }
+            }
+        }
+        return result;
+    }
+
     /// <summary>Resolves a preset label to its BodySlide setting in <paramref name="gender"/>'s preset
     /// list, for the thumbnail windows' renders. Null once the preset has left the list.</summary>
     internal Func<string, BodySlideSetting?> PresetLookupFor(Gender gender)
@@ -4419,7 +4508,8 @@ public class VM_BodyTypeProfileEditor : VM
         var profile = SelectedProfile;
         if (profile == null || string.IsNullOrEmpty(category) || IsScanning) return;
 
-        var prepared = await PrepareThumbnailWindowAsync(profile, "The annotation panel", confirmScan: true);
+        var prepared = await PrepareThumbnailWindowAsync(profile, "The annotation panel", confirmScan: true,
+            onlySlices: queue.WorklistScanScope());
         if (prepared == null) return;
         var (gender, scene) = prepared.Value;
 
@@ -10679,6 +10769,23 @@ public class VM_BodyTypeProfile : VM
             // or a drifted/absent fingerprint is not-current.
             if (!MeasurementCacheStore.EntryHasAllCurrentMeasurements(
                     current, entry.Measurements, entry.MeasurementFingerprints))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>True when every one of <paramref name="slices"/> is cached and holds every currently
+    /// defined measurement under a current fingerprint (the per-entry test of
+    /// <see cref="IsMeasurementCacheCompleteAndCurrent"/>), regardless of the rest of the cache. A slice
+    /// with no cache entry is not current. Backs the annotation queue's worklist-only scan, which lets a
+    /// worklist be served while presets outside it are still stale.</summary>
+    internal bool AreSlicesCurrent(IEnumerable<(string PresetLabel, Gender Gender, int Weight)> slices)
+    {
+        var current = CurrentMeasurementFingerprints();
+        foreach (var key in slices)
+        {
+            if (!MeasurementCache.TryGetValue(key, out var entry) || entry?.Measurements == null) return false;
+            if (!MeasurementCacheStore.EntryHasAllCurrentMeasurements(current, entry.Measurements, entry.MeasurementFingerprints))
                 return false;
         }
         return true;

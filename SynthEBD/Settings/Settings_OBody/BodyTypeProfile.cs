@@ -874,6 +874,11 @@ public class AnnotatorPreferences
     /// (a paste has no file to come back to). A path that no longer resolves is ignored silently --
     /// the queue then reports "no worklist loaded" rather than interrupting with a dialog.</summary>
     public string QueueCaseListPath { get; set; } = "";
+
+    /// <summary>List policy: judge cache currency -- and scan, when Build Queue or the Panel needs
+    /// values -- for the worklist's slices only, so a worklist can be served (and a newly added
+    /// measurement tried on it) while presets outside it are still stale. Defaults to false.</summary>
+    public bool QueueScanWorklistOnly { get; set; }
 }
 
 /// <summary>

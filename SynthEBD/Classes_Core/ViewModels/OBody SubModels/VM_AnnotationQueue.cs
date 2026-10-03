@@ -160,6 +160,10 @@ public class VM_AnnotationQueue : VM
                 case nameof(PrefetchEnabled):
                     PersistSettings();
                     break;
+                case nameof(ScanWorklistOnly):
+                    PersistSettings();
+                    if (!_suppressPersist) ScheduleAutoBuild();
+                    break;
             }
         };
 
@@ -213,6 +217,11 @@ public class VM_AnnotationQueue : VM
 
     /// <summary>Prewarm the next slice's preview NPC while the user judges the current one.</summary>
     public bool PrefetchEnabled { get; set; } = true;
+
+    /// <summary>List policy only: judge cache currency, and scan, for the worklist's slices alone.
+    /// Lets a worklist be served -- and a measurement just added be tried on it -- without rescanning
+    /// every preset; presets outside the list may stay stale.</summary>
+    public bool ScanWorklistOnly { get; set; }
 
     /// <summary>True while <see cref="Policy"/> is <see cref="AnnotationQueuePolicy.List"/>. Bound
     /// to the visibility of the worklist controls, which are meaningless under the other
@@ -351,6 +360,27 @@ public class VM_AnnotationQueue : VM
     private static bool CacheIsCurrent(VM_BodyTypeProfile profile)
         => profile != null && profile.MeasurementCache.Count > 0 && !profile.MeasurementCacheStale;
 
+    /// <summary>The slices a worklist-only scan covers: the loaded worklist resolved to (preset, gender,
+    /// weight) slices, when <see cref="ScanWorklistOnly"/> is on under the List policy; else null (the
+    /// whole cache is what matters).</summary>
+    internal HashSet<(string PresetLabel, Gender Gender, int Weight)>? WorklistScanScope()
+    {
+        if (!ScanWorklistOnly || Policy != AnnotationQueuePolicy.List) return null;
+        if (_caseList.Count == 0) TryReloadPersistedCaseList();
+        if (_caseList.Count == 0) return null;
+        return _editor.ResolveWorklistSlices(_caseList);
+    }
+
+    /// <summary><see cref="CacheIsCurrent"/>, or with a worklist-only scope, whether every worklist slice
+    /// is current. A worklist that resolves to no slices counts as current: there is nothing to scan,
+    /// and the build reports its cases as not found.</summary>
+    private bool CacheIsCurrentForBuild(VM_BodyTypeProfile profile, out HashSet<(string PresetLabel, Gender Gender, int Weight)>? scope)
+    {
+        scope = WorklistScanScope();
+        if (scope == null) return CacheIsCurrent(profile);
+        return scope.Count == 0 || profile.AreSlicesCurrent(scope);
+    }
+
     private bool _autoBuildScheduled;
 
     /// <summary>Queues one <see cref="TryAutoBuild"/> for after the current dispatcher work. Deferred
@@ -392,9 +422,11 @@ public class VM_AnnotationQueue : VM
             return;
         }
 
-        if (!CacheIsCurrent(profile))
+        if (!CacheIsCurrentForBuild(profile, out var autoScope))
         {
-            Status = profile.MeasurementCache.Count == 0
+            Status = autoScope != null
+                ? "Some worklist presets lack current measurements -- press Build Queue to scan just those and build."
+                : profile.MeasurementCache.Count == 0
                 ? "No measurements cached yet -- press Build Queue to scan the presets and build."
                 : "Cached measurements are out of date -- press Build Queue to re-scan and build.";
             return;
@@ -416,9 +448,12 @@ public class VM_AnnotationQueue : VM
         if (string.IsNullOrEmpty(TargetCategory)) { Status = "Pick a target Category first."; return; }
         if (_editor.IsScanning || _editor.AnnotationTable.IsScanning) { Status = "A scan is running -- the queue builds when it finishes."; return; }
 
-        if (!CacheIsCurrent(profile))
+        if (!CacheIsCurrentForBuild(profile, out var scope))
         {
-            string why = profile.MeasurementCache.Count == 0
+            string why = scope != null
+                ? scope.Count(s => !profile.AreSlicesCurrent(new[] { s })) + " of the worklist's " + scope.Count
+                  + " slice(s) lack current measurements. Only those will be scanned (Scan worklist presets only is on)."
+                : profile.MeasurementCache.Count == 0
                 ? "No measurements are cached for this profile yet."
                 : "The cached measurements are out of date (" + profile.DescribeStaleReason() + ").";
             bool scan = MessageWindow.DisplayNotificationYesNo(
@@ -434,9 +469,9 @@ public class VM_AnnotationQueue : VM
                 return;
             }
 
-            Status = "Scanning presets for the queue...";
-            await _editor.RunScanAsync();
-            if (!CacheIsCurrent(profile))
+            Status = scope != null ? "Scanning the worklist's presets..." : "Scanning presets for the queue...";
+            await _editor.RunScanAsync(scope);
+            if (!CacheIsCurrentForBuild(profile, out _))
             {
                 Status = "The scan did not complete -- queue not built. Press Build Queue to try again.";
                 return;
@@ -1378,6 +1413,7 @@ public class VM_AnnotationQueue : VM
             DedupeAliases = prefs.QueueDedupeAliases;
             WeightCoherent = prefs.QueueWeightCoherent;
             PrefetchEnabled = prefs.QueuePrefetch;
+            ScanWorklistOnly = prefs.QueueScanWorklistOnly;
             IsListPolicy = Policy == AnnotationQueuePolicy.List;
             // Only settable once the menu has told us which categories exist; InitializeAfterMenu
             // re-applies it. Applying an unavailable category here would silently blank it.
@@ -1408,6 +1444,7 @@ public class VM_AnnotationQueue : VM
         prefs.QueueDedupeAliases = DedupeAliases;
         prefs.QueueWeightCoherent = WeightCoherent;
         prefs.QueuePrefetch = PrefetchEnabled;
+        prefs.QueueScanWorklistOnly = ScanWorklistOnly;
     }
 
     private void OnDescriptorShellsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

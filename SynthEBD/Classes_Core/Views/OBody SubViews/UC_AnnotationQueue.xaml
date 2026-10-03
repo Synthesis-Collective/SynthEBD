@@ -147,6 +147,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="0" Content="Load list..." Command="{Binding LoadCaseListCommand}"
@@ -158,7 +159,10 @@
                 <Button Grid.Column="2" Content="Clear" Command="{Binding ClearCaseListCommand}"
                         Click="OnCommandButtonClick" Padding="8,2" Margin="4,0,0,0"
                         local:DocTooltip.Key="BodySlides.QueueClearList"/>
-                <TextBlock Grid.Column="3" Text="{Binding CaseListSummary}" VerticalAlignment="Center"
+                <CheckBox Grid.Column="3" Content="Scan worklist presets only" IsChecked="{Binding ScanWorklistOnly, Mode=TwoWay}"
+                          VerticalAlignment="Center" Margin="10,0,0,0"
+                          local:DocTooltip.Key="BodySlides.QueueScanWorklistOnly"/>
+                <TextBlock Grid.Column="4" Text="{Binding CaseListSummary}" VerticalAlignment="Center"
                            Margin="10,0,0,0" TextTrimming="CharacterEllipsis"
                            local:DocTooltip.Key="BodySlides.QueueListSummary"/>
             </Grid>
