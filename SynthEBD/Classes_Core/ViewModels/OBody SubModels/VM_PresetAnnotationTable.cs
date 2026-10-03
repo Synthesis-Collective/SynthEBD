@@ -180,10 +180,22 @@ public class VM_PresetAnnotationTable : VM
                 return;
             }
 
-            // KeyVertices / MeasurementDefinition changes invalidate the numbers in the
-            // shared cache. Drop them now so the iteration below misses on every key.
+            // KeyVertices / MeasurementDefinition changes invalidate numbers in the shared cache.
+            // This used to Clear() the whole cache -- every value discarded, every body rebuilt, even
+            // for a single added measurement. The Match Presets scan handles staleness granularly: it
+            // drops only the drifted values, derives what it can from the values left (no mesh work),
+            // and geometry-fills only the remainder. Delegate to it, then carry on filling any slices
+            // this table's own weight slots still lack.
             if (profile.MeasurementCacheStale)
-                profile.MeasurementCache.Clear();
+            {
+                ScanStatus = "Refreshing out-of-date measurements...";
+                await _editor.RunScanAsync();
+                if (profile.MeasurementCacheStale)
+                {
+                    ScanStatus = "Refreshing out-of-date measurements did not complete -- scan stopped.";
+                    return;
+                }
+            }
 
             var profileModel = profile.DumpToModel();
             // Per-measurement fingerprints used to tag every value this writer adds to the

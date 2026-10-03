@@ -1738,6 +1738,47 @@ public class VM_BodyTypeProfileEditor : VM
                     + $"measurement value(s) across {affectedEntries} cached entries; the partial-fill "
                     + "pass below will recompute them.");
             }
+
+            // Derivation pass: fill, without any mesh work, every missing measurement that can be
+            // assembled from values the entry already holds (e.g. a new ratio of two cached distances,
+            // or a distance recovered from a cached ratio and its cached other operand). Everything
+            // left in each entry has a current fingerprint at this point, which is what makes the
+            // derivation sound (see MeasurementDerivation). Filled names drop out of the missing-set
+            // computation below, so when every missing value derives, the all-hit fast path runs and
+            // no preset body is built at all. Runs over every cached entry, including presets this
+            // scan skips (hidden-and-disabled), since it costs nothing and keeps them complete.
+            int derivedValues = 0, derivedEntries = 0;
+            if (profileModel.Measurements != null && currentMeasNames.Count > 0)
+            {
+                foreach (var memEntry in profile.MeasurementCache.Values)
+                {
+                    if (memEntry == null) continue;
+                    List<string>? need = null;
+                    foreach (var name in currentMeasNames)
+                    {
+                        if (!memEntry.Measurements.ContainsKey(name)) (need ??= new List<string>()).Add(name);
+                    }
+                    if (need == null) continue;
+
+                    var derived = MeasurementDerivation.Derive(profileModel.Measurements, memEntry.Measurements, need);
+                    if (derived.Count == 0) continue;
+                    foreach (var d in derived)
+                    {
+                        if (!currentMeasurementFps.TryGetValue(d.Key, out var fp)) continue;
+                        memEntry.Measurements[d.Key] = d.Value;
+                        memEntry.MeasurementFingerprints[d.Key] = fp;
+                        derivedValues++;
+                    }
+                    derivedEntries++;
+                }
+            }
+            if (derivedValues > 0)
+            {
+                _logger?.LogMessage(
+                    $"MeasurementCache: derived {derivedValues} missing measurement value(s) across {derivedEntries} "
+                    + "cached entries from values already cached (no mesh work needed for those).");
+            }
+
             // Each work-item is either a "full" scan (NamesAllowlist == null → evaluate
             // every measurement, replace the cache entry) or a "partial" fill
             // (NamesAllowlist != null → evaluate only those names, merge into the existing
@@ -2444,6 +2485,11 @@ public class VM_BodyTypeProfileEditor : VM
         var bodyMeshHash = !string.IsNullOrEmpty(overrideBodyMeshHash)
             ? overrideBodyMeshHash!
             : MeasurementCacheStore.ComputeBodyMeshHash(CharacterViewer?.GetCurrentShapeVertexCounts(), profileModel);
+        // No measured shape loaded (e.g. a scan that filled everything from the cache with no preview
+        // NPC in the viewer): the live hash is empty and says nothing about the body the entries were
+        // measured on. Keep the hash they were validated under -- stamping an empty one would make the
+        // next session drop the whole cache.
+        if (string.IsNullOrEmpty(bodyMeshHash)) bodyMeshHash = profile.LoadedBodyMeshHash ?? "";
 
         var snapshot = new MeshSnapshot
         {
