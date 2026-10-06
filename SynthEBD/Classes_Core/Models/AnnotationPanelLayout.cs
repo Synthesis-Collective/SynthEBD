@@ -17,8 +17,8 @@ public readonly record struct PanelSample(string PresetLabel, int Weight, double
 /// </summary>
 public static class AnnotationPanelLayout
 {
-    /// <summary>Cells per page (settled with the user: 24).</summary>
-    public const int PageSize = 24;
+    /// <summary>Default cells per page; the Panel's Per page box overrides it for the window.</summary>
+    public const int DefaultPageSize = 100;
 
     /// <summary>Default N for the Evenly spaced source.</summary>
     public const int DefaultEvenlySpacedCount = 24;
@@ -64,8 +64,11 @@ public static class AnnotationPanelLayout
 
     /// <summary>Number of pages for <paramref name="total"/> items (at least 1, so an empty Panel
     /// still reads "page 1 / 1").</summary>
-    public static int PageCount(int total, int pageSize = PageSize)
-        => Math.Max(1, (Math.Max(0, total) + pageSize - 1) / pageSize);
+    public static int PageCount(int total, int pageSize = DefaultPageSize)
+    {
+        pageSize = Math.Max(1, pageSize);
+        return Math.Max(1, (Math.Max(0, total) + pageSize - 1) / pageSize);
+    }
 
     /// <summary>Final index of an item dragged from <paramref name="from"/> and dropped at insertion
     /// point <paramref name="insertIndex"/> (an index into the list before the item is removed, as
@@ -98,9 +101,10 @@ public static class AnnotationPanelLayout
 
     /// <summary>The (start, count) item range of <paramref name="pageIndex"/> (0-based, clamped into
     /// range) for <paramref name="total"/> items.</summary>
-    public static (int Start, int Count) PageRange(int total, int pageIndex, int pageSize = PageSize)
+    public static (int Start, int Count) PageRange(int total, int pageIndex, int pageSize = DefaultPageSize)
     {
         total = Math.Max(0, total);
+        pageSize = Math.Max(1, pageSize);
         int page = Math.Clamp(pageIndex, 0, PageCount(total, pageSize) - 1);
         int start = page * pageSize;
         return (start, Math.Min(pageSize, total - start));

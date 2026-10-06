@@ -94,17 +94,31 @@ public class AnnotationPanelTests
     [InlineData(49, 3)]
     public void PageCount_24PerPage(int total, int pages)
     {
-        AnnotationPanelLayout.PageCount(total).Should().Be(pages);
+        AnnotationPanelLayout.PageCount(total, 24).Should().Be(pages);
+    }
+
+    [Fact]
+    public void PageCount_DefaultIs100PerPage()
+    {
+        AnnotationPanelLayout.PageCount(100).Should().Be(1);
+        AnnotationPanelLayout.PageCount(101).Should().Be(2);
     }
 
     [Fact]
     public void PageRange_LastPageIsPartial_AndIndexIsClamped()
     {
-        AnnotationPanelLayout.PageRange(50, 0).Should().Be((0, 24));
-        AnnotationPanelLayout.PageRange(50, 2).Should().Be((48, 2));
-        AnnotationPanelLayout.PageRange(50, 9).Should().Be((48, 2));
-        AnnotationPanelLayout.PageRange(22, 0).Should().Be((0, 22)); // a 22-case worklist: one page of 22
-        AnnotationPanelLayout.PageRange(0, 0).Should().Be((0, 0));
+        AnnotationPanelLayout.PageRange(50, 0, 24).Should().Be((0, 24));
+        AnnotationPanelLayout.PageRange(50, 2, 24).Should().Be((48, 2));
+        AnnotationPanelLayout.PageRange(50, 9, 24).Should().Be((48, 2));
+        AnnotationPanelLayout.PageRange(22, 0, 24).Should().Be((0, 22)); // a 22-case worklist: one page of 22
+        AnnotationPanelLayout.PageRange(0, 0, 24).Should().Be((0, 0));
+    }
+
+    [Fact]
+    public void Paging_NonPositivePageSize_IsTreatedAsOne()
+    {
+        AnnotationPanelLayout.PageCount(3, 0).Should().Be(3);
+        AnnotationPanelLayout.PageRange(3, 1, 0).Should().Be((1, 1));
     }
 
     // ---------- free order ----------

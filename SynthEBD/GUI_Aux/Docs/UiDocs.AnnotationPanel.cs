@@ -38,12 +38,17 @@ public static partial class UiDocs
 
         Add("AnnotationPanel.EvenlySpacedCount",
             layperson: "How many bodies the evenly spaced ladder shows.",
-            technical: "N for the EvenlySpaced source (default 24 = one page). When N is at least the number of candidates with a value, every one of them is shown. Changing it re-picks and returns to page 1.",
+            technical: "N for the EvenlySpaced source (default 24). When N is at least the number of candidates with a value, every one of them is shown. Changing it re-picks and returns to page 1.",
             motivation: "More rungs place a cut more precisely; fewer give a quicker overview.");
 
+        Add("AnnotationPanel.CellsPerPage",
+            layperson: "How many bodies each page shows.",
+            technical: "Cells per page (default 100; window-only, not saved). Changing it re-pages so the first body on screen stays on the current page. Ignored in Free mode, which always shows every slice on one page so any tile can be dragged anywhere. The next page is pre-rendered too, so a large value means more images rendering in the background.",
+            motivation: "A big page lets a whole band be compared at once; a small one renders faster and fits on screen.");
+
         Add("AnnotationPanel.Paging",
-            layperson: "Moves between pages of 24 bodies.",
-            technical: "24 cells per page. The current page renders first, then the next page is rendered in the background, so paging forward usually finds its images ready. Images stay cached for the window's lifetime.",
+            layperson: "Moves between pages of bodies (page size set by Per page).",
+            technical: "Per page cells per page. The current page renders first, then the next page is rendered in the background, so paging forward usually finds its images ready. Images stay cached for the window's lifetime.",
             motivation: "Keeps each page small enough to compare at a glance while still covering a long queue.");
 
         Add("AnnotationPanel.CopyOrder",

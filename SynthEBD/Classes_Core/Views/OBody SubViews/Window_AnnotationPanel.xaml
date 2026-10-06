@@ -173,6 +173,11 @@
                                     IsEnabled="{Binding IsEvenlySpaced}"
                                     local:DocTooltip.Key="AnnotationPanel.EvenlySpacedCount"/>
             </StackPanel>
+            <TextBlock Text="Per page:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <xctk:IntegerUpDown Width="60" Minimum="1" Maximum="1000" Increment="12" VerticalAlignment="Center" Margin="0,0,14,0"
+                                Value="{Binding CellsPerPage}"
+                                IsEnabled="{Binding CanSetCellsPerPage}"
+                                local:DocTooltip.Key="AnnotationPanel.CellsPerPage"/>
             <Button Content="&lt; Prev" Command="{Binding PrevPageCommand}" Padding="6,2" VerticalAlignment="Center"
                     local:DocTooltip.Key="AnnotationPanel.Paging"/>
             <TextBlock Text="{Binding PageText}" VerticalAlignment="Center" Margin="8,0"/>

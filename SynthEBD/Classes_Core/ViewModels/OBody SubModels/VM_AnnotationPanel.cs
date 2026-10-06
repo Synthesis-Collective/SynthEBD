@@ -20,7 +20,8 @@ public enum AnnotationPanelSource
 
 /// <summary>
 /// View model for <see cref="Window_AnnotationPanel"/>, the annotation queue's Panel: the queue's
-/// slices for one Category side by side, sorted low to high by a metric and paged 24 at a time, each
+/// slices for one Category side by side, sorted low to high by a metric and paged (100 per page by
+/// default, set in the toolbar), each
 /// rendered like a Show Spread cell with a row of value toggles underneath that save immediately.
 ///
 /// <para><b>Why.</b> A Category that is a continuum cut into bands (Butt = Flat / Normal / Round /
@@ -131,6 +132,16 @@ public class VM_AnnotationPanel : VM, IDropTarget
         this.WhenAnyValue(x => x.Source, x => x.EvenlySpacedCount)
             .Skip(1)
             .Subscribe(_ => Rebuild())
+            .DisposeWith(this);
+        // A new page size keeps the first visible cell on screen rather than jumping to page 1.
+        this.WhenAnyValue(x => x.CellsPerPage)
+            .Skip(1)
+            .Subscribe(_ =>
+            {
+                if (IsFreeOrder) return;
+                PageIndex = _pageStart / PageSize;
+                BuildPage();
+            })
             .DisposeWith(this);
         this.WhenAnyValue(x => x.ShowBack, x => x.ShowMeasurements)
             .Skip(1)
@@ -278,8 +289,17 @@ public class VM_AnnotationPanel : VM, IDropTarget
               + (missing > 0 && hasMetric ? $" ({missing} with no value, last)" : "");
     }
 
-    /// <summary>Cells per page: 24, or everything in Free mode.</summary>
-    private int PageSize => IsFreeOrder ? Math.Max(1, _ordered.Count) : AnnotationPanelLayout.PageSize;
+    /// <summary>Cells per page outside Free mode (the Per page box). Not persisted.</summary>
+    public int CellsPerPage { get; set; } = AnnotationPanelLayout.DefaultPageSize;
+
+    /// <summary>Per page has no effect in Free mode, which always shows one page.</summary>
+    public bool CanSetCellsPerPage => !IsFreeOrder;
+
+    /// <summary>Cells per page: <see cref="CellsPerPage"/>, or everything in Free mode.</summary>
+    private int PageSize => IsFreeOrder ? Math.Max(1, _ordered.Count) : Math.Max(1, CellsPerPage);
+
+    /// <summary>Index into <see cref="_ordered"/> of the current page's first cell.</summary>
+    private int _pageStart;
 
     private void CopyOrder()
     {
@@ -337,6 +357,7 @@ public class VM_AnnotationPanel : VM, IDropTarget
         PageCount = AnnotationPanelLayout.PageCount(_ordered.Count, PageSize);
         var (start, count) = AnnotationPanelLayout.PageRange(_ordered.Count, PageIndex, PageSize);
         PageIndex = _ordered.Count == 0 ? 0 : start / PageSize;
+        _pageStart = start;
         PageText = $"Page {PageIndex + 1} / {PageCount}";
 
         Cells.Clear();
