@@ -62,7 +62,10 @@ trustworthy.
   in annotation mode, and on every toggle writes through to the row **and** to
   `profile.PresetAnnotations` (add / update / prune-on-empty).
 - `PresetAnnotation { PresetLabel, PresetGender, Weight, Descriptors : List<LabelSignature> }`,
-  persisted in `OBodySettings.json` on the profile.
+  persisted in `OBodySettings.json` on the profile. **Since `D43` (2026-09-26):** persisted as a flat
+  `OBodySettings.PresetAnnotations` list with a `BodyTypeName` on each entry (the profile's copy is
+  runtime-only and never written to the rule file), and applied to presets only via the queue panel's
+  **Apply Annotations to Presets** button (`PresetAnnotationApplier`).
 
 **Not present:** any ordering, filtering-to-unlabelled, queueing, sampling, or advance-to-next logic.
 
