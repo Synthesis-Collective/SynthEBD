@@ -61,6 +61,9 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 ## ▶ Current focus
 
 - **Phase:** locking in **CBBE 3BA**. CBBE is parked (⏳) until the transfer.
+- **▶ FFIT Shape eye test (2026-10-13, `D53`):** judge `obody_arm_tools/ffit_shape_worklist.txt` (33 cases, seed
+  5252; key `ffit_shape_worklist_key.json`) against the new girth-based Shape rules, then refit the four cuts. This
+  supersedes the frame-based Shape review below.
 - **▶ Shape review (2026-10-08):** judge `obody_arm_tools/shape_worklist.txt` (18 cases, seed 6161,
   `make_shape_worklist.py`; key `shape_worklist_key.json`). It replaces the never-judged `shape_d44` / `shape_d46`
   lists: both changes are live and the cache already carries `D46`'s armpit values (verified 2026-10-08: 23,767 /
@@ -2178,14 +2181,42 @@ Stable IDs (mirroring `CODE_REVIEW_NOTES.md`). Resolve during sessions; record t
     deeply defined waist (hip - waist 5th percentile 13.1 in, median 17.7). The bust-vs-hip test works naturally
     (61% have hips >= 3.6 in over the bust). Volume ratios track tape-girth ratios well for bust/hip (Spearman 0.90)
     and waist/hip (0.86), weakly for high hip/waist (0.57) -- a volume-based Spoon test would be unreliable.
-  - _(open: user picks how to relativise FFIT's waist test (e.g. waist/hip >= 0.58 -> Pear 32%, >= 0.60 -> 20%),
-    and whether Spoon is kept given its weak volume proxy; then author FFIT Pear / Bottom Hourglass / Spoon + the
-    disabled frame Pear, with Hourglass / Rectangle as "not Pear")_
+  - _(resolved by `D53`: girths instead of volumes, corpus-relative cuts, Spoon kept)_
+- **`D53`** -- 2026-10-13: **FFIT-style Shape rules LIVE on tape-measure girths (exploratory, awaiting the eye test).**
+  - **Code (committed `517d6481`):** new `Girth` measurement kind -- convex-hull perimeter of horizontal slices of a
+    region band, sliced in zeroed space, reduced by Max / Min / Mean. Reads only the region's member vertices, so a
+    girth band need not cap into a valid volume. In-app values match `ffit_girth.py` (Spearman 0.998-1.000).
+  - **Literature (committed `80b1160f`):** `BODY_SHAPE_LITERATURE.md` -- FFIT's inch constants were expert-set for
+    real women (curviest groups hip - waist ~11-12 in; Lee 2007 could not classify > 15.5 in); this corpus sits at
+    13-18 in, and even Jung 2026's ratio test (waist < 85% of bust and hip) calls 99.8% of rows "defined". So: keep
+    FFIT's structure, cut at corpus quantiles. Full findings: `obody_arm_tools/FFIT_LITERATURE.md`.
+  - **Profile data** (backups `*.pre-girth.bak`, `*.pre-ffit-rules.bak`; scripts `apply_girth_measurements.py`,
+    `apply_ffit_shape_rules.py`):
+    - Girth-only regions `Bust_Girth_Band` (Y 89-98.5; `Bust_Band` reaches the armpit fold above ~99, which won the
+      fullest-slice max on 10/41 sampled presets) and `Waist_Girth_Band` (81-88.5; the narrowest slice sat above
+      `Waist_Band` on 11/120).
+    - Girths `bust_girth` (Max), `waist_girth` (Min), `highhip_girth` (Mean, `HighHip_Band`), `hip_girth` (Max,
+      `Hip_Band`); ratios `bust_to_hip_girth`, `waist_to_hip_girth`, `highhip_to_waist_girth`. Rescanned
+      2026-10-13: 23,805 rows (the 339 armor/outfit-style presets the scan already skips have none).
+    - **Rules:** hip-dominant `bust_to_hip_girth < 0.872` (bottom third), bust-dominant `>= 1.00` (8.3%), waist
+      undefined `waist_to_hip_girth >= 0.607` (top third), shelf `highhip_to_waist_girth >= 1.312` (top quarter).
+      Pear = hip-dom + undefined; Spoon / Bottom Hourglass = hip-dom + defined, with / without shelf; Hourglass /
+      Rectangle = balanced + defined / undefined; Top Hourglass = bust-dom + defined; Inverted Triangle also for
+      bust-dom + undefined (the shoulder IT rule is unchanged). All keep the not-IT / not-Apple exclusions.
+      Frame Pear / Hourglass / Rectangle kept with every group disabled. New values Bottom Hourglass, Top Hourglass,
+      Spoon.
+    - Offline: Hourglass 32.2%, Rectangle 20.6%, Bottom Hourglass 13.6%, Spoon 12.7%, Inverted Triangle 11.5%,
+      Pear 5.4%, Top Hourglass 3.5%, Apple 0.7%; one Shape per row, none Ambiguous. Pear is low because the axes
+      correlate (hip-dominant presets mostly have deep waists).
+  - _(open: judge `ffit_shape_worklist.txt` (33 cases, seed 5252, `make_ffit_shape_worklist.py`) -- 26 straddle the
+    four cuts, 7 controls; then refit the cuts. Watch for Pear being under-called.)_
 ---
 
 ## Session log
 
 Append newest at the top. Keep entries short: date, what changed, what got approved.
+
+- **2026-10-13** -- **`D53` (FFIT Shape) rules live**: `Girth` measurement kind; girths + girth ratios rescanned; FFIT-structured Shape rules with corpus-relative cuts enabled (frame rules kept disabled); new values Bottom Hourglass, Top Hourglass, Spoon; literature review committed. Awaiting the eye test on `ffit_shape_worklist.txt`.
 
 - **2026-10-13** -- **`D52` (FFIT Shape) infrastructure**: band regions + volume / ratio measurements added (needs rescan); live-classifier region bug fixed; `MeasurementRatio` kind added. **Rules unchanged**: literal FFIT gives Pear ~0% on this corpus (absolute waist test) -- awaiting the user's choice of a relative waist test.
 
