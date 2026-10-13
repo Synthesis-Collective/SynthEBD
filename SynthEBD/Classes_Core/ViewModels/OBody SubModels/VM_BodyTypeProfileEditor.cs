@@ -5296,6 +5296,9 @@ public class VM_BodyTypeProfile : VM
             // Adding a Measurement can fix a previously-invalid condition reference;
             // removing one can break previously-valid ones. Re-derive both ways.
             RecomputeConditionRefValidity();
+            // ...and the same for MeasurementRatio operands, whose pickers list the other rows.
+            NotifyAvailableMeasurementNamesChanged();
+            RecomputeMeasurementRefValidity();
         };
 
         // Re-evaluate when the key-vertex roster changes (a measurement may reference a
@@ -5517,6 +5520,8 @@ public class VM_BodyTypeProfile : VM
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefBValid)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefCValid)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefDValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsMeasRefAValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsMeasRefBValid)) return;
         RefreshMeasurementValues();
         if (e.PropertyName == nameof(VM_MeasurementDefinition.Name)
             && sender is VM_MeasurementDefinition mr)
@@ -5531,6 +5536,8 @@ public class VM_BodyTypeProfile : VM
             _measurementLastNames[mr] = mr.Name ?? "";
             RecomputeDuplicateMeasurementNames();
             RecomputeConditionRefValidity();
+            NotifyAvailableMeasurementNamesChanged();
+            RecomputeMeasurementRefValidity();
         }
         // User-driven edits to a vertex-ref field (or to Kind, which gates whether C/D
         // matter) can leave the row in an invalid state — re-derive the row's flags.
@@ -5538,6 +5545,8 @@ public class VM_BodyTypeProfile : VM
             || e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefB)
             || e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefC)
             || e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefD)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.MeasurementRefA)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.MeasurementRefB)
             || e.PropertyName == nameof(VM_MeasurementDefinition.Kind))
         {
             RecomputeMeasurementRefValidity();
@@ -5834,6 +5843,31 @@ public class VM_BodyTypeProfile : VM
                 }
             }
         }
+        RenameMeasurementInRatioOperands(oldName, newName);
+    }
+
+    /// <summary>Points every MeasurementRatio operand that named <paramref name="oldName"/> at
+    /// <paramref name="newName"/>. Shared by both rename cascades (the grid-row handler and the row's own
+    /// Name hook); idempotent, so running twice is harmless. The ratio's cache fingerprint folds in its
+    /// operands by content, not name, so this doesn't invalidate its cached values.</summary>
+    internal void RenameMeasurementInRatioOperands(string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName)) return;
+        oldName = oldName.Trim(); newName = newName.Trim();
+        if (string.Equals(oldName, newName, StringComparison.Ordinal)) return;
+        foreach (var m in Measurements)
+        {
+            if (m.Kind != MeasurementKind.MeasurementRatio) continue;
+            if (string.Equals(m.MeasurementRefA?.Trim(), oldName, StringComparison.Ordinal)) m.MeasurementRefA = newName;
+            if (string.Equals(m.MeasurementRefB?.Trim(), oldName, StringComparison.Ordinal)) m.MeasurementRefB = newName;
+        }
+    }
+
+    /// <summary>Re-pushes each measurement row's operand dropdown list (see
+    /// <see cref="VM_MeasurementDefinition.AvailableMeasurementNames"/>).</summary>
+    private void NotifyAvailableMeasurementNamesChanged()
+    {
+        foreach (var m in Measurements) m.NotifyAvailableMeasurementNamesChanged();
     }
 
     /// <summary>Pushes <see cref="VM_MeasurementDefinition.IsRefAValid"/>/B/C/D onto every
@@ -5850,12 +5884,23 @@ public class VM_BodyTypeProfile : VM
             var n = (kv.Name ?? "").Trim();
             if (!string.IsNullOrEmpty(n)) names.Add(n);
         }
+        var measurementNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var m in Measurements)
         {
-            m.IsRefAValid = RefIsValid(m.VertexRefA, names);
-            m.IsRefBValid = RefIsValid(m.VertexRefB, names);
+            var n = (m.Name ?? "").Trim();
+            if (!string.IsNullOrEmpty(n)) measurementNames.Add(n);
+        }
+        foreach (var m in Measurements)
+        {
+            bool ratio = m.Kind == MeasurementKind.MeasurementRatio;
+            m.IsRefAValid = ratio || RefIsValid(m.VertexRefA, names);
+            m.IsRefBValid = ratio || RefIsValid(m.VertexRefB, names);
             m.IsRefCValid = !m.ShowSecondPair || RefIsValid(m.VertexRefC, names);
             m.IsRefDValid = !m.ShowSecondPair || RefIsValid(m.VertexRefD, names);
+            // An operand must name another row: a ratio of itself can never resolve.
+            var self = (m.Name ?? "").Trim();
+            m.IsMeasRefAValid = !ratio || (RefIsValid(m.MeasurementRefA, measurementNames) && !string.Equals(m.MeasurementRefA?.Trim(), self, StringComparison.Ordinal));
+            m.IsMeasRefBValid = !ratio || (RefIsValid(m.MeasurementRefB, measurementNames) && !string.Equals(m.MeasurementRefB?.Trim(), self, StringComparison.Ordinal));
         }
     }
 
@@ -8288,6 +8333,26 @@ public class VM_BodyTypeProfile : VM
             }
         }
 
+        // MeasurementRatio rows read the other rows' live values by name (first row wins), so they
+        // run after everything else — the same post-pass as BodySlideMeasurementEvaluator.Evaluate.
+        if (viewer != null && Measurements.Any(m => m.Kind == MeasurementKind.MeasurementRatio))
+        {
+            var live = new Dictionary<string, float>(StringComparer.Ordinal);
+            var defs = new List<MeasurementDefinition>(Measurements.Count);
+            foreach (var m in Measurements)
+            {
+                var def = m.DumpToModel();
+                defs.Add(def);
+                if (m.Kind != MeasurementKind.MeasurementRatio && m.LiveValue.HasValue
+                    && !string.IsNullOrEmpty(def.Name) && !live.ContainsKey(def.Name))
+                    live[def.Name] = m.LiveValue.Value;
+            }
+            MeasurementMath.EvaluateMeasurementRatios(defs, live);
+            foreach (var m in Measurements)
+                if (m.Kind == MeasurementKind.MeasurementRatio)
+                    m.LiveValue = live.TryGetValue(m.Name?.Trim() ?? "", out var rv) ? rv : null;
+        }
+
         RefreshMeasurementHighlight();
         RefreshPreviewDescriptors();
         RecomputeKeyVertexResolutionStates();
@@ -8879,6 +8944,7 @@ public class VM_BodyTypeProfile : VM
         IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
     {
         var names = new List<string>();
+        if (m.Kind == MeasurementKind.MeasurementRatio) return names; // reads measurements, not regions or key vertices
         if (m.Kind == MeasurementKind.RegionVolume && !string.IsNullOrEmpty(m.RegionRefName))
             names.Add(m.RegionRefName);
         foreach (var vref in new[] { m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD })
@@ -9089,6 +9155,10 @@ public class VM_BodyTypeProfile : VM
             MeasurementAxis.Z => new OpenTK.Mathematics.Vector3(av.X, av.Y, bv.Z),
             _ => bv,
         };
+
+        // A MeasurementRatio reads other measurements, not key vertices: it has no line of its own, and any
+        // vertex refs left on the row from an earlier kind must not draw one.
+        if (sel.Kind == MeasurementKind.MeasurementRatio) return;
 
         var a = resolve(sel.VertexRefA);
         var b = resolve(sel.VertexRefB);
@@ -9613,8 +9683,9 @@ public class VM_BodyTypeProfile : VM
             {
                 m.Name ?? "",
                 m.Kind.ToString(),
-                m.VertexRefA ?? "",
-                m.VertexRefB ?? "",
+                // A MeasurementRatio's A / B are its numerator / denominator measurement names.
+                m.Kind == MeasurementKind.MeasurementRatio ? (m.MeasurementRefA ?? "") : (m.VertexRefA ?? ""),
+                m.Kind == MeasurementKind.MeasurementRatio ? (m.MeasurementRefB ?? "") : (m.VertexRefB ?? ""),
                 hasCD ? (m.VertexRefC ?? "") : "",
                 hasCD ? (m.VertexRefD ?? "") : "",
                 (m.Kind == MeasurementKind.AxisDistance
@@ -10696,6 +10767,8 @@ public class VM_BodyTypeProfile : VM
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefBValid)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefCValid)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefDValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsMeasRefAValid)) return;
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsMeasRefBValid)) return;
         // A measurement's value depends on its geometry (Kind/Axis/VertexRefs/KVs), never its name,
         // so renaming one doesn't make the numbers stale — the cache key is migrated in place by
         // VM_BodyTypeProfile.RenameMeasurementInCache. Skipping the stale flag here also keeps the
@@ -11038,7 +11111,8 @@ public class VM_BodyTypeProfile : VM
             if (rn.Length == 0) continue;
             if (!rgMap.ContainsKey(rn)) rgMap[rn] = model; // first-row-wins, matching the evaluator
         }
-        string newFp = MeasurementCacheStore.ComputeMeasurementFingerprint(definition.DumpToModel(), kvMap, rgMap);
+        var measMap = MeasurementCacheStore.MeasurementsByName(Measurements.Select(m => m.DumpToModel()));
+        string newFp = MeasurementCacheStore.ComputeMeasurementFingerprint(definition.DumpToModel(), kvMap, rgMap, measMap);
 
         int moved = 0;
         foreach (var entry in MeasurementCache.Values)
@@ -11107,6 +11181,7 @@ public class VM_BodyTypeProfile : VM
         }
 
         if (updated > 0) _parent?.LogMeasurementRuleRename(oldKey, newKey, updated);
+        RenameMeasurementInRatioOperands(oldKey, newKey);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -12404,6 +12479,9 @@ public class VM_MeasurementDefinition : VM
         VertexRefC = refs.Count > 2 ? refs[2] : "";
         VertexRefD = refs.Count > 3 ? refs[3] : "";
         RegionRefName = source.RegionRefName ?? "";
+        var ops = source.MeasurementRefNames ?? new List<string>();
+        MeasurementRefA = ops.Count > 0 ? ops[0] ?? "" : "";
+        MeasurementRefB = ops.Count > 1 ? ops[1] ?? "" : "";
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -12461,6 +12539,18 @@ public class VM_MeasurementDefinition : VM
     /// kinds (which read <see cref="VertexRefA"/>..D instead).</summary>
     public string RegionRefName { get; set; } = "";
 
+    /// <summary>For a <see cref="MeasurementKind.MeasurementRatio"/> measurement, the numerator (A) and
+    /// denominator (B) measurement names. Shown in the A / B cells in place of the key-vertex pickers.
+    /// Empty/ignored for all other kinds.</summary>
+    public string MeasurementRefA { get; set; } = "";
+    public string MeasurementRefB { get; set; } = "";
+
+    /// <summary>False when <see cref="MeasurementRefA"/> / <see cref="MeasurementRefB"/> is non-empty but names no
+    /// other measurement in the profile (or names this row). Set by
+    /// <see cref="VM_BodyTypeProfile.RecomputeMeasurementRefValidity"/>; true for non-ratio kinds.</summary>
+    public bool IsMeasRefAValid { get; set; } = true;
+    public bool IsMeasRefBValid { get; set; } = true;
+
     /// <summary>Latest evaluated value against the active viewer; null when no viewer or evaluation failed.</summary>
     public float? LiveValue { get; set; }
 
@@ -12497,6 +12587,14 @@ public class VM_MeasurementDefinition : VM
     /// <summary>Region names available to a RegionVolume measurement's region dropdown.</summary>
     public IEnumerable<string> AvailableRegionNames => _parent.AvailableRegionNames;
 
+    /// <summary>Measurement names available to a MeasurementRatio's operand dropdowns (every other row).</summary>
+    public IEnumerable<string> AvailableMeasurementNames =>
+        _parent.AvailableMeasurementNames.Where(n => !string.Equals(n, Name?.Trim(), StringComparison.Ordinal));
+
+    /// <summary>Re-raises the cross-object <see cref="AvailableMeasurementNames"/> list after a measurement is
+    /// added, removed or renamed (Fody can't see that dependency).</summary>
+    internal void NotifyAvailableMeasurementNamesChanged() => ManuallyRaisePropertyChanged(nameof(AvailableMeasurementNames));
+
     public bool ShowAxisField => Kind == MeasurementKind.AxisDistance
                               || Kind == MeasurementKind.SignedAxisDistance
                               || Kind == MeasurementKind.SignedPointDistance;
@@ -12509,7 +12607,12 @@ public class VM_MeasurementDefinition : VM
     /// <summary>True for Angle: the Axis cell shows the View picker (<see cref="AngleViewAxis"/>)
     /// instead of the distance axis.</summary>
     public bool ShowAngleViewField => Kind == MeasurementKind.Angle;
-    public bool ShowDistanceAxisPicker => Kind != MeasurementKind.Angle;
+    public bool ShowDistanceAxisPicker => Kind != MeasurementKind.Angle && Kind != MeasurementKind.MeasurementRatio;
+
+    /// <summary>True for MeasurementRatio: the A / B cells show measurement-name pickers (numerator,
+    /// denominator) instead of key-vertex pickers.</summary>
+    public bool ShowMeasurementRefFields => Kind == MeasurementKind.MeasurementRatio;
+    public bool ShowVertexRefPickersAB => Kind != MeasurementKind.MeasurementRatio;
 
     /// <summary>True for RegionVolume measurements: the grid shows a Region dropdown and hides the
     /// vertex-ref columns (A..D), which this kind doesn't use.</summary>
@@ -12555,9 +12658,10 @@ public class VM_MeasurementDefinition : VM
 
     public MeasurementDefinition DumpToModel()
     {
+        bool isRatio = Kind == MeasurementKind.MeasurementRatio;
         var refs = new List<string>();
-        if (!string.IsNullOrEmpty(VertexRefA)) refs.Add(VertexRefA);
-        if (!string.IsNullOrEmpty(VertexRefB)) refs.Add(VertexRefB);
+        if (!isRatio && !string.IsNullOrEmpty(VertexRefA)) refs.Add(VertexRefA);
+        if (!isRatio && !string.IsNullOrEmpty(VertexRefB)) refs.Add(VertexRefB);
         if (MeasurementMath.VertexRefCount(Kind) == 4)
         {
             if (!string.IsNullOrEmpty(VertexRefC)) refs.Add(VertexRefC);
@@ -12573,6 +12677,9 @@ public class VM_MeasurementDefinition : VM
             AngleViewAxis = Kind == MeasurementKind.Angle ? AngleViewAxis : null,
             VertexRefNames = refs,
             RegionRefName = Kind == MeasurementKind.RegionVolume ? (RegionRefName?.Trim() ?? "") : "",
+            MeasurementRefNames = isRatio
+                ? new List<string> { MeasurementRefA?.Trim() ?? "", MeasurementRefB?.Trim() ?? "" }
+                : new List<string>(),
         };
     }
 }

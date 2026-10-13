@@ -118,9 +118,27 @@ public static class MeasurementDerivation
                 MeasurementKind.RatioDistance => Ratio(
                     Get(terms, Term.Of(r[0], r[1], OperandAxis(def.NumeratorAxis))),
                     Get(terms, Term.Of(r[2], r[3], OperandAxis(def.DenominatorAxis)))),
-                _ => null, // RegionVolume and anything else reads geometry, not key-vertex distances
+                _ => null, // RegionVolume reads geometry; MeasurementRatio is handled in step 4
             };
             if (value.HasValue) result[name] = (float)value.Value;
+        }
+
+        // 4. MeasurementRatio targets read other measurements by name: their operands may be cached or just
+        // derived above. Same evaluation as the live evaluator, so cached and live values agree.
+        var ratioTargets = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in targetNames)
+            if (!string.IsNullOrEmpty(name) && !result.ContainsKey(name)
+                && byName.TryGetValue(name, out var def) && def.Kind == MeasurementKind.MeasurementRatio)
+                ratioTargets.Add(name);
+        if (ratioTargets.Count > 0)
+        {
+            var values = new Dictionary<string, float>(StringComparer.Ordinal);
+            foreach (var kv in knownValues)
+                if (kv.Value.HasValue && !ratioTargets.Contains(kv.Key)) values[kv.Key] = kv.Value.Value;
+            foreach (var kv in result) values[kv.Key] = kv.Value;
+            MeasurementMath.EvaluateMeasurementRatios(byName.Values, values, ratioTargets.Contains);
+            foreach (var name in ratioTargets)
+                if (values.TryGetValue(name, out var v)) result[name] = v;
         }
         return result;
     }

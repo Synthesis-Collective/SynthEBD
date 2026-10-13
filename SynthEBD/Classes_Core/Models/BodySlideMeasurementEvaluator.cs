@@ -40,6 +40,31 @@ public static class BodySlideMeasurementEvaluator
         /// (the box failed watertightness/validation at resolve time) or its shape's deformed
         /// positions weren't available.</summary>
         RegionNotResolved = 5,
+        /// <summary>A <see cref="MeasurementKind.MeasurementRatio"/> whose operands are not both named, did not
+        /// both evaluate, form a cycle, or whose denominator is near zero.</summary>
+        MissingOperand = 6,
+    }
+
+    /// <summary>The allowlist widened by every measurement an allowlisted <see cref="MeasurementKind.MeasurementRatio"/>
+    /// reads (transitively), so a partial fill that asks only for a ratio still evaluates its operands. Only the
+    /// originally requested names are written back by the scan, so the extra evaluations cost time, not cache
+    /// entries. Null in = null out (everything is evaluated anyway).</summary>
+    public static IReadOnlySet<string>? WithRatioOperands(IReadOnlySet<string>? allowlist, IEnumerable<MeasurementDefinition?>? definitions)
+    {
+        if (allowlist == null || definitions == null) return allowlist;
+        var byName = new Dictionary<string, MeasurementDefinition>(StringComparer.Ordinal);
+        foreach (var d in definitions)
+            if (d != null && !string.IsNullOrEmpty(d.Name) && !byName.ContainsKey(d.Name)) byName[d.Name] = d;
+        var expanded = new HashSet<string>(allowlist, StringComparer.Ordinal);
+        var queue = new Queue<string>(allowlist);
+        while (queue.Count > 0)
+        {
+            if (!byName.TryGetValue(queue.Dequeue(), out var def) || def.Kind != MeasurementKind.MeasurementRatio) continue;
+            if (!MeasurementMath.TryGetRatioOperands(def, out var num, out var den)) continue;
+            if (expanded.Add(num)) queue.Enqueue(num);
+            if (expanded.Add(den)) queue.Enqueue(den);
+        }
+        return expanded;
     }
 
     /// <summary>Result of a single evaluation pass.</summary>
@@ -180,6 +205,10 @@ public static class BodySlideMeasurementEvaluator
                 shape => viewer.GetShapeIndices(shape));
         }
 
+        // MeasurementRatio rows read other measurements by name, so they run after this loop; a partial fill
+        // asking for a ratio also evaluates its operands (WithRatioOperands).
+        var allowlist = WithRatioOperands(measurementNamesAllowlist, profile.Measurements);
+        var ratioNames = new HashSet<string>(StringComparer.Ordinal);
         if (profile.Measurements != null)
         {
             foreach (var def in profile.Measurements)
@@ -188,14 +217,20 @@ public static class BodySlideMeasurementEvaluator
                 // Allowlist filter (partial-fill scan path): skip measurements not in the
                 // caller's requested set. Null allowlist = evaluate everything (the normal
                 // path).
-                if (measurementNamesAllowlist != null && !measurementNamesAllowlist.Contains(def.Name)) continue;
+                if (allowlist != null && !allowlist.Contains(def.Name)) continue;
                 // First-wins on duplicate measurement names — matches the KeyVertex side's
                 // GroupBy.First() at VM_BodyTypeProfileEditor.cs and the equivalent dictionary
                 // build above. The editor surfaces duplicates visually, but pre-existing /
                 // hand-edited profiles may still contain them; skipping the second occurrence
                 // keeps evaluation deterministic and consistent across both grids.
                 if (result.Measurements.ContainsKey(def.Name)
-                    || result.FailedMeasurements.ContainsKey(def.Name)) continue;
+                    || result.FailedMeasurements.ContainsKey(def.Name)
+                    || ratioNames.Contains(def.Name)) continue;
+                if (def.Kind == MeasurementKind.MeasurementRatio)
+                {
+                    ratioNames.Add(def.Name);
+                    continue;
+                }
                 // RegionVolume reads a baked region + the shape's deformed positions, not key
                 // vertices, so it takes a separate path from MeasurementMath.TryEvaluate.
                 if (def.Kind == MeasurementKind.RegionVolume)
@@ -214,6 +249,12 @@ public static class BodySlideMeasurementEvaluator
                 {
                     result.FailedMeasurements[def.Name] = ClassifyFailure(def, keyVertsByName, lookup);
                 }
+            }
+
+            if (ratioNames.Count > 0)
+            {
+                foreach (var name in MeasurementMath.EvaluateMeasurementRatios(profile.Measurements, result.Measurements, ratioNames.Contains))
+                    result.FailedMeasurements[name] = MeasurementFailureReason.MissingOperand;
             }
         }
 

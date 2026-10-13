@@ -520,6 +520,12 @@ public enum MeasurementKind
     /// viewed along one axis (<see cref="MeasurementDefinition.AngleViewAxis"/>): both lines are
     /// projected onto the plane perpendicular to it before measuring, e.g. X = the side view.</summary>
     Angle = 6,
+    /// <summary>The value of one measurement divided by another: <see cref="MeasurementDefinition.MeasurementRefNames"/>
+    /// [numerator, denominator], read by name after every other measurement for the preset is evaluated.
+    /// Compares measurements no key-vertex pair can express directly, e.g. two region volumes
+    /// (bust band / hip band). A ratio may read another ratio; a missing operand, a cycle or a near-zero
+    /// denominator leaves it unresolved.</summary>
+    MeasurementRatio = 7,
 }
 
 /// <summary>World axis selector for <see cref="MeasurementKind.AxisDistance"/>.</summary>
@@ -578,6 +584,12 @@ public class MeasurementDefinition
     /// view, Z = front view) before the angle is taken. Null = the full 3D angle.
     /// </summary>
     public MeasurementAxis? AngleViewAxis { get; set; } = null;
+
+    /// <summary>
+    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.MeasurementRatio"/>: the names of the
+    /// two measurements it divides, [numerator, denominator]. Empty for every other kind.
+    /// </summary>
+    public List<string> MeasurementRefNames { get; set; } = new();
 }
 
 /// <summary>Threshold comparator applied between a measurement value and a constant.</summary>
@@ -1010,10 +1022,82 @@ public static class MeasurementMath
     }
 
     /// <summary>How many entries of <see cref="MeasurementDefinition.VertexRefNames"/> a kind reads:
-    /// 4 for <see cref="MeasurementKind.RatioDistance"/> and <see cref="MeasurementKind.Angle"/>, else 2
+    /// 4 for <see cref="MeasurementKind.RatioDistance"/> and <see cref="MeasurementKind.Angle"/>, 0 for
+    /// <see cref="MeasurementKind.MeasurementRatio"/> (it reads other measurements), else 2
     /// (<see cref="MeasurementKind.RegionVolume"/> reads none, but its callers check that kind first).</summary>
-    public static int VertexRefCount(MeasurementKind kind)
-        => kind == MeasurementKind.RatioDistance || kind == MeasurementKind.Angle ? 4 : 2;
+    public static int VertexRefCount(MeasurementKind kind) => kind switch
+    {
+        MeasurementKind.RatioDistance or MeasurementKind.Angle => 4,
+        MeasurementKind.MeasurementRatio => 0,
+        _ => 2,
+    };
+
+    /// <summary>Evaluates every <see cref="MeasurementKind.MeasurementRatio"/> in <paramref name="definitions"/>
+    /// from the already-computed <paramref name="values"/> (name → value), writing each result back into
+    /// <paramref name="values"/>. Repeats until nothing new resolves, so a ratio that reads another ratio fills
+    /// in once its operand has; cycles never resolve. First definition wins on duplicate names, matching the
+    /// evaluator. <paramref name="include"/> (null = all) limits which ratios are evaluated. Returns the
+    /// names of the ratios that could not be resolved.</summary>
+    public static List<string> EvaluateMeasurementRatios(
+        IEnumerable<MeasurementDefinition?>? definitions,
+        IDictionary<string, float> values,
+        Func<string, bool>? include = null)
+    {
+        var pending = new List<MeasurementDefinition>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        if (definitions != null)
+        {
+            foreach (var def in definitions)
+            {
+                if (def == null || string.IsNullOrEmpty(def.Name) || !seen.Add(def.Name)) continue;
+                if (def.Kind != MeasurementKind.MeasurementRatio) continue;
+                if (include != null && !include(def.Name)) continue;
+                if (values.ContainsKey(def.Name)) continue;
+                pending.Add(def);
+            }
+        }
+        var considered = new List<MeasurementDefinition>(pending); // first-occurrence ratios only
+
+        bool progressed = true;
+        while (progressed && pending.Count > 0)
+        {
+            progressed = false;
+            for (int i = pending.Count - 1; i >= 0; i--)
+            {
+                var def = pending[i];
+                if (!TryGetRatioOperands(def, out var num, out var den)) continue;
+                if (!values.TryGetValue(num, out var n) || !values.TryGetValue(den, out var d)) continue;
+                pending.RemoveAt(i);
+                progressed = true;
+                if (TryDivideMeasurements(n, d, out var v)) values[def.Name] = v;
+            }
+        }
+
+        // A ratio shadowed by an earlier row of the same name was never considered, so it isn't reported:
+        // that earlier row's own result (or failure reason) stands.
+        return considered.Where(d => !values.ContainsKey(d.Name)).Select(d => d.Name).ToList();
+    }
+
+    /// <summary>The [numerator, denominator] measurement names of a <see cref="MeasurementKind.MeasurementRatio"/>;
+    /// false when the definition doesn't name two operands.</summary>
+    public static bool TryGetRatioOperands(MeasurementDefinition? def, out string numerator, out string denominator)
+    {
+        numerator = denominator = "";
+        if (def?.MeasurementRefNames == null || def.MeasurementRefNames.Count < 2) return false;
+        numerator = def.MeasurementRefNames[0]?.Trim() ?? "";
+        denominator = def.MeasurementRefNames[1]?.Trim() ?? "";
+        return numerator.Length > 0 && denominator.Length > 0;
+    }
+
+    /// <summary>numerator / denominator, refusing a denominator within 1e-6 of zero (either sign). Shared by the
+    /// evaluator and <see cref="MeasurementDerivation"/> so cached and live values agree.</summary>
+    public static bool TryDivideMeasurements(float numerator, float denominator, out float value)
+    {
+        value = 0f;
+        if (Math.Abs(denominator) < 1e-6f || float.IsNaN(numerator) || float.IsNaN(denominator)) return false;
+        value = numerator / denominator;
+        return true;
+    }
 
     /// <summary>Angle in degrees (0..180) between directions <paramref name="u"/> and <paramref name="v"/>,
     /// after dropping the <paramref name="viewAxis"/> component of both (projection onto the plane

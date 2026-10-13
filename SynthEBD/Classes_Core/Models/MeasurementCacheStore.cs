@@ -380,10 +380,34 @@ public static class MeasurementCacheStore
         MeasurementDefinition? def,
         IReadOnlyDictionary<string, NamedKeyVertex>? keyVerticesByName,
         IReadOnlyDictionary<string, NamedRegion>? regionsByName)
+        => ComputeMeasurementFingerprint(def, keyVerticesByName, regionsByName, null);
+
+    /// <summary>As the three-map overload, plus <paramref name="measurementsByName"/> for
+    /// <see cref="MeasurementKind.MeasurementRatio"/> rows, whose fingerprint folds in each operand's
+    /// <i>content</i> fingerprint (its definition without its name). So editing an operand invalidates
+    /// the ratio's cached values, while renaming one (which cascades into the ratio's operand list) does
+    /// not. Every other kind ignores the map and hashes exactly as before.</summary>
+    public static string ComputeMeasurementFingerprint(
+        MeasurementDefinition? def,
+        IReadOnlyDictionary<string, NamedKeyVertex>? keyVerticesByName,
+        IReadOnlyDictionary<string, NamedRegion>? regionsByName,
+        IReadOnlyDictionary<string, MeasurementDefinition>? measurementsByName)
     {
         if (def == null) return "";
+        return Sha256Hex(BuildFingerprintBody(def, keyVerticesByName, regionsByName, measurementsByName, includeName: true,
+            new HashSet<string>(StringComparer.Ordinal)));
+    }
+
+    private static string BuildFingerprintBody(
+        MeasurementDefinition def,
+        IReadOnlyDictionary<string, NamedKeyVertex>? keyVerticesByName,
+        IReadOnlyDictionary<string, NamedRegion>? regionsByName,
+        IReadOnlyDictionary<string, MeasurementDefinition>? measurementsByName,
+        bool includeName,
+        HashSet<string> visiting)
+    {
         var sb = new StringBuilder();
-        sb.Append("N=").Append(def.Name ?? "").Append('|');
+        if (includeName) sb.Append("N=").Append(def.Name ?? "").Append('|');
         sb.Append("K=").Append((int)def.Kind).Append('|');
         sb.Append("A=").Append((int)def.Axis).Append('|');
         sb.Append("NA=").Append(def.NumeratorAxis.HasValue ? ((int)def.NumeratorAxis.Value).ToString() : "-").Append('|');
@@ -408,6 +432,28 @@ public static class MeasurementCacheStore
                 sb.Append("MISSING");
             }
         }
+        else if (def.Kind == MeasurementKind.MeasurementRatio)
+        {
+            // Operands by content, in [numerator, denominator] order; a missing operand or a cycle is
+            // stamped as such, so fixing it changes the fingerprint and re-evaluates the ratio.
+            sb.Append("OPS=[");
+            var ops = def.MeasurementRefNames ?? new List<string>();
+            for (int i = 0; i < ops.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                var opName = ops[i]?.Trim() ?? "";
+                if (measurementsByName == null || !measurementsByName.TryGetValue(opName, out var op) || op == null)
+                    sb.Append("MISSING");
+                else if (!visiting.Add(opName))
+                    sb.Append("CYCLE");
+                else
+                {
+                    sb.Append(Sha256Hex(BuildFingerprintBody(op, keyVerticesByName, regionsByName, measurementsByName, includeName: false, visiting)));
+                    visiting.Remove(opName);
+                }
+            }
+            sb.Append(']');
+        }
         else
         {
             sb.Append("R=[");
@@ -430,7 +476,7 @@ public static class MeasurementCacheStore
             }
             sb.Append(']');
         }
-        return Sha256Hex(sb.ToString());
+        return sb.ToString();
     }
 
     /// <summary>The cache entries a staleness verdict should judge: every entry except those of presets
@@ -514,13 +560,29 @@ public static class MeasurementCacheStore
                 if (!rgMap.ContainsKey(name)) rgMap[name] = rg; // same first-row-wins discipline
             }
         }
+        var measMap = MeasurementsByName(measurements);
         foreach (var def in measurements)
         {
             if (def == null || string.IsNullOrEmpty(def.Name)) continue;
             if (result.ContainsKey(def.Name)) continue; // same first-row-wins discipline
-            result[def.Name] = ComputeMeasurementFingerprint(def, kvMap, rgMap);
+            result[def.Name] = ComputeMeasurementFingerprint(def, kvMap, rgMap, measMap);
         }
         return result;
+    }
+
+    /// <summary>{name → definition}, first row wins on duplicates (the row the evaluator uses). Feeds the
+    /// operand lookup of <see cref="MeasurementKind.MeasurementRatio"/> fingerprints.</summary>
+    public static Dictionary<string, MeasurementDefinition> MeasurementsByName(IEnumerable<MeasurementDefinition?>? measurements)
+    {
+        var map = new Dictionary<string, MeasurementDefinition>(StringComparer.Ordinal);
+        if (measurements == null) return map;
+        foreach (var m in measurements)
+        {
+            var name = m?.Name?.Trim() ?? "";
+            if (name.Length == 0 || map.ContainsKey(name)) continue;
+            map[name] = m!;
+        }
+        return map;
     }
 
     private static void AppendKeyVertex(StringBuilder sb, NamedKeyVertex kv, IReadOnlyDictionary<string, NamedRegion>? regionsByName)

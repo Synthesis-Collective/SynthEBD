@@ -61,6 +61,27 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <!-- MeasurementRatio operand pickers: red when the name matches no other measurement row. -->
+        <Style x:Key="InvalidMeasRefAComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMeasRefAValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Operand does not match any other measurement's name - it was renamed or deleted, or names this row. Pick an existing measurement."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="InvalidMeasRefBComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMeasRefBValid}" Value="False">
+                    <Setter Property="Background" Value="#33FF6B6B"/>
+                    <Setter Property="BorderBrush" Value="#FFE53935"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="Operand does not match any other measurement's name - it was renamed or deleted, or names this row. Pick an existing measurement."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="InvalidRefBComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsRefBValid}" Value="False">
@@ -785,18 +806,34 @@
                                             <DataGridTemplateColumn Header="A" Width="120">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
-                                                                  Text="{Binding VertexRefA, UpdateSourceTrigger=PropertyChanged}"
-                                                                  Style="{StaticResource InvalidRefAComboBoxStyle}"/>
+                                                        <Grid>
+                                                            <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
+                                                                      Text="{Binding VertexRefA, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowVertexRefPickersAB, Converter={StaticResource BoolToVis}}"
+                                                                      Style="{StaticResource InvalidRefAComboBoxStyle}"/>
+                                                            <ComboBox ItemsSource="{Binding AvailableMeasurementNames}" IsEditable="True"
+                                                                      Text="{Binding MeasurementRefA, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowMeasurementRefFields, Converter={StaticResource BoolToVis}}"
+                                                                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementRatioOperandA"
+                                                                      Style="{StaticResource InvalidMeasRefAComboBoxStyle}"/>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <DataGridTemplateColumn Header="B" Width="120">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
-                                                                  Text="{Binding VertexRefB, UpdateSourceTrigger=PropertyChanged}"
-                                                                  Style="{StaticResource InvalidRefBComboBoxStyle}"/>
+                                                        <Grid>
+                                                            <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
+                                                                      Text="{Binding VertexRefB, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowVertexRefPickersAB, Converter={StaticResource BoolToVis}}"
+                                                                      Style="{StaticResource InvalidRefBComboBoxStyle}"/>
+                                                            <ComboBox ItemsSource="{Binding AvailableMeasurementNames}" IsEditable="True"
+                                                                      Text="{Binding MeasurementRefB, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowMeasurementRefFields, Converter={StaticResource BoolToVis}}"
+                                                                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementRatioOperandB"
+                                                                      Style="{StaticResource InvalidMeasRefBComboBoxStyle}"/>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
