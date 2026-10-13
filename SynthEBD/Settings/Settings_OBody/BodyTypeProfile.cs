@@ -410,7 +410,9 @@ public class NamedRegion
     /// <summary>
     /// Expected number of cap boundary loops the resolved patch must have (1 for a chest bump,
     /// 2 for a limb segment such as a thigh). Null = accept any valid count (1 or 2). Authoring
-    /// rejects a box whose resolved loop count disagrees with a non-null value.
+    /// rejects a box whose resolved loop count disagrees with a non-null value. A value above 2 opts
+    /// the region into that many loops (e.g. 3 for a hip band cut at the waist and through both legs);
+    /// each loop is capped separately, so the volume stays exact.
     /// </summary>
     public int? ExpectedCapCount { get; set; } = null;
 

@@ -1082,7 +1082,13 @@ public static class RegionVolumeEvaluator
                     new Vector3(region.BoxMinX, region.BoxMinY, region.BoxMinZ),
                     new Vector3(region.BoxMaxX, region.BoxMaxY, region.BoxMaxZ));
                 var rotation = new BoxRotation(region.RotX, region.RotY, region.RotZ);
+                // An explicit ExpectedCapCount above the default ceiling opts the region into that many loops
+                // (e.g. a hip band cut at the waist and through both legs = 3). Capping closes each loop on its
+                // own, so the enclosed volume stays exact for any loop count; the ceiling only guards regions
+                // that didn't ask for more against catching neighbouring anatomy.
                 var options = new RegionResolveOptions { ExpectedCapCount = region.ExpectedCapCount, CapMode = region.CapMode };
+                if (region.ExpectedCapCount is int expected && expected > options.MaxCapCount)
+                    options.MaxCapCount = expected;
 
                 // Option B: match the curated edits (zeroed-space positions) to current-mesh vertices.
                 // The positions array IS the sliders-0 mesh (the edits were authored in that space), so
