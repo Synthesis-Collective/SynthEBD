@@ -105,7 +105,9 @@ public static class BodySlideMeasurementEvaluator
     /// validate against the sliders-0 mesh) so the caller bakes them once per body/weight (see
     /// <c>RegionVolumeEvaluator.ResolveRegions</c>) and passes them in; this method just evaluates
     /// them against the current deformed positions. Null (the default for non-scan call sites)
-    /// means region-volume measurements fail with <see cref="MeasurementFailureReason.MissingRegion"/>.
+    /// makes this method resolve them itself, at the viewer's current NPC weight, whenever the
+    /// profile needs them (<see cref="NeedsResolvedRegions"/>) — one resolve per call, so batch
+    /// callers should still bake and pass them in.
     ///
     /// <paramref name="externalDescriptors"/> seeds the rule pass with descriptors from sources
     /// senior to the classifier — labels the Label-by-Sliders rules produce for this preset at this
@@ -116,6 +118,17 @@ public static class BodySlideMeasurementEvaluator
     /// slider rule). See <see cref="RunClassifierRules"/> for the default-suppression interaction.
     /// Null/empty = the pre-seeding behavior (only this profile's own rules populate the matched set).
     /// </summary>
+    /// <summary>True when <paramref name="profile"/> has regions and something reads them: a
+    /// <see cref="MeasurementKind.RegionVolume"/> measurement or a <see cref="KeyVertexStrategy.Region"/>
+    /// key vertex. <see cref="Evaluate"/> resolves the regions itself in that case when the caller
+    /// passed none.</summary>
+    public static bool NeedsResolvedRegions(BodyTypeProfile? profile)
+    {
+        if (profile?.Regions == null || profile.Regions.Count == 0) return false;
+        return (profile.Measurements != null && profile.Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume))
+            || (profile.KeyVertices != null && profile.KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region));
+    }
+
     public static EvaluationResult Evaluate(
         VM_CharacterViewer viewer,
         BodyTypeProfile profile,
@@ -153,6 +166,19 @@ public static class BodySlideMeasurementEvaluator
         // before the deformed position is read via `lookup`. Weight 0 is the canonical undeformed reference
         // used at both capture and match time.
         MeasurementMath.ShapePositionsLookup zeroedShapeLookup = shape => viewer.GetZeroedShapePositions(shape, 0);
+
+        // Callers outside the Match Presets scan (the BodySlide-setting live classifier, the annotation
+        // table's re-evaluation) pass no baked regions. Without them every RegionVolume measurement and
+        // every Region-strategy key vertex fails, so their rules silently fall to defaults. Resolve the
+        // regions here exactly as the scan does: against the sliders-0 mesh at the weight being measured.
+        if (resolvedRegions == null && NeedsResolvedRegions(profile))
+        {
+            int weight = viewer.NpcWeight;
+            resolvedRegions = RegionVolumeEvaluator.ResolveRegions(
+                profile.Regions,
+                shape => viewer.GetZeroedShapePositions(shape, weight),
+                shape => viewer.GetShapeIndices(shape));
+        }
 
         if (profile.Measurements != null)
         {
