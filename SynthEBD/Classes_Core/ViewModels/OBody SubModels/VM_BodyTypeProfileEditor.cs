@@ -53,6 +53,7 @@ public class VM_BodyTypeProfileEditor : VM
     private readonly SynthEBDPaths _paths;
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _filterFactory;
     private readonly InstalledBodyTypeDetector _bodyTypeDetector;
+    private readonly Func<VM_BodySlideCompare> _compareFactory;
 
     // Profile currently subscribed for BodyTypeName-change notifications, so the preset
     // dropdown re-filters when the user edits the profile's body-type assignment. Swapped
@@ -91,6 +92,7 @@ public class VM_BodyTypeProfileEditor : VM
         _filterFactory = filterFactory;
         _paths = paths;
         _bodyTypeDetector = bodyTypeDetector;
+        _compareFactory = compareFactory;
         Synchronizer = descriptorDefaultSynchronizer;
         descriptorDefaultSynchronizer.RegisterProfileEditor(this);
 
@@ -4336,6 +4338,23 @@ public class VM_BodyTypeProfileEditor : VM
         PreviewGender = gender;
         PreviewWeight = weight;
         SelectedPreset = ph;
+    }
+
+    /// <summary>Opens a new Compare window with one (preset, gender, weight) slice loaded in pane A.
+    /// The "3D" button on Show Spread and annotation Panel cells: a free-standing live viewer for
+    /// the slice, leaving the editor's own viewer where it was. The editor's preview-NPC override
+    /// carries over when it is for the slice's gender; otherwise the pane picks the configured
+    /// default NPC for the slice's weight. No-op when the preset is no longer listed.</summary>
+    internal void OpenSliceInCompare(string presetLabel, Gender gender, int weight)
+    {
+        var ph = FindPresetPlaceHolder(presetLabel, gender);
+        if (ph?.AssociatedModel == null) return;
+
+        var npc = gender == PreviewGender ? PreviewNpcOverride : FormKey.Null;
+        BodySlideCompareLauncher.Open(
+            _compareFactory,
+            () => new BodySlideCompareSeed(gender, weight, npc, ph.AssociatedModel, ExcludeHiddenAndDisabled: true),
+            _logger);
     }
 
     /// <summary>Raised after <see cref="HideAndDisablePreset"/> excludes a preset, so open Show Spread

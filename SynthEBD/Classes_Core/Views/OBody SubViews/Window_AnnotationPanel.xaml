@@ -105,6 +105,7 @@
                     <StackPanel DockPanel.Dock="Bottom" Margin="0,3,0,0">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Content="HD" Margin="4,0,0,0" Padding="3,0" VerticalAlignment="Center" Foreground="Firebrick" Command="{Binding HideAndDisableCommand}" CommandParameter="{Binding}" local:DocTooltip.Key="BodySlides.HideAndDisableListButton"/>
+                            <Button DockPanel.Dock="Right" Content="3D" Margin="4,0,0,0" Padding="3,0" VerticalAlignment="Center" Command="{Binding OpenIn3DCommand}" local:DocTooltip.Key="BodyTypeSpread.OpenIn3D"/>
                             <TextBlock Text="{Binding PresetLabel}" FontWeight="Bold" TextTrimming="CharacterEllipsis"
                                        ToolTip="{Binding AliasTooltip}"/>
                         </DockPanel>

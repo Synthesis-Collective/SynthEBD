@@ -59,5 +59,10 @@ public static partial class UiDocs
             layperson: "One preset, at the weight it was measured at, chosen to represent this column's statistic for this row. Click it to load it into the editor's viewer to rotate and inspect.",
             technical: "Min / Max are the lowest / highest slices; Mean the slice nearest the mean; Median the middle slice (the lower of the two middle slices for an even count); Peak the slice nearest the centre of the fullest bin. Each slice keeps its own weight. The caption shows the slice's value and, in brackets, the statistic's own value when it falls between slices. Renders use the offscreen renderer with one fixed whole-body camera, so body sizes are comparable across cells.",
             motivation: "Rendering the actual presets at the statistics - rather than just printing the numbers - lets a threshold be judged by what the bodies look like.");
+
+        Add("BodyTypeSpread.OpenIn3D",
+            layperson: "Opens this body in its own 3D viewer window, at the weight shown, so you can rotate and zoom it without changing what the editor's viewer shows. The window's second pane lets you pick another preset to compare against.",
+            technical: "Opens a new BodySlide Compare window (VM_BodyTypeProfileEditor.OpenSliceInCompare) with pane A seeded to this cell's preset, gender and weight. The preview NPC is the editor's preview-NPC override when it is for this gender, otherwise the OBody Misc default for the weight. Hidden-and-disabled presets are left out of the window's pickers. Shared by Show Spread and the annotation Panel.",
+            motivation: "Clicking a cell replaces whatever the editor's viewer was showing. A separate window keeps that view and allows several bodies to be open side by side.");
     }
 }

@@ -475,6 +475,9 @@ public class VM_AnnotationPanel : VM, IDropTarget
 
     internal void LoadInEditorViewer(VM_AnnotationPanelCell cell) => _editor.LoadSliceInViewer(cell.PresetLabel, cell.Gender, cell.Weight);
 
+    /// <summary>"3D" button on a cell: opens the slice in its own Compare window.</summary>
+    internal void OpenInCompare(VM_AnnotationPanelCell cell) => _editor.OpenSliceInCompare(cell.PresetLabel, cell.Gender, cell.Weight);
+
     // ---------- rendering ----------
 
     public string PrimaryViewLabel => ShowBack ? "Back" : "Front";
@@ -546,6 +549,7 @@ public class VM_AnnotationPanelCell : VM
         LoadInViewerCommand = new RelayCommand(_ => !parent.IsFreeOrder, _ => parent.LoadInEditorViewer(this));
         LoadInViewerFreeCommand = new RelayCommand(_ => parent.IsFreeOrder, _ => parent.LoadInEditorViewer(this));
         HideAndDisableCommand = new RelayCommand(_ => true, _ => parent.HideAndDisablePreset(this));
+        OpenIn3DCommand = new RelayCommand(_ => true, _ => parent.OpenInCompare(this));
     }
 
     internal VM_AnnotationQueueSlice Slice { get; }
@@ -575,6 +579,7 @@ public class VM_AnnotationPanelCell : VM
     public RelayCommand LoadInViewerCommand { get; }
     public RelayCommand LoadInViewerFreeCommand { get; }
     public RelayCommand HideAndDisableCommand { get; }
+    public RelayCommand OpenIn3DCommand { get; }
 
     internal void RefreshSelection(IReadOnlyList<string> stored)
     {

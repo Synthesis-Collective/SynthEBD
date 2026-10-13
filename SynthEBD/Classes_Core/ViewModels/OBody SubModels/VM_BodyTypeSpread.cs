@@ -444,6 +444,12 @@ public class VM_BodyTypeSpread : VM
         _editor.LoadSliceInViewer(cell.PresetLabel, cell.Gender, cell.Weight);
     }
 
+    /// <summary>"3D" button on a cell: opens the slice in its own Compare window.</summary>
+    internal void OpenInCompare(VM_BodyTypeSpreadCell cell)
+    {
+        _editor.OpenSliceInCompare(cell.PresetLabel, cell.Gender, cell.Weight);
+    }
+
     public override void Dispose()
     {
         _editor.PresetHiddenAndDisabled -= OnPresetHiddenAndDisabled;
@@ -499,6 +505,7 @@ public class VM_BodyTypeSpreadCell : VM
             + (between ? $"  ({Statistic} {FormatNumber(pick.StatisticValue)}{unit})" : "");
         LoadInViewerCommand = new RelayCommand(_ => true, _ => parent.LoadInEditorViewer(this));
         HideAndDisableCommand = new RelayCommand(_ => true, _ => parent.HideAndDisablePreset(this));
+        OpenIn3DCommand = new RelayCommand(_ => true, _ => parent.OpenInCompare(this));
     }
 
     public SpreadStatistic Statistic { get; }
@@ -521,6 +528,7 @@ public class VM_BodyTypeSpreadCell : VM
 
     public RelayCommand LoadInViewerCommand { get; }
     public RelayCommand HideAndDisableCommand { get; }
+    public RelayCommand OpenIn3DCommand { get; }
 
     internal void SetImages((bool Ready, BitmapSource? Image) primary, (bool Ready, BitmapSource? Image) side)
     {

@@ -198,26 +198,37 @@ public static class BodySlideCompareLauncher
     {
         return new RelayCommand(
             canExecute: _ => true,
-            execute: _ =>
-            {
-                try
-                {
-                    var vm = compareFactory();
-                    var seed = seedProvider();
-                    vm.SeedFrom(seed.Gender, seed.Weight, seed.PreviewNpc, seed.Preset, seed.ExcludeHiddenAndDisabled);
+            execute: _ => Open(compareFactory, seedProvider, logger));
+    }
 
-                    var window = new Window_BodySlideCompare { DataContext = vm };
-                    // Owner keeps Compare above the main window and closes it with the app,
-                    // instead of stranding an orphan window with two GL contexts.
-                    window.Owner = System.Windows.Application.Current?.MainWindow;
-                    window.Show();
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError("Failed to open the BodySlide Compare window: "
-                        + ExceptionLogger.GetExceptionStack(ex));
-                }
-            });
+    /// <summary>
+    /// Opens one <see cref="Window_BodySlideCompare"/> seeded from <paramref name="seedProvider"/>.
+    /// The body of <see cref="CreateCommand"/>, also called directly by hosts that open Compare
+    /// on a specific preset rather than their current preview (the Show Spread / annotation
+    /// Panel "3D" buttons, via <see cref="VM_BodyTypeProfileEditor.OpenSliceInCompare"/>).
+    /// </summary>
+    public static void Open(
+        Func<VM_BodySlideCompare> compareFactory,
+        Func<BodySlideCompareSeed> seedProvider,
+        Logger logger)
+    {
+        try
+        {
+            var vm = compareFactory();
+            var seed = seedProvider();
+            vm.SeedFrom(seed.Gender, seed.Weight, seed.PreviewNpc, seed.Preset, seed.ExcludeHiddenAndDisabled);
+
+            var window = new Window_BodySlideCompare { DataContext = vm };
+            // Owner keeps Compare above the main window and closes it with the app,
+            // instead of stranding an orphan window with two GL contexts.
+            window.Owner = System.Windows.Application.Current?.MainWindow;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError("Failed to open the BodySlide Compare window: "
+                + ExceptionLogger.GetExceptionStack(ex));
+        }
     }
 }
 
