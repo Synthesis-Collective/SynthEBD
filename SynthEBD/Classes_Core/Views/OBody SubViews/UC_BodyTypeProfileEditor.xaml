@@ -884,6 +884,13 @@
                                                                       SelectedValue="{Binding AngleViewAxis, UpdateSourceTrigger=PropertyChanged}"
                                                                       Visibility="{Binding ShowAngleViewField, Converter={StaticResource BoolToVis}}"
                                                                       local:DocTooltip.Key="BodyTypeProfiles.MeasurementAngleView"/>
+                                                            <!-- Girth rows: how the band's slices reduce to one value. -->
+                                                            <ComboBox ItemsSource="{Binding GirthAggregateOptionsList}"
+                                                                      SelectedValuePath="Value"
+                                                                      DisplayMemberPath="Label"
+                                                                      SelectedValue="{Binding GirthAggregate, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowGirthAggregateField, Converter={StaticResource BoolToVis}}"
+                                                                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementGirthAggregate"/>
                                                         </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>

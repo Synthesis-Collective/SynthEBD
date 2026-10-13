@@ -526,6 +526,25 @@ public enum MeasurementKind
     /// (bust band / hip band). A ratio may read another ratio; a missing operand, a cycle or a near-zero
     /// denominator leaves it unresolved.</summary>
     MeasurementRatio = 7,
+    /// <summary>Tape-measure circumference (raw units) of a body band. Reads a single
+    /// <see cref="MeasurementDefinition.RegionRefName"/>, like <see cref="RegionVolume"/>, but only the region's
+    /// member vertices: no cap loops, so the region need not close into a valid volume. The band is cut into
+    /// horizontal slices (selected on the sliders-0 mesh, so they follow the body through every preset), each
+    /// slice's girth is the perimeter of the convex hull of its deformed vertices seen from above (the path a
+    /// tape takes, bridging the gap between the breasts or thighs), and <see cref="MeasurementDefinition.GirthAggregate"/>
+    /// reduces the slices to one value: fullest bust or hips = Max, natural waist = Min.</summary>
+    Girth = 8,
+}
+
+/// <summary>How a <see cref="MeasurementKind.Girth"/> measurement reduces its per-slice girths to one value.</summary>
+public enum GirthAggregate
+{
+    /// <summary>The largest slice: the fullest level, e.g. bust or hips.</summary>
+    Max = 0,
+    /// <summary>The smallest slice: the narrowest level, e.g. the natural waist.</summary>
+    Min = 1,
+    /// <summary>The average over all slices.</summary>
+    Mean = 2,
 }
 
 /// <summary>World axis selector for <see cref="MeasurementKind.AxisDistance"/>.</summary>
@@ -555,10 +574,19 @@ public class MeasurementDefinition
     public List<string> VertexRefNames { get; set; } = new();
 
     /// <summary>
-    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.RegionVolume"/>: the name of the
-    /// <see cref="NamedRegion"/> whose box defines the volume to integrate. Empty for all other kinds.
+    /// Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.RegionVolume"/> or
+    /// <see cref="MeasurementKind.Girth"/>: the name of the <see cref="NamedRegion"/> whose box defines the
+    /// volume to integrate or the band to measure around. Empty for all other kinds.
     /// </summary>
     public string RegionRefName { get; set; } = "";
+
+    /// <summary>Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.Girth"/>: how the
+    /// per-slice girths are reduced to one value.</summary>
+    public GirthAggregate GirthAggregate { get; set; } = GirthAggregate.Max;
+
+    /// <summary>Only consulted when <see cref="Kind"/> is <see cref="MeasurementKind.Girth"/>: the vertical
+    /// spacing (raw units, on the sliders-0 mesh) between the band's slices. Values below 0.1 are clamped.</summary>
+    public float GirthStep { get; set; } = 1.0f;
 
     /// <summary>Consulted when <see cref="Kind"/> is <see cref="MeasurementKind.AxisDistance"/>,
     /// <see cref="MeasurementKind.SignedAxisDistance"/>, or <see cref="MeasurementKind.SignedPointDistance"/>
@@ -949,9 +977,10 @@ public static class MeasurementMath
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
 
         // MeasurementRatio reads other measurements, not key vertices: callers evaluate it in their post-pass
-        // (EvaluateMeasurementRatios). Every kind handled here reads at least the A / B pair, so never index
-        // past a shorter list even if VertexRefCount reports fewer.
-        if (def.Kind == MeasurementKind.MeasurementRatio) return false;
+        // (EvaluateMeasurementRatios); the region kinds go through TryEvaluateRegionMeasurement. Every kind
+        // handled here reads at least the A / B pair, so never index past a shorter list even if
+        // VertexRefCount reports fewer.
+        if (def.Kind == MeasurementKind.MeasurementRatio || ReadsRegion(def.Kind)) return false;
         int needed = Math.Max(VertexRefCount(def.Kind), 2);
         if (def.VertexRefNames.Count < needed) return false;
 
@@ -1035,6 +1064,11 @@ public static class MeasurementMath
         MeasurementKind.MeasurementRatio => 0,
         _ => 2,
     };
+
+    /// <summary>True for the kinds that read a named region (<see cref="MeasurementDefinition.RegionRefName"/>)
+    /// instead of key vertices: <see cref="MeasurementKind.RegionVolume"/> and <see cref="MeasurementKind.Girth"/>.</summary>
+    public static bool ReadsRegion(MeasurementKind kind) =>
+        kind == MeasurementKind.RegionVolume || kind == MeasurementKind.Girth;
 
     /// <summary>Evaluates every <see cref="MeasurementKind.MeasurementRatio"/> in <paramref name="definitions"/>
     /// from the already-computed <paramref name="values"/> (name → value), writing each result back into

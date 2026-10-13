@@ -38,7 +38,8 @@ public static class BodySlideMeasurementEvaluator
         MissingRegion = 4,
         /// <summary>A <see cref="MeasurementKind.RegionVolume"/> region was supplied but is invalid
         /// (the box failed watertightness/validation at resolve time) or its shape's deformed
-        /// positions weren't available.</summary>
+        /// positions weren't available; or a <see cref="MeasurementKind.Girth"/> region selected no
+        /// slice with a measurable hull.</summary>
         RegionNotResolved = 5,
         /// <summary>A <see cref="MeasurementKind.MeasurementRatio"/> whose operands are not both named, did not
         /// both evaluate, form a cycle, or whose denominator is near zero.</summary>
@@ -144,13 +145,13 @@ public static class BodySlideMeasurementEvaluator
     /// Null/empty = the pre-seeding behavior (only this profile's own rules populate the matched set).
     /// </summary>
     /// <summary>True when <paramref name="profile"/> has regions and something reads them: a
-    /// <see cref="MeasurementKind.RegionVolume"/> measurement or a <see cref="KeyVertexStrategy.Region"/>
-    /// key vertex. <see cref="Evaluate"/> resolves the regions itself in that case when the caller
-    /// passed none.</summary>
+    /// <see cref="MeasurementKind.RegionVolume"/> or <see cref="MeasurementKind.Girth"/> measurement or a
+    /// <see cref="KeyVertexStrategy.Region"/> key vertex. <see cref="Evaluate"/> resolves the regions itself
+    /// in that case when the caller passed none.</summary>
     public static bool NeedsResolvedRegions(BodyTypeProfile? profile)
     {
         if (profile?.Regions == null || profile.Regions.Count == 0) return false;
-        return (profile.Measurements != null && profile.Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume))
+        return (profile.Measurements != null && profile.Measurements.Any(m => m != null && MeasurementMath.ReadsRegion(m.Kind)))
             || (profile.KeyVertices != null && profile.KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region));
     }
 
@@ -231,11 +232,11 @@ public static class BodySlideMeasurementEvaluator
                     ratioNames.Add(def.Name);
                     continue;
                 }
-                // RegionVolume reads a baked region + the shape's deformed positions, not key
-                // vertices, so it takes a separate path from MeasurementMath.TryEvaluate.
-                if (def.Kind == MeasurementKind.RegionVolume)
+                // RegionVolume and Girth read a baked region + the shape's deformed positions, not key
+                // vertices, so they take a separate path from MeasurementMath.TryEvaluate.
+                if (MeasurementMath.ReadsRegion(def.Kind))
                 {
-                    if (TryEvaluateRegionVolume(def, resolvedRegions, shapeLookup, out float rv, out var rreason))
+                    if (TryEvaluateRegionMeasurement(def, resolvedRegions, shapeLookup, out float rv, out var rreason))
                         result.Measurements[def.Name] = rv;
                     else
                         result.FailedMeasurements[def.Name] = rreason;
@@ -786,6 +787,70 @@ public static class BodySlideMeasurementEvaluator
             return false;
         }
         value = (float)RegionVolumeEvaluator.ComputeVolume(resolved, positions, resolved.CapMode);
+        reason = MeasurementFailureReason.MalformedDefinition; // unused on success
+        return true;
+    }
+
+    /// <summary>
+    /// Evaluates either region-reading kind (<see cref="MeasurementMath.ReadsRegion"/>):
+    /// <see cref="MeasurementKind.RegionVolume"/> via <see cref="TryEvaluateRegionVolume"/>, or
+    /// <see cref="MeasurementKind.Girth"/> via <see cref="TryEvaluateGirth"/>. False with
+    /// <see cref="MeasurementFailureReason.MalformedDefinition"/> for any other kind.
+    /// </summary>
+    public static bool TryEvaluateRegionMeasurement(
+        MeasurementDefinition def,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions,
+        MeasurementMath.ShapePositionsLookup shapeLookup,
+        out float value,
+        out MeasurementFailureReason reason)
+    {
+        switch (def?.Kind)
+        {
+            case MeasurementKind.RegionVolume:
+                return TryEvaluateRegionVolume(def, resolvedRegions, shapeLookup, out value, out reason);
+            case MeasurementKind.Girth:
+                return TryEvaluateGirth(def, resolvedRegions, shapeLookup, out value, out reason);
+            default:
+                value = 0f;
+                reason = MeasurementFailureReason.MalformedDefinition;
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Evaluates a <see cref="MeasurementKind.Girth"/> measurement: looks up the baked region for
+    /// <see cref="MeasurementDefinition.RegionRefName"/> and measures its slices against the shape's deformed
+    /// positions (<see cref="RegionGirthEvaluator"/>). Unlike a volume, the region need not be valid; only its
+    /// member set is read, so a band that splits into legs or opens at an armpit still measures. Fails with
+    /// <see cref="MeasurementFailureReason.RegionNotResolved"/> when the region selects no vertices, no slice
+    /// forms a hull, or the shape's positions aren't available.
+    /// </summary>
+    public static bool TryEvaluateGirth(
+        MeasurementDefinition def,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions,
+        MeasurementMath.ShapePositionsLookup shapeLookup,
+        out float value,
+        out MeasurementFailureReason reason)
+    {
+        value = 0f;
+        var rname = def?.RegionRefName?.Trim() ?? "";
+        if (rname.Length == 0)
+        {
+            reason = MeasurementFailureReason.MalformedDefinition;
+            return false;
+        }
+        if (resolvedRegions == null || !resolvedRegions.TryGetValue(rname, out var resolved) || resolved == null)
+        {
+            reason = MeasurementFailureReason.MissingRegion;
+            return false;
+        }
+        var positions = shapeLookup?.Invoke(resolved.ShapeName);
+        if (positions == null || positions.Length == 0
+            || !RegionGirthEvaluator.TryComputeGirth(resolved, positions, def!.GirthAggregate, def.GirthStep, out value))
+        {
+            reason = MeasurementFailureReason.RegionNotResolved;
+            return false;
+        }
         reason = MeasurementFailureReason.MalformedDefinition; // unused on success
         return true;
     }

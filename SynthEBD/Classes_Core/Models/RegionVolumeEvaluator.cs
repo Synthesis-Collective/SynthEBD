@@ -160,6 +160,11 @@ public static class RegionVolumeEvaluator
         /// shape's full per-vertex arrays, so they index the deformed positions directly.</summary>
         public int[] MemberVertexIndices = Array.Empty<int>();
 
+        /// <summary>Zeroed-space height (Y) of each member vertex, parallel to <see cref="MemberVertexIndices"/>.
+        /// A <c>Girth</c> measurement slices the band at these heights, so a slice selects the same vertices
+        /// for every preset however the body deforms (see <see cref="RegionGirthEvaluator"/>).</summary>
+        public float[] MemberZeroedY = Array.Empty<float>();
+
         public int LoopCount => CapLoops.Length;
     }
 
@@ -796,6 +801,9 @@ public static class RegionVolumeEvaluator
         // Region-strategy key vertex can use it even when the volume patch is rejected. Same rule as
         // Member(), shared via the public helper. Cheap O(n) pass; only walked once per resolve.
         result.MemberVertexIndices = ResolveMemberVertices(zeroedPositions, box, rotation, addSet, remSet, planeEps);
+        result.MemberZeroedY = new float[result.MemberVertexIndices.Length];
+        for (int i = 0; i < result.MemberZeroedY.Length; i++)
+            result.MemberZeroedY[i] = zeroedPositions[result.MemberVertexIndices[i]].Y;
 
         // 1. Build the surface patch.
         //

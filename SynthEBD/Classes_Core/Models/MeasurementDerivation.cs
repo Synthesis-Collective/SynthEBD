@@ -118,7 +118,7 @@ public static class MeasurementDerivation
                 MeasurementKind.RatioDistance => Ratio(
                     Get(terms, Term.Of(r[0], r[1], OperandAxis(def.NumeratorAxis))),
                     Get(terms, Term.Of(r[2], r[3], OperandAxis(def.DenominatorAxis)))),
-                _ => null, // RegionVolume reads geometry; MeasurementRatio is handled in step 4
+                _ => null, // RegionVolume / Girth read geometry; MeasurementRatio is handled in step 4
             };
             if (value.HasValue) result[name] = (float)value.Value;
         }
@@ -149,7 +149,7 @@ public static class MeasurementDerivation
     {
         refs = def.VertexRefNames;
         int needed = def.Kind == MeasurementKind.RatioDistance ? 4 : 2;
-        if (def.Kind == MeasurementKind.RegionVolume || refs == null || refs.Count < needed) return false;
+        if (MeasurementMath.ReadsRegion(def.Kind) || refs == null || refs.Count < needed) return false;
         for (int i = 0; i < needed; i++) if (string.IsNullOrEmpty(refs[i])) return false;
         return true;
     }

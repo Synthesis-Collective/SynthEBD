@@ -416,8 +416,13 @@ public static class MeasurementCacheStore
         // cached values) is unchanged by the field's existence.
         if (def.Kind == MeasurementKind.Angle)
             sb.Append("AV=").Append(def.AngleViewAxis.HasValue ? ((int)def.AngleViewAxis.Value).ToString() : "-").Append('|');
-        if (def.Kind == MeasurementKind.RegionVolume)
+        if (MeasurementMath.ReadsRegion(def.Kind))
         {
+            // Girth only: how the slices are cut and reduced changes the value. Appended for that kind
+            // alone so RegionVolume fingerprints stay byte-identical.
+            if (def.Kind == MeasurementKind.Girth)
+                sb.Append("GA=").Append((int)def.GirthAggregate).Append("|GS=")
+                  .Append(def.GirthStep.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|');
             // RegionVolume reads a single named region's box, not key vertices. Like a BoundingBox
             // key vertex, the defining identity is (ShapeName, box coords, expected cap count) —
             // the resolved patch/loops/caps are session-derived and never enter the fingerprint.

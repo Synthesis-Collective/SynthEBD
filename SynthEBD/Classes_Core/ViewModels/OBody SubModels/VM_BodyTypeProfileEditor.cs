@@ -1988,7 +1988,7 @@ public class VM_BodyTypeProfileEditor : VM
             // BellyVolume read ~21% high at weight 25 only, across the whole cache (OBody tracker D36).
             Dictionary<int, Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>> resolvedRegionsByWeight = null;
             bool hasRegionVolumes = profileModel.Measurements != null
-                && profileModel.Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume);
+                && profileModel.Measurements.Any(m => m != null && MeasurementMath.ReadsRegion(m.Kind));
             // Region-strategy key vertices also need their region resolved, even with no RegionVolume
             // measurement, so the scan can pick their member-set anchor.
             bool hasRegionKeyVertices = profileModel.KeyVertices != null
@@ -5711,7 +5711,7 @@ public class VM_BodyTypeProfile : VM
         if (from.Length == 0 || to.Length == 0 || string.Equals(from, to, StringComparison.Ordinal)) return;
         foreach (var m in Measurements)
         {
-            if (m != null && m.Kind == MeasurementKind.RegionVolume
+            if (m != null && MeasurementMath.ReadsRegion(m.Kind)
                 && string.Equals((m.RegionRefName ?? "").Trim(), from, StringComparison.Ordinal))
             {
                 m.RegionRefName = to;
@@ -8285,7 +8285,7 @@ public class VM_BodyTypeProfile : VM
         Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null;
         if (viewer != null
             && Regions.Count > 0
-            && (Measurements.Any(m => m != null && m.Kind == MeasurementKind.RegionVolume)
+            && (Measurements.Any(m => m != null && MeasurementMath.ReadsRegion(m.Kind))
                 || KeyVertices.Any(k => k != null && k.Strategy == KeyVertexStrategy.Region)))
         {
             resolvedRegions = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
@@ -8305,11 +8305,11 @@ public class VM_BodyTypeProfile : VM
                 m.LiveValue = null;
                 continue;
             }
-            if (m.Kind == MeasurementKind.RegionVolume)
+            if (MeasurementMath.ReadsRegion(m.Kind))
             {
-                // RegionVolume reads a baked region + the shape's deformed positions, not key
-                // vertices, so it takes the dedicated evaluator path (same as Evaluate's branch).
-                m.LiveValue = BodySlideMeasurementEvaluator.TryEvaluateRegionVolume(
+                // RegionVolume / Girth read a baked region + the shape's deformed positions, not key
+                // vertices, so they take the dedicated evaluator path (same as Evaluate's branch).
+                m.LiveValue = BodySlideMeasurementEvaluator.TryEvaluateRegionMeasurement(
                     m.DumpToModel(), resolvedRegions,
                     shape => viewer.GetShapePositions(shape),
                     out float rv, out _)
@@ -8947,7 +8947,7 @@ public class VM_BodyTypeProfile : VM
     {
         var names = new List<string>();
         if (m.Kind == MeasurementKind.MeasurementRatio) return names; // reads measurements, not regions or key vertices
-        if (m.Kind == MeasurementKind.RegionVolume && !string.IsNullOrEmpty(m.RegionRefName))
+        if (MeasurementMath.ReadsRegion(m.Kind) && !string.IsNullOrEmpty(m.RegionRefName))
             names.Add(m.RegionRefName);
         foreach (var vref in new[] { m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD })
         {
@@ -9161,6 +9161,8 @@ public class VM_BodyTypeProfile : VM
         // A MeasurementRatio reads other measurements, not key vertices: it has no line of its own, and any
         // vertex refs left on the row from an earlier kind must not draw one.
         if (sel.Kind == MeasurementKind.MeasurementRatio) return;
+        // Likewise a Girth reads a region (shown by the tint): stale vertex refs must not draw a line.
+        if (sel.Kind == MeasurementKind.Girth) return;
 
         var a = resolve(sel.VertexRefA);
         var b = resolve(sel.VertexRefB);
@@ -12481,6 +12483,8 @@ public class VM_MeasurementDefinition : VM
         VertexRefC = refs.Count > 2 ? refs[2] : "";
         VertexRefD = refs.Count > 3 ? refs[3] : "";
         RegionRefName = source.RegionRefName ?? "";
+        GirthAggregate = source.GirthAggregate;
+        GirthStep = source.GirthStep;
         var ops = source.MeasurementRefNames ?? new List<string>();
         MeasurementRefA = ops.Count > 0 ? ops[0] ?? "" : "";
         MeasurementRefB = ops.Count > 1 ? ops[1] ?? "" : "";
@@ -12536,10 +12540,17 @@ public class VM_MeasurementDefinition : VM
     public string VertexRefC { get; set; }
     public string VertexRefD { get; set; }
 
-    /// <summary>For a <see cref="MeasurementKind.RegionVolume"/> measurement, the name of the
-    /// <see cref="VM_NamedRegion"/> whose box volume this measures. Empty/ignored for all other
-    /// kinds (which read <see cref="VertexRefA"/>..D instead).</summary>
+    /// <summary>For a <see cref="MeasurementKind.RegionVolume"/> or <see cref="MeasurementKind.Girth"/>
+    /// measurement, the name of the <see cref="VM_NamedRegion"/> whose box volume (or band) this measures.
+    /// Empty/ignored for all other kinds (which read <see cref="VertexRefA"/>..D instead).</summary>
     public string RegionRefName { get; set; } = "";
+
+    /// <summary>For a <see cref="MeasurementKind.Girth"/> measurement, how its slices reduce to one value.</summary>
+    public GirthAggregate GirthAggregate { get; set; } = GirthAggregate.Max;
+
+    /// <summary>For a <see cref="MeasurementKind.Girth"/> measurement, the slice spacing. Not shown in the grid;
+    /// carried through so a hand-edited value survives a save.</summary>
+    public float GirthStep { get; set; } = 1.0f;
 
     /// <summary>For a <see cref="MeasurementKind.MeasurementRatio"/> measurement, the numerator (A) and
     /// denominator (B) measurement names. Shown in the A / B cells in place of the key-vertex pickers.
@@ -12609,20 +12620,34 @@ public class VM_MeasurementDefinition : VM
     /// <summary>True for Angle: the Axis cell shows the View picker (<see cref="AngleViewAxis"/>)
     /// instead of the distance axis.</summary>
     public bool ShowAngleViewField => Kind == MeasurementKind.Angle;
-    public bool ShowDistanceAxisPicker => Kind != MeasurementKind.Angle && Kind != MeasurementKind.MeasurementRatio;
+    public bool ShowDistanceAxisPicker => Kind != MeasurementKind.Angle && Kind != MeasurementKind.MeasurementRatio
+                                          && Kind != MeasurementKind.Girth;
+
+    /// <summary>True for Girth: the Axis cell shows the slice-reduction picker (<see cref="GirthAggregate"/>).</summary>
+    public bool ShowGirthAggregateField => Kind == MeasurementKind.Girth;
+
+    /// <summary>Display labels for <see cref="GirthAggregate"/>.</summary>
+    public static IReadOnlyList<GirthAggregateOption> GirthAggregateOptions { get; } = new[]
+    {
+        new GirthAggregateOption(GirthAggregate.Max, "Fullest slice (Max)"),
+        new GirthAggregateOption(GirthAggregate.Min, "Narrowest slice (Min)"),
+        new GirthAggregateOption(GirthAggregate.Mean, "Average slice (Mean)"),
+    };
+
+    public IReadOnlyList<GirthAggregateOption> GirthAggregateOptionsList => GirthAggregateOptions;
 
     /// <summary>True for MeasurementRatio: the A / B cells show measurement-name pickers (numerator,
     /// denominator) instead of key-vertex pickers.</summary>
     public bool ShowMeasurementRefFields => Kind == MeasurementKind.MeasurementRatio;
     public bool ShowVertexRefPickersAB => Kind != MeasurementKind.MeasurementRatio;
 
-    /// <summary>True for RegionVolume measurements: the grid shows a Region dropdown and hides the
-    /// vertex-ref columns (A..D), which this kind doesn't use.</summary>
-    public bool ShowRegionField => Kind == MeasurementKind.RegionVolume;
+    /// <summary>True for RegionVolume and Girth measurements: the grid shows a Region dropdown and hides the
+    /// vertex-ref columns (A..D), which these kinds don't use.</summary>
+    public bool ShowRegionField => MeasurementMath.ReadsRegion(Kind);
 
     /// <summary>Inverse of <see cref="ShowRegionField"/>: the vertex-ref columns are enabled for the
-    /// distance/ratio kinds and disabled for RegionVolume.</summary>
-    public bool ShowVertexRefFields => Kind != MeasurementKind.RegionVolume;
+    /// distance/ratio kinds and disabled for RegionVolume / Girth.</summary>
+    public bool ShowVertexRefFields => !MeasurementMath.ReadsRegion(Kind);
 
     /// <summary>Display-friendly labels for <see cref="MeasurementAxis"/>. Viewer positions are in
     /// HelixToolkit Y-up space (see BodySlideDeformer remarks), so X=left/right, Y=up/down, Z=front/back.</summary>
@@ -12678,12 +12703,26 @@ public class VM_MeasurementDefinition : VM
             DenominatorAxis = Kind == MeasurementKind.RatioDistance ? DenominatorAxis : null,
             AngleViewAxis = Kind == MeasurementKind.Angle ? AngleViewAxis : null,
             VertexRefNames = refs,
-            RegionRefName = Kind == MeasurementKind.RegionVolume ? (RegionRefName?.Trim() ?? "") : "",
+            RegionRefName = MeasurementMath.ReadsRegion(Kind) ? (RegionRefName?.Trim() ?? "") : "",
+            GirthAggregate = Kind == MeasurementKind.Girth ? GirthAggregate : GirthAggregate.Max,
+            GirthStep = Kind == MeasurementKind.Girth ? GirthStep : 1.0f,
             MeasurementRefNames = isRatio
                 ? new List<string> { MeasurementRefA?.Trim() ?? "", MeasurementRefB?.Trim() ?? "" }
                 : new List<string>(),
         };
     }
+}
+
+/// <summary>Paired (value, display-label) for a Girth row's slice-reduction ComboBox.</summary>
+public sealed class GirthAggregateOption
+{
+    public GirthAggregateOption(GirthAggregate value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+    public GirthAggregate Value { get; }
+    public string Label { get; }
 }
 
 /// <summary>Paired (value, display-label) for the axis ComboBox in the measurement grid.</summary>

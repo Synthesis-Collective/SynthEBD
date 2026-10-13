@@ -142,9 +142,14 @@ public static partial class UiDocs
         // ---------- Measurements tab ----------
 
         Add("BodyTypeProfiles.MeasurementRegionRef",
-            layperson: "For a RegionVolume measurement: which saved Region's enclosed volume to measure.",
-            technical: "Sets VM_MeasurementDefinition.RegionRefName, which only the MeasurementKind.RegionVolume kind reads (the vertex refs A-D are ignored for it). The named region's surface patch is clipped to the box, capped along its boundary loop(s), and integrated per preset by RegionVolumeEvaluator.",
-            motivation: "Volume discriminates fullness (for example cup size) where any two-point distance misreads long/narrow versus broad/flat geometry.");
+            layperson: "For a RegionVolume measurement: which saved Region's enclosed volume to measure. For a Girth measurement: which saved Region is the band to measure around, like a tape measure.",
+            technical: "Sets VM_MeasurementDefinition.RegionRefName, which only the MeasurementKind.RegionVolume and MeasurementKind.Girth kinds read (the vertex refs A-D are ignored for them). RegionVolume: the named region's surface patch is clipped to the box, capped along its boundary loop(s), and integrated per preset by RegionVolumeEvaluator. Girth: only the region's member vertices are read (no caps, so the region need not resolve to a valid volume); RegionGirthEvaluator slices them by zeroed-space height and measures the convex-hull perimeter of each slice's deformed positions in the X-Z plane.",
+            motivation: "Volume discriminates fullness (for example cup size) where any two-point distance misreads long/narrow versus broad/flat geometry. Girth is what body-shape systems such as FFIT are defined on (bust, waist and hip circumferences), so their definitions apply without converting volumes.");
+
+        Add("BodyTypeProfiles.MeasurementGirthAggregate",
+            layperson: "For a Girth measurement: which slice of the band counts. 'Fullest' takes the largest circumference (bust or hips), 'Narrowest' the smallest (the natural waist), 'Average' the mean over the band.",
+            technical: "Sets GirthAggregate on a MeasurementKind.Girth row. The band is cut at zeroed-space heights GirthStep apart (default 1.0 raw unit; editable only in the rules JSON), starting half a step above the band's lowest member; each slice collects the members within 0.35 units of its height on the sliders-0 mesh and measures the convex-hull perimeter of their deformed X-Z positions. Slices with fewer than three vertices or a degenerate hull are skipped; if none remain the measurement is unresolved (RegionNotResolved). GirthAggregate and GirthStep are part of the cache fingerprint for Girth rows only.",
+            motivation: "A tape measure is placed at the fullest point of the bust and hips and the narrowest point of the waist; taking the max or min over a band finds that level on every preset without hand-placing a key vertex.");
 
         Add("BodyTypeProfiles.MeasurementAngleView",
             layperson: "For an Angle measurement: whether the angle between line A-B and line C-D is measured in full 3D, or as seen from the side, from above, or from the front. Side view is what you see in a profile render.",
