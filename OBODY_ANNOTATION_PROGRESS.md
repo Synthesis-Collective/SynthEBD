@@ -2158,11 +2158,36 @@ Stable IDs (mirroring `CODE_REVIEW_NOTES.md`). Resolve during sessions; record t
     Petite at 378). Knock-ons: Chest Petite -> Medium 4488, Medium -> Busty 2646; Build gains Curvy on ~2390 rows.
   - **Kept:** the user reviewed Spread in-app and preferred the new cuts; BustSize re-approved at `a574fefdc7`
     and Chest approved at `92221f8130` (2026-10-08).
+- **`D52`** -- 2026-10-13: **FFIT-style Shape -- infrastructure DONE, rules NOT changed (blocked on a decision).**
+  - **Decision (user, 2026-10-09):** Pear should follow FFIT (the convention people generally use: hips wider than the
+    bust, cups included) instead of the frame-based armpit test; keep the frame rule as a disabled alternative; add
+    FFIT's *Bottom Hourglass* and *Spoon* as new Shape values. Earlier Shape verdicts (`shape_worklist.txt`,
+    `pear_worklist.txt`, `pear_waist_worklist.txt`; 41 rows) were judged frame-based, so they don't calibrate FFIT.
+  - **Code (committed):** regions may opt into > 2 cap loops (`59d608fa`); `Evaluate` resolves regions when the caller
+    passes none -- fixes the live BodySlide classifier / annotation table silently failing every RegionVolume and
+    Region-key-vertex measurement (`39ee1450`); new `MeasurementRatio` kind (`361d0b3c`).
+  - **Profile data (rule file, backups `*.pre-d52.bak`):** regions `Bust_Band` (Y 89-103.5, X +-11, AnatomicalFan,
+    2 loops), `Waist_Band` (82-87, +-11, 2), `HighHip_Band` (76.5-81, +-16, 2), `Hip_Band` (58-75.5, +-16,
+    AnatomicalFan, 5 loops: waist cut, two thigh cuts, two fixed mesh openings); volume measurements
+    `bust/waist/highhip/hip_band_vol`; ratios `bust_to_hip_volume`, `waist_to_hip_volume`,
+    `highhip_to_waist_volume`. No rule reads them yet. **Needs the in-app rescan** to fill them.
+  - **Calibration finding:** FFIT (Lee, Istook, Nam & Park 2007, Table 7 via Sokolowski et al., 3DBODY.TECH 2020) applied
+    to convex-hull tape girths (`ffit_girth.py`, 0.5625 in/unit; zeroed body ~35.7 / 24.3 / 30.2 / 40.4 in
+    bust / waist / high hip / hip) gives **Spoon 59.7%, Hourglass 33.4%, Top Hourglass 5.0%, Bottom Hourglass 1.7%,
+    Triangle (Pear) 2 rows**. FFIT's waist test is absolute (Triangle needs hip - waist < 9 in), and every preset has a
+    deeply defined waist (hip - waist 5th percentile 13.1 in, median 17.7). The bust-vs-hip test works naturally
+    (61% have hips >= 3.6 in over the bust). Volume ratios track tape-girth ratios well for bust/hip (Spearman 0.90)
+    and waist/hip (0.86), weakly for high hip/waist (0.57) -- a volume-based Spoon test would be unreliable.
+  - _(open: user picks how to relativise FFIT's waist test (e.g. waist/hip >= 0.58 -> Pear 32%, >= 0.60 -> 20%),
+    and whether Spoon is kept given its weak volume proxy; then author FFIT Pear / Bottom Hourglass / Spoon + the
+    disabled frame Pear, with Hourglass / Rectangle as "not Pear")_
 ---
 
 ## Session log
 
 Append newest at the top. Keep entries short: date, what changed, what got approved.
+
+- **2026-10-13** -- **`D52` (FFIT Shape) infrastructure**: band regions + volume / ratio measurements added (needs rescan); live-classifier region bug fixed; `MeasurementRatio` kind added. **Rules unchanged**: literal FFIT gives Pear ~0% on this corpus (absolute waist test) -- awaiting the user's choice of a relative waist test.
 
 - **2026-10-08** -- **`BustSize` RE-APPROVED** (hash `a574fefdc7`, `D51` bands kept after the in-app Spread review) and **`Chest` APPROVED** (hash `92221f8130`; pure BustSize mapping, 17/18 judged in 3D). Tier 2 left: Realism; then Build.
 
