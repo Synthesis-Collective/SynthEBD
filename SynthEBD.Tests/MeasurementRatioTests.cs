@@ -87,6 +87,16 @@ public class MeasurementRatioTests
     public void VertexRefCount_IsZero_ForMeasurementRatio() =>
         MeasurementMath.VertexRefCount(MeasurementKind.MeasurementRatio).Should().Be(0);
 
+    [Fact]
+    public void TryEvaluate_OnARatio_ReturnsFalseInsteadOfIndexingMissingVertexRefs()
+    {
+        // Regression: VertexRefCount 0 let TryEvaluate index VertexRefNames[0] on an empty list (the editor's
+        // Live column threw ArgumentOutOfRangeException on profile load).
+        var act = () => MeasurementMath.TryEvaluate(Ratio("b2h", "bust", "hip"), new Dictionary<string, NamedKeyVertex>(),
+            (_, _) => null, null, null, null, null, out _);
+        act.Should().NotThrow().Which.Should().BeFalse();
+    }
+
     // ---- partial fill ----
 
     [Fact]

@@ -8317,6 +8317,8 @@ public class VM_BodyTypeProfile : VM
                     : (float?)null;
                 continue;
             }
+            // Ratios are filled by the post-pass below, from the other rows' live values.
+            if (m.Kind == MeasurementKind.MeasurementRatio) continue;
             if (MeasurementMath.TryEvaluate(m.DumpToModel(), keyVertsByName,
                 (shape, idx) => viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null,
                 shape => viewer.GetShapePositions(shape),

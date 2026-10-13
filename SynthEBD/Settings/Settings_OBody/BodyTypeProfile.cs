@@ -948,7 +948,11 @@ public static class MeasurementMath
         value = 0f;
         if (def == null || def.VertexRefNames == null || lookup == null) return false;
 
-        int needed = VertexRefCount(def.Kind);
+        // MeasurementRatio reads other measurements, not key vertices: callers evaluate it in their post-pass
+        // (EvaluateMeasurementRatios). Every kind handled here reads at least the A / B pair, so never index
+        // past a shorter list even if VertexRefCount reports fewer.
+        if (def.Kind == MeasurementKind.MeasurementRatio) return false;
+        int needed = Math.Max(VertexRefCount(def.Kind), 2);
         if (def.VertexRefNames.Count < needed) return false;
 
         if (!TryResolve(def.VertexRefNames[0], keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions, zeroedShapeLookup, out var a)) return false;
