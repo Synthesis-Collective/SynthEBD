@@ -82,6 +82,49 @@ public class GirthMeasurementTests
         g.Should().BeApproximately((float)Polygon(radius), 1e-3f);
     }
 
+    [Theory]
+    [InlineData(GirthAggregate.Max, 4.5f, 3.0)]
+    [InlineData(GirthAggregate.Min, 7.5f, 1.0)]
+    public void MeasuredLoops_DrawTheSliceTheValueComesFrom(GirthAggregate aggregate, float ringY, double radius)
+    {
+        var (region, zeroed) = RingStack();
+        var loops = RegionGirthEvaluator.MeasuredLoops(region, zeroed, aggregate, 1.0f);
+
+        loops.Should().ContainSingle();
+        var loop = loops[0];
+        loop.Should().HaveCount(RingVerts).And.OnlyContain(p => Math.Abs(p.Y - ringY) < 1e-4f);
+        double length = loop.Select((p, i) => (double)(loop[(i + 1) % loop.Length] - p).Length).Sum();
+        length.Should().BeApproximately(Polygon(radius), 1e-3);
+        RegionGirthEvaluator.TryComputeGirth(region, zeroed, aggregate, 1.0f, out float g).Should().BeTrue();
+        length.Should().BeApproximately(g, 1e-3);
+    }
+
+    [Fact]
+    public void MeasuredLoops_Mean_DrawsEverySlice()
+    {
+        var (region, zeroed) = RingStack();
+        RegionGirthEvaluator.MeasuredLoops(region, zeroed, GirthAggregate.Mean, 1.0f).Should().HaveCount(10);
+    }
+
+    [Fact]
+    public void MeasuredLoops_BridgeTheGapBetweenTwoMasses()
+    {
+        // One slice holding two separate squares (two thighs, or two breasts seen from above): the loop is the
+        // 1 x 5 outer rectangle, with no vertex from the inner faces of the gap.
+        // The squares sit at Y 2.5; a far-off member at Y 2.0 makes the band's first slice level 2.5 (half a step above
+        // its lowest member) and is itself outside that slice's +-0.35 slab.
+        var pts = new[] { (0f, 0f), (1f, 0f), (1f, 1f), (0f, 1f), (3f, 0f), (4f, 0f), (4f, 1f), (3f, 1f) }
+            .Select(p => new Vector3(p.Item1, 2.5f, p.Item2))
+            .Append(new Vector3(100f, 2.0f, 100f)).ToArray();
+        var region = new ResolvedRegion
+        {
+            MemberVertexIndices = Enumerable.Range(0, pts.Length).ToArray(),
+            MemberZeroedY = pts.Select(p => p.Y).ToArray(),
+        };
+        var loop = RegionGirthEvaluator.MeasuredLoops(region, pts, GirthAggregate.Max, 1.0f).Single();
+        loop.Should().HaveCount(4).And.NotContain(p => p.X == 1f || p.X == 3f);
+    }
+
     [Fact]
     public void Mean_AveragesEverySlice()
     {

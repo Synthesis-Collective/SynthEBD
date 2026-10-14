@@ -279,6 +279,13 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
                 {
                     VM_BodyTypeProfile.AppendMeasurementLineSegments(
                         spec, "", Resolve, (_, _, _) => "", segments);
+                    // A Girth draws its tape path, measured on this render's own deformed mesh.
+                    if (spec.Kind == MeasurementKind.Girth && regions != null
+                        && regions.TryGetValue(spec.RegionRefName, out var girthRegion))
+                    {
+                        VM_BodyTypeProfile.AppendGirthTapeSegments(girthRegion, vm.GetShapePositions(girthRegion.ShapeName),
+                            spec.GirthAggregate, spec.GirthStep, null, segments);
+                    }
                 }
                 vm.SetMeasurementLines(segments);
 

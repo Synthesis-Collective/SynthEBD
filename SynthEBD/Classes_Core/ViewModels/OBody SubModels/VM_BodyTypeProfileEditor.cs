@@ -8314,7 +8314,8 @@ public class VM_BodyTypeProfile : VM
             if (m == null || string.IsNullOrEmpty(m.Name) || specs.ContainsKey(m.Name)) continue;
             specs[m.Name] = new VM_BodyTypeProfile.MeasurementLineSpec(
                 m.Kind, m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD,
-                m.Axis, m.NumeratorAxis, m.DenominatorAxis, m.AngleViewAxis);
+                m.Axis, m.NumeratorAxis, m.DenominatorAxis, m.AngleViewAxis,
+                m.RegionRefName?.Trim() ?? "", m.GirthAggregate, m.GirthStep);
         }
         return (keyVertsByName, resolvedRegions, specs, regionNamesByMeasurement);
     }
@@ -9003,6 +9004,8 @@ public class VM_BodyTypeProfile : VM
                 new MeasurementLineSpec(sel.Kind, sel.VertexRefA, sel.VertexRefB, sel.VertexRefC, sel.VertexRefD,
                     sel.Axis, sel.NumeratorAxis, sel.DenominatorAxis, sel.AngleViewAxis),
                 name, Resolve, PairSlot, segments);
+            if (sel.Kind == MeasurementKind.Girth)
+                AppendGirthTapeSegments(viewer, sel, name, segments);
         }
 
         // Tint every region the selected measurements use. Pushed before the empty-segments early
@@ -9042,6 +9045,43 @@ public class VM_BodyTypeProfile : VM
     /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/> layout. Regions are resolved through
     /// the same sliders-0 cache as the region editor (<see cref="GetOrResolveRegion"/>), so they follow
     /// the previewed preset. Empty when no selected measurement uses a region.</summary>
+    /// <summary>Draws a Girth row's tape path: the convex-hull loop of the slice it measures (Max / Min) or of every
+    /// slice it averages (Mean), from <see cref="RegionGirthEvaluator.MeasuredLoops"/> on the live mesh -- the same
+    /// slices and hull the value comes from, so a straight edge across the front of the chest is exactly what's measured.
+    /// The band tint underneath only shows which vertices are sliced, and follows the skin.</summary>
+    private void AppendGirthTapeSegments(VM_CharacterViewer viewer, VM_MeasurementDefinition sel, string name,
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
+    {
+        var regionName = sel.RegionRefName?.Trim() ?? "";
+        if (regionName.Length == 0) return;
+        var regionModel = Regions.Select(r => r.DumpToModel())
+            .FirstOrDefault(r => string.Equals(r.Name?.Trim(), regionName, StringComparison.Ordinal));
+        if (regionModel == null) return;
+        var resolved = GetOrResolveRegion(viewer, regionModel);
+        if (resolved == null) return;
+        AppendGirthTapeSegments(resolved, viewer.GetShapePositions(resolved.ShapeName), sel.GirthAggregate, sel.GirthStep,
+            name + " (tape path)", segments);
+    }
+
+    /// <summary>Appends the tape-path loop(s) of a Girth measurement on <paramref name="positions"/> (the deformed
+    /// mesh of the region's shape) in the primary measurement-line color. Shared by the live overlay and Show
+    /// Spread's thumbnails. Returns the number of segments added (0 when the girth doesn't resolve).</summary>
+    internal static int AppendGirthTapeSegments(RegionVolumeEvaluator.ResolvedRegion? resolved,
+        OpenTK.Mathematics.Vector3[]? positions, GirthAggregate aggregate, float step, string? label,
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
+    {
+        if (resolved == null || positions == null) return 0;
+        var tape = new OpenTK.Mathematics.Vector3(1.0f, 0.85f, 0.1f); // the primary measurement-line yellow
+        int added = 0;
+        foreach (var loop in RegionGirthEvaluator.MeasuredLoops(resolved, positions, aggregate, step))
+        {
+            for (int i = 0; i < loop.Length; i++)
+                segments.Add((loop[i], loop[(i + 1) % loop.Length], tape, label));
+            added += loop.Length;
+        }
+        return added;
+    }
+
     private List<float> BuildMeasurementRegionTint(VM_CharacterViewer viewer,
         IReadOnlyList<VM_MeasurementDefinition> sels, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
     {
@@ -9123,7 +9163,8 @@ public class VM_BodyTypeProfile : VM
     internal readonly record struct MeasurementLineSpec(
         MeasurementKind Kind, string VertexRefA, string VertexRefB, string VertexRefC, string VertexRefD,
         MeasurementAxis Axis, MeasurementAxis? NumeratorAxis, MeasurementAxis? DenominatorAxis,
-        MeasurementAxis? AngleViewAxis = null);
+        MeasurementAxis? AngleViewAxis = null,
+        string RegionRefName = "", GirthAggregate GirthAggregate = GirthAggregate.Max, float GirthStep = 1.0f);
 
     /// <summary>Appends the marker that shows which angle an <see cref="MeasurementKind.Angle"/> measures:
     /// a white guide continuing line A->B's direction from the pivot C (the "straight on" reference --
