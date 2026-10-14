@@ -309,6 +309,11 @@ public static partial class UiDocs
             technical: "Mirror of VerboseScan, read by RunScanAsync: emits the target count, viewer/key-vertex/fingerprint shape comparisons, a first-iteration measurement snapshot, a first-vs-last identity check, and a summary.",
             motivation: "The usual failure mode is a scan that silently matches zero presets; the diagnostics show which stage - shape names, fingerprint, or measurements - went wrong.");
 
+        Add("BodyTypeProfiles.WatchScanLive",
+            layperson: "Shows each preset on the character as the scan measures it. Much slower; leave off for normal scans, which measure in the background without moving the preview.",
+            technical: "Mirror of WatchScanLive, read by RunScanAsync. Off: HeadlessMeasurementScan captures the scene once (HeadlessBodyDeformer: pre-skinned base meshes and per-slider skinned offset tables for only the shapes the profile references) and evaluates rows in parallel on worker threads, each with its own profile copy, skipping rules (descriptors are re-derived from the cache afterwards). On: every row is applied to the viewer with ApplyBodySlide and read back, one row per UI yield. Both store the same values up to float rounding. If the scene can't supply a headless deformer, the scan falls back to the live path and logs why.",
+            motivation: "Linear blend skinning is affine per vertex, so a preset's skinned shape is a skinned base plus a weighted sum of pre-skinned slider offsets - one pass per row instead of a full viewer deform, upload and repaint. Watching remains useful for spotting a preset that deforms oddly.");
+
         Add("BodyTypeProfiles.CacheStatus",
             layperson: "How many measurement results are saved on disk for this profile's current body type, so future sessions can skip rescanning.",
             technical: "CacheStatusSummary, refreshed after hydrate, scan, and purge. The disk cache stores measurements (not descriptors) per (preset, gender, weight) under a snapshot keyed by the profile's BodyTypeName; entries invalidate automatically when a preset's sliders change or a measurement / key-vertex definition is edited.",

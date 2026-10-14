@@ -13,7 +13,7 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
    - [BSLightingShaderProperty fields](#bslightingshaderproperty-fields)
    - [BSShaderTextureSet slots](#bsshadertextureset-slots)
    - [NiAlphaProperty](#nialphaproperty)
-   - [Skinning](#skinning)
+   - [Skinning](#skinning) (incl. [headless deformation](#headless-deformation-batch-measurement))
    - [Parse cost & performance](#parse-cost--performance)
    - [Dismember partitions and shape filtering](#dismember-partitions-and-shape-filtering)
    - [Shader flag inventory](#shader-flag-inventory)
@@ -251,6 +251,14 @@ CPU-side, in [TryApplyCpuSkinning](Nif/NifMeshBuilder.cs#L1380). For each bone t
 Per vertex: read up to 4 bone-weight pairs from `nif.GetShapeBoneWeights(...)`, accumulate the weighted bone transform on the vertex position and (with the rotation portion only) on the normal. The result becomes the renderer's `Positions` array; the original NIF positions are kept as `BindPosePositions` for BodySlide morphing.
 
 Why CPU-side skinning instead of a GPU vertex shader doing it: BodySlide morphing happens after skinning and needs to operate on the deformed positions. Doing skinning in-shader would require re-running the morph at every redraw, multiplying CPU work for no rendering gain.
+
+#### Headless deformation (batch measurement)
+
+[HeadlessBodyDeformer](Nif/HeadlessBodyDeformer.cs), built by `VM_CharacterViewer.CreateHeadlessBodyDeformer(shapeNames)`, produces the same post-skinning positions `ApplyMorphSet` writes to `GlMesh.CpuPositions`, without the viewer: no normals, no interleaved buffer, no GPU upload, no `BodySlideApplied`. SynthEBD's Match Presets scan uses it to measure presets in parallel.
+
+The viewer's per-shape path (`DeformShape`) is `skin(lerp(base0, base1, t) + Σ_k c_k · D_k)`, with `D_k` slider k's morph offset (NIF Z-up deltas converted to Y-up) and `c_k = Big_k/100 · t + Small_k/100 · (1 - t)`. Linear blend skinning is affine per vertex (`CachedSkinTransform.Apply` = rotation · scale · p + translation, blended by normalised bone weights), and the weight lerp is an affine combination, so this equals `lerp(skin(base0), skin(base1), t) + Σ_k c_k · skinOffset(D_k)`. The deformer skins both bases once and builds each slider's sparse table of skinned offsets once (`NifMeshBuilder.SkinOffset`, which applies `CachedSkinTransform.ApplyLinear` -- rotation **and scale**, no translation; `ApplyRotation`, used for normals, drops the scale and would be wrong here). A preset is then one pass over the base plus a sparse sum. It is exact for any skeleton pose; results differ from the viewer only by float rounding.
+
+Delta-source rules mirror `ApplyMorphSet`: the sibling .tri, when present, supplies every slider (no per-slider OSD fallback); otherwise OSD sources are registered per key (`PrepareOsdSource`; SynthEBD keys them by slider group). The same slider-map builders are shared (`BodySlideDeformer.BuildSliderDeltaMapFromTri` / `BuildSliderDeltaMap`), and an applied slider that references a vertex past the shape's count leaves the shape at its base, as the viewer does. `HeadlessBodyDeformerTests` checks the deformer against the viewer's lerp → `ApplyDeformationFromTri` → `ApplySkinning` sequence on a mesh with scaled, translated bones and partial or zero weights.
 
 ### Parse cost & performance
 

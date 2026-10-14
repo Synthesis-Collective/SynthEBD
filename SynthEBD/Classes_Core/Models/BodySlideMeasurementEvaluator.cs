@@ -165,10 +165,30 @@ public static class BodySlideMeasurementEvaluator
         IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null,
         IReadOnlyCollection<(string Category, string Value)>? externalDescriptors = null)
     {
-        var result = new EvaluationResult();
-        if (viewer == null || profile == null) return result;
+        if (viewer == null || profile == null) return new EvaluationResult();
+        return Evaluate(MeasurementMeshSource.FromViewer(viewer), profile, includeDrafts, evaluationGender,
+            measurementNamesAllowlist, skipRules, resolvedRegions, externalDescriptors);
+    }
 
-        result.TopologyMismatch = !FingerprintMatches(profile, viewer);
+    /// <summary>As <see cref="Evaluate(VM_CharacterViewer, BodyTypeProfile, bool, Gender?, IReadOnlySet{string}?, bool, IReadOnlyDictionary{string, RegionVolumeEvaluator.ResolvedRegion}?, IReadOnlyCollection{ValueTuple{string, string}}?)"/>,
+    /// reading mesh state from <paramref name="mesh"/> instead of a live viewer (the Match Presets scan's
+    /// headless path). Note that resolving a BoundingBox / Region / Coordinate key vertex writes its
+    /// <see cref="NamedKeyVertex.VertexIndex"/> on <paramref name="profile"/>, so concurrent callers must each
+    /// pass their own profile copy.</summary>
+    public static EvaluationResult Evaluate(
+        MeasurementMeshSource mesh,
+        BodyTypeProfile profile,
+        bool includeDrafts = false,
+        Gender? evaluationGender = null,
+        IReadOnlySet<string>? measurementNamesAllowlist = null,
+        bool skipRules = false,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions = null,
+        IReadOnlyCollection<(string Category, string Value)>? externalDescriptors = null)
+    {
+        var result = new EvaluationResult();
+        if (mesh == null || profile == null) return result;
+
+        result.TopologyMismatch = !FingerprintMatches(profile, mesh.ShapeVertexCounts);
 
         var keyVertsByName = new Dictionary<string, NamedKeyVertex>(StringComparer.Ordinal);
         if (profile.KeyVertices != null)
@@ -180,18 +200,17 @@ public static class BodySlideMeasurementEvaluator
             }
         }
 
-        MeasurementMath.VertexLookup lookup = (shape, idx) =>
-            viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null;
-        MeasurementMath.ShapePositionsLookup shapeLookup = shape => viewer.GetShapePositions(shape);
+        MeasurementMath.VertexLookup lookup = mesh.Vertex;
+        MeasurementMath.ShapePositionsLookup shapeLookup = mesh.Positions;
         // Bone-info lookup is consulted only by the BoneTransition criterion; everything else
         // ignores it. Surface it unconditionally — the per-criterion gate in TryResolve avoids
         // the actual fetch when the row's criterion isn't BoneTransition*.
-        MeasurementMath.ShapeBoneInfoLookup boneLookup = shape => viewer.GetShapeBoneInfo(shape);
+        MeasurementMath.ShapeBoneInfoLookup boneLookup = mesh.Bones;
         // Zeroed (sliders-0, weight-0) positions, consulted only by Coordinate-strategy key vertices:
         // their stored position is matched to the nearest current zeroed vertex (renumber-/variant-stable)
         // before the deformed position is read via `lookup`. Weight 0 is the canonical undeformed reference
         // used at both capture and match time.
-        MeasurementMath.ShapePositionsLookup zeroedShapeLookup = shape => viewer.GetZeroedShapePositions(shape, 0);
+        MeasurementMath.ShapePositionsLookup zeroedShapeLookup = shape => mesh.Zeroed(shape, 0);
 
         // Callers outside the Match Presets scan (the BodySlide-setting live classifier, the annotation
         // table's re-evaluation) pass no baked regions. Without them every RegionVolume measurement and
@@ -199,11 +218,11 @@ public static class BodySlideMeasurementEvaluator
         // regions here exactly as the scan does: against the sliders-0 mesh at the weight being measured.
         if (resolvedRegions == null && NeedsResolvedRegions(profile))
         {
-            int weight = viewer.NpcWeight;
+            int weight = mesh.NpcWeight;
             resolvedRegions = RegionVolumeEvaluator.ResolveRegions(
                 profile.Regions,
-                shape => viewer.GetZeroedShapePositions(shape, weight),
-                shape => viewer.GetShapeIndices(shape));
+                shape => mesh.Zeroed(shape, weight),
+                shape => mesh.Indices(shape));
         }
 
         // MeasurementRatio rows read other measurements by name, so they run after this loop; a partial fill
@@ -698,7 +717,7 @@ public static class BodySlideMeasurementEvaluator
         return result;
     }
 
-    private static bool FingerprintMatches(BodyTypeProfile profile, VM_CharacterViewer viewer)
+    private static bool FingerprintMatches(BodyTypeProfile profile, Func<Dictionary<string, int>> shapeVertexCounts)
     {
         if (profile?.Fingerprint == null) return true; // no fingerprint authored == no claim made
         if (profile.Fingerprint.ShapeVertexCounts == null || profile.Fingerprint.ShapeVertexCounts.Count == 0)
@@ -729,7 +748,7 @@ public static class BodySlideMeasurementEvaluator
         }
         if (!hasExplicitKeyVertices) return true;
 
-        var counts = viewer.GetCurrentShapeVertexCounts();
+        var counts = shapeVertexCounts();
         return ShapeCountsMatch(profile.Fingerprint.ShapeVertexCounts, counts);
     }
 

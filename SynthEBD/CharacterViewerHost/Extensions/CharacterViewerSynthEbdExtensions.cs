@@ -104,6 +104,18 @@ public static class CharacterViewerSynthEbdExtensions
         SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).ApplyBodySlide(preset, weight);
     }
 
+    /// <summary>SynthEBD-facing headless deformer for a batch of presets: the scene's
+    /// <paramref name="shapeNames"/> body shapes plus, when the body has no .tri, the OSD context
+    /// <see cref="ApplyBodySlide"/> would load for each preset's SliderGroup. Deform a preset with
+    /// <c>deformer.Deform(shape, SynthEbdViewerHostState.ToMorphSet(preset), weight,
+    /// SynthEbdViewerHostState.HeadlessOsdKey(preset.SliderGroup))</c>. Null when the viewer can't
+    /// supply one.</summary>
+    internal static HeadlessBodyDeformer? CreateHeadlessDeformer(this VM_CharacterViewer viewer,
+        IEnumerable<string> shapeNames, IEnumerable<BodySlideSetting> presets)
+    {
+        return SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).CreateHeadlessDeformer(shapeNames, presets);
+    }
+
     /// <summary>
     /// SynthEBD-facing guest overlay ("superimpose"): draws <paramref name="npcFormKey"/>
     /// wearing <paramref name="preset"/> at <paramref name="weight"/> on top of whatever

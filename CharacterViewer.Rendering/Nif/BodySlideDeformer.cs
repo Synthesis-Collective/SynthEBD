@@ -374,7 +374,7 @@ public class BodySlideDeformer
     /// <paramref name="shapeName"/> is null or nothing matches, falls back to the
     /// first shape in the file.
     /// </summary>
-    private Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMapFromTri(
+    internal static Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMapFromTri(
         BodyTriFile triFile, string? shapeName)
     {
         var map = new Dictionary<string, Dictionary<ushort, Vector3>>(StringComparer.OrdinalIgnoreCase);
@@ -403,7 +403,7 @@ public class BodySlideDeformer
         return map;
     }
 
-    private Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMap(
+    internal static Dictionary<string, Dictionary<ushort, Vector3>> BuildSliderDeltaMap(
         List<OsdFile> osdFiles, string? shapeName)
     {
         var map = new Dictionary<string, Dictionary<ushort, Vector3>>(StringComparer.OrdinalIgnoreCase);

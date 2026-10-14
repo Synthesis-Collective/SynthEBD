@@ -569,6 +569,12 @@ public class VM_BodyTypeProfileEditor : VM
     /// Status Log isn't noisy during normal use.</summary>
     public bool VerboseScan { get; set; }
 
+    /// <summary>Toggle on the Match Presets tab. Off (default): <see cref="RunScanAsync"/> measures presets
+    /// headless (<see cref="HeadlessMeasurementScan"/>) -- in parallel, off the UI thread, without moving the
+    /// viewer. On: every preset is applied to the viewer as it is measured, so the scan can be watched; much
+    /// slower. Both store the same values (up to float rounding).</summary>
+    public bool WatchScanLive { get; set; }
+
     /// <summary>When exactly one descriptor value is selected in <see cref="DescriptorFilter"/>,
     /// re-sorts <see cref="MatchingPresets"/> by how well each preset clears the matching
     /// rule's thresholds. <see cref="MarginScoreMode.Off"/> keeps the default
@@ -2036,7 +2042,120 @@ public class VM_BodyTypeProfileEditor : VM
             string firstLabel = null;
             string lastLabel = null;
 
-            foreach (var (ph, gender, weight, namesAllowlist) in missing)
+            // Persist measurements (not descriptors) into the shared cache. Descriptors
+            // are derived later via DeriveDescriptorsFor + the profile's current rules.
+            // Shared by the live and headless paths. Two cases:
+            // - Full scan: build a fresh MeasurementCacheEntry with every defined
+            //   measurement (null for failures, preserving the "could not compute"
+            //   signal), tagged with the current PresetSliderHash. Replaces any prior
+            //   entry under the same key.
+            // - Partial fill: locate the existing entry, write only the names in
+            //   namesAllowlist into it, leaving sibling measurements and the entry's
+            //   PresetSliderHash / TopologyMismatch flags untouched (the entry survived
+            //   the slider-hash and body-mesh validation passes that decided it was
+            //   reusable — those metadata fields are still correct).
+            void StoreScanResult(BodySlideSetting model, Gender gender, int weight, HashSet<string>? namesAllowlist,
+                BodySlideMeasurementEvaluator.EvaluationResult result)
+            {
+                var cacheKey = (model.Label ?? "", gender, weight);
+                if (namesAllowlist != null)
+                {
+                    if (!profile.MeasurementCache.TryGetValue(cacheKey, out var existingEntry))
+                    {
+                        // The entry vanished between detection and execution (shouldn't
+                        // happen on the UI thread, but be defensive). Fall back to a full
+                        // write so we don't silently drop the values we just computed.
+                        existingEntry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                        {
+                            TopologyMismatch = result.TopologyMismatch,
+                            PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
+                        };
+                        profile.MeasurementCache[cacheKey] = existingEntry;
+                    }
+                    foreach (var name in namesAllowlist)
+                    {
+                        existingEntry.Measurements[name] = result.Measurements.TryGetValue(name, out var v)
+                            ? (float?)v
+                            : null;
+                        // Tag each freshly-computed value with the fingerprint that produced
+                        // it (granular-drop pass uses this on the next scan to detect drift).
+                        if (currentMeasurementFps.TryGetValue(name, out var fp))
+                            existingEntry.MeasurementFingerprints[name] = fp;
+                    }
+                }
+                else
+                {
+                    var entry = new VM_BodyTypeProfile.MeasurementCacheEntry
+                    {
+                        TopologyMismatch = result.TopologyMismatch,
+                        PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
+                    };
+                    if (profileModel.Measurements != null)
+                    {
+                        foreach (var def in profileModel.Measurements)
+                        {
+                            if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                            entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
+                                ? (float?)v
+                                : null;
+                            if (currentMeasurementFps.TryGetValue(def.Name, out var fp))
+                                entry.MeasurementFingerprints[def.Name] = fp;
+                        }
+                    }
+                    profile.MeasurementCache[cacheKey] = entry;
+                }
+            }
+
+            // Headless path (default): measure every row off the UI thread without driving the viewer
+            // (HeadlessMeasurementScan). The live path below is kept for watching the scan: it applies each
+            // preset to the viewer, so the body visibly changes as rows are measured. If the viewer can't
+            // supply a headless deformer, fall back to the live path.
+            HeadlessMeasurementScan? headlessScan = WatchScanLive
+                ? null
+                : HeadlessMeasurementScan.TryCreate(viewer, profileModel, missing.Select(m => m.ph.AssociatedModel));
+            if (!WatchScanLive && headlessScan == null)
+            {
+                _logger?.LogMessage("BodyTypeProfile scan: headless measurement unavailable for the current scene "
+                    + "(no deformable shape the profile references, scene mid-rebuild, or BodySlide disabled); "
+                    + "scanning through the viewer instead.");
+            }
+            if (headlessScan != null)
+            {
+                var rows = missing.Select(m => new HeadlessMeasurementScan.Row(m.ph.AssociatedModel, m.gender, m.weight, m.namesAllowlist)).ToList();
+                string cachedNote = reused > 0 ? $" ({reused} cached)" : "";
+                ScanStatus = $"Measuring {rows.Count} slice(s) headless{cachedNote}...";
+                var progress = new Progress<int>(n =>
+                {
+                    ScanProgressPercent = rows.Count == 0 ? 100 : (n * 100) / rows.Count;
+                    ScanStatus = $"Measuring {n}/{rows.Count} (headless){cachedNote}";
+                });
+                Exception? headlessError = null;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var results = await System.Threading.Tasks.Task.Run(
+                    () => headlessScan.Run(rows, resolvedRegionsByWeight, ct, progress, out headlessError));
+                sw.Stop();
+                int failedRows = 0;
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    if (results[i] is not { } r)
+                    {
+                        if (!ct.IsCancellationRequested) failedRows++;
+                        continue;
+                    }
+                    StoreScanResult(rows[i].Preset, rows[i].Gender, rows[i].Weight, rows[i].NamesAllowlist, r);
+                    done++;
+                }
+                ScanProgressPercent = (done * 100) / Math.Max(1, missing.Count);
+                _logger?.LogMessage($"BodyTypeProfile scan: measured {done} slice(s) headless in {sw.Elapsed.TotalSeconds:F1}s"
+                    + (failedRows > 0 ? $"; {failedRows} slice(s) failed and stay uncached" : "") + ".");
+                if (headlessError != null)
+                {
+                    _logger?.LogError("BodyTypeProfile scan: headless measurement error (first of "
+                        + failedRows + "): " + ExceptionLogger.GetExceptionStack(headlessError));
+                }
+            }
+
+            foreach (var (ph, gender, weight, namesAllowlist) in headlessScan == null ? missing : new())
             {
                 if (ct.IsCancellationRequested) break;
                 var model = ph.AssociatedModel;
@@ -2157,65 +2276,7 @@ public class VM_BodyTypeProfileEditor : VM
                         + $"topoMismatch={result.TopologyMismatch} ruleMatches={result.Descriptors.Count}");
                 }
 
-                // Persist measurements (not descriptors) into the shared cache. Descriptors
-                // are derived later via DeriveDescriptorsFor + the profile's current rules.
-                // Two paths:
-                // - Full scan: build a fresh MeasurementCacheEntry with every defined
-                //   measurement (null for failures, preserving the "could not compute"
-                //   signal), tagged with the current PresetSliderHash. Replaces any prior
-                //   entry under the same key.
-                // - Partial fill: locate the existing entry, write only the names in
-                //   namesAllowlist into it, leaving sibling measurements and the entry's
-                //   PresetSliderHash / TopologyMismatch flags untouched (the entry survived
-                //   the slider-hash and body-mesh validation passes that decided it was
-                //   reusable — those metadata fields are still correct).
-                var cacheKey = (model.Label ?? "", gender, weight);
-                if (isPartialFill)
-                {
-                    if (!profile.MeasurementCache.TryGetValue(cacheKey, out var existingEntry))
-                    {
-                        // The entry vanished between detection and execution (shouldn't
-                        // happen on the UI thread, but be defensive). Fall back to a full
-                        // write so we don't silently drop the values we just computed.
-                        existingEntry = new VM_BodyTypeProfile.MeasurementCacheEntry
-                        {
-                            TopologyMismatch = result.TopologyMismatch,
-                            PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
-                        };
-                        profile.MeasurementCache[cacheKey] = existingEntry;
-                    }
-                    foreach (var name in namesAllowlist!)
-                    {
-                        existingEntry.Measurements[name] = result.Measurements.TryGetValue(name, out var v)
-                            ? (float?)v
-                            : null;
-                        // Tag each freshly-computed value with the fingerprint that produced
-                        // it (granular-drop pass uses this on the next scan to detect drift).
-                        if (currentMeasurementFps.TryGetValue(name, out var fp))
-                            existingEntry.MeasurementFingerprints[name] = fp;
-                    }
-                }
-                else
-                {
-                    var entry = new VM_BodyTypeProfile.MeasurementCacheEntry
-                    {
-                        TopologyMismatch = result.TopologyMismatch,
-                        PresetSliderHash = MeasurementCacheStore.ComputePresetSliderHash(model),
-                    };
-                    if (profileModel.Measurements != null)
-                    {
-                        foreach (var def in profileModel.Measurements)
-                        {
-                            if (def == null || string.IsNullOrEmpty(def.Name)) continue;
-                            entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
-                                ? (float?)v
-                                : null;
-                            if (currentMeasurementFps.TryGetValue(def.Name, out var fp))
-                                entry.MeasurementFingerprints[def.Name] = fp;
-                        }
-                    }
-                    profile.MeasurementCache[cacheKey] = entry;
-                }
+                StoreScanResult(model, gender, weight, namesAllowlist, result);
 
                 if (firstMeasSnapshot == null)
                 {
@@ -2251,7 +2312,8 @@ public class VM_BodyTypeProfileEditor : VM
 
             // Restore the user's previously-loaded preset so the viewer isn't parked on a
             // random scan target when the run finishes.
-            if (savedPreset?.AssociatedModel != null)
+            // (The headless path never moved the viewer.)
+            if (headlessScan == null && savedPreset?.AssociatedModel != null)
             {
                 viewer.ApplyBodySlide(savedPreset.AssociatedModel, savedWeight);
             }

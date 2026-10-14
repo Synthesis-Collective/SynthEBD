@@ -3616,6 +3616,29 @@ public partial class VM_CharacterViewer : ViewerVm
         return dst;
     }
 
+    /// <summary>
+    /// Builds a <see cref="HeadlessBodyDeformer"/> for the named body shapes of the current scene: the same
+    /// cached base meshes, skinning and sibling .tri that <see cref="ApplyMorphSet"/> deforms, captured so a
+    /// batch measurement can deform presets without driving the viewer (no GL upload, no normals, no
+    /// <see cref="BodySlideApplied"/>). Names are matched case-insensitively against the cached body meshes;
+    /// shapes that aren't deformable body meshes are skipped (they never change under a morph). Returns null
+    /// when there is nothing to deform, the scene is mid-rebuild, or BodySlide application is disabled.
+    /// The deformer holds references to the current meshes, so a later scene change doesn't affect it.
+    /// </summary>
+    public HeadlessBodyDeformer? CreateHeadlessBodyDeformer(IEnumerable<string> shapeNames)
+    {
+        if (_bodySlideDisabled || _cachedBodyMeshes.Count == 0 || _sceneRebuildPending || shapeNames == null) return null;
+        TryLoadSiblingBodyTri(); // idempotent; the same .tri ApplyMorphSet would prefer
+
+        var wanted = new HashSet<string>(shapeNames, StringComparer.OrdinalIgnoreCase);
+        var shapes = new List<(string, NifMeshBuilder.BuiltMesh)>();
+        foreach (var kvp in _cachedBodyMeshes)
+        {
+            if (wanted.Contains(kvp.Key) && kvp.Value != null) shapes.Add((kvp.Key, kvp.Value));
+        }
+        return shapes.Count == 0 ? null : new HeadlessBodyDeformer(shapes, _cachedBodyTri);
+    }
+
     /// <summary>Companion to <see cref="GetShapePositions"/> that surfaces the per-vertex
     /// bone indices + weights (4 entries each per vertex, flat-packed) for the bone-transition
     /// criterion in <c>MeasurementMath.FindBestInBox</c>. Returns <c>(null, null)</c> when the

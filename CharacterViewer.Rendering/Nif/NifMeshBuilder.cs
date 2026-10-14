@@ -427,6 +427,19 @@ public class NifMeshBuilder
         }
 
         /// <summary>
+        /// Applies the linear part of <see cref="Apply"/> to an offset vector: rotation * (v * scale), no
+        /// translation. Apply(p + v) = Apply(p) + ApplyLinear(v), so a position offset added before skinning
+        /// becomes ApplyLinear(offset) after it. Unlike <see cref="ApplyRotation"/> this keeps the scale.
+        /// </summary>
+        public void ApplyLinear(float x, float y, float z, out float rx, out float ry, out float rz)
+        {
+            float sx = x * Scale, sy = y * Scale, sz = z * Scale;
+            rx = R00 * sx + R01 * sy + R02 * sz;
+            ry = R10 * sx + R11 * sy + R12 * sz;
+            rz = R20 * sx + R21 * sy + R22 * sz;
+        }
+
+        /// <summary>
         /// Applies only the rotation to a direction vector (no scale, no translation).
         /// </summary>
         public void ApplyRotation(float x, float y, float z, out float rx, out float ry, out float rz)
@@ -2839,6 +2852,38 @@ public class NifMeshBuilder
             VertBoneWeights = vertBoneWeights,
             VertexCount = vertCount,
         };
+    }
+
+    /// <summary>
+    /// Skins a position <b>offset</b> at vertex <paramref name="vertexIndex"/>: the change that
+    /// <see cref="ApplySkinning"/> makes to that vertex's output when <paramref name="offsetYUp"/> is
+    /// added to its input. Linear blend skinning is affine per vertex, so
+    /// skin(p + d) = skin(p) + SkinOffset(d), and a slider's morph offsets can be skinned once and
+    /// then scaled and summed per preset (see <see cref="HeadlessBodyDeformer"/>). Mirrors
+    /// <see cref="ApplySkinning"/> exactly: same Y-up/Z-up conversion, same weight normalisation, and
+    /// the same identity cases (no skinning when the positions are shorter than the skinned vertex
+    /// count, an index past it, or a vertex with no positive bone weight).
+    /// </summary>
+    public static Vector3 SkinOffset(SkinningInfo skinning, int positionCount, int vertexIndex, Vector3 offsetYUp)
+    {
+        int vertCount = skinning.VertexCount;
+        if (vertCount == 0 || positionCount < vertCount || vertexIndex >= vertCount) return offsetYUp;
+
+        float px = offsetYUp.X, py = -offsetYUp.Z, pz = offsetYUp.Y;
+        float accX = 0, accY = 0, accZ = 0, totalWeight = 0;
+        int baseIdx = vertexIndex * 4;
+        for (int k = 0; k < 4; k++)
+        {
+            float w = skinning.VertBoneWeights[baseIdx + k];
+            if (w <= 0) continue;
+            int bIdx = skinning.VertBoneIndices[baseIdx + k];
+            skinning.BoneTransforms[bIdx].ApplyLinear(px, py, pz, out float tx, out float ty, out float tz);
+            accX += w * tx; accY += w * ty; accZ += w * tz;
+            totalWeight += w;
+        }
+        return totalWeight > 0
+            ? new Vector3(accX / totalWeight, accZ / totalWeight, -accY / totalWeight)
+            : offsetYUp;
     }
 
     /// <summary>

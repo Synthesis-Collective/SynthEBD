@@ -111,6 +111,33 @@ internal sealed class SynthEbdViewerHostState
         _vm.ApplyMorphSet(ToMorphSet(preset), weight);
     }
 
+    /// <summary>Builds a <see cref="HeadlessBodyDeformer"/> over <paramref name="shapeNames"/> of the current
+    /// scene for a batch of <paramref name="presets"/>. When the body has no sibling .tri, the OSD context
+    /// <see cref="ApplyBodySlide"/> would load is prepared once per distinct slider group (source key =
+    /// <see cref="HeadlessOsdKey"/>). Null when the viewer can't supply one (see
+    /// <see cref="VM_CharacterViewer.CreateHeadlessBodyDeformer"/>).</summary>
+    internal HeadlessBodyDeformer? CreateHeadlessDeformer(IEnumerable<string> shapeNames, IEnumerable<BodySlideSetting> presets)
+    {
+        var deformer = _vm.CreateHeadlessBodyDeformer(shapeNames);
+        if (deformer == null || deformer.UsesTri) return deformer;
+        foreach (var group in presets.Select(p => p?.SliderGroup).Where(g => g != null).Distinct(StringComparer.Ordinal))
+        {
+            try
+            {
+                deformer.PrepareOsdSource(HeadlessOsdKey(group)!, _osdLoader.LoadForSliderGroup(group!));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("CharacterViewer: SynthEbd OSD pre-load failed for slider group '"
+                    + group + "' (headless scan): " + ExceptionLogger.GetExceptionStack(ex));
+            }
+        }
+        return deformer;
+    }
+
+    /// <summary>The <see cref="HeadlessBodyDeformer"/> OSD source key for a preset's slider group.</summary>
+    internal static string? HeadlessOsdKey(string? sliderGroup) => sliderGroup;
+
     // ───────────────────────────────────────────────────────────────────
     //  LoadGuestNpcAsync (superimpose)
     // ───────────────────────────────────────────────────────────────────

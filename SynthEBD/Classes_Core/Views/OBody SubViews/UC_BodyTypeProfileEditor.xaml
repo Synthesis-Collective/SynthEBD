@@ -1509,6 +1509,10 @@
                                                   IsChecked="{Binding DataContext.VerboseScan, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                   VerticalAlignment="Center" Margin="0,0,10,5"
                                                   local:DocTooltip.Key="BodyTypeProfiles.VerboseScan"/>
+                                        <CheckBox Content="Watch Scan"
+                                                  IsChecked="{Binding DataContext.WatchScanLive, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  VerticalAlignment="Center" Margin="0,0,10,5"
+                                                  local:DocTooltip.Key="BodyTypeProfiles.WatchScanLive"/>
                                         <Button Content="Cancel"
                                                 Command="{Binding DataContext.CancelScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 Padding="6,2" Margin="0,0,10,5"/>
