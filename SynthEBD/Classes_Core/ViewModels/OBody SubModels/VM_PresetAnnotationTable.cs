@@ -245,6 +245,7 @@ public class VM_PresetAnnotationTable : VM
             }
 
             int done = 0;
+            int staleSkipped = 0; // rows whose preset never reached the viewer; left uncached
 
             foreach (var (ph, gender, weight) in missing)
             {
@@ -261,6 +262,15 @@ public class VM_PresetAnnotationTable : VM
                 // scan and only repainting once at the end. Background (4) yields to
                 // Render. Same fix as RunScanAsync's per-iteration yield.
                 await Dispatcher.Yield(DispatcherPriority.Background);
+
+                // The apply may only be queued (scene loading / rebuilding); measuring before it lands
+                // stores the previous mesh's values. Skip a row that never lands -- it stays uncached.
+                if (!await viewer.WaitForBodySlideAppliedAsync(model, weight, ct))
+                {
+                    if (ct.IsCancellationRequested) break;
+                    staleSkipped++;
+                    continue;
+                }
 
                 // Same gender-aware evaluation as RunScanAsync — keeps Male/Female rules
                 // scoped correctly when the annotation table populates the shared cache.
@@ -295,7 +305,7 @@ public class VM_PresetAnnotationTable : VM
             PopulateRowsFromCache();
             profile.RebuildScanResultsFromCache(profileModel, includeDrafts: true);
             profile.ScanResultsStale = false;
-            profile.MeasurementCacheStale = false;
+            if (staleSkipped == 0) profile.MeasurementCacheStale = false; // skipped rows are still missing
 
             if (ct.IsCancellationRequested)
             {
@@ -306,6 +316,8 @@ public class VM_PresetAnnotationTable : VM
                 ScanStatus = reused > 0
                     ? $"Scan complete: {done} evaluated, {reused} cached. {Rows.Count} row(s)."
                     : $"Scanned {done} (preset, weight) slices across {targets.Count} preset(s).";
+                if (staleSkipped > 0)
+                    ScanStatus += $" {staleSkipped} slice(s) skipped (viewer busy) -- scan again to fill them.";
             }
         }
         catch (Exception ex)

@@ -199,6 +199,21 @@ public partial class VM_CharacterViewer : ViewerVm
     /// undeformed body. Null until a preset has been applied this session.</summary>
     private (MorphSet Morphs, int Weight)? _lastAppliedMorphSet;
 
+    /// <summary>Label and weight of the morph the <b>current scene's</b> meshes are deformed with: set each time
+    /// <see cref="ApplyMorphSet"/> actually deforms (including the zeroed flip), cleared when a new scene commits
+    /// (its meshes start at their base). Unlike <see cref="_lastAppliedMorphSet"/> it is never stale across a
+    /// reload, and unlike the request it is not set while a morph is only queued.</summary>
+    private (string Label, int Weight)? _currentSceneMorph;
+
+    /// <summary>The morph (label, weight) the current scene's meshes carry, or null when none has been applied to
+    /// this scene yet. A caller that applies a preset and must read the result (e.g. a measurement scan) waits
+    /// until this matches its request and <see cref="HasPendingMorphSet"/> is false.</summary>
+    public (string Label, int Weight)? CurrentSceneMorph => _currentSceneMorph;
+
+    /// <summary>True while a morph is queued for the next scene commit (<see cref="ApplyMorphSet"/> arrived before
+    /// the scene was ready); the meshes don't carry it yet.</summary>
+    public bool HasPendingMorphSet => _pendingMorphSet != null;
+
     /// <summary>Label tag on the synthetic empty MorphSet the zeroed-flip applies, so
     /// <see cref="ApplyMorphSet"/> knows not to record it as the "last applied" preset.</summary>
     private const string ZeroedFlipLabel = "(region zeroed-flip)";
@@ -4479,6 +4494,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // pending-override queue so ApplyTextureOverrides takes the direct path.
         _sceneRebuildPending = false;
         IsLoading = false;
+        _currentSceneMorph = null; // the new meshes are at their base until a morph is applied below or later
 
         if (_pendingTextureOverrides != null)
         {
@@ -6691,6 +6707,10 @@ public partial class VM_CharacterViewer : ViewerVm
     // if the seam or another deformation artifact returns.
     private static bool _bodySlideDisabled = false;
 
+    /// <summary>True when the BodySlide kill-switch is on: <see cref="ApplyMorphSet"/> then never deforms, so
+    /// <see cref="CurrentSceneMorph"/> never follows a request.</summary>
+    public static bool BodySlideDisabled => _bodySlideDisabled;
+
     /// <summary>
     /// Pre-populates the OSD context that <see cref="ApplyMorphSet"/> consumes
     /// when no sibling .tri is present. Hosts call this once per scene change
@@ -6807,6 +6827,9 @@ public partial class VM_CharacterViewer : ViewerVm
                 // after ApplyMorphSet returns).
                 glMesh.CpuPositions = positions;
             }
+            // The CPU positions now carry this morph (set after the deform, so an early return above -- no
+            // delta source -- leaves the previous record, which still describes the untouched meshes).
+            _currentSceneMorph = (morphs.Label ?? "", weight);
 
             if (pendingUploads.Count > 0)
             {

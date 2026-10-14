@@ -111,6 +111,9 @@ internal sealed class SynthEbdViewerHostState
         _vm.ApplyMorphSet(ToMorphSet(preset), weight);
     }
 
+    /// <summary>True while <see cref="ApplyBodySlide"/> is parked waiting for the scene to commit.</summary>
+    internal bool HasPendingBodySlide => _pendingBodySlide != null;
+
     /// <summary>Builds a <see cref="HeadlessBodyDeformer"/> over <paramref name="shapeNames"/> of the current
     /// scene for a batch of <paramref name="presets"/>. When the body has no sibling .tri, the OSD context
     /// <see cref="ApplyBodySlide"/> would load is prepared once per distinct slider group (source key =

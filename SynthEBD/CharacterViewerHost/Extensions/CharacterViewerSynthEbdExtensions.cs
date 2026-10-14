@@ -104,6 +104,47 @@ public static class CharacterViewerSynthEbdExtensions
         SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).ApplyBodySlide(preset, weight);
     }
 
+    /// <summary>True when the viewer's meshes currently carry <paramref name="preset"/> at
+    /// <paramref name="weight"/>: the last morph actually applied to this scene matches it, and neither the host
+    /// (scene not ready) nor the viewer (scene mid-rebuild) still holds a queued morph that would replace it.
+    /// Always true when BodySlide application is disabled (the meshes never deform, so there is nothing to
+    /// wait for).</summary>
+    internal static bool IsBodySlideApplied(this VM_CharacterViewer viewer, BodySlideSetting preset, int weight)
+    {
+        if (VM_CharacterViewer.BodySlideDisabled) return true;
+        if (SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).HasPendingBodySlide || viewer.HasPendingMorphSet) return false;
+        return viewer.CurrentSceneMorph is { } m
+            && m.Weight == weight
+            && string.Equals(m.Label, preset?.Label ?? "", StringComparison.Ordinal); // ToMorphSet's label
+    }
+
+    /// <summary>Waits until the viewer's meshes carry <paramref name="preset"/> at <paramref name="weight"/>
+    /// (<see cref="IsBodySlideApplied"/>), polling without blocking the UI thread. Call after
+    /// <see cref="ApplyBodySlide"/> and before reading the mesh: the apply is only queued while the scene is
+    /// loading or rebuilding, and reading earlier measures whatever mesh was there before. With
+    /// <paramref name="reissueIfLost"/>, a request that seems lost (still not applied after 3 s) is re-issued once --
+    /// right for a scan that owns the viewer, wrong for an interactive caller, where a newer preset the user chose
+    /// would be overwritten. False on cancellation or after 8 s, in which case the caller must not measure.</summary>
+    internal static async Task<bool> WaitForBodySlideAppliedAsync(this VM_CharacterViewer viewer,
+        BodySlideSetting preset, int weight, CancellationToken ct = default, bool reissueIfLost = true)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        bool reissued = !reissueIfLost;
+        while (!ct.IsCancellationRequested)
+        {
+            if (viewer.IsBodySlideApplied(preset, weight)) return true;
+            if (sw.ElapsedMilliseconds > 8000) return false;
+            if (!reissued && sw.ElapsedMilliseconds > 3000)
+            {
+                reissued = true;
+                viewer.ApplyBodySlide(preset, weight);
+                continue;
+            }
+            await Task.Delay(15);
+        }
+        return false;
+    }
+
     /// <summary>SynthEBD-facing headless deformer for a batch of presets: the scene's
     /// <paramref name="shapeNames"/> body shapes plus, when the body has no .tri, the OSD context
     /// <see cref="ApplyBodySlide"/> would load for each preset's SliderGroup. Deform a preset with

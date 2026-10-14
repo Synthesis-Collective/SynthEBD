@@ -2026,6 +2026,7 @@ public class VM_BodyTypeProfileEditor : VM
             }
 
             int done = 0;
+            int staleSkipped = 0; // live path: rows whose preset never reached the viewer (see WaitForBodySlideAppliedAsync)
             ScanProgressPercent = 0;
 
             // Seed context for the per-iteration Evaluate calls below: assembled once (VM dumps),
@@ -2220,9 +2221,23 @@ public class VM_BodyTypeProfileEditor : VM
                 // back-to-back without ever rendering, freezing the UI for the whole
                 // scan and only repainting once at the end. Background (4) is below
                 // Render, so the dispatcher must drain Render before resuming us.
-                // Doubles as the "wait for deferred-drain" yield ApplyBodySlide
-                // sometimes needs when the scene is mid-rebuild.
                 await Dispatcher.Yield(DispatcherPriority.Background);
+
+                // One yield is not enough when the preset was only QUEUED (host: scene not yet
+                // committed; viewer: scene mid-rebuild): measuring then reads whatever mesh was there
+                // before. That is how the first rows of a scan could store the previous preset's (or
+                // the preview's) values -- e.g. identical band volumes at weights 0 and 25. Wait until
+                // the meshes actually carry this preset; a row that never gets there is skipped
+                // (left uncached, so the next scan retries it) rather than stored stale.
+                if (!await viewer.WaitForBodySlideAppliedAsync(model, weight, ct))
+                {
+                    if (ct.IsCancellationRequested) break;
+                    staleSkipped++;
+                    _logger?.LogMessage($"BodyTypeProfile scan: '{model.Label}' @ {weight} was not applied to the viewer "
+                        + "in time (scene busy); skipped, left uncached for the next scan.");
+                    ScanProgressPercent = ((done + staleSkipped) * 100) / missing.Count;
+                    continue;
+                }
 
                 // Pass the iteration's gender so RuleGender-filtered rules behave correctly
                 // (Male-only rules only fire on male presets, etc.). On the partial-fill
@@ -2291,7 +2306,7 @@ public class VM_BodyTypeProfileEditor : VM
                 lastLabel = $"{model.Label}@W{weight}";
 
                 done++;
-                ScanProgressPercent = (done * 100) / missing.Count;
+                ScanProgressPercent = ((done + staleSkipped) * 100) / missing.Count;
             }
 
             if (VerboseScan && firstMeasSnapshot != null && lastMeasSnapshot != null)
@@ -2333,6 +2348,8 @@ public class VM_BodyTypeProfileEditor : VM
                 ScanStatus = reused > 0
                     ? $"Scan complete: {done} evaluated, {reused} cached. {withMatches} with matches, {empty} empty."
                     : $"Scan complete: {done} evaluations across {targets.Count} preset(s). {withMatches} with matches, {empty} empty.";
+                if (staleSkipped > 0)
+                    ScanStatus += $" {staleSkipped} slice(s) skipped (viewer busy) -- run the scan again to fill them.";
                 if (VerboseScan)
                 {
                     _logger?.LogMessage($"BodyTypeProfile scan summary: {withMatches} (preset, weight) combos produced ≥1 match; {empty} produced none.");

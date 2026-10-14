@@ -217,7 +217,15 @@ public class VM_BodySlideSetting : VM
             }
 
             await CharacterViewer.LoadNpcAsync(npc, lk);
-            CharacterViewer.ApplyBodySlide(AssociatedPlaceHolder.AssociatedModel, slot.Weight);
+            var preset = AssociatedPlaceHolder.AssociatedModel;
+            CharacterViewer.ApplyBodySlide(preset, slot.Weight);
+
+            // LoadNpcAsync returns before the new scene commits, so the apply above is usually only
+            // queued. Classify once the meshes actually carry this preset: classifying earlier measured
+            // the previous preset's (or NPC's) mesh and merged those descriptors into this slot. If the
+            // user moved on to another slot meanwhile, that refresh classifies instead.
+            if (!await CharacterViewer.WaitForBodySlideAppliedAsync(preset, slot.Weight, reissueIfLost: false)) return;
+            if (!ReferenceEquals(slot, SelectedWeightSlot)) return;
 
             // Phase 5: run the BodySlide Classifier against the just-deformed mesh and merge any
             // matched descriptors into this weight slot. Skips silently when no profile is

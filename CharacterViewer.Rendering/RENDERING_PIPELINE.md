@@ -252,6 +252,10 @@ Per vertex: read up to 4 bone-weight pairs from `nif.GetShapeBoneWeights(...)`, 
 
 Why CPU-side skinning instead of a GPU vertex shader doing it: BodySlide morphing happens after skinning and needs to operate on the deformed positions. Doing skinning in-shader would require re-running the morph at every redraw, multiplying CPU work for no rendering gain.
 
+#### Reading a morph back: `CurrentSceneMorph`
+
+`ApplyMorphSet` only *queues* a morph while the scene is loading or rebuilding (`_pendingMorphSet`, drained when the scene commits), and SynthEBD's host queues one step earlier while the scene isn't ready. A caller that applies a preset and then reads `CpuPositions` (a measurement scan, the BodySlide classifier) must wait until the meshes actually carry it. `CurrentSceneMorph` is the (label, weight) the current scene's meshes are deformed with: set right after the deform loop writes the new positions (not when a morph is queued, and not when there is no delta source, since the meshes are then untouched), cleared when a new scene commits (fresh meshes are at their base). `HasPendingMorphSet` reports a queued morph. SynthEBD's `IsBodySlideApplied` / `WaitForBodySlideAppliedAsync` combine these with the host queue. Before this, scans yielded once and measured; a preset still queued at that moment was stored with the previous mesh's values.
+
 #### Headless deformation (batch measurement)
 
 [HeadlessBodyDeformer](Nif/HeadlessBodyDeformer.cs), built by `VM_CharacterViewer.CreateHeadlessBodyDeformer(shapeNames)`, produces the same post-skinning positions `ApplyMorphSet` writes to `GlMesh.CpuPositions`, without the viewer: no normals, no interleaved buffer, no GPU upload, no `BodySlideApplied`. SynthEBD's Match Presets scan uses it to measure presets in parallel.
