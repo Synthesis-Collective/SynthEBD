@@ -165,4 +165,46 @@ public class TorsoTraceMeasurementTests
         var girthEdited = new MeasurementDefinition { Name = "g", Kind = MeasurementKind.Girth, RegionRefName = "L_Breast", TraceMetric = TorsoTraceMetric.LatFlare };
         Fp(girth).Should().Be(Fp(girthEdited));
     }
+
+    // ---------- editor row (VM_MeasurementDefinition, constructed with a null parent like RegionVolumeUiVmTests) ----------
+
+    private static MeasurementDefinition TraceRow(TorsoTraceMetric metric) => new()
+    {
+        Name = "stem_window_flare", Kind = MeasurementKind.TorsoTrace, RegionRefName = "L_Breast", TraceMetric = metric,
+        VertexRefNames = new List<string> { "LowerSternumFront", "MidSternumFront", "UpperSternumFront" },
+    };
+
+    [Fact]
+    public void EditorRow_RoundTripsMetricRegionAndThreeSternumRefs()
+    {
+        var dumped = new VM_MeasurementDefinition(TraceRow(TorsoTraceMetric.LatFlare), null!).DumpToModel();
+        dumped.Kind.Should().Be(MeasurementKind.TorsoTrace);
+        dumped.TraceMetric.Should().Be(TorsoTraceMetric.LatFlare);
+        dumped.RegionRefName.Should().Be("L_Breast");
+        dumped.VertexRefNames.Should().Equal("LowerSternumFront", "MidSternumFront", "UpperSternumFront");
+    }
+
+    [Fact]
+    public void EditorRow_ShowsRegionRefsAndMetric_NotTheDistanceAxis()
+    {
+        var vm = new VM_MeasurementDefinition(TraceRow(TorsoTraceMetric.StemWindowFlare), null!);
+        vm.ShowRegionField.Should().BeTrue();
+        vm.ShowVertexRefFields.Should().BeTrue();
+        vm.ShowRefC.Should().BeTrue();
+        vm.ShowSecondPair.Should().BeFalse("column D stays off");
+        vm.ShowTraceMetricField.Should().BeTrue();
+        vm.ShowDistanceAxisPicker.Should().BeFalse();
+    }
+
+    [Fact]
+    public void EditorRow_OtherKinds_DropTheMetricAndTheThirdRef()
+    {
+        var vm = new VM_MeasurementDefinition(TraceRow(TorsoTraceMetric.LatFlare), null!) { Kind = MeasurementKind.AxisDistance };
+        var dumped = vm.DumpToModel();
+        dumped.TraceMetric.Should().Be(TorsoTraceMetric.StemWindowFlare);
+        dumped.VertexRefNames.Should().HaveCount(2);
+        dumped.RegionRefName.Should().BeEmpty();
+        vm.ShowRefC.Should().BeFalse();
+        vm.ShowTraceMetricField.Should().BeFalse();
+    }
 }

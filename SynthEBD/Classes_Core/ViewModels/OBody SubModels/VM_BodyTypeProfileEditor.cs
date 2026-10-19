@@ -5974,7 +5974,7 @@ public class VM_BodyTypeProfile : VM
             bool ratio = m.Kind == MeasurementKind.MeasurementRatio;
             m.IsRefAValid = ratio || RefIsValid(m.VertexRefA, names);
             m.IsRefBValid = ratio || RefIsValid(m.VertexRefB, names);
-            m.IsRefCValid = !m.ShowSecondPair || RefIsValid(m.VertexRefC, names);
+            m.IsRefCValid = !m.ShowRefC || RefIsValid(m.VertexRefC, names);
             m.IsRefDValid = !m.ShowSecondPair || RefIsValid(m.VertexRefD, names);
             // An operand must name another row: a ratio of itself can never resolve.
             var self = (m.Name ?? "").Trim();
@@ -8378,11 +8378,29 @@ public class VM_BodyTypeProfile : VM
             }
         }
 
+        var liveTraceCache = new Dictionary<string, TorsoTraceEvaluator.Trace?>(StringComparer.Ordinal);
         foreach (var m in Measurements)
         {
             if (viewer == null)
             {
                 m.LiveValue = null;
+                continue;
+            }
+            if (m.Kind == MeasurementKind.TorsoTrace)
+            {
+                // Cuts the shape's triangles once per refresh (shared by the TorsoTrace rows), like Evaluate.
+                m.LiveValue = BodySlideMeasurementEvaluator.TryEvaluateTorsoTrace(
+                    m.DumpToModel(), keyVertsByName,
+                    (shape, idx) => viewer.TryGetCurrentVertex(shape, idx, out var p) ? (OpenTK.Mathematics.Vector3?)p : null,
+                    shape => viewer.GetShapePositions(shape),
+                    shape => viewer.GetShapeBoneInfo(shape),
+                    resolvedRegions,
+                    shape => viewer.GetZeroedShapePositions(shape, 0),
+                    shape => viewer.GetShapeIndices(shape),
+                    liveTraceCache,
+                    out float tv, out _)
+                    ? tv
+                    : (float?)null;
                 continue;
             }
             if (MeasurementMath.ReadsRegion(m.Kind))
@@ -9803,6 +9821,7 @@ public class VM_BodyTypeProfile : VM
         {
             bool isRatio = m.Kind == MeasurementKind.RatioDistance;
             bool hasCD = MeasurementMath.VertexRefCount(m.Kind) == 4;
+            bool hasC = MeasurementMath.VertexRefCount(m.Kind) >= 3; // TorsoTrace's third sternum point
             string[] row =
             {
                 m.Name ?? "",
@@ -9810,7 +9829,7 @@ public class VM_BodyTypeProfile : VM
                 // A MeasurementRatio's A / B are its numerator / denominator measurement names.
                 m.Kind == MeasurementKind.MeasurementRatio ? (m.MeasurementRefA ?? "") : (m.VertexRefA ?? ""),
                 m.Kind == MeasurementKind.MeasurementRatio ? (m.MeasurementRefB ?? "") : (m.VertexRefB ?? ""),
-                hasCD ? (m.VertexRefC ?? "") : "",
+                hasC ? (m.VertexRefC ?? "") : "",
                 hasCD ? (m.VertexRefD ?? "") : "",
                 (m.Kind == MeasurementKind.AxisDistance
                  || m.Kind == MeasurementKind.SignedAxisDistance
@@ -12605,6 +12624,7 @@ public class VM_MeasurementDefinition : VM
         RegionRefName = source.RegionRefName ?? "";
         GirthAggregate = source.GirthAggregate;
         GirthStep = source.GirthStep;
+        TraceMetric = source.TraceMetric;
         var ops = source.MeasurementRefNames ?? new List<string>();
         MeasurementRefA = ops.Count > 0 ? ops[0] ?? "" : "";
         MeasurementRefB = ops.Count > 1 ? ops[1] ?? "" : "";
@@ -12672,6 +12692,9 @@ public class VM_MeasurementDefinition : VM
     /// carried through so a hand-edited value survives a save.</summary>
     public float GirthStep { get; set; } = 1.0f;
 
+    /// <summary>For a <see cref="MeasurementKind.TorsoTrace"/> measurement, what is read from the torso trace.</summary>
+    public TorsoTraceMetric TraceMetric { get; set; } = TorsoTraceMetric.StemWindowFlare;
+
     /// <summary>For a <see cref="MeasurementKind.MeasurementRatio"/> measurement, the numerator (A) and
     /// denominator (B) measurement names. Shown in the A / B cells in place of the key-vertex pickers.
     /// Empty/ignored for all other kinds.</summary>
@@ -12734,6 +12757,9 @@ public class VM_MeasurementDefinition : VM
     /// <summary>True for the 4-ref kinds (RatioDistance, Angle): the C and D columns are live.</summary>
     public bool ShowSecondPair => Kind == MeasurementKind.RatioDistance || Kind == MeasurementKind.Angle;
 
+    /// <summary>True when the C column is live: the 4-ref kinds, and TorsoTrace (its third sternum point).</summary>
+    public bool ShowRefC => ShowSecondPair || Kind == MeasurementKind.TorsoTrace;
+
     /// <summary>True for RatioDistance only: the Num Axis / Den Axis columns are live.</summary>
     public bool ShowRatioAxisFields => Kind == MeasurementKind.RatioDistance;
 
@@ -12741,7 +12767,7 @@ public class VM_MeasurementDefinition : VM
     /// instead of the distance axis.</summary>
     public bool ShowAngleViewField => Kind == MeasurementKind.Angle;
     public bool ShowDistanceAxisPicker => Kind != MeasurementKind.Angle && Kind != MeasurementKind.MeasurementRatio
-                                          && Kind != MeasurementKind.Girth;
+                                          && Kind != MeasurementKind.Girth && Kind != MeasurementKind.TorsoTrace;
 
     /// <summary>True for Girth: the Axis cell shows the slice-reduction picker (<see cref="GirthAggregate"/>).</summary>
     public bool ShowGirthAggregateField => Kind == MeasurementKind.Girth;
@@ -12756,18 +12782,31 @@ public class VM_MeasurementDefinition : VM
 
     public IReadOnlyList<GirthAggregateOption> GirthAggregateOptionsList => GirthAggregateOptions;
 
+    /// <summary>True for TorsoTrace: the Axis cell shows the trace-metric picker (<see cref="TraceMetric"/>).</summary>
+    public bool ShowTraceMetricField => Kind == MeasurementKind.TorsoTrace;
+
+    /// <summary>Display labels for <see cref="TorsoTraceMetric"/>.</summary>
+    public static IReadOnlyList<TraceMetricOption> TraceMetricOptions { get; } = new[]
+    {
+        new TraceMetricOption(TorsoTraceMetric.StemWindowFlare, "Stem flare"),
+        new TraceMetricOption(TorsoTraceMetric.StemWindowLength, "Stem window height"),
+        new TraceMetricOption(TorsoTraceMetric.LatFlare, "Lat flare"),
+    };
+
+    public IReadOnlyList<TraceMetricOption> TraceMetricOptionsList => TraceMetricOptions;
+
     /// <summary>True for MeasurementRatio: the A / B cells show measurement-name pickers (numerator,
     /// denominator) instead of key-vertex pickers.</summary>
     public bool ShowMeasurementRefFields => Kind == MeasurementKind.MeasurementRatio;
     public bool ShowVertexRefPickersAB => Kind != MeasurementKind.MeasurementRatio;
 
-    /// <summary>True for RegionVolume and Girth measurements: the grid shows a Region dropdown and hides the
-    /// vertex-ref columns (A..D), which these kinds don't use.</summary>
+    /// <summary>True for the region-reading kinds (RegionVolume, Girth, TorsoTrace): the grid enables the Region
+    /// dropdown.</summary>
     public bool ShowRegionField => MeasurementMath.ReadsRegion(Kind);
 
-    /// <summary>Inverse of <see cref="ShowRegionField"/>: the vertex-ref columns are enabled for the
-    /// distance/ratio kinds and disabled for RegionVolume / Girth.</summary>
-    public bool ShowVertexRefFields => !MeasurementMath.ReadsRegion(Kind);
+    /// <summary>The vertex-ref columns are enabled for the distance/ratio kinds and for TorsoTrace (its sternum
+    /// points, alongside the region), and disabled for RegionVolume / Girth.</summary>
+    public bool ShowVertexRefFields => !MeasurementMath.ReadsRegion(Kind) || Kind == MeasurementKind.TorsoTrace;
 
     /// <summary>Display-friendly labels for <see cref="MeasurementAxis"/>. Viewer positions are in
     /// HelixToolkit Y-up space (see BodySlideDeformer remarks), so X=left/right, Y=up/down, Z=front/back.</summary>
@@ -12809,11 +12848,8 @@ public class VM_MeasurementDefinition : VM
         var refs = new List<string>();
         if (!isRatio && !string.IsNullOrEmpty(VertexRefA)) refs.Add(VertexRefA);
         if (!isRatio && !string.IsNullOrEmpty(VertexRefB)) refs.Add(VertexRefB);
-        if (MeasurementMath.VertexRefCount(Kind) == 4)
-        {
-            if (!string.IsNullOrEmpty(VertexRefC)) refs.Add(VertexRefC);
-            if (!string.IsNullOrEmpty(VertexRefD)) refs.Add(VertexRefD);
-        }
+        if (MeasurementMath.VertexRefCount(Kind) >= 3 && !string.IsNullOrEmpty(VertexRefC)) refs.Add(VertexRefC);
+        if (MeasurementMath.VertexRefCount(Kind) == 4 && !string.IsNullOrEmpty(VertexRefD)) refs.Add(VertexRefD);
         return new MeasurementDefinition
         {
             Name = Name?.Trim() ?? "",
@@ -12826,11 +12862,24 @@ public class VM_MeasurementDefinition : VM
             RegionRefName = MeasurementMath.ReadsRegion(Kind) ? (RegionRefName?.Trim() ?? "") : "",
             GirthAggregate = Kind == MeasurementKind.Girth ? GirthAggregate : GirthAggregate.Max,
             GirthStep = Kind == MeasurementKind.Girth ? GirthStep : 1.0f,
+            TraceMetric = Kind == MeasurementKind.TorsoTrace ? TraceMetric : TorsoTraceMetric.StemWindowFlare,
             MeasurementRefNames = isRatio
                 ? new List<string> { MeasurementRefA?.Trim() ?? "", MeasurementRefB?.Trim() ?? "" }
                 : new List<string>(),
         };
     }
+}
+
+/// <summary>Paired (value, display-label) for a TorsoTrace row's metric ComboBox.</summary>
+public sealed class TraceMetricOption
+{
+    public TraceMetricOption(TorsoTraceMetric value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+    public TorsoTraceMetric Value { get; }
+    public string Label { get; }
 }
 
 /// <summary>Paired (value, display-label) for a Girth row's slice-reduction ComboBox.</summary>

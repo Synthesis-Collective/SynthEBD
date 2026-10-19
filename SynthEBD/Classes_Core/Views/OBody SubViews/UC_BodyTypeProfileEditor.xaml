@@ -851,7 +851,7 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
-                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  IsEnabled="{Binding ShowRefC}"
                                                                   Text="{Binding VertexRefC, UpdateSourceTrigger=PropertyChanged}"
                                                                   Style="{StaticResource InvalidRefCComboBoxStyle}"/>
                                                     </DataTemplate>
@@ -891,6 +891,13 @@
                                                                       SelectedValue="{Binding GirthAggregate, UpdateSourceTrigger=PropertyChanged}"
                                                                       Visibility="{Binding ShowGirthAggregateField, Converter={StaticResource BoolToVis}}"
                                                                       local:DocTooltip.Key="BodyTypeProfiles.MeasurementGirthAggregate"/>
+                                                            <!-- TorsoTrace rows: what is read from the torso trace. -->
+                                                            <ComboBox ItemsSource="{Binding TraceMetricOptionsList}"
+                                                                      SelectedValuePath="Value"
+                                                                      DisplayMemberPath="Label"
+                                                                      SelectedValue="{Binding TraceMetric, UpdateSourceTrigger=PropertyChanged}"
+                                                                      Visibility="{Binding ShowTraceMetricField, Converter={StaticResource BoolToVis}}"
+                                                                      local:DocTooltip.Key="BodyTypeProfiles.MeasurementTraceMetric"/>
                                                         </Grid>
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
