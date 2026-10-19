@@ -423,6 +423,14 @@ public static class MeasurementCacheStore
             if (def.Kind == MeasurementKind.Girth)
                 sb.Append("GA=").Append((int)def.GirthAggregate).Append("|GS=")
                   .Append(def.GirthStep.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|');
+            // TorsoTrace only: the metric, the trace algorithm's version (a change to TorsoTraceEvaluator bumps it and
+            // re-measures), and for the stem metrics the sternum key vertices it resolves alongside the region.
+            if (def.Kind == MeasurementKind.TorsoTrace)
+            {
+                sb.Append("TM=").Append((int)def.TraceMetric).Append("|TV=").Append(TorsoTraceEvaluator.AlgorithmVersion).Append('|');
+                if (def.TraceMetric != TorsoTraceMetric.LatFlare)
+                    AppendVertexRefs(sb, def.VertexRefNames, keyVerticesByName, regionsByName);
+            }
             // RegionVolume reads a single named region's box, not key vertices. Like a BoundingBox
             // key vertex, the defining identity is (ShapeName, box coords, expected cap count) —
             // the resolved patch/loops/caps are session-derived and never enter the fingerprint.
@@ -461,27 +469,37 @@ public static class MeasurementCacheStore
         }
         else
         {
-            sb.Append("R=[");
-            if (def.VertexRefNames != null)
-            {
-                for (int i = 0; i < def.VertexRefNames.Count; i++)
-                {
-                    if (i > 0) sb.Append(',');
-                    var refName = def.VertexRefNames[i] ?? "";
-                    sb.Append(refName).Append(':');
-                    if (keyVerticesByName != null && keyVerticesByName.TryGetValue(refName, out var kv) && kv != null)
-                    {
-                        AppendKeyVertex(sb, kv, regionsByName);
-                    }
-                    else
-                    {
-                        sb.Append("MISSING");
-                    }
-                }
-            }
-            sb.Append(']');
+            AppendVertexRefs(sb, def.VertexRefNames, keyVerticesByName, regionsByName);
         }
         return sb.ToString();
+    }
+
+    /// <summary>"R=[name:key-vertex identity,...]" for a definition's vertex refs (MISSING for an unknown name).</summary>
+    private static void AppendVertexRefs(
+        StringBuilder sb,
+        List<string>? vertexRefNames,
+        IReadOnlyDictionary<string, NamedKeyVertex>? keyVerticesByName,
+        IReadOnlyDictionary<string, NamedRegion>? regionsByName)
+    {
+        sb.Append("R=[");
+        if (vertexRefNames != null)
+        {
+            for (int i = 0; i < vertexRefNames.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                var refName = vertexRefNames[i] ?? "";
+                sb.Append(refName).Append(':');
+                if (keyVerticesByName != null && keyVerticesByName.TryGetValue(refName, out var kv) && kv != null)
+                {
+                    AppendKeyVertex(sb, kv, regionsByName);
+                }
+                else
+                {
+                    sb.Append("MISSING");
+                }
+            }
+        }
+        sb.Append(']');
     }
 
     /// <summary>The cache entries a staleness verdict should judge: every entry except those of presets

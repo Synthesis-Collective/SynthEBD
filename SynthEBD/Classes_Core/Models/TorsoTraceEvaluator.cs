@@ -31,6 +31,10 @@ namespace SynthEBD;
 /// </summary>
 public static class TorsoTraceEvaluator
 {
+    /// <summary>Folded into a TorsoTrace measurement's cache fingerprint: bump it whenever a change here alters
+    /// the values, so cached readings are re-measured.</summary>
+    public const int AlgorithmVersion = 1;
+
     /// <summary>Bust heights: the mid-depth is interpolated straight across (BustLowY, BustHighY) so the bust
     /// can't pull the cut forward.</summary>
     public const double BustLowY = 86.0, BustHighY = 106.0;

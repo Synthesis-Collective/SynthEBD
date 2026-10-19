@@ -39,7 +39,8 @@ public static class BodySlideMeasurementEvaluator
         /// <summary>A <see cref="MeasurementKind.RegionVolume"/> region was supplied but is invalid
         /// (the box failed watertightness/validation at resolve time) or its shape's deformed
         /// positions weren't available; or a <see cref="MeasurementKind.Girth"/> region selected no
-        /// slice with a measurable hull.</summary>
+        /// slice with a measurable hull; or a <see cref="MeasurementKind.TorsoTrace"/> found no triangles for the
+        /// shape or couldn't read the torso width from its trace.</summary>
         RegionNotResolved = 5,
         /// <summary>A <see cref="MeasurementKind.MeasurementRatio"/> whose operands are not both named, did not
         /// both evaluate, form a cycle, or whose denominator is near zero.</summary>
@@ -229,6 +230,7 @@ public static class BodySlideMeasurementEvaluator
         // asking for a ratio also evaluates its operands (WithRatioOperands).
         var allowlist = WithRatioOperands(measurementNamesAllowlist, profile.Measurements);
         var ratioNames = new HashSet<string>(StringComparer.Ordinal);
+        var traceCache = new Dictionary<string, TorsoTraceEvaluator.Trace?>(StringComparer.Ordinal);
         if (profile.Measurements != null)
         {
             foreach (var def in profile.Measurements)
@@ -249,6 +251,17 @@ public static class BodySlideMeasurementEvaluator
                 if (def.Kind == MeasurementKind.MeasurementRatio)
                 {
                     ratioNames.Add(def.Name);
+                    continue;
+                }
+                // TorsoTrace cuts the mesh's triangles (once per shape per evaluation, shared by its metrics) and
+                // reads both a region and sternum key vertices.
+                if (def.Kind == MeasurementKind.TorsoTrace)
+                {
+                    if (TryEvaluateTorsoTrace(def, keyVertsByName, lookup, shapeLookup, boneLookup, resolvedRegions,
+                            zeroedShapeLookup, mesh.Indices, traceCache, out float tv, out var treason))
+                        result.Measurements[def.Name] = tv;
+                    else
+                        result.FailedMeasurements[def.Name] = treason;
                     continue;
                 }
                 // RegionVolume and Girth read a baked region + the shape's deformed positions, not key
@@ -869,6 +882,81 @@ public static class BodySlideMeasurementEvaluator
         {
             reason = MeasurementFailureReason.RegionNotResolved;
             return false;
+        }
+        reason = MeasurementFailureReason.MalformedDefinition; // unused on success
+        return true;
+    }
+
+    /// <summary>
+    /// Evaluates a <see cref="MeasurementKind.TorsoTrace"/> measurement (<see cref="TorsoTraceEvaluator"/>). The
+    /// baked region for <see cref="MeasurementDefinition.RegionRefName"/> is the bust: it names the shape to trace
+    /// and (stem metrics) supplies the bust vertices. The stem metrics also resolve the three sternum key vertices in
+    /// <see cref="MeasurementDefinition.VertexRefNames"/>, exactly as any measurement resolves its endpoints. The
+    /// trace is built from the shape's deformed positions and <paramref name="indicesLookup"/>'s triangles, and kept
+    /// in <paramref name="traceCache"/> (by shape) when one is passed, so several TorsoTrace rows cut the mesh once.
+    /// Failure reasons: MalformedDefinition (no region / fewer than three sternum refs), MissingRegion (region not
+    /// baked), MissingKeyVertex (a sternum point doesn't resolve), RegionNotResolved (no positions or triangles, or the
+    /// torso width can't be read).
+    /// </summary>
+    public static bool TryEvaluateTorsoTrace(
+        MeasurementDefinition def,
+        IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName,
+        MeasurementMath.VertexLookup lookup,
+        MeasurementMath.ShapePositionsLookup shapeLookup,
+        MeasurementMath.ShapeBoneInfoLookup? boneLookup,
+        IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? resolvedRegions,
+        MeasurementMath.ShapePositionsLookup? zeroedShapeLookup,
+        Func<string, int[]?>? indicesLookup,
+        IDictionary<string, TorsoTraceEvaluator.Trace?>? traceCache,
+        out float value,
+        out MeasurementFailureReason reason)
+    {
+        value = 0f;
+        reason = MeasurementFailureReason.MalformedDefinition;
+        var rname = def?.RegionRefName?.Trim() ?? "";
+        if (def == null || rname.Length == 0) return false;
+        if (resolvedRegions == null || !resolvedRegions.TryGetValue(rname, out var resolved) || resolved == null)
+        {
+            reason = MeasurementFailureReason.MissingRegion;
+            return false;
+        }
+        bool stem = def.TraceMetric != TorsoTraceMetric.LatFlare;
+        var sternum = new List<OpenTK.Mathematics.Vector3>(3);
+        if (stem)
+        {
+            if (def.VertexRefNames == null || def.VertexRefNames.Count < 3) return false;
+            for (int i = 0; i < 3; i++)
+            {
+                if (!MeasurementMath.TryResolveKeyVertex(def.VertexRefNames[i], keyVertsByName, lookup, shapeLookup, boneLookup,
+                        resolvedRegions, zeroedShapeLookup, out var p))
+                {
+                    reason = MeasurementFailureReason.MissingKeyVertex;
+                    return false;
+                }
+                sternum.Add(p);
+            }
+        }
+
+        reason = MeasurementFailureReason.RegionNotResolved;
+        var positions = shapeLookup?.Invoke(resolved.ShapeName);
+        if (positions == null || positions.Length == 0) return false;
+        TorsoTraceEvaluator.Trace? trace;
+        if (traceCache == null || !traceCache.TryGetValue(resolved.ShapeName, out trace))
+        {
+            var indices = indicesLookup?.Invoke(resolved.ShapeName);
+            trace = indices == null ? null : TorsoTraceEvaluator.BuildTrace(positions, indices);
+            if (traceCache != null) traceCache[resolved.ShapeName] = trace;
+        }
+        if (trace == null) return false;
+
+        if (!stem)
+        {
+            if (!TorsoTraceEvaluator.TryComputeLatFlare(trace, out value)) return false;
+        }
+        else
+        {
+            if (!TorsoTraceEvaluator.TryComputeStemWindow(trace, positions, resolved.MemberVertexIndices, sternum, out var w)) return false;
+            value = def.TraceMetric == TorsoTraceMetric.StemWindowLength ? w.Length : w.Flare;
         }
         reason = MeasurementFailureReason.MalformedDefinition; // unused on success
         return true;

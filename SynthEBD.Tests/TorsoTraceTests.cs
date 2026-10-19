@@ -21,7 +21,7 @@ public class TorsoTraceTests
     /// <summary>Rings from Y 58 to 112 with half-width <paramref name="halfWidth"/>(y) along X and half-depth
     /// <see cref="Depth"/>, centred on (0, y, <paramref name="zCentre"/>). Angles are offset half a step so no vertex
     /// lies exactly on the cut. Optional arm tubes (radius 2) hang at X = +-25 over Y 75-100.</summary>
-    private static (List<Vector3> pos, List<int> tris) Body(Func<double, double> halfWidth, bool arms = false, float zCentre = 0f)
+    internal static (List<Vector3> pos, List<int> tris) Body(Func<double, double> halfWidth, bool arms = false, float zCentre = 0f)
     {
         var pos = new List<Vector3>();
         var tris = new List<int>();
@@ -115,13 +115,13 @@ public class TorsoTraceTests
     }
 
     /// <summary>A straight stem of half-width 8 from Y 82 up, flaring out below (hips: +0.5 per unit).</summary>
-    private static double SpoonStem(double y) => y >= 82 ? 8 : 8 + (82 - y) * 0.5;
+    internal static double SpoonStem(double y) => y >= 82 ? 8 : 8 + (82 - y) * 0.5;
 
-    private static readonly Vector3[] Sternum = { new(0, 88, -Depth), new(0, 96, -Depth), new(0, 105, -Depth) };
+    internal static readonly Vector3[] Sternum = { new(0, 88, -Depth), new(0, 96, -Depth), new(0, 105, -Depth) };
 
     /// <summary>Loose bust vertices at X = <paramref name="x"/>, Z = -20 (well in front of the sternum), from Y
     /// <paramref name="bottom"/> to 100. Returns their indices.</summary>
-    private static List<int> AddBust(List<Vector3> pos, float x, float bottom)
+    internal static List<int> AddBust(List<Vector3> pos, float x, float bottom)
     {
         var idx = new List<int>();
         for (float y = bottom; y <= 100f; y += 1f)
