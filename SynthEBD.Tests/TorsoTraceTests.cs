@@ -180,6 +180,49 @@ public class TorsoTraceTests
         sw.Flare.Should().BeApproximately(10f / 8f, 0.01f);
     }
 
+    /// <summary>A small triangle across the cut surface (Z = <paramref name="zCentre"/>) at height <paramref name="y"/>,
+    /// spanning X <paramref name="x0"/>..<paramref name="x1"/>: two stray trace points, like the mid-depth surface
+    /// grazing the skin of a very heavy body.</summary>
+    private static void AddStray(List<Vector3> pos, List<int> tris, float y, float x0, float x1, float zCentre = 0f)
+    {
+        int a = pos.Count;
+        pos.Add(new Vector3(x0, y, zCentre - 1f));
+        pos.Add(new Vector3(x1, y, zCentre - 1f));
+        pos.Add(new Vector3(0.5f * (x0 + x1), y + 0.1f, zCentre + 1f));
+        tris.AddRange(new[] { a, a + 1, a + 2 });
+    }
+
+    [Fact]
+    public void SparseTrace_PointsNearTheCentreLine_AreNotTorsoSides()
+    {
+        var (pos, tris) = Body(SpoonStem);
+        var bust = AddBust(pos, 9.5f, 90f);
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, out var clean).Should().BeTrue();
+
+        AddStray(pos, tris, 85f, -0.3f, 0.3f);   // straddles X = 0 at the waist
+        var t = Trace(pos, tris);
+        t.InnerHalfWidth(85, 0.25).Should().BeApproximately(Chord(8), 1e-3, "the stray points sit inside the centre-line gap");
+        TorsoTraceEvaluator.TryComputeStemWindow(t, pos.ToArray(), bust, Sternum, out var w).Should().BeTrue();
+        w.Should().Be(clean, "a near-zero narrowest width would blow the flare up");
+    }
+
+    [Fact]
+    public void SparseTrace_LonePointsOnOneSide_GiveNoWidth()
+    {
+        // no torso surface between Y 84 and 86; only a stray triangle on the right side at Y 85
+        var pos = new List<Vector3>();
+        var tris = new List<int>();
+        AddTube(pos, tris, 58f, 84f, y => 10, y => Depth, 0f, 0f);
+        AddTube(pos, tris, 86f, 112f, y => 10, y => Depth, 0f, 0f);
+        AddStray(pos, tris, 85f, 8f, 9f);
+        var t = Trace(pos, tris);
+
+        double.IsNaN(t.ExtentWidth(85, 0.5, 20)).Should().BeTrue("one side alone would read as a near-zero width");
+        double.IsNaN(t.InnerWidth(85, 0.5)).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeLatFlare(t, out float lat).Should().BeTrue();
+        lat.Should().BeApproximately(1f, 1e-3f, "the waist heights with only one side are skipped");
+    }
+
     [Fact]
     public void Interp_MatchesNumpy_ClampedAtTheEnds()
     {

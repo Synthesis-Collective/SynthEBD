@@ -33,7 +33,14 @@ public static class TorsoTraceEvaluator
 {
     /// <summary>Folded into a TorsoTrace measurement's cache fingerprint: bump it whenever a change here alters
     /// the values, so cached readings are re-measured.</summary>
-    public const int AlgorithmVersion = 1;
+    /// <remarks>2: widths need torso points on both sides, ignoring points within <see cref="CentreLineGap"/>
+    /// of the centre line.</remarks>
+    public const int AlgorithmVersion = 2;
+
+    /// <summary>Trace points within this distance of the centre line (|X| &lt;= it) are not torso sides: on very
+    /// heavy / top-heavy bodies the mid-depth surface grazes the front or back skin there, and a near-zero width
+    /// would follow. Real torso sides sit at |X| &gt;= ~6 on every cached preset.</summary>
+    public const double CentreLineGap = 3.0;
 
     /// <summary>Bust heights: the mid-depth is interpolated straight across (BustLowY, BustHighY) so the bust
     /// can't pull the cut forward.</summary>
@@ -94,7 +101,8 @@ public static class TorsoTraceEvaluator
         public double InnerHalfWidth(double y, double half) => 0.5 * InnerWidth(y, half);
 
         /// <summary>Gap between the innermost trace points on each side of X = 0 within <paramref name="half"/> of
-        /// <paramref name="y"/>. NaN when a side has no point.</summary>
+        /// <paramref name="y"/>, ignoring points within <see cref="CentreLineGap"/> of the centre line. NaN when a
+        /// side has no point.</summary>
         public double InnerWidth(double y, double half)
         {
             double leftMax = double.NegativeInfinity, rightMin = double.PositiveInfinity;
@@ -102,14 +110,15 @@ public static class TorsoTraceEvaluator
             {
                 if (Math.Abs(Ys[i] - y) >= half) continue;
                 double x = Xs[i];
-                if (x < 0) { if (x > leftMax) leftMax = x; }
-                else if (x > 0) { if (x < rightMin) rightMin = x; }
+                if (x < -CentreLineGap) { if (x > leftMax) leftMax = x; }
+                else if (x > CentreLineGap) { if (x < rightMin) rightMin = x; }
             }
             return double.IsInfinity(leftMax) || double.IsInfinity(rightMin) ? double.NaN : rightMin - leftMax;
         }
 
         /// <summary>Full X extent of the trace points within <paramref name="half"/> of <paramref name="y"/> and
-        /// inside |X| &lt; <paramref name="maxAbsX"/>. NaN when there is no such point.</summary>
+        /// inside |X| &lt; <paramref name="maxAbsX"/>. Needs a point on each side beyond <see cref="CentreLineGap"/>
+        /// (a lone point would read as zero width); NaN otherwise.</summary>
         public double ExtentWidth(double y, double half, double maxAbsX)
         {
             double lo = double.PositiveInfinity, hi = double.NegativeInfinity;
@@ -119,7 +128,7 @@ public static class TorsoTraceEvaluator
                 if (Xs[i] < lo) lo = Xs[i];
                 if (Xs[i] > hi) hi = Xs[i];
             }
-            return double.IsInfinity(lo) ? double.NaN : hi - lo;
+            return lo < -CentreLineGap && hi > CentreLineGap ? hi - lo : double.NaN;
         }
     }
 
