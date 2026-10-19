@@ -61,6 +61,9 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 ## ▶ Current focus
 
 - **Phase:** locking in **CBBE 3BA**. CBBE is parked (⏳) until the transfer.
+- **▶ Shape rules v5.7b (2026-10-18, `D54`):** run Match Presets to fill `stem_window_flare`, `stem_window_length`,
+  `lat_flare` and `hip_to_apf`, then compare the in-app Shape calls with the offline scores (32/34 on the last three
+  lists) and judge a short review list. Supersedes the FFIT eye test below.
 - **▶ FFIT Shape eye test (2026-10-13, `D53`):** judge `obody_arm_tools/ffit_shape_worklist.txt` (33 cases, seed
   5252; key `ffit_shape_worklist_key.json`) against the new girth-based Shape rules, then refit the four cuts. This
   supersedes the frame-based Shape review below.
@@ -2210,11 +2213,43 @@ Stable IDs (mirroring `CODE_REVIEW_NOTES.md`). Resolve during sessions; record t
       correlate (hip-dominant presets mostly have deep waists).
   - _(open: judge `ffit_shape_worklist.txt` (33 cases, seed 5252, `make_ffit_shape_worklist.py`) -- 26 straddle the
     four cuts, 7 controls; then refit the cuts. Watch for Pear being under-called.)_
+  - _(superseded by `D54`: the eye test scored 10/33 and the rules were rebuilt from the user's verdicts.)_
+- **`D54`** -- 2026-10-13..18: **Shape rules rebuilt from review verdicts (v2 -> v5.7b); `TorsoTrace` measurement kind.**
+  - **Method:** draft rules from the user's descriptions, apply, then a NON-blind review list (each row shows the call
+    and its driving numbers); the user's explanations of disagreements became rule terms. Only the last 2-3 lists
+    count (4-5 for Bottom Hourglass); front + mid-depth silhouettes (`obody_arm_tools/silhouettes.py`) are checked for
+    every proposed change. Full history, verdict files and scorers: `obody_arm_tools/HANDOFF_shape_rules.md`.
+  - **User's Shape definitions (2026-10-17):** by relative upper-body, waist and hip widths -- Hourglass (upper ~
+    hips, pinched waist), Rectangle (upper ~ hips ~ waist), Pear (hips wider than the upper body, waist in between),
+    Bottom Hourglass (hips wider than the upper body, upper body wider than the waist), Spoon (hips much wider, a
+    straight visible "stem" from waist to bust, small bust), Inverted Triangle (upper body much wider), Apple.
+    Bottom Hourglass is a value again; Top Hourglass is not (no corpus body has hips as narrow as its waist).
+  - **Code (UIupdate):** `638a3812` `TorsoTraceEvaluator` -- the body cut by a surface following the torso's own
+    mid-depth (so the bust never enters), giving the stem window (between the hip-flare start and where the bust stops
+    hiding the side; its flare and height) and the lat flare (waist / under-armpit width); matched the Python
+    prototype on 12 real bodies to 1e-7. `ec54f42e` `MeasurementKind.TorsoTrace` (metric, bust region + sternum key
+    vertices, cache fingerprint with an algorithm version). `a4eaf8cf` editor grid support + tooltip.
+  - **Profile data** (backup `CBBE 3BA.json.pre-shape-v5.7.bak`; script `obody_arm_tools/apply_shape_rules_v5_7.py`,
+    which builds the rules from the scorer and was verified slice-by-slice equal to it on all 23,805 rows):
+    measurements `stem_window_flare`, `stem_window_length`, `lat_flare` (TorsoTrace on `L_Breast` + the three
+    SternumFront key vertices) and `hip_to_apf`. Rules: Rectangle = front-view `waist_to_hip >= 0.599`; Spoon = strong
+    hip flare (`waist_to_hip < 0.456`), bust `< 0.737` of the hips, straight visible stem (flare `< 1.07` with a bust
+    `< 0.65` of the hips, else `< 1.046` with the window `>= 4` or bust `< 0.68`), no rear lat flare, bust not low;
+    hips `>= 1.407 x` the wider of front lats and bust -> Bottom Hourglass when `lat_flare < 0.857`, else Pear; plus
+    the v5.5 bust-balance, low-bust and narrow-chest terms.
+  - **Scores (offline):** last 3 lists 32/34 (misses: Stellar Blade Thick@50 -- the user accepts Pear; ousnius 0610@50
+    -- inseparable), Bottom Hourglass 19/20 over 5 lists. Corpus: Hourglass ~33.5%, Pear ~30.5%, Bottom Hourglass
+    ~15%, Rectangle 11.2%, Inverted Triangle 8.4%, Apple 0.7%, Spoon 0.5%.
+  - _(open: run Match Presets (fills the four new measurements), then check the in-app calls against the offline
+    scores and give a short review list. Thin margins: hips/upper 1.403 (Anya, Hourglass) vs 1.411 (Z-O-E 70-71,
+    Bottom Hourglass); lat flare 0.849 vs 0.866; Spoon bust 0.731 vs 0.742. Later: ship default rule files.)_
 ---
 
 ## Session log
 
 Append newest at the top. Keep entries short: date, what changed, what got approved.
+
+- **2026-10-18** -- **`D54` Shape rules v5.7b applied + `TorsoTrace` kind**: Shape rebuilt over seven review rounds from the user's verdicts (last 3 lists 32/34); new torso-trace measurements (stem window flare / height, lat flare) ported from Python to C# and committed in three phases. Awaiting a Match Presets run.
 
 - **2026-10-13** -- **`D53` (FFIT Shape) rules live**: `Girth` measurement kind; girths + girth ratios rescanned; FFIT-structured Shape rules with corpus-relative cuts enabled (frame rules kept disabled); new values Bottom Hourglass, Top Hourglass, Spoon; literature review committed. Awaiting the eye test on `ffit_shape_worklist.txt`.
 
