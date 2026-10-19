@@ -1273,11 +1273,21 @@ public class VM_AnnotationQueue : VM
     }
 
     private AnnotationVerdictPayload BuildVerdictPayload(VM_BodyTypeProfile profile)
+        => BuildVerdictPayload(profile, TargetCategory, scope: null);
+
+    /// <summary>
+    /// Builds the verdict payload for <paramref name="category"/>. With a <paramref name="scope"/>,
+    /// only annotations whose slice -- or any of whose alias siblings -- is in the scope are emitted;
+    /// the Panel's Copy Verdicts passes the slices it shows. Without one, every annotation in the
+    /// Category is emitted (the queue's Copy / Export).
+    /// </summary>
+    internal AnnotationVerdictPayload BuildVerdictPayload(VM_BodyTypeProfile profile, string category,
+        IReadOnlySet<(string Label, Gender Gender, int Weight)>? scope)
     {
         var payload = new AnnotationVerdictPayload
         {
             Profile = profile.Name ?? "",
-            Category = TargetCategory,
+            Category = category,
             Captured = DateTime.Now.ToString("yyyy-MM-dd"),
             Policy = Policy.ToString(),
             Seed = Seed,
@@ -1297,7 +1307,7 @@ public class VM_AnnotationQueue : VM
         {
             if (annotation?.Descriptors == null) continue;
             var values = annotation.Descriptors
-                .Where(d => d != null && string.Equals(d.Category, TargetCategory, StringComparison.Ordinal))
+                .Where(d => d != null && string.Equals(d.Category, category, StringComparison.Ordinal))
                 .Select(d => d.Value ?? "")
                 .Where(v => v.Length > 0)
                 .Distinct(StringComparer.Ordinal)
@@ -1306,6 +1316,12 @@ public class VM_AnnotationQueue : VM
 
             var key = (annotation.PresetLabel ?? "", annotation.PresetGender, annotation.Weight);
             if (emitted.Contains(key)) continue;
+            if (scope != null && !scope.Contains(key)
+                && (annotation.AliasLabels == null
+                    || !annotation.AliasLabels.Any(a => scope.Contains((a ?? "", annotation.PresetGender, annotation.Weight)))))
+            {
+                continue;
+            }
 
             // Claim the whole family so its siblings don't emit rows of their own.
             emitted.Add(key);

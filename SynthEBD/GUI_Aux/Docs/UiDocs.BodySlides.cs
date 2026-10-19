@@ -310,7 +310,7 @@ public static partial class UiDocs
             motivation: "Lets you start a fresh count for a new batch without reopening the menu or losing your place in the queue.");
 
         Add("BodySlides.QueueCopyVerdicts",
-            layperson: "Copies this category's labels to the clipboard as JSON, ready to paste into notes or an analysis script.",
+            layperson: "Copies all of this category's labels to the clipboard as JSON, ready to paste into notes or an analysis script. To copy only the bodies in the Panel window, use the Panel's own Copy Verdicts button.",
             technical: "Serializes the same payload the Export button writes: one row per alias family with preset, gender, weight, value, the full tag set, and the aliases, plus the profile, category, policy, seed and random fraction.",
             motivation: "The fastest path from a labelling session to an offline check, with no file dialog in the way.");
 

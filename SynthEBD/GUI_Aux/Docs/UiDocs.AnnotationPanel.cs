@@ -56,9 +56,14 @@ public static partial class UiDocs
             technical: "AnnotationPanelLayout.FormatOrder: a '#' header (Category, profile, gender, sort mode, time), then 'label | weight' per slice in display order, with '| aliases: ...' for an alias family. That is the queue's plain-text worklist format (AnnotationCaseList), so Paste in List mode reloads it. Covers all slices, not just the page shown.",
             motivation: "An order arranged by eye is the target a measurement - or a combination of measurements - should reproduce; copying it makes that order available for fitting.");
 
+        Add("AnnotationPanel.CopyVerdicts",
+            layperson: "Copies the labels of just the bodies in this panel - every page - to the clipboard as JSON. The queue's own Copy verdicts button copies every label in the Category instead.",
+            technical: "VM_AnnotationQueue.BuildVerdictPayload with a scope: the (preset, gender, weight) of every slice in the panel's current order and each slice's alias members. An annotation is emitted when its slice or any of its AliasLabels is in scope; alias families still emit one row. Same AnnotationVerdictPayload shape as the queue's Copy / Export (profile, category, policy, seed, random fraction), with the Note extended to state the panel scope and source (queue slices, or N evenly spaced). Slices with no verdict in the panel's Category are left out.",
+            motivation: "A panel is usually one focused judging round - a worklist or an evenly spaced ladder. Copying only that round keeps it separate from earlier verdicts when checking a rule against it.");
+
         Add("AnnotationPanel.Cell",
-            layperson: "One body at the weight it was measured at. Click the images to load it into the editor's viewer to rotate and inspect.",
-            technical: "Same cell as Show Spread: front (or back) and side offscreen renders with one fixed whole-body camera, so sizes are comparable across cells. Clicking calls VM_BodyTypeProfileEditor.LoadSliceInViewer (a double-click in Free mode, where a single click starts a drag); it does not move the annotation table's selection. The preset label's tooltip lists the alias family the cell's verdict covers.",
+            layperson: "One body at the weight it was measured at. Click the images to load it into the editor's viewer to rotate and inspect. Hold Ctrl and turn the mouse wheel to make every body bigger or smaller.",
+            technical: "Same cell as Show Spread: front (or back) and side offscreen renders with one fixed whole-body camera, so sizes are comparable across cells. Ctrl + wheel scales every cell by 10% per notch (0.5x to 3x, window-only, not saved); renders stay 240x432, so images soften above about 1.7x. Clicking calls VM_BodyTypeProfileEditor.LoadSliceInViewer (a double-click in Free mode, where a single click starts a drag); it does not move the annotation table's selection. The preset label's tooltip lists the alias family the cell's verdict covers.",
             motivation: "The images are the thing being judged; the live viewer is there for a closer look when a thumbnail isn't enough.");
 
         Add("AnnotationPanel.ValueToggles",

@@ -58,7 +58,8 @@
              clicking the images loads the slice in the editor's live viewer) with a row of value
              toggles underneath. Toggles save immediately and reflect what is stored. -->
         <DataTemplate x:Key="PanelCellTemplate" DataType="{x:Type local:VM_AnnotationPanelCell}">
-            <Border Margin="3" Padding="3" Width="250"
+            <Border Margin="3" Padding="3"
+                    Width="{Binding DataContext.CellWidth, RelativeSource={RelativeSource AncestorType=Window}}"
                     Background="{DynamicResource SecondaryBackground}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="3">
                 <DockPanel>
@@ -112,7 +113,8 @@
                         <TextBlock Text="{Binding Caption}" Foreground="{DynamicResource SecondaryForeground}"
                                    TextTrimming="CharacterEllipsis" FontSize="11"/>
                     </StackPanel>
-                    <UniformGrid Columns="2" Height="250" Cursor="Hand" Background="Transparent"
+                    <UniformGrid Columns="2" Cursor="Hand" Background="Transparent"
+                                 Height="{Binding DataContext.CellImageHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                                  local:DocTooltip.Key="AnnotationPanel.Cell">
                         <UniformGrid.InputBindings>
                             <MouseBinding MouseAction="LeftClick" Command="{Binding LoadInViewerCommand}"/>
@@ -186,6 +188,8 @@
                     local:DocTooltip.Key="AnnotationPanel.Paging"/>
             <Button Content="Copy Order" Command="{Binding CopyOrderCommand}" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,0"
                     local:DocTooltip.Key="AnnotationPanel.CopyOrder"/>
+            <Button Content="Copy Verdicts" Command="{Binding CopyVerdictsCommand}" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,0"
+                    local:DocTooltip.Key="AnnotationPanel.CopyVerdicts"/>
             <TextBlock Text="{Binding CopyStatus}" VerticalAlignment="Center" Margin="0,0,14,0"
                        Foreground="{DynamicResource SecondaryForeground}"/>
             <TextBlock Text="{Binding RenderStatus}" FontStyle="Italic" VerticalAlignment="Center"
@@ -203,7 +207,8 @@
             <TextBlock Text="{Binding StaleMessage}" Foreground="DarkOrange" FontWeight="Bold" TextWrapping="Wrap"/>
         </Border>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      PreviewMouseWheel="OnCellsPreviewMouseWheel">
             <!-- Drag-and-drop reordering is live only in the Free sort mode. -->
             <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource PanelCellTemplate}"
                           dd:DragDrop.IsDragSource="{Binding IsFreeOrder}"

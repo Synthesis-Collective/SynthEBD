@@ -115,6 +115,7 @@ public class VM_AnnotationPanel : VM, IDropTarget
         PrevPageCommand = new RelayCommand(canExecute: _ => PageIndex > 0, execute: _ => GoToPage(PageIndex - 1));
         NextPageCommand = new RelayCommand(canExecute: _ => PageIndex < PageCount - 1, execute: _ => GoToPage(PageIndex + 1));
         CopyOrderCommand = new RelayCommand(canExecute: _ => _ordered.Count > 0, execute: _ => CopyOrder());
+        CopyVerdictsCommand = new RelayCommand(canExecute: _ => _ordered.Count > 0, execute: _ => CopyVerdicts());
 
         Rebuild();
 
@@ -178,7 +179,11 @@ public class VM_AnnotationPanel : VM, IDropTarget
     /// <summary>Copies the current order of every slice (all pages) to the clipboard as a worklist.</summary>
     public RelayCommand CopyOrderCommand { get; }
 
-    /// <summary>Feedback for Copy Order ("Copied 22 preset(s)."), empty until used.</summary>
+    /// <summary>Copies the verdicts of this panel's slices (all pages) to the clipboard, in the queue's
+    /// Copy Verdicts JSON shape.</summary>
+    public RelayCommand CopyVerdictsCommand { get; }
+
+    /// <summary>Feedback for Copy Order / Copy Verdicts ("Copied 22 preset(s)."), empty until used.</summary>
     public string CopyStatus { get; private set; } = "";
 
     /// <summary>When on, each cell's first image shows the back instead of the front.</summary>
@@ -292,6 +297,27 @@ public class VM_AnnotationPanel : VM, IDropTarget
     /// <summary>Cells per page outside Free mode (the Per page box). Not persisted.</summary>
     public int CellsPerPage { get; set; } = AnnotationPanelLayout.DefaultPageSize;
 
+    /// <summary>Cell zoom, changed with Ctrl + mouse wheel. Window-only, not persisted. Renders are
+    /// <see cref="SpreadThumbnailRenderer.ImageWidth"/> x <see cref="SpreadThumbnailRenderer.ImageHeight"/>,
+    /// so images upscale (soften) above roughly 1.7.</summary>
+    public double CellScale { get; private set; } = 1.0;
+
+    internal const double MinCellScale = 0.5;
+    internal const double MaxCellScale = 3.0;
+    private const double BaseCellSize = 250;
+
+    /// <summary>Cell width and image-row height at the current <see cref="CellScale"/>.</summary>
+    public double CellWidth => BaseCellSize * CellScale;
+    public double CellImageHeight => BaseCellSize * CellScale;
+
+    /// <summary>One Ctrl + wheel notch: zooms by 10% per notch, in or out.</summary>
+    internal void ZoomCells(int wheelDelta)
+    {
+        if (wheelDelta == 0) return;
+        double factor = Math.Pow(1.1, wheelDelta / 120.0);
+        CellScale = Math.Clamp(CellScale * factor, MinCellScale, MaxCellScale);
+    }
+
     /// <summary>Per page has no effect in Free mode, which always shows one page.</summary>
     public bool CanSetCellsPerPage => !IsFreeOrder;
 
@@ -315,6 +341,37 @@ public class VM_AnnotationPanel : VM, IDropTarget
         {
             System.Windows.Clipboard.SetText(text);
             CopyStatus = $"Copied {_ordered.Count} preset(s).";
+        }
+        catch (Exception ex)
+        {
+            CopyStatus = "Copy failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>Copy Verdicts: the queue's verdict payload restricted to the slices this panel holds
+    /// (every page, each with its alias family), for the panel's own Category.</summary>
+    private void CopyVerdicts()
+    {
+        var scope = _ordered
+            .SelectMany(e => e.Slice.Members)
+            .Where(m => m != null)
+            .Select(m => (m.PresetLabel ?? "", m.Gender, m.Weight))
+            .ToHashSet();
+        var payload = _queue.BuildVerdictPayload(_profile, Category, scope);
+        if (payload.Rows.Count == 0)
+        {
+            CopyStatus = $"No {Category} verdicts on this panel's {_ordered.Count} slice(s).";
+            return;
+        }
+
+        string source = Source == AnnotationPanelSource.EvenlySpaced
+            ? $"{_ordered.Count} slice(s) evenly spaced on {_valueMetric}"
+            : $"{_ordered.Count} queue slice(s)";
+        payload.Note += $" Scope: only the Annotation Panel's {source}; {payload.Rows.Count} of them carry a verdict.";
+        try
+        {
+            System.Windows.Clipboard.SetText(Newtonsoft.Json.JsonConvert.SerializeObject(payload, Newtonsoft.Json.Formatting.Indented));
+            CopyStatus = $"Copied {payload.Rows.Count} verdict(s).";
         }
         catch (Exception ex)
         {
