@@ -124,6 +124,12 @@
                     <Setter Property="BorderThickness" Value="1.5"/>
                     <Setter Property="ToolTip" Value="Reference does not match any current Measurement name — the source measurement was renamed or deleted. Pick an existing name or fix the typo."/>
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsMeasurementRefDisabled}" Value="True">
+                    <Setter Property="Background" Value="#33FFB300"/>
+                    <Setter Property="BorderBrush" Value="#FFFFA000"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                    <Setter Property="ToolTip" Value="This measurement is disabled on the Measurements tab, so it is never scanned and this condition can never match. Re-enable it there and re-scan."/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -928,6 +934,17 @@
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Live" Binding="{Binding LiveValue, Mode=OneWay, StringFormat=F4}" Width="80" IsReadOnly="True"/>
+                                            <!-- Enabled: unchecked keeps the definition but stops it being scanned or
+                                                 written to the measurement cache (disk space). Live still evaluates. -->
+                                            <DataGridTemplateColumn Header="Enabled" Width="60">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox IsChecked="{Binding Enabled, UpdateSourceTrigger=PropertyChanged}"
+                                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                  local:DocTooltip.Key="BodyTypeProfiles.MeasurementEnabled"/>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                             <DataGridTemplateColumn Width="40">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
@@ -1125,6 +1142,13 @@
                                                                 <Button Grid.Column="7" Content="Promote" Command="{Binding PromoteFromDraft}" HorizontalAlignment="Left" Padding="6,1"/>
                                                                 <Button Grid.Column="8" Content="Delete Rule" Command="{Binding DeleteCommand}" Padding="6,1"/>
                                                             </Grid>
+                                                            <!-- Rule-level (OR group) description: what the whole predicate captures. -->
+                                                            <DockPanel Margin="0,5,0,0">
+                                                                <TextBlock DockPanel.Dock="Left" Text="Description:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                                                         TextWrapping="Wrap" AcceptsReturn="False"
+                                                                         local:DocTooltip.Key="BodyTypeProfiles.RuleDescription"/>
+                                                            </DockPanel>
                                                             <TextBlock Text="Predicate (OR of AND-gated condition groups):" Margin="0,5,0,3" FontStyle="Italic"/>
                                                             <ItemsControl ItemsSource="{Binding Groups}">
                                                                 <ItemsControl.ItemTemplate>
@@ -1208,6 +1232,12 @@
                                                                                             IsEnabled="{Binding IsEnabled}"/>
                                                                                     <TextBlock/>
                                                                                 </DockPanel>
+                                                                                <!-- Branch (AND group) description: what this OR-branch catches. Left
+                                                                                     editable while the branch is disabled so the reason can be noted. -->
+                                                                                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                                                                         TextWrapping="Wrap" AcceptsReturn="False" Margin="0,0,0,3"
+                                                                                         FontStyle="Italic"
+                                                                                         local:DocTooltip.Key="BodyTypeProfiles.BranchDescription"/>
                                                                                 <ItemsControl ItemsSource="{Binding Conditions}"
                                                                                               IsEnabled="{Binding IsEnabled}">
                                                                                     <ItemsControl.ItemTemplate>

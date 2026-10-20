@@ -1683,12 +1683,16 @@ public class VM_BodyTypeProfileEditor : VM
             // <para>A prior scan from the other tab (Label-Then-Suggest) at overlapping
             // weights populates cache entries that this scan can reuse — that's the whole
             // point of the shared cache.</para>
+            // Disabled measurements (MeasurementDefinition.Enabled = false) are not "current": they are
+            // never scanned, and the granular pass below drops any values they still hold.
+            var activeMeasNames = MeasurementMath.ActiveMeasurementNames(profileModel.Measurements);
             var currentMeasNames = new HashSet<string>(StringComparer.Ordinal);
             if (profileModel.Measurements != null)
             {
                 foreach (var def in profileModel.Measurements)
                 {
                     if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                    if (!activeMeasNames.Contains(def.Name)) continue;
                     currentMeasNames.Add(def.Name);
                 }
             }
@@ -2096,6 +2100,7 @@ public class VM_BodyTypeProfileEditor : VM
                         foreach (var def in profileModel.Measurements)
                         {
                             if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                            if (!currentMeasNames.Contains(def.Name)) continue; // disabled: never cached
                             entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v)
                                 ? (float?)v
                                 : null;
@@ -2597,6 +2602,9 @@ public class VM_BodyTypeProfileEditor : VM
             {
                 var name = mkv.Key;
                 if (string.IsNullOrEmpty(name)) continue;
+                // A disabled (or deleted) measurement has no current fingerprint: leave its value out of
+                // the file. Hydrate would drop it anyway; skipping it here is what reclaims the disk space.
+                if (!currentFps.ContainsKey(name)) continue;
                 // Tag the value with the fingerprint it was actually computed under (stored per
                 // measurement at scan time), NOT the current definition's. The cache can legitimately
                 // hold a value whose definition was edited but not yet rescanned (MeasurementCacheStale
@@ -5618,6 +5626,15 @@ public class VM_BodyTypeProfile : VM
             NotifyAvailableMeasurementNamesChanged();
             RecomputeMeasurementRefValidity();
         }
+        // Which measurements are evaluated depends on Enabled plus the ratio operand graph (an enabled
+        // ratio keeps its operands active), so re-flag conditions that read a disabled measurement.
+        if (e.PropertyName == nameof(VM_MeasurementDefinition.Enabled)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.Kind)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.MeasurementRefA)
+            || e.PropertyName == nameof(VM_MeasurementDefinition.MeasurementRefB))
+        {
+            RecomputeConditionRefValidity();
+        }
         // User-driven edits to a vertex-ref field (or to Kind, which gates whether C/D
         // matter) can leave the row in an invalid state — re-derive the row's flags.
         if (e.PropertyName == nameof(VM_MeasurementDefinition.VertexRefA)
@@ -5989,9 +6006,10 @@ public class VM_BodyTypeProfile : VM
         return string.IsNullOrEmpty(t) || names.Contains(t);
     }
 
-    /// <summary>Pushes <see cref="VM_MeasurementCondition.IsMeasurementRefValid"/> onto every
-    /// condition across all Rules → Groups → Conditions based on the current
-    /// <see cref="AvailableMeasurementNames"/>.</summary>
+    /// <summary>Pushes <see cref="VM_MeasurementCondition.IsMeasurementRefValid"/> and
+    /// <see cref="VM_MeasurementCondition.IsMeasurementRefDisabled"/> onto every condition across all
+    /// Rules → Groups → Conditions based on the current <see cref="AvailableMeasurementNames"/> and
+    /// which of them are active (see <see cref="MeasurementMath.ActiveMeasurementNames"/>).</summary>
     private void RecomputeConditionRefValidity()
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -6000,6 +6018,7 @@ public class VM_BodyTypeProfile : VM
             var n = (m.Name ?? "").Trim();
             if (!string.IsNullOrEmpty(n)) names.Add(n);
         }
+        var active = MeasurementMath.ActiveMeasurementNames(Measurements.Where(m => m != null).Select(m => m.DumpToModel()));
         foreach (var r in Rules)
         {
             if (r?.Groups == null) continue;
@@ -6009,6 +6028,9 @@ public class VM_BodyTypeProfile : VM
                 foreach (var c in g.Conditions)
                 {
                     c.IsMeasurementRefValid = RefIsValid(c.MeasurementName, names);
+                    var refName = (c.MeasurementName ?? "").Trim();
+                    c.IsMeasurementRefDisabled = c.Kind == MeasurementConditionKind.Measurement
+                        && names.Contains(refName) && !active.Contains(refName);
                 }
             }
         }
@@ -10729,7 +10751,15 @@ public class VM_BodyTypeProfile : VM
         if (sender is VM_MeasurementCondition
             && (e.PropertyName == nameof(VM_MeasurementCondition.ValueText)
                 || e.PropertyName == nameof(VM_MeasurementCondition.ConditionReadout)
-                || e.PropertyName == nameof(VM_MeasurementCondition.ConditionConforms)))
+                || e.PropertyName == nameof(VM_MeasurementCondition.ConditionConforms)
+                || e.PropertyName == nameof(VM_MeasurementCondition.IsMeasurementRefDisabled)))
+        {
+            return;
+        }
+        // Descriptions are documentation only; typing in one must not mark results stale or rebuild
+        // the Rules-tab list under the caret.
+        if ((sender is VM_MeasurementRule && e.PropertyName == nameof(VM_MeasurementRule.Description))
+            || (sender is VM_AndGatedMeasurementGroup && e.PropertyName == nameof(VM_AndGatedMeasurementGroup.Description)))
         {
             return;
         }
@@ -10745,6 +10775,7 @@ public class VM_BodyTypeProfile : VM
         if (sender is VM_MeasurementCondition
             && e.PropertyName != nameof(VM_MeasurementCondition.IsMeasurementRefValid)
             && (e.PropertyName == nameof(VM_MeasurementCondition.MeasurementName)
+                || e.PropertyName == nameof(VM_MeasurementCondition.Kind)
                 || string.IsNullOrEmpty(e.PropertyName)))
         {
             RecomputeConditionRefValidity();
@@ -12628,6 +12659,7 @@ public class VM_MeasurementDefinition : VM
         var ops = source.MeasurementRefNames ?? new List<string>();
         MeasurementRefA = ops.Count > 0 ? ops[0] ?? "" : "";
         MeasurementRefB = ops.Count > 1 ? ops[1] ?? "" : "";
+        Enabled = source.Enabled;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -12709,6 +12741,11 @@ public class VM_MeasurementDefinition : VM
 
     /// <summary>Latest evaluated value against the active viewer; null when no viewer or evaluation failed.</summary>
     public float? LiveValue { get; set; }
+
+    /// <summary>Bound to the Enabled checkbox in the Measurements grid. False keeps the definition but stops it
+    /// being scanned or cached (see <see cref="MeasurementDefinition.Enabled"/>). The Live column still evaluates
+    /// it against the previewed preset, which costs no disk space and helps when revisiting the measurement.</summary>
+    public bool Enabled { get; set; } = true;
 
     /// <summary>True when at least one other row in the parent profile's <see cref="VM_BodyTypeProfile.Measurements"/>
     /// collection has the same <see cref="Name"/> (Ordinal, trimmed). Driven by
@@ -12869,6 +12906,7 @@ public class VM_MeasurementDefinition : VM
             MeasurementRefNames = isRatio
                 ? new List<string> { MeasurementRefA?.Trim() ?? "", MeasurementRefB?.Trim() ?? "" }
                 : new List<string>(),
+            Enabled = Enabled,
         };
     }
 }
@@ -12937,6 +12975,7 @@ public class VM_MeasurementRule : VM
         DescriptorValue = source.Descriptor?.Value ?? "";
         IsDraft = source.IsDraft;
         Gender = source.Gender;
+        Description = source.Description ?? "";
 
         if (source.GroupsORlogic != null)
         {
@@ -12975,6 +13014,10 @@ public class VM_MeasurementRule : VM
     /// in the Rules tab. Round-trips through <see cref="DumpToModel"/> + ctor so it persists
     /// across saves and JSON load/save. Default Either preserves legacy behavior.</summary>
     public RuleGender Gender { get; set; } = RuleGender.Either;
+
+    /// <summary>Free-text note on what the rule's whole predicate captures; round-trips via
+    /// <see cref="MeasurementRule.Description"/>. Documentation only.</summary>
+    public string Description { get; set; } = "";
 
     /// <summary>Bound to the Gender ComboBox.ItemsSource on the Rules tab. Static — the enum
     /// values are fixed at compile time.</summary>
@@ -13020,6 +13063,7 @@ public class VM_MeasurementRule : VM
             },
             IsDraft = IsDraft,
             Gender = Gender,
+            Description = Description?.Trim() ?? "",
             GroupsORlogic = Groups.Select(g => g.DumpToModel()).ToList(),
         };
     }
@@ -13034,6 +13078,7 @@ public class VM_AndGatedMeasurementGroup : VM
     {
         _parent = parent;
         IsDisabled = source.IsDisabled;
+        Description = source.Description ?? "";
 
         if (source.ConditionsANDlogic != null)
         {
@@ -13094,6 +13139,7 @@ public class VM_AndGatedMeasurementGroup : VM
     {
         if (model == null) return;
         IsDisabled = model.IsDisabled;
+        Description = model.Description ?? "";
         Conditions.Clear();
         if (model.ConditionsANDlogic != null)
         {
@@ -13120,6 +13166,10 @@ public class VM_AndGatedMeasurementGroup : VM
     /// re-fires PropertyChanged automatically because the expression references IsDisabled.</summary>
     public bool IsEnabled => !IsDisabled;
 
+    /// <summary>Free-text note on what this OR-branch catches; round-trips via
+    /// <see cref="AndGatedMeasurementGroup.Description"/>. Documentation only.</summary>
+    public string Description { get; set; } = "";
+
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 
     /// <summary>Owning rule. Exposed so child conditions can navigate up to the profile
@@ -13131,6 +13181,7 @@ public class VM_AndGatedMeasurementGroup : VM
     public AndGatedMeasurementGroup DumpToModel() => new()
     {
         IsDisabled = IsDisabled,
+        Description = Description?.Trim() ?? "",
         ConditionsANDlogic = Conditions.Select(c => c.DumpToModel()).ToList(),
     };
 }
@@ -13300,6 +13351,11 @@ public class VM_MeasurementCondition : VM
     /// defaults to true so freshly-loaded conditions don't flash red before the first
     /// recompute. Surfaces in the Rules tab as a red wash on the MeasurementName combo.</summary>
     public bool IsMeasurementRefValid { get; set; } = true;
+
+    /// <summary>True when this Measurement-kind condition names a measurement that exists but is disabled
+    /// (<see cref="MeasurementDefinition.Enabled"/> = false), so it is never scanned and the condition can never
+    /// match. Set by <see cref="VM_BodyTypeProfile.RecomputeConditionRefValidity"/>; drives an amber warning.</summary>
+    public bool IsMeasurementRefDisabled { get; set; } = false;
 
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;
 

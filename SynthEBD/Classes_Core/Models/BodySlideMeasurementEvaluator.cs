@@ -229,6 +229,8 @@ public static class BodySlideMeasurementEvaluator
         // MeasurementRatio rows read other measurements by name, so they run after this loop; a partial fill
         // asking for a ratio also evaluates its operands (WithRatioOperands).
         var allowlist = WithRatioOperands(measurementNamesAllowlist, profile.Measurements);
+        // Disabled measurements are never evaluated (except as operands of an enabled ratio).
+        var active = MeasurementMath.ActiveMeasurementNames(profile.Measurements);
         var ratioNames = new HashSet<string>(StringComparer.Ordinal);
         var traceCache = new Dictionary<string, TorsoTraceEvaluator.Trace?>(StringComparer.Ordinal);
         if (profile.Measurements != null)
@@ -240,6 +242,7 @@ public static class BodySlideMeasurementEvaluator
                 // caller's requested set. Null allowlist = evaluate everything (the normal
                 // path).
                 if (allowlist != null && !allowlist.Contains(def.Name)) continue;
+                if (!active.Contains(def.Name)) continue;
                 // First-wins on duplicate measurement names — matches the KeyVertex side's
                 // GroupBy.First() at VM_BodyTypeProfileEditor.cs and the equivalent dictionary
                 // build above. The editor surfaces duplicates visually, but pre-existing /

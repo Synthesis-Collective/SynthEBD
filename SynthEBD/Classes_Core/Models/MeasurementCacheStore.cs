@@ -584,9 +584,14 @@ public static class MeasurementCacheStore
             }
         }
         var measMap = MeasurementsByName(measurements);
+        // Disabled measurements get no fingerprint: they are not "current", so they are never scanned,
+        // never required for cache completeness, dropped on hydrate, and left out when the cache is saved.
+        // (Ratio operands still resolve through measMap, which holds every row.)
+        var active = MeasurementMath.ActiveMeasurementNames(measurements);
         foreach (var def in measurements)
         {
             if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+            if (!active.Contains(def.Name)) continue;
             if (result.ContainsKey(def.Name)) continue; // same first-row-wins discipline
             result[def.Name] = ComputeMeasurementFingerprint(def, kvMap, rgMap, measMap);
         }

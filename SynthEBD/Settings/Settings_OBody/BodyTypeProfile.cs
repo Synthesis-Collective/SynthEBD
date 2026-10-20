@@ -645,6 +645,15 @@ public class MeasurementDefinition
     /// two measurements it divides, [numerator, denominator]. Empty for every other kind.
     /// </summary>
     public List<string> MeasurementRefNames { get; set; } = new();
+
+    /// <summary>When false the measurement is kept as a definition but never evaluated, scanned, or
+    /// written to the measurement cache (each one costs cache disk space across every preset and
+    /// weight). Exception: a disabled row that an enabled <see cref="MeasurementKind.MeasurementRatio"/>
+    /// reads is still evaluated, since the ratio can't be computed without it -- see
+    /// <see cref="MeasurementMath.ActiveMeasurementNames"/>. Not part of the cache fingerprint, so
+    /// toggling it never invalidates other cached values. Defaults to true so existing profiles load
+    /// unchanged.</summary>
+    public bool Enabled { get; set; } = true;
 }
 
 /// <summary>Threshold comparator applied between a measurement value and a constant.</summary>
@@ -745,6 +754,10 @@ public class AndGatedMeasurementGroup
     /// Round-trips through JSON via System.Text.Json so saved profiles preserve the toggle
     /// across sessions; the VM mirror lives on <see cref="VM_AndGatedMeasurementGroup.IsDisabled"/>.</summary>
     public bool IsDisabled { get; set; } = false;
+
+    /// <summary>Free-text note on what this OR-branch catches and why it exists. Documentation only:
+    /// never read by the evaluator, the rule signature, or the cache fingerprints.</summary>
+    public string Description { get; set; } = "";
 }
 
 /// <summary>
@@ -777,6 +790,10 @@ public class MeasurementRule
     /// for males but not females, since body-shape measurements don't carry texture-driven
     /// muscle/fat signal).</summary>
     public RuleGender Gender { get; set; } = RuleGender.Either;
+
+    /// <summary>Free-text note on what the rule's whole predicate (the OR of its groups) captures.
+    /// Documentation only: never read by the evaluator, the rule signature, or the cache fingerprints.</summary>
+    public string Description { get; set; } = "";
 }
 
 /// <summary>
@@ -1098,6 +1115,31 @@ public static class MeasurementMath
     /// and <see cref="MeasurementKind.TorsoTrace"/> (alongside its sternum and widest-chest key vertices).</summary>
     public static bool ReadsRegion(MeasurementKind kind) =>
         kind == MeasurementKind.RegionVolume || kind == MeasurementKind.Girth || kind == MeasurementKind.TorsoTrace;
+
+    /// <summary>Names of the measurements that are evaluated and cached: every
+    /// <see cref="MeasurementDefinition.Enabled"/> row, plus (transitively) every operand an enabled
+    /// <see cref="MeasurementKind.MeasurementRatio"/> reads, even when that operand is itself disabled.
+    /// First row wins on duplicate names, matching the evaluator.</summary>
+    public static HashSet<string> ActiveMeasurementNames(IEnumerable<MeasurementDefinition?>? definitions)
+    {
+        var active = new HashSet<string>(StringComparer.Ordinal);
+        if (definitions == null) return active;
+        var byName = new Dictionary<string, MeasurementDefinition>(StringComparer.Ordinal);
+        foreach (var d in definitions)
+            if (d != null && !string.IsNullOrEmpty(d.Name) && !byName.ContainsKey(d.Name)) byName[d.Name] = d;
+
+        var queue = new Queue<string>();
+        foreach (var d in byName.Values)
+            if (d.Enabled && active.Add(d.Name)) queue.Enqueue(d.Name);
+        while (queue.Count > 0)
+        {
+            if (!byName.TryGetValue(queue.Dequeue(), out var def) || def.Kind != MeasurementKind.MeasurementRatio) continue;
+            if (!TryGetRatioOperands(def, out var num, out var den)) continue;
+            if (byName.ContainsKey(num) && active.Add(num)) queue.Enqueue(num);
+            if (byName.ContainsKey(den) && active.Add(den)) queue.Enqueue(den);
+        }
+        return active;
+    }
 
     /// <summary>Evaluates every <see cref="MeasurementKind.MeasurementRatio"/> in <paramref name="definitions"/>
     /// from the already-computed <paramref name="values"/> (name → value), writing each result back into

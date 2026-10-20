@@ -289,6 +289,7 @@ public class VM_PresetAnnotationTable : VM
                 foreach (var def in profileModel.Measurements)
                 {
                     if (def == null || string.IsNullOrEmpty(def.Name)) continue;
+                    if (!currentMeasurementFps.ContainsKey(def.Name)) continue; // disabled: never cached
                     entry.Measurements[def.Name] = result.Measurements.TryGetValue(def.Name, out var v) ? (float?)v : null;
                     if (currentMeasurementFps.TryGetValue(def.Name, out var fp))
                         entry.MeasurementFingerprints[def.Name] = fp;
