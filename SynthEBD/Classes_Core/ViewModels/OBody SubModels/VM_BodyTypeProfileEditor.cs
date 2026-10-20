@@ -5952,7 +5952,7 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Pushes <see cref="VM_MeasurementDefinition.IsRefAValid"/>/B/C/D onto every
     /// row based on the current <see cref="AvailableKeyVertexNames"/>. Empty refs are
     /// considered valid (they're inert, not broken). C and D are also considered valid when
-    /// the measurement's <see cref="VM_MeasurementDefinition.ShowSecondPair"/> is false —
+    /// the measurement's <see cref="VM_MeasurementDefinition.ShowRefC"/> / <see cref="VM_MeasurementDefinition.ShowRefD"/> is false —
     /// for non-Ratio kinds, stale C/D fields don't affect evaluation and the red wash there
     /// would be noise.</summary>
     private void RecomputeMeasurementRefValidity()
@@ -5975,7 +5975,7 @@ public class VM_BodyTypeProfile : VM
             m.IsRefAValid = ratio || RefIsValid(m.VertexRefA, names);
             m.IsRefBValid = ratio || RefIsValid(m.VertexRefB, names);
             m.IsRefCValid = !m.ShowRefC || RefIsValid(m.VertexRefC, names);
-            m.IsRefDValid = !m.ShowSecondPair || RefIsValid(m.VertexRefD, names);
+            m.IsRefDValid = !m.ShowRefD || RefIsValid(m.VertexRefD, names);
             // An operand must name another row: a ratio of itself can never resolve.
             var self = (m.Name ?? "").Trim();
             m.IsMeasRefAValid = !ratio || (RefIsValid(m.MeasurementRefA, measurementNames) && !string.Equals(m.MeasurementRefA?.Trim(), self, StringComparison.Ordinal));
@@ -9820,8 +9820,8 @@ public class VM_BodyTypeProfile : VM
         foreach (var m in Measurements)
         {
             bool isRatio = m.Kind == MeasurementKind.RatioDistance;
-            bool hasCD = MeasurementMath.VertexRefCount(m.Kind) == 4;
-            bool hasC = MeasurementMath.VertexRefCount(m.Kind) >= 3; // TorsoTrace's third sternum point
+            bool hasCD = MeasurementMath.VertexRefCount(m.Kind) == 4; // incl. TorsoTrace (sternum C, chest D)
+            bool hasC = MeasurementMath.VertexRefCount(m.Kind) >= 3;
             string[] row =
             {
                 m.Name ?? "",
@@ -12723,7 +12723,7 @@ public class VM_MeasurementDefinition : VM
     /// <see cref="VM_BodyTypeProfile.RecomputeMeasurementRefValidity"/>; defaults to true so
     /// fresh / loading rows don't briefly flash red before the first recompute. Surfaces in
     /// the Measurements grid as a per-cell red wash on the invalid ref column. Cells C and D
-    /// only flag invalid when <see cref="ShowSecondPair"/> is true — for non-Ratio kinds the
+    /// only flag invalid when <see cref="ShowRefC"/> / <see cref="ShowRefD"/> is true — for other kinds the
     /// fields are inert, so a stale value there doesn't represent a broken evaluation.</summary>
     public bool IsRefAValid { get; set; } = true;
     public bool IsRefBValid { get; set; } = true;
@@ -12759,6 +12759,9 @@ public class VM_MeasurementDefinition : VM
 
     /// <summary>True when the C column is live: the 4-ref kinds, and TorsoTrace (its third sternum point).</summary>
     public bool ShowRefC => ShowSecondPair || Kind == MeasurementKind.TorsoTrace;
+
+    /// <summary>True when the D column is live: the 4-ref kinds, and TorsoTrace (its widest-chest point).</summary>
+    public bool ShowRefD => ShowSecondPair || Kind == MeasurementKind.TorsoTrace;
 
     /// <summary>True for RatioDistance only: the Num Axis / Den Axis columns are live.</summary>
     public bool ShowRatioAxisFields => Kind == MeasurementKind.RatioDistance;

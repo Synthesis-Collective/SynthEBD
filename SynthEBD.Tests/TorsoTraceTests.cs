@@ -119,6 +119,9 @@ public class TorsoTraceTests
 
     internal static readonly Vector3[] Sternum = { new(0, 88, -Depth), new(0, 96, -Depth), new(0, 105, -Depth) };
 
+    /// <summary>A widest-chest point below the window cap (its height is the window top when the bust covers nothing).</summary>
+    internal static readonly Vector3 Chest = new(9f, 93f, -8f);
+
     /// <summary>Loose bust vertices at X = <paramref name="x"/>, Z = -20 (well in front of the sternum), from Y
     /// <paramref name="bottom"/> to 100. Returns their indices.</summary>
     internal static List<int> AddBust(List<Vector3> pos, float x, float bottom)
@@ -138,7 +141,7 @@ public class TorsoTraceTests
         var (pos, tris) = Body(SpoonStem);
         var bust = AddBust(pos, 9.5f, 90f);  // reaches past the side (8): it hides the torso from Y 90 up
         var t = Trace(pos, tris);
-        TorsoTraceEvaluator.TryComputeStemWindow(t, pos.ToArray(), bust, Sternum, out var w).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(t, pos.ToArray(), bust, Sternum, null, out var w).Should().BeTrue();
 
         w.BustCovers.Should().BeTrue();
         w.TopY.Should().BeApproximately(90f, 1e-3f);
@@ -146,15 +149,38 @@ public class TorsoTraceTests
         w.BottomY.Should().BeApproximately(81.75f, 1e-3f);
         w.Length.Should().BeApproximately(90f - 81.75f, 1e-3f);
         w.Flare.Should().BeApproximately(8.125f / 8f, 0.003f);
+
+        TorsoTraceEvaluator.TryComputeStemWindow(t, pos.ToArray(), bust, Sternum, Chest.Y, out var withChest).Should().BeTrue();
+        withChest.Should().Be(w, "the widest-chest height only matters when the bust covers nothing");
     }
 
     [Fact]
-    public void StemWindow_BustInsideTheSide_HidesNothing_TopIsTheCap()
+    public void StemWindow_BustInsideTheSide_HidesNothing_TopIsTheChestHeight()
     {
         var (pos, tris) = Body(SpoonStem);
         var bust = AddBust(pos, 7f, 88f);    // in front of the sternum but inside the torso side
-        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, out var w).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, Chest.Y, out var w).Should().BeTrue();
         w.BustCovers.Should().BeFalse();
+        w.TopY.Should().BeApproximately(93f, 1e-3f);
+        w.Length.Should().BeApproximately(93f - 81.75f, 1e-3f);
+    }
+
+    [Fact]
+    public void StemWindow_BustHidesNothing_ChestAboveTheCap_TopIsTheCap()
+    {
+        var (pos, tris) = Body(SpoonStem);
+        var bust = AddBust(pos, 7f, 88f);
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, 98.0, out var w).Should().BeTrue();
+        w.BustCovers.Should().BeFalse();
+        w.TopY.Should().Be((float)TorsoTraceEvaluator.StemTopCapY, "above the cap the trace picks up the upper arm");
+    }
+
+    [Fact]
+    public void StemWindow_BustHidesNothing_NoChestPoint_TopIsTheCap()
+    {
+        var (pos, tris) = Body(SpoonStem);
+        var bust = AddBust(pos, 7f, 88f);
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, null, out var w).Should().BeTrue();
         w.TopY.Should().Be((float)TorsoTraceEvaluator.StemTopCapY);
     }
 
@@ -164,7 +190,7 @@ public class TorsoTraceTests
         var (pos, tris) = Body(SpoonStem);
         var idx = new List<int>();
         for (float y = 88f; y <= 100f; y += 1f) { idx.Add(pos.Count); pos.Add(new Vector3(9.5f, y, -Depth + 0.5f)); }
-        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), idx, Sternum, out var w).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), idx, Sternum, null, out var w).Should().BeTrue();
         w.BustCovers.Should().BeFalse("they sit less than 1 unit in front of the sternum line");
     }
 
@@ -175,7 +201,7 @@ public class TorsoTraceTests
         Func<double, double> w = y => y >= 94 ? 10 : y >= 84 ? 8 + (y - 84) * 0.2 : 8 + (84 - y) * 0.5;
         var (pos, tris) = Body(w);
         var bust = AddBust(pos, 12f, 94f);
-        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, out var sw).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, null, out var sw).Should().BeTrue();
         sw.TopY.Should().BeApproximately(94f, 1e-3f);
         sw.Flare.Should().BeApproximately(10f / 8f, 0.01f);
     }
@@ -197,12 +223,12 @@ public class TorsoTraceTests
     {
         var (pos, tris) = Body(SpoonStem);
         var bust = AddBust(pos, 9.5f, 90f);
-        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, out var clean).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, null, out var clean).Should().BeTrue();
 
         AddStray(pos, tris, 85f, -0.3f, 0.3f);   // straddles X = 0 at the waist
         var t = Trace(pos, tris);
         t.InnerHalfWidth(85, 0.25).Should().BeApproximately(Chord(8), 1e-3, "the stray points sit inside the centre-line gap");
-        TorsoTraceEvaluator.TryComputeStemWindow(t, pos.ToArray(), bust, Sternum, out var w).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(t, pos.ToArray(), bust, Sternum, null, out var w).Should().BeTrue();
         w.Should().Be(clean, "a near-zero narrowest width would blow the flare up");
     }
 
@@ -257,7 +283,7 @@ public class TorsoTraceTests
         t.InnerWidth(84.5, 0.25).Should().BeApproximately(2 * Chord(10), 1e-3);
 
         var bust = AddBust(pos, 12f, 90f);
-        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, out var w).Should().BeTrue();
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, null, out var w).Should().BeTrue();
         w.Flare.Should().BeApproximately(1f, 1e-3f, "a straight torso has no flare; an arm pick read it as ~2.3");
     }
 

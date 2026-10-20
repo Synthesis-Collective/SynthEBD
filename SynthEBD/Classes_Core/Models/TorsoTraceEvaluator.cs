@@ -35,8 +35,9 @@ public static class TorsoTraceEvaluator
     /// the values, so cached readings are re-measured.</summary>
     /// <remarks>2: widths need torso points on both sides, ignoring points within <see cref="CentreLineGap"/>
     /// of the centre line. 3: an innermost-point side further out than the torso exit crossing by more than
-    /// <see cref="ArmPickTolerance"/> is an arm point and is replaced by the exit.</remarks>
-    public const int AlgorithmVersion = 3;
+    /// <see cref="ArmPickTolerance"/> is an arm point and is replaced by the exit. 4: when the bust covers nothing,
+    /// the stem window runs to the widest-chest height (still capped at <see cref="StemTopCapY"/>), not the cap.</remarks>
+    public const int AlgorithmVersion = 4;
 
     /// <summary>Trace points within this distance of the centre line (|X| &lt;= it) are not torso sides: on very
     /// heavy / top-heavy bodies the mid-depth surface grazes the front or back skin there, and a near-zero width
@@ -56,7 +57,7 @@ public static class TorsoTraceEvaluator
     public const double MinDepth = 3.0;
 
     /// <summary>Highest allowed stem-window top: above it the trace picks up the upper-arm "sleeve" (from ~Y 97).
-    /// Also the window top when the bust hides nothing.</summary>
+    /// Also the window top when the bust hides nothing and no widest-chest height is given.</summary>
     public const double StemTopCapY = 95.0;
 
     /// <summary>A bust vertex is bust (not torso) only when it is more than this far in front of the sternum line.</summary>
@@ -80,7 +81,8 @@ public static class TorsoTraceEvaluator
     /// <param name="TopY">Where the bust stops hiding the torso side (capped at <see cref="StemTopCapY"/>).</param>
     /// <param name="Length">TopY - BottomY: how much stem shows.</param>
     /// <param name="Flare">Widest / narrowest torso half-width inside the window (1 = a straight stem).</param>
-    /// <param name="BustCovers">False when no bust vertex reaches past the torso side (the top is the cap).</param>
+    /// <param name="BustCovers">False when no bust vertex reaches past the torso side (the top is the widest-chest
+    /// height, or the cap).</param>
     public readonly record struct StemWindow(float BottomY, float TopY, float Length, float Flare, bool BustCovers);
 
     /// <summary>
@@ -327,8 +329,9 @@ public static class TorsoTraceEvaluator
     /// <paramref name="positions"/>); <paramref name="sternumPoints"/> are the deformed sternum key vertices (any
     /// order, at least two), joined into a line by height. A bust vertex counts when it lies more than
     /// <see cref="BustForwardOfSternum"/> in front of that line (the face points to -Z) and its |X| reaches past the
-    /// trace's torso side at its height; the window top is the lowest such vertex, capped at
-    /// <see cref="StemTopCapY"/>. The bottom is where the hip flare starts: from the narrowest torso half-width over
+    /// trace's torso side at its height; the window top is the lowest such vertex. When none does, the bust hides
+    /// nothing and the top is <paramref name="chestY"/>, the widest-chest height (the side above it is ribcage and
+    /// lats, not stem). Either way the top is capped at <see cref="StemTopCapY"/>. The bottom is where the hip flare starts: from the narrowest torso half-width over
     /// Y 78-92, walk down while the width stays within <see cref="FlareStartTolerance"/> of it (a straight stem has
     /// no single pinch). Returns false when the torso width can't be read.
     /// </summary>
@@ -337,6 +340,7 @@ public static class TorsoTraceEvaluator
         Vector3[] positions,
         IReadOnlyList<int> bustMembers,
         IReadOnlyList<Vector3> sternumPoints,
+        double? chestY,
         out StemWindow window)
     {
         window = default;
@@ -368,7 +372,7 @@ public static class TorsoTraceEvaluator
         double bottom = ys[lo];
 
         double? bustBottom = BustBottomY(positions, bustMembers, sternumPoints, goodY, goodW);
-        double top = Math.Min(bustBottom ?? StemTopCapY, StemTopCapY);
+        double top = Math.Min(bustBottom ?? chestY ?? StemTopCapY, StemTopCapY);
 
         double wmax = double.NegativeInfinity;
         for (int i = 0; i < n; i++)

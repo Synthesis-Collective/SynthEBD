@@ -861,7 +861,7 @@
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <ComboBox ItemsSource="{Binding AvailableKeyVertexNames}" IsEditable="True"
-                                                                  IsEnabled="{Binding ShowSecondPair}"
+                                                                  IsEnabled="{Binding ShowRefD}"
                                                                   Text="{Binding VertexRefD, UpdateSourceTrigger=PropertyChanged}"
                                                                   Style="{StaticResource InvalidRefDComboBoxStyle}"/>
                                                     </DataTemplate>

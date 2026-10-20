@@ -890,13 +890,14 @@ public static class BodySlideMeasurementEvaluator
     /// <summary>
     /// Evaluates a <see cref="MeasurementKind.TorsoTrace"/> measurement (<see cref="TorsoTraceEvaluator"/>). The
     /// baked region for <see cref="MeasurementDefinition.RegionRefName"/> is the bust: it names the shape to trace
-    /// and (stem metrics) supplies the bust vertices. The stem metrics also resolve the three sternum key vertices in
-    /// <see cref="MeasurementDefinition.VertexRefNames"/>, exactly as any measurement resolves its endpoints. The
-    /// trace is built from the shape's deformed positions and <paramref name="indicesLookup"/>'s triangles, and kept
-    /// in <paramref name="traceCache"/> (by shape) when one is passed, so several TorsoTrace rows cut the mesh once.
-    /// Failure reasons: MalformedDefinition (no region / fewer than three sternum refs), MissingRegion (region not
-    /// baked), MissingKeyVertex (a sternum point doesn't resolve), RegionNotResolved (no positions or triangles, or the
-    /// torso width can't be read).
+    /// and (stem metrics) supplies the bust vertices. The stem metrics also resolve the four key vertices in
+    /// <see cref="MeasurementDefinition.VertexRefNames"/>, exactly as any measurement resolves its endpoints: refs A-C
+    /// are the sternum points, ref D the widest-chest point (its height is the window top when the bust covers
+    /// nothing). The trace is built from the shape's deformed positions and <paramref name="indicesLookup"/>'s
+    /// triangles, and kept in <paramref name="traceCache"/> (by shape) when one is passed, so several TorsoTrace rows
+    /// cut the mesh once. Failure reasons: MalformedDefinition (no region / fewer than four refs), MissingRegion
+    /// (region not baked), MissingKeyVertex (a key vertex doesn't resolve), RegionNotResolved (no positions or
+    /// triangles, or the torso width can't be read).
     /// </summary>
     public static bool TryEvaluateTorsoTrace(
         MeasurementDefinition def,
@@ -922,10 +923,11 @@ public static class BodySlideMeasurementEvaluator
         }
         bool stem = def.TraceMetric != TorsoTraceMetric.LatFlare;
         var sternum = new List<OpenTK.Mathematics.Vector3>(3);
+        double chestY = 0;
         if (stem)
         {
-            if (def.VertexRefNames == null || def.VertexRefNames.Count < 3) return false;
-            for (int i = 0; i < 3; i++)
+            if (def.VertexRefNames == null || def.VertexRefNames.Count < 4) return false;
+            for (int i = 0; i < 4; i++)
             {
                 if (!MeasurementMath.TryResolveKeyVertex(def.VertexRefNames[i], keyVertsByName, lookup, shapeLookup, boneLookup,
                         resolvedRegions, zeroedShapeLookup, out var p))
@@ -933,7 +935,8 @@ public static class BodySlideMeasurementEvaluator
                     reason = MeasurementFailureReason.MissingKeyVertex;
                     return false;
                 }
-                sternum.Add(p);
+                if (i < 3) sternum.Add(p);
+                else chestY = p.Y;
             }
         }
 
@@ -955,7 +958,7 @@ public static class BodySlideMeasurementEvaluator
         }
         else
         {
-            if (!TorsoTraceEvaluator.TryComputeStemWindow(trace, positions, resolved.MemberVertexIndices, sternum, out var w)) return false;
+            if (!TorsoTraceEvaluator.TryComputeStemWindow(trace, positions, resolved.MemberVertexIndices, sternum, chestY, out var w)) return false;
             value = def.TraceMetric == TorsoTraceMetric.StemWindowLength ? w.Length : w.Flare;
         }
         reason = MeasurementFailureReason.MalformedDefinition; // unused on success

@@ -539,8 +539,9 @@ public enum MeasurementKind
     /// <see cref="MeasurementDefinition.TraceMetric"/> picks what is read: the stem window's flare or height (the
     /// visible torso side between the hip flare and where the bust starts hiding it) or the lat flare (waist width /
     /// torso width under the armpits). Reads <see cref="MeasurementDefinition.RegionRefName"/> = the bust region and
-    /// three <see cref="MeasurementDefinition.VertexRefNames"/> = sternum key vertices (the line a bust vertex must be
-    /// in front of), and needs the mesh's triangles.</summary>
+    /// four <see cref="MeasurementDefinition.VertexRefNames"/>: three sternum key vertices (the line a bust vertex must
+    /// be in front of), then the widest-chest point (its height is the stem window top when the bust covers nothing).
+    /// Needs the mesh's triangles.</summary>
     TorsoTrace = 9,
 }
 
@@ -1081,21 +1082,20 @@ public static class MeasurementMath
     }
 
     /// <summary>How many entries of <see cref="MeasurementDefinition.VertexRefNames"/> a kind reads:
-    /// 4 for <see cref="MeasurementKind.RatioDistance"/> and <see cref="MeasurementKind.Angle"/>, 3 for
-    /// <see cref="MeasurementKind.TorsoTrace"/> (the sternum points), 0 for
+    /// 4 for <see cref="MeasurementKind.RatioDistance"/>, <see cref="MeasurementKind.Angle"/> and
+    /// <see cref="MeasurementKind.TorsoTrace"/> (three sternum points, then the widest-chest point), 0 for
     /// <see cref="MeasurementKind.MeasurementRatio"/> (it reads other measurements), else 2
     /// (<see cref="MeasurementKind.RegionVolume"/> reads none, but its callers check that kind first).</summary>
     public static int VertexRefCount(MeasurementKind kind) => kind switch
     {
-        MeasurementKind.RatioDistance or MeasurementKind.Angle => 4,
-        MeasurementKind.TorsoTrace => 3,
+        MeasurementKind.RatioDistance or MeasurementKind.Angle or MeasurementKind.TorsoTrace => 4,
         MeasurementKind.MeasurementRatio => 0,
         _ => 2,
     };
 
     /// <summary>True for the kinds that read a named region (<see cref="MeasurementDefinition.RegionRefName"/>):
     /// <see cref="MeasurementKind.RegionVolume"/> and <see cref="MeasurementKind.Girth"/> (instead of key vertices),
-    /// and <see cref="MeasurementKind.TorsoTrace"/> (alongside its sternum key vertices).</summary>
+    /// and <see cref="MeasurementKind.TorsoTrace"/> (alongside its sternum and widest-chest key vertices).</summary>
     public static bool ReadsRegion(MeasurementKind kind) =>
         kind == MeasurementKind.RegionVolume || kind == MeasurementKind.Girth || kind == MeasurementKind.TorsoTrace;
 
