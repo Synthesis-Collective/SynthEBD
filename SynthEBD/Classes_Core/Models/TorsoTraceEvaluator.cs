@@ -34,13 +34,19 @@ public static class TorsoTraceEvaluator
     /// <summary>Folded into a TorsoTrace measurement's cache fingerprint: bump it whenever a change here alters
     /// the values, so cached readings are re-measured.</summary>
     /// <remarks>2: widths need torso points on both sides, ignoring points within <see cref="CentreLineGap"/>
-    /// of the centre line.</remarks>
-    public const int AlgorithmVersion = 2;
+    /// of the centre line. 3: an innermost-point side further out than the torso exit crossing by more than
+    /// <see cref="ArmPickTolerance"/> is an arm point and is replaced by the exit.</remarks>
+    public const int AlgorithmVersion = 3;
 
     /// <summary>Trace points within this distance of the centre line (|X| &lt;= it) are not torso sides: on very
     /// heavy / top-heavy bodies the mid-depth surface grazes the front or back skin there, and a near-zero width
     /// would follow. Real torso sides sit at |X| &gt;= ~6 on every cached preset.</summary>
     public const double CentreLineGap = 3.0;
+
+    /// <summary>The trace is only segment endpoints, so a long torso-side segment can span a whole sampling band
+    /// and leave just a hanging-arm (or upper-arm "sleeve") point in it. An innermost-point side reading further
+    /// out than the torso's exit crossing at that height by more than this is taken as such an arm point.</summary>
+    public const double ArmPickTolerance = 1.0;
 
     /// <summary>Bust heights: the mid-depth is interpolated straight across (BustLowY, BustHighY) so the bust
     /// can't pull the cut forward.</summary>
@@ -79,7 +85,7 @@ public static class TorsoTraceEvaluator
 
     /// <summary>
     /// The torso trace of one body shape: the endpoints of every segment where a triangle crosses the mid-depth
-    /// surface, projected onto X-Y.
+    /// surface, projected onto X-Y. Points 2k and 2k+1 are the ends of segment k.
     /// </summary>
     public sealed class Trace
     {
@@ -101,8 +107,10 @@ public static class TorsoTraceEvaluator
         public double InnerHalfWidth(double y, double half) => 0.5 * InnerWidth(y, half);
 
         /// <summary>Gap between the innermost trace points on each side of X = 0 within <paramref name="half"/> of
-        /// <paramref name="y"/>, ignoring points within <see cref="CentreLineGap"/> of the centre line. NaN when a
-        /// side has no point.</summary>
+        /// <paramref name="y"/>, ignoring points within <see cref="CentreLineGap"/> of the centre line. A side that
+        /// lies more than <see cref="ArmPickTolerance"/> beyond the torso exit at <paramref name="y"/>
+        /// (<see cref="TorsoExits"/>) is an arm point and is replaced by the exit. NaN when a side has no
+        /// point.</summary>
         public double InnerWidth(double y, double half)
         {
             double leftMax = double.NegativeInfinity, rightMin = double.PositiveInfinity;
@@ -113,7 +121,58 @@ public static class TorsoTraceEvaluator
                 if (x < -CentreLineGap) { if (x > leftMax) leftMax = x; }
                 else if (x > CentreLineGap) { if (x < rightMin) rightMin = x; }
             }
-            return double.IsInfinity(leftMax) || double.IsInfinity(rightMin) ? double.NaN : rightMin - leftMax;
+            if (double.IsInfinity(leftMax) || double.IsInfinity(rightMin)) return double.NaN;
+
+            var (exitLeft, exitRight) = TorsoExits(y);
+            double left = -leftMax, right = rightMin;
+            if (left > exitLeft + ArmPickTolerance) left = exitLeft;   // false when the exit is NaN
+            if (right > exitRight + ArmPickTolerance) right = exitRight;
+            return left + right;
+        }
+
+        /// <summary>X of every trace segment crossing the line Y = <paramref name="y"/>, sorted. Half-open in Y,
+        /// so an endpoint shared by two segments counts once.</summary>
+        public List<double> Crossings(double y)
+        {
+            var xs = new List<double>();
+            for (int k = 0; k + 1 < Xs.Length; k += 2)
+            {
+                double ya = Ys[k], yb = Ys[k + 1];
+                if ((ya < y) == (yb < y)) continue;
+                double t = (y - ya) / (yb - ya);
+                xs.Add(Xs[k] + t * (Xs[k + 1] - Xs[k]));
+            }
+            xs.Sort();
+            return xs;
+        }
+
+        /// <summary>Where the line Y = <paramref name="y"/> leaves the body walking out from X = 0: the first
+        /// inside-to-outside crossing beyond <see cref="CentreLineGap"/> on each side, as (left |X|, right X).
+        /// X = 0 is inside the body when an odd number of crossings lie at X &lt; 0 (the trace loops are closed).
+        /// NaN for a side with no such crossing.</summary>
+        public (double Left, double Right) TorsoExits(double y)
+        {
+            var xs = Crossings(y);
+            var left = new List<double>();
+            var right = new List<double>();
+            foreach (double x in xs)
+            {
+                if (x < 0) left.Add(-x);
+                else if (x > 0) right.Add(x);
+            }
+            left.Sort();
+            bool centreInside = left.Count % 2 == 1;
+            return (FirstExit(left, centreInside), FirstExit(right, centreInside));
+        }
+
+        private static double FirstExit(List<double> outward, bool inside)
+        {
+            foreach (double v in outward)
+            {
+                if (inside && v > CentreLineGap) return v;
+                inside = !inside;
+            }
+            return double.NaN;
         }
 
         /// <summary>Full X extent of the trace points within <paramref name="half"/> of <paramref name="y"/> and

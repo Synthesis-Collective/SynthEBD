@@ -35,13 +35,13 @@ public class TorsoTraceTests
     }
 
     private static void AddTube(List<Vector3> pos, List<int> tris, float y0, float y1,
-        Func<double, double> rx, Func<double, double> rz, float cx, float cz)
+        Func<double, double> rx, Func<double, double> rz, float cx, float cz, float step = RingStep)
     {
         int first = pos.Count;
-        int rings = (int)Math.Round((y1 - y0) / RingStep) + 1;
+        int rings = (int)Math.Round((y1 - y0) / step) + 1;
         for (int k = 0; k < rings; k++)
         {
-            float y = y0 + k * RingStep;
+            float y = y0 + k * step;
             for (int i = 0; i < RingVerts; i++)
             {
                 double a = 2 * Math.PI * (i + 0.5) / RingVerts;
@@ -221,6 +221,44 @@ public class TorsoTraceTests
         double.IsNaN(t.InnerWidth(85, 0.5)).Should().BeTrue();
         TorsoTraceEvaluator.TryComputeLatFlare(t, out float lat).Should().BeTrue();
         lat.Should().BeApproximately(1f, 1e-3f, "the waist heights with only one side are skipped");
+    }
+
+    /// <summary>A straight torso (half-width 10) with rings every 2 units and arm tubes at X = +-25 with rings every
+    /// 0.5: the torso's trace points sit only at Y 84, 85, 86, ... (ring heights and the diagonals' midpoints), so
+    /// the band |Y - 84.5| &lt; 0.25 holds arm points and no torso point.</summary>
+    private static (List<Vector3> pos, List<int> tris) CoarseTorsoFineArms()
+    {
+        var pos = new List<Vector3>();
+        var tris = new List<int>();
+        AddTube(pos, tris, 58f, 112f, y => 10, y => Depth, 0f, 0f, step: 2f);
+        AddTube(pos, tris, 75f, 100f, y => 2.0, y => 2.0, 25f, 0f);
+        AddTube(pos, tris, 75f, 100f, y => 2.0, y => 2.0, -25f, 0f);
+        return (pos, tris);
+    }
+
+    [Fact]
+    public void TorsoExits_FirstCrossingOutOfTheTorso_NotTheArm()
+    {
+        var (pos, tris) = CoarseTorsoFineArms();
+        var t = Trace(pos, tris);
+        t.Crossings(84.5).Should().HaveCount(6, "torso side + both walls of each arm, on both sides");
+        var (l, r) = t.TorsoExits(84.5);
+        l.Should().BeApproximately(Chord(10), 1e-3);
+        r.Should().BeApproximately(Chord(10), 1e-3);
+    }
+
+    [Fact]
+    public void ArmPick_BandWithOnlyAnArmPoint_ReadsTheTorsoExit()
+    {
+        var (pos, tris) = CoarseTorsoFineArms();
+        var t = Trace(pos, tris);
+        // unguarded, the innermost point in the band would be the arm's inner wall (X ~ 23)
+        t.InnerHalfWidth(84.5, 0.25).Should().BeApproximately(Chord(10), 1e-3);
+        t.InnerWidth(84.5, 0.25).Should().BeApproximately(2 * Chord(10), 1e-3);
+
+        var bust = AddBust(pos, 12f, 90f);
+        TorsoTraceEvaluator.TryComputeStemWindow(Trace(pos, tris), pos.ToArray(), bust, Sternum, out var w).Should().BeTrue();
+        w.Flare.Should().BeApproximately(1f, 1e-3f, "a straight torso has no flare; an arm pick read it as ~2.3");
     }
 
     [Fact]

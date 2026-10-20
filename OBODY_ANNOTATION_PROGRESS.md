@@ -548,6 +548,8 @@ waiting here:
    (`6c1c09c19d` -> `d0fbbb2e91` -> current) purely from reference rewiring, and no verdict has ever
    been collected for a Realism value. It is still ✏️ Draft and tier-2, so it must be re-checked
    after Belly lands regardless.
+4. **Verdicts collected in passing, to use when Realism is judged:** `why did i do this 1 alt` @0 =
+   **Unrealistic** (user, 2026-10-19, during the TorsoTrace v3 Shape review; its Shape call is Spoon).
 
 ### Shape
 | | Status | Rules | Values | Key measurements | Reads |
