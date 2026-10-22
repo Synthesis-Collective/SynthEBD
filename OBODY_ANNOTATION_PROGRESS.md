@@ -68,7 +68,7 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 - **▶ Shape rules v5.9 (2026-10-21):** approval review 17/18, then v5.8 (AmBarbarian fix: rear cut 0.845 for wide
   busts + a lat-flare route to Hourglass) and v5.9 (explicit `Shape:Ambiguous` when a wide, large bust hides the
   waist, `chest_to_hip >= 0.885` AND `stem_window_length < -1.17`; big-bust Pear route) are applied -- in-app 93/96 on
-  the current verdicts. **Shape APPROVED 2026-10-21** (hash `293fc5dbe9`). Next cells: Realism, then Build (re-check
+  the current verdicts. **Shape APPROVED 2026-10-21** (hash `d72518a0ac` after v5.9b made Ambiguous default-only again; same assignments). Next cells: Realism, then Build (re-check
   Build: it reads Shape). Open: MaximumThick-SE@100 stays Apple (belly reading may include bust overhang). Details: `obody_arm_tools/HANDOFF_shape_rules.md` (2026-10-21 statuses).
 - **Shape rules v5.7b (2026-10-18, `D54`):** _(Match Presets done 2026-10-19; in-app == offline)_ run Match Presets to fill `stem_window_flare`, `stem_window_length`,
   `lat_flare` and `hip_to_apf`, then compare the in-app Shape calls with the offline scores (32/34 on the last three
@@ -172,13 +172,13 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 | Chest       | ✅ 3 | ⏳ 0 | **APPROVED 2026-10-08.** Petite = BustSize Flat/Petite/Small, Medium = default (BustSize Medium), Busty = Large and up; 17/18 judged in 3D after `D51`. 3BA reads `BustSize`; CBBE's Cup-based Chest rules removed (`D42`) -- the transfer restores Chest there |
 | Hips        | ✅ 3 | ⏳ 3 | **APPROVED 2026-09-13.** leaf; now `hip_width` (absolute X span of the re-boxed hip-side KVs) -- Narrow < 25.5 / Wide > 30.3; see `N2`, `D20` |
 | Realism     | ✏️ 6 | ⏳ 6 | 3BA also reads `Belly` |
-| Shape       | ✅ 11 | ⏳ 5 | **APPROVED 2026-10-21** (hash `293fc5dbe9`; earlier provisional `5b89a36bcd`). Hourglass / Pear / Bottom Hourglass / Rectangle / Spoon / Inverted Triangle / Apple + an explicit `Ambiguous` (a wide, large bust hides the waist); torso-trace stem window + lat flare (`D54`), v5.8 AmBarbarian fix, v5.9 Ambiguous + big-bust Pear; 93/96 on the current verdicts; reads `ShoulderWidth` |
+| Shape       | ✅ 10 | ⏳ 5 | **APPROVED 2026-10-21** (hash `d72518a0ac`, v5.9b; first frozen at `293fc5dbe9`, earlier provisional `5b89a36bcd`). Hourglass / Pear / Bottom Hourglass / Rectangle / Spoon / Inverted Triangle / Apple; bodies whose wide, large bust hides the waist match none and take the default `Ambiguous`; torso-trace stem window + lat flare (`D54`), v5.8 AmBarbarian fix, v5.9 Ambiguous + big-bust Pear; 93/96 on the current verdicts; reads `ShoulderWidth` |
 | ShoulderMorph | ✅ 1 | ⏳ — | **APPROVED 2026-09-26.** leaf (`D12`); Normal / Muscular on `Delt_Cap_Ratio >= 0.435`; feeds Build |
 | ShoulderWidth | ✅ 2 | ⏳ — | **APPROVED 2026-09-26.** leaf (`D12`); Narrow < 28.0 / Medium / Wide >= 31.5 on `shoulder_width` (apparent width, deltoid-contaminated); read by Shape and Build |
 | Thighs      | ✅ 3 | ⏳ 3 | **APPROVED 2026-09-29.** leaf; Skinny `< 11.65` / Normal (default) / Thick `>= 14.5` on `thigh_thickness`; read by Build (Curvy, Slight, Powerful) |
 | Waist       | ✅ 3 | ⏳ 3 | **APPROVED 2026-09-28.** leaf; Pinched `< 0.54` / Neutral (default) / Flat `>= 0.64` on `waist_to_butt_width` (waist width / width at the butt, both X) -- replaces `waist_to_hip` (`D45`) |
 | Build       | 🔧 8 | ⏳ 7 | aggregator -- approve **last**; Powerful/Athletic split (`D8`); rules untouched by `D9` but populations moved with Arms |
-| **Total**   | **68** | **37** | `Cup` removed 2026-09-26 (`D42`) |
+| **Total**   | **67** | **37** | `Cup` removed 2026-09-26 (`D42`) |
 
 ---
 
@@ -563,7 +563,7 @@ waiting here:
 ### Shape
 | | Status | Rules | Values | Key measurements | Reads |
 |--|--|--|--|--|--|
-| **3BA** | ✅ | 11 | Hourglass, Pear, Bottom Hourglass, Rectangle, Spoon, Inverted Triangle, Apple, Ambiguous (rule + default) | `waist_to_hip`, `chest_to_hip`, `waist_to_armpit(_front)`, `hip_to_shoulder`, `hip_to_apf`, `lat_flare`, `stem_window_flare/length`, `waist_to_stem`, `chest_sag_vertical`, `shoulder_to_hip`, `belly_projection`, `waist_width` | `ShoulderWidth:Wide`, `!Shape:*` routing |
+| **3BA** | ✅ | 10 | Hourglass, Pear, Bottom Hourglass, Rectangle, Spoon, Inverted Triangle, Apple (+ default `Ambiguous`) | `waist_to_hip`, `chest_to_hip`, `waist_to_armpit(_front)`, `hip_to_shoulder`, `hip_to_apf`, `lat_flare`, `stem_window_flare/length`, `waist_to_stem`, `chest_sag_vertical`, `shoulder_to_hip`, `belly_projection`, `waist_width` | `ShoulderWidth:Wide`, `!Shape:*` routing |
 | CBBE (defer) | ⏳ | 5 | (same 5 values) | (old metrics / old cuts) | -- |
 
 **Notes / opinions (2026-09-13 -- reworked, `D21`; 🟢 PROVISIONAL the same day):**
@@ -2260,6 +2260,8 @@ Stable IDs (mirroring `CODE_REVIEW_NOTES.md`). Resolve during sessions; record t
 
 Append newest at the top. Keep entries short: date, what changed, what got approved.
 
+- **2026-10-21 (later)** -- **`Shape` re-frozen at `d72518a0ac`** (v5.9b, 10 rules): the explicit `Shape:Ambiguous` rule is gone; the other Shape rules carry its inline negation (`chest_to_hip < 0.885` OR `stem_window_length >= -1.17`), so those bodies fall through to the default `Ambiguous` -- kept generic because male presets may reach it through other rules. Identical calls on all 23,805 cached slices.
+
 - **2026-10-21** -- **`Shape` APPROVED** (hash `293fc5dbe9` frozen, 11 rules). Approval review 17/18 -> v5.8 (AmBarbarian fix: rear cut 0.845 for wide busts, lat-flare route to Hourglass when `hip_to_apf` < 1.50) -> extreme-body reviews -> v5.9 (explicit `Shape:Ambiguous` = `chest_to_hip >= 0.885` AND `stem_window_length < -1.17`, Apple / Inverted Triangle keep priority; big-bust Pear route). 93/96 on the current verdicts (misses: ousnius 0610@50; a near-duplicate Kushi Pop pair judged both ways; MaximumThick-SE@100 stays Apple -- open: does `belly_projection` read bust overhang?). Re-review trigger: **Build** reads Shape. Details in `obody_arm_tools/HANDOFF_shape_rules.md`.
 
 - **2026-10-18** -- **`D54` Shape rules v5.7b applied + `TorsoTrace` kind**: Shape rebuilt over seven review rounds from the user's verdicts (last 3 lists 32/34); new torso-trace measurements (stem window flare / height, lat flare) ported from Python to C# and committed in three phases. Awaiting a Match Presets run.
@@ -2565,8 +2567,8 @@ block" here (it preserves approved baselines). Do not hand-edit hashes except wh
       "status": "draft"
     },
     "Shape": {
-      "count": 11,
-      "hash": "293fc5dbe9",
+      "count": 10,
+      "hash": "d72518a0ac",
       "status": "approved"
     },
     "ShoulderMorph": {
