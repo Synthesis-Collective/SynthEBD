@@ -9,8 +9,9 @@ using Vector3 = OpenTK.Mathematics.Vector3;
 namespace SynthEBD.Tests;
 
 /// <summary>
-/// <see cref="MeasurementDefinition.Enabled"/>: a disabled measurement is kept as a definition but is never evaluated,
-/// given a cache fingerprint (so never scanned or saved), except when an enabled MeasurementRatio reads it.
+/// <see cref="MeasurementDefinition.Enabled"/>: a disabled measurement is kept as a definition but is never given a
+/// cache fingerprint (so never cached or saved) and never reaches the rules. It is not evaluated either, except when an
+/// enabled MeasurementRatio reads it: then it is computed on the fly for the ratio and dropped again.
 /// </summary>
 public class MeasurementEnabledTests
 {
@@ -68,6 +69,72 @@ public class MeasurementEnabledTests
     }
 
     [Fact]
+    public void CachedNames_AreExactlyTheEnabledRows_EvenForOperandsOfEnabledRatios()
+    {
+        var defs = new[]
+        {
+            Axis("on", "a", "b"),
+            Axis("num", "a", "b", enabled: false),
+            Axis("den", "a", "c", enabled: false),
+            Ratio("ratio", "num", "den"),
+            Axis("on", "x", "y", enabled: false), // duplicate name: first row wins
+        };
+
+        MeasurementMath.CachedMeasurementNames(defs).Should().BeEquivalentTo(new[] { "on", "ratio" });
+        MeasurementMath.ActiveMeasurementNames(defs).Should().BeEquivalentTo(new[] { "on", "num", "den", "ratio" });
+    }
+
+    [Fact]
+    public void Fingerprints_OmitDisabledRatioOperands_ButTheRatioTracksTheirDefinitions()
+    {
+        var defs = new List<MeasurementDefinition> { Axis("num", "a", "b", enabled: false), Axis("den", "a", "c", enabled: false), Ratio("ratio", "num", "den") };
+        var fps = MeasurementCacheStore.ComputeAllMeasurementFingerprints(defs, null);
+        fps.Keys.Should().BeEquivalentTo(new[] { "ratio" });
+
+        // Editing a disabled operand's definition still changes what the ratio measures.
+        var edited = new List<MeasurementDefinition> { Axis("num", "a", "c", enabled: false), Axis("den", "a", "c", enabled: false), Ratio("ratio", "num", "den") };
+        MeasurementCacheStore.ComputeAllMeasurementFingerprints(edited, null)["ratio"].Should().NotBe(fps["ratio"]);
+    }
+
+    [Fact]
+    public void Derive_BuildsRatio_FromTermsOfUncachedOperands()
+    {
+        // The operands are disabled, so nothing caches them; but other cached rows read the same pairs.
+        var defs = new List<MeasurementDefinition>
+        {
+            Axis("ab_cached", "a", "b"),
+            Axis("ac_cached", "c", "a"), // reversed pair: same absolute term
+            Axis("num", "a", "b", enabled: false),
+            Axis("den", "a", "c", enabled: false),
+            Ratio("ratio", "num", "den"),
+            Ratio("outer", "ratio", "den"), // nested: reads an uncached ratio operand
+        };
+        var known = new Dictionary<string, float?> { ["ab_cached"] = 2f, ["ac_cached"] = 8f };
+
+        var derived = MeasurementDerivation.Derive(defs, known, new[] { "ratio", "outer" });
+
+        derived["ratio"].Should().Be(2f / 8f);
+        derived["outer"].Should().Be((2f / 8f) / 8f);
+        derived.Should().NotContainKey("num").And.NotContainKey("den"); // computed for the ratios only
+    }
+
+    [Fact]
+    public void Derive_LeavesRatioUnresolved_WhenAnOperandHasNoKnownTerm()
+    {
+        var defs = new List<MeasurementDefinition>
+        {
+            Axis("ab_cached", "a", "b"),
+            Axis("num", "a", "b", enabled: false),
+            Axis("den", "a", "c", enabled: false),
+            Ratio("ratio", "num", "den"),
+        };
+        var known = new Dictionary<string, float?> { ["ab_cached"] = 2f };
+
+        // Not derivable: the scan falls back to a mesh partial fill for it.
+        MeasurementDerivation.Derive(defs, known, new[] { "ratio" }).Should().BeEmpty();
+    }
+
+    [Fact]
     public void Evaluate_SkipsDisabledMeasurements_ButComputesOperandsOfEnabledRatios()
     {
         var p = new[] { new Vector3(0, 0, 0), new Vector3(2, 0, 0), new Vector3(8, 0, 0) };
@@ -104,6 +171,9 @@ public class MeasurementEnabledTests
         r.Measurements.Should().NotContainKey("ac_off");
         r.FailedMeasurements.Should().NotContainKey("ac_off");
         r.Measurements["ratio"].Should().BeApproximately(0.25f, 1e-6f); // 2 / 8, operands evaluated though disabled
+        // ...but only to feed the ratio: the result holds what the cache would, so rules can't read them.
+        r.Measurements.Should().NotContainKey("num_off").And.NotContainKey("ac_off_operand");
+        r.FailedMeasurements.Should().NotContainKey("num_off").And.NotContainKey("ac_off_operand");
     }
 
     [Fact]

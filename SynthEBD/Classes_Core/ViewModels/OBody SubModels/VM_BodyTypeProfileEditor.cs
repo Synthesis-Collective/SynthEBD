@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -95,6 +95,10 @@ public class VM_BodyTypeProfileEditor : VM
         _compareFactory = compareFactory;
         Synchronizer = descriptorDefaultSynchronizer;
         descriptorDefaultSynchronizer.RegisterProfileEditor(this);
+
+        // Slow-handler trace for this editor (only operations >= 100 ms are written): Logs\UiPerf.log.
+        if (System.Windows.Application.Current != null && !string.IsNullOrEmpty(paths?.LogFolderPath))
+            UiPerfTrace.LogFilePath ??= System.IO.Path.Combine(paths.LogFolderPath, "UiPerf.log");
 
         // Flush any cache that was renamed in-memory but never re-scanned, so a
         // rename-then-close-without-scan survives. Fires on app exit alongside the settings
@@ -1683,9 +1687,11 @@ public class VM_BodyTypeProfileEditor : VM
             // <para>A prior scan from the other tab (Label-Then-Suggest) at overlapping
             // weights populates cache entries that this scan can reuse — that's the whole
             // point of the shared cache.</para>
-            // Disabled measurements (MeasurementDefinition.Enabled = false) are not "current": they are
-            // never scanned, and the granular pass below drops any values they still hold.
-            var activeMeasNames = MeasurementMath.ActiveMeasurementNames(profileModel.Measurements);
+            // Disabled measurements (MeasurementDefinition.Enabled = false) are not "current": they are never
+            // cached, and the granular pass below drops any values they still hold. A disabled operand of an
+            // enabled ratio is still computed when the ratio needs filling (derived from cached terms below, or
+            // evaluated on the mesh via the evaluator's WithRatioOperands widening), but only the ratio is stored.
+            var activeMeasNames = MeasurementMath.CachedMeasurementNames(profileModel.Measurements);
             var currentMeasNames = new HashSet<string>(StringComparer.Ordinal);
             if (profileModel.Measurements != null)
             {
@@ -5050,7 +5056,7 @@ public sealed class ExternalDescriptorSeedContext
     public HashSet<BodyShapeDescriptor.LabelSignature>? DescriptorUniverse { get; set; }
 }
 
-public class VM_BodyTypeProfile : VM
+public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTarget
 {
     private readonly BodyTypeProfile _source;
     private readonly VM_BodyTypeProfileEditor _parent;
@@ -5523,6 +5529,9 @@ public class VM_BodyTypeProfile : VM
         RecomputeMeasurementRefValidity();
         RecomputeConditionRefValidity();
 
+        // Ctrl+Z / Ctrl+Y on the Measurements tab: baseline the history now that the rows are loaded.
+        InitMeasurementHistory();
+
         // Repaint the measurement-line overlay whenever the user picks a different
         // measurement. Using the raw PropertyChanged event keeps this file free of
         // additional ReactiveUI wiring (the profile's lifetime is bounded by the
@@ -5535,7 +5544,9 @@ public class VM_BodyTypeProfile : VM
                 // the toggle's off-handler restores it via the same RefreshMeasurementHighlight
                 // call, so picking a different measurement while the overlay is active
                 // simply queues the new highlight to appear after the next toggle-off.
-                if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
+                // Coalesced with the grid's SelectionChanged (UpdateSelectedMeasurements), which follows
+                // this binding update for the same click: one overlay rebuild per click, not two.
+                if (!ShowBulgeOverlay) ScheduleMeasurementHighlight();
             }
             else if (args.PropertyName == nameof(SelectedKeyVertex))
             {
@@ -5598,17 +5609,13 @@ public class VM_BodyTypeProfile : VM
 
     private void OnMeasurementRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // LiveValue updates are the result of recomputation; re-running on that would loop.
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.LiveValue)) return;
-        // HasDuplicateName + ref-validity flags are written by the recompute methods
-        // themselves; reacting to them would recurse.
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.HasDuplicateName)) return;
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefAValid)) return;
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefBValid)) return;
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefCValid)) return;
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefDValid)) return;
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsMeasRefAValid)) return;
-        if (e.PropertyName == nameof(VM_MeasurementDefinition.IsMeasRefBValid)) return;
+        // Only the definition fields matter. Everything else a row raises is derived: LiveValue (the
+        // result of recomputation -- re-running on it would loop), the duplicate / ref-validity flags
+        // (written by the recompute methods themselves), the cross-row pick lists (raised on EVERY row
+        // whenever a measurement / region is added, removed or renamed) and Fody's dependent UI flags
+        // (ShowAxisField etc., raised alongside each Kind change). Reacting to those re-evaluated the
+        // whole profile once per row per notification -- dozens of full refreshes per edit.
+        if (e.PropertyName == null || !MeasurementDefinitionProperties.Contains(e.PropertyName)) return;
         RefreshMeasurementValues();
         if (e.PropertyName == nameof(VM_MeasurementDefinition.Name)
             && sender is VM_MeasurementDefinition mr)
@@ -5974,6 +5981,7 @@ public class VM_BodyTypeProfile : VM
     /// would be noise.</summary>
     private void RecomputeMeasurementRefValidity()
     {
+        using var perf = UiPerfTrace.Measure("RecomputeMeasurementRefValidity");
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var kv in KeyVertices)
         {
@@ -6009,16 +6017,19 @@ public class VM_BodyTypeProfile : VM
     /// <summary>Pushes <see cref="VM_MeasurementCondition.IsMeasurementRefValid"/> and
     /// <see cref="VM_MeasurementCondition.IsMeasurementRefDisabled"/> onto every condition across all
     /// Rules → Groups → Conditions based on the current <see cref="AvailableMeasurementNames"/> and
-    /// which of them are active (see <see cref="MeasurementMath.ActiveMeasurementNames"/>).</summary>
+    /// which of them are cached (see <see cref="MeasurementMath.CachedMeasurementNames"/>): a condition can only
+    /// read an enabled measurement. A disabled operand of an enabled ratio is computed for the ratio but never
+    /// cached, so a rule reading it directly would have no value to test.</summary>
     private void RecomputeConditionRefValidity()
     {
+        using var perf = UiPerfTrace.Measure("RecomputeConditionRefValidity");
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var m in Measurements)
         {
             var n = (m.Name ?? "").Trim();
             if (!string.IsNullOrEmpty(n)) names.Add(n);
         }
-        var active = MeasurementMath.ActiveMeasurementNames(Measurements.Where(m => m != null).Select(m => m.DumpToModel()));
+        var active = MeasurementMath.CachedMeasurementNames(Measurements.Where(m => m != null).Select(m => m.DumpToModel()));
         foreach (var r in Rules)
         {
             if (r?.Groups == null) continue;
@@ -6339,7 +6350,29 @@ public class VM_BodyTypeProfile : VM
     public void UpdateSelectedMeasurements(IEnumerable<VM_MeasurementDefinition> selected)
     {
         _selectedMeasurements = selected?.Where(m => m != null).ToList() ?? new();
-        if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
+        if (!ShowBulgeOverlay) ScheduleMeasurementHighlight();
+    }
+
+    private bool _measurementHighlightScheduled;
+
+    /// <summary>Runs <see cref="RefreshMeasurementHighlight"/> once at the end of the current dispatcher turn,
+    /// however many selection signals arrive in it (the DataGrid's SelectedItem binding and its SelectionChanged
+    /// event both fire per click). Synchronous when there is no running dispatcher (headless callers).</summary>
+    private void ScheduleMeasurementHighlight()
+    {
+        var app = System.Windows.Application.Current;
+        if (app == null || !app.Dispatcher.CheckAccess())
+        {
+            RefreshMeasurementHighlight();
+            return;
+        }
+        if (_measurementHighlightScheduled) return;
+        _measurementHighlightScheduled = true;
+        app.Dispatcher.BeginInvoke(DispatcherPriority.DataBind, new Action(() =>
+        {
+            _measurementHighlightScheduled = false;
+            if (!ShowBulgeOverlay) RefreshMeasurementHighlight();
+        }));
     }
 
     /// <summary>Full set of key vertices currently highlighted in the KeyVertices DataGrid.
@@ -7742,6 +7775,7 @@ public class VM_BodyTypeProfile : VM
     /// selected, no viewer, no live geometry, or the box doesn't resolve to a valid patch.</summary>
     public void RefreshRegionOverlay()
     {
+        using var perf = UiPerfTrace.Measure("RefreshRegionOverlay");
         var viewer = ActiveViewer;
         if (viewer == null) return;
 
@@ -8124,6 +8158,7 @@ public class VM_BodyTypeProfile : VM
     /// profile sizes (the live shape lookup per row is a single dictionary probe).</summary>
     private void RecomputeKeyVertexResolutionStates()
     {
+        using var perf = UiPerfTrace.Measure("RecomputeKeyVertexResolutionStates");
         var viewer = ActiveViewer;
         if (viewer == null)
         {
@@ -8220,6 +8255,7 @@ public class VM_BodyTypeProfile : VM
     /// (an unnamed region can't be referenced by a measurement; the name is the user's to fill in).</summary>
     private void RecomputeRegionResolutionStates()
     {
+        using var perf = UiPerfTrace.Measure("RecomputeRegionResolutionStates");
         var viewer = ActiveViewer;
         if (viewer == null)
         {
@@ -8334,16 +8370,16 @@ public class VM_BodyTypeProfile : VM
         foreach (var m in Measurements)
         {
             if (m == null || string.IsNullOrEmpty(m.Name) || specs.ContainsKey(m.Name)) continue;
-            specs[m.Name] = new VM_BodyTypeProfile.MeasurementLineSpec(
-                m.Kind, m.VertexRefA, m.VertexRefB, m.VertexRefC, m.VertexRefD,
-                m.Axis, m.NumeratorAxis, m.DenominatorAxis, m.AngleViewAxis,
-                m.RegionRefName?.Trim() ?? "", m.GirthAggregate, m.GirthStep);
+            specs[m.Name] = LineSpecOf(m);
         }
         return (keyVertsByName, resolvedRegions, specs, regionNamesByMeasurement);
     }
 
     public void RefreshMeasurementValues()
     {
+        // Inside a batch (undo restore, bulk load) run once when the batch closes.
+        if (DeferRefreshIfBatching()) return;
+        using var perf = UiPerfTrace.Measure("RefreshMeasurementValues");
         var viewer = ActiveViewer;
 
         RefreshBoundingBoxMarkers(viewer);
@@ -8495,6 +8531,7 @@ public class VM_BodyTypeProfile : VM
     /// fired, so calibration is a glance, not a hunt.</summary>
     public void RefreshPreviewDescriptors()
     {
+        using var perf = UiPerfTrace.Measure("RefreshPreviewDescriptors");
         var meas = new Dictionary<string, float>(StringComparer.Ordinal);
         foreach (var m in Measurements)
         {
@@ -8657,6 +8694,7 @@ public class VM_BodyTypeProfile : VM
     /// </summary>
     private void RefreshBoundingBoxMarkers(VM_CharacterViewer viewer)
     {
+        using var perf = UiPerfTrace.Measure("RefreshBoundingBoxMarkers");
         if (viewer == null) return;
 
         // Pre-snapshot every BB and Region row as a plain model so pair-sibling lookup can see the
@@ -8907,6 +8945,7 @@ public class VM_BodyTypeProfile : VM
 
     private void RefreshMeasurementHighlight()
     {
+        using var perf = UiPerfTrace.Measure("RefreshMeasurementHighlight");
         var viewer = ActiveViewer;
         if (viewer == null) return;
 
@@ -9016,6 +9055,31 @@ public class VM_BodyTypeProfile : VM
             return axis.HasValue ? $"{pair}: {axis.Value}" : pair;
         }
 
+        // Operand lookup for MeasurementRatio rows (first row wins, like the evaluator): their numerator /
+        // denominator are drawn as those rows would be on their own.
+        var rowsByName = new Dictionary<string, VM_MeasurementDefinition>(StringComparer.Ordinal);
+        var specsByName = new Dictionary<string, MeasurementLineSpec>(StringComparer.Ordinal);
+        if (sels.Any(s => s?.Kind == MeasurementKind.MeasurementRatio))
+        {
+            foreach (var m in Measurements)
+            {
+                var n = m?.Name?.Trim();
+                if (m == null || string.IsNullOrEmpty(n) || rowsByName.ContainsKey(n)) continue;
+                rowsByName[n] = m;
+                specsByName[n] = LineSpecOf(m);
+            }
+        }
+        float? ValueOf(string measName) => rowsByName.TryGetValue(measName, out var row) ? row.LiveValue : null;
+        int AppendGirth(MeasurementLineSpec spec, string? label,
+            List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segs)
+        {
+            var resolved = ResolveRegionByName(viewer, spec.RegionRefName);
+            return resolved == null ? 0
+                : AppendGirthTapeSegments(resolved, viewer.GetShapePositions(resolved.ShapeName),
+                    spec.GirthAggregate, spec.GirthStep, label, segs);
+        }
+        var regionTints = new List<(string Region, OpenTK.Mathematics.Vector3? Color)>();
+
         foreach (var sel in sels)
         {
             if (sel == null) continue;
@@ -9040,17 +9104,17 @@ public class VM_BodyTypeProfile : VM
                     "F4", System.Globalization.CultureInfo.InvariantCulture)
                 : rawName;
 
-            AppendMeasurementLineSegments(
-                new MeasurementLineSpec(sel.Kind, sel.VertexRefA, sel.VertexRefB, sel.VertexRefC, sel.VertexRefD,
-                    sel.Axis, sel.NumeratorAxis, sel.DenominatorAxis, sel.AngleViewAxis),
-                name, Resolve, PairSlot, segments);
-            if (sel.Kind == MeasurementKind.Girth)
-                AppendGirthTapeSegments(viewer, sel, name, segments);
+            // The selected row itself is resolved from the grid row (not specsByName), so a duplicate-named
+            // row still draws its own geometry; only ratio operands go through the by-name lookup.
+            AppendMeasurementOverlay(LineSpecOf(sel), name, specsByName, Resolve, PairSlot, AppendGirth,
+                spec => CollectMeasurementRegionNames(spec, keyVertsByName),
+                ValueOf, sel.Name?.Trim() ?? "", segments, regionTints);
         }
 
         // Tint every region the selected measurements use. Pushed before the empty-segments early
         // return: a RegionVolume selection has no lines, and the tint is then all there is to see.
-        viewer.SetMeasurementRegionTint(BuildMeasurementRegionTint(viewer, sels, keyVertsByName));
+        var tint = BuildMeasurementRegionTint(viewer, ResolveRegionsByName(viewer, regionTints.Select(t => t.Region)), regionTints);
+        viewer.SetMeasurementRegionTint(tint.Triangles, tint.Ranges);
 
         if (segments.Count == 0)
         {
@@ -9066,6 +9130,13 @@ public class VM_BodyTypeProfile : VM
     /// the regions the measurement overlays tint (live viewer and Show Spread).</summary>
     internal static List<string> CollectMeasurementRegionNames(VM_MeasurementDefinition m,
         IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
+        => CollectMeasurementRegionNames(LineSpecOf(m), keyVertsByName);
+
+    /// <summary>Spec-based form of <see cref="CollectMeasurementRegionNames(VM_MeasurementDefinition, IReadOnlyDictionary{string, NamedKeyVertex})"/>.
+    /// A MeasurementRatio returns none: its operands' regions come from expanding it
+    /// (<see cref="AppendMeasurementOverlay"/>).</summary>
+    internal static List<string> CollectMeasurementRegionNames(MeasurementLineSpec m,
+        IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
     {
         var names = new List<string>();
         if (m.Kind == MeasurementKind.MeasurementRatio) return names; // reads measurements, not regions or key vertices
@@ -9080,27 +9151,30 @@ public class VM_BodyTypeProfile : VM
         return names.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>Live-viewer counterpart of Show Spread's region tint: the surface patches of every
-    /// region <paramref name="sels"/> use, on the viewer's current deformed mesh, in the
-    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/> layout. Regions are resolved through
-    /// the same sliders-0 cache as the region editor (<see cref="GetOrResolveRegion"/>), so they follow
-    /// the previewed preset. Empty when no selected measurement uses a region.</summary>
-    /// <summary>Draws a Girth row's tape path: the convex-hull loop of the slice it measures (Max / Min) or of every
-    /// slice it averages (Mean), from <see cref="RegionGirthEvaluator.MeasuredLoops"/> on the live mesh -- the same
-    /// slices and hull the value comes from, so a straight edge across the front of the chest is exactly what's measured.
-    /// The band tint underneath only shows which vertices are sliced, and follows the skin.</summary>
-    private void AppendGirthTapeSegments(VM_CharacterViewer viewer, VM_MeasurementDefinition sel, string name,
-        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
+    /// <summary>Resolves the region named <paramref name="regionName"/> (first row wins) through the same sliders-0
+    /// cache as the region editor (<see cref="GetOrResolveRegion"/>), so it follows the previewed preset. Null when no
+    /// row has that name or it doesn't resolve. Used to draw a Girth's tape path on the live mesh.</summary>
+    private RegionVolumeEvaluator.ResolvedRegion? ResolveRegionByName(VM_CharacterViewer viewer, string? regionName)
     {
-        var regionName = sel.RegionRefName?.Trim() ?? "";
-        if (regionName.Length == 0) return;
-        var regionModel = Regions.Select(r => r.DumpToModel())
-            .FirstOrDefault(r => string.Equals(r.Name?.Trim(), regionName, StringComparison.Ordinal));
-        if (regionModel == null) return;
-        var resolved = GetOrResolveRegion(viewer, regionModel);
-        if (resolved == null) return;
-        AppendGirthTapeSegments(resolved, viewer.GetShapePositions(resolved.ShapeName), sel.GirthAggregate, sel.GirthStep,
-            name + " (tape path)", segments);
+        regionName = regionName?.Trim() ?? "";
+        if (regionName.Length == 0) return null;
+        var row = Regions.FirstOrDefault(r => string.Equals(r?.Name?.Trim(), regionName, StringComparison.Ordinal));
+        return row == null ? null : GetOrResolveRegion(viewer, row.DumpToModel());
+    }
+
+    /// <summary>Live-viewer counterpart of Show Spread's resolved-region snapshot, restricted to
+    /// <paramref name="regionNames"/>: each resolved through <see cref="GetOrResolveRegion"/>, keyed by name.</summary>
+    private Dictionary<string, RegionVolumeEvaluator.ResolvedRegion> ResolveRegionsByName(VM_CharacterViewer viewer,
+        IEnumerable<string> regionNames)
+    {
+        var resolved = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
+        foreach (var name in regionNames.Distinct(StringComparer.Ordinal))
+        {
+            if (resolved.ContainsKey(name)) continue;
+            var rr = ResolveRegionByName(viewer, name);
+            if (rr != null) resolved[name] = rr;
+        }
+        return resolved;
     }
 
     /// <summary>Appends the tape-path loop(s) of a Girth measurement on <paramref name="positions"/> (the deformed
@@ -9120,30 +9194,6 @@ public class VM_BodyTypeProfile : VM
             added += loop.Length;
         }
         return added;
-    }
-
-    private List<float> BuildMeasurementRegionTint(VM_CharacterViewer viewer,
-        IReadOnlyList<VM_MeasurementDefinition> sels, IReadOnlyDictionary<string, NamedKeyVertex> keyVertsByName)
-    {
-        var tint = new List<float>();
-        var regionNames = sels
-            .SelectMany(m => CollectMeasurementRegionNames(m, keyVertsByName))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (regionNames.Count == 0) return tint;
-
-        var resolved = new Dictionary<string, RegionVolumeEvaluator.ResolvedRegion>(StringComparer.Ordinal);
-        foreach (var r in Regions)
-        {
-            var rm = r?.DumpToModel();
-            if (rm == null || string.IsNullOrEmpty(rm.Name) || resolved.ContainsKey(rm.Name)
-                || !regionNames.Contains(rm.Name, StringComparer.Ordinal)) continue;
-            var rr = GetOrResolveRegion(viewer, rm);
-            if (rr != null) resolved[rm.Name] = rr;
-        }
-        foreach (var name in regionNames)
-            AppendMeasurementRegionTint(viewer, resolved, name, tint);
-        return tint;
     }
 
     /// <summary>Appends <paramref name="regionName"/>'s surface on <paramref name="vm"/>'s current
@@ -9204,7 +9254,132 @@ public class VM_BodyTypeProfile : VM
         MeasurementKind Kind, string VertexRefA, string VertexRefB, string VertexRefC, string VertexRefD,
         MeasurementAxis Axis, MeasurementAxis? NumeratorAxis, MeasurementAxis? DenominatorAxis,
         MeasurementAxis? AngleViewAxis = null,
-        string RegionRefName = "", GirthAggregate GirthAggregate = GirthAggregate.Max, float GirthStep = 1.0f);
+        string RegionRefName = "", GirthAggregate GirthAggregate = GirthAggregate.Max, float GirthStep = 1.0f,
+        string MeasurementRefA = "", string MeasurementRefB = "");
+
+    /// <summary>The <see cref="MeasurementLineSpec"/> of a grid row (positional, see the record's remarks).</summary>
+    internal static MeasurementLineSpec LineSpecOf(VM_MeasurementDefinition m) => new(
+        m.Kind, m.VertexRefA ?? "", m.VertexRefB ?? "", m.VertexRefC ?? "", m.VertexRefD ?? "",
+        m.Axis, m.NumeratorAxis, m.DenominatorAxis, m.AngleViewAxis,
+        m.RegionRefName?.Trim() ?? "", m.GirthAggregate, m.GirthStep,
+        m.MeasurementRefA?.Trim() ?? "", m.MeasurementRefB?.Trim() ?? "");
+
+    /// <summary>Color of everything drawn for a measurement ratio's numerator (lines and region tint): the
+    /// primary measurement-line yellow, so a ratio reads like a RatioDistance (yellow over cyan).</summary>
+    internal static readonly OpenTK.Mathematics.Vector3 RatioNumeratorColor = new(1.0f, 0.85f, 0.1f);
+    /// <summary>Color of everything drawn for a measurement ratio's denominator: the secondary cyan.</summary>
+    internal static readonly OpenTK.Mathematics.Vector3 RatioDenominatorColor = new(0.1f, 0.85f, 1.0f);
+
+    /// <summary>Appends everything that depicts one measurement: its lines (<see cref="AppendMeasurementLineSegments"/>),
+    /// a Girth's tape path (<paramref name="appendGirth"/>), and the regions it uses as tint requests. A
+    /// <see cref="MeasurementKind.MeasurementRatio"/> has no geometry of its own, so it is drawn as its operands, each
+    /// the way it would be drawn on its own (a distance as its line, a RegionVolume as its region tint, a Girth as its
+    /// tape...), everything from the numerator in <see cref="RatioNumeratorColor"/> and from the denominator in
+    /// <see cref="RatioDenominatorColor"/>. A ratio operand that is itself a ratio is expanded the same way; the
+    /// outermost ratio's colors win, and a cycle stops at the first repeat. Shared by the live viewer overlay and
+    /// Show Spread / Annotation Panel thumbnails so all of them draw a ratio identically.
+    /// <para><paramref name="specsByName"/> resolves operands by name (first row wins, like the evaluator);
+    /// <paramref name="valueOf"/> (optional) appends an operand's value to its hover label; tint requests carry
+    /// null for "the default tint color" and an explicit color for ratio operands.</para></summary>
+    internal static void AppendMeasurementOverlay(
+        MeasurementLineSpec spec,
+        string label,
+        IReadOnlyDictionary<string, MeasurementLineSpec> specsByName,
+        Func<string, OpenTK.Mathematics.Vector3?> resolve,
+        Func<string, string, MeasurementAxis?, string> pairSlot,
+        Func<MeasurementLineSpec, string?, List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>, int>? appendGirth,
+        Func<MeasurementLineSpec, IReadOnlyList<string>> regionNamesOf,
+        Func<string, float?>? valueOf,
+        string measurementName,
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments,
+        List<(string Region, OpenTK.Mathematics.Vector3? Color)> regionTints)
+    {
+        AppendMeasurementOverlayCore(spec, label, specsByName, resolve, pairSlot, appendGirth, regionNamesOf, valueOf,
+            measurementName, segments, regionTints, null, new HashSet<string>(StringComparer.Ordinal));
+    }
+
+    private static void AppendMeasurementOverlayCore(
+        MeasurementLineSpec spec,
+        string label,
+        IReadOnlyDictionary<string, MeasurementLineSpec> specsByName,
+        Func<string, OpenTK.Mathematics.Vector3?> resolve,
+        Func<string, string, MeasurementAxis?, string> pairSlot,
+        Func<MeasurementLineSpec, string?, List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>, int>? appendGirth,
+        Func<MeasurementLineSpec, IReadOnlyList<string>> regionNamesOf,
+        Func<string, float?>? valueOf,
+        string measurementName,
+        List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments,
+        List<(string Region, OpenTK.Mathematics.Vector3? Color)> regionTints,
+        OpenTK.Mathematics.Vector3? roleColor,
+        HashSet<string> visiting)
+    {
+        if (spec.Kind != MeasurementKind.MeasurementRatio)
+        {
+            int start = segments.Count;
+            AppendMeasurementLineSegments(spec, label, resolve, pairSlot, segments);
+            if (spec.Kind == MeasurementKind.Girth) appendGirth?.Invoke(spec, label + " (tape path)", segments);
+            if (roleColor.HasValue)
+            {
+                // Inside a ratio: the operand's own primary / secondary colors become the role color. The
+                // white / grey / orange helper legs (axis decomposition, angle marker) keep theirs as context.
+                var primary = RatioNumeratorColor;
+                var secondary = RatioDenominatorColor;
+                for (int i = start; i < segments.Count; i++)
+                {
+                    var s = segments[i];
+                    if (s.Color == primary || s.Color == secondary)
+                        segments[i] = (s.A, s.B, roleColor.Value, s.Label);
+                }
+            }
+            foreach (var region in regionNamesOf(spec))
+                regionTints.Add((region, roleColor));
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(measurementName) && !visiting.Add(measurementName)) return; // cycle
+        void Operand(string opName, string role, OpenTK.Mathematics.Vector3 color)
+        {
+            if (string.IsNullOrEmpty(opName) || !specsByName.TryGetValue(opName, out var opSpec)) return;
+            float? v = valueOf?.Invoke(opName);
+            string opLabel = v.HasValue
+                ? opName + " = " + v.Value.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)
+                : opName;
+            AppendMeasurementOverlayCore(opSpec, $"{label} ({role}: {opLabel})", specsByName, resolve, pairSlot,
+                appendGirth, regionNamesOf, valueOf, opName, segments, regionTints, roleColor ?? color, visiting);
+        }
+        Operand(spec.MeasurementRefA, "numerator", RatioNumeratorColor);
+        Operand(spec.MeasurementRefB, "denominator", RatioDenominatorColor);
+        if (!string.IsNullOrEmpty(measurementName)) visiting.Remove(measurementName);
+    }
+
+    /// <summary>Builds the measurement-region tint for <paramref name="regionTints"/> on <paramref name="vm"/>'s
+    /// current mesh: each distinct (region, color) once, with per-range colors when any request carries an explicit
+    /// color (null = <see cref="VM_CharacterViewer.MeasurementRegionDefaultColor"/>). Returns the interleaved
+    /// triangles and the color ranges (null when every request uses the default color) for
+    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/>. <paramref name="tintResults"/> (optional) receives
+    /// "name=ok" / "name=UNRESOLVED" per request for diagnostics.</summary>
+    internal static (List<float> Triangles, List<(int FirstVertex, int VertexCount, OpenTK.Mathematics.Vector3 Color)>? Ranges)
+        BuildMeasurementRegionTint(VM_CharacterViewer vm,
+            IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? regions,
+            IEnumerable<(string Region, OpenTK.Mathematics.Vector3? Color)> regionTints,
+            List<string>? tintResults = null)
+    {
+        var tint = new List<float>();
+        var ranges = new List<(int, int, OpenTK.Mathematics.Vector3)>();
+        bool anyExplicit = false;
+        var seen = new HashSet<(string, OpenTK.Mathematics.Vector3?)>();
+        foreach (var (region, color) in regionTints)
+        {
+            if (string.IsNullOrEmpty(region) || !seen.Add((region, color))) continue;
+            anyExplicit |= color.HasValue;
+            int before = tint.Count;
+            bool ok = AppendMeasurementRegionTint(vm, regions, region, tint);
+            tintResults?.Add(region + (ok ? "=ok" : "=UNRESOLVED"));
+            if (tint.Count > before)
+                ranges.Add((before / 6, (tint.Count - before) / 6, color ?? vm.MeasurementRegionDefaultColor));
+        }
+        return (tint, anyExplicit ? ranges : null);
+    }
 
     /// <summary>Appends the marker that shows which angle an <see cref="MeasurementKind.Angle"/> measures:
     /// a white guide continuing line A->B's direction from the pivot C (the "straight on" reference --
@@ -10935,6 +11110,9 @@ public class VM_BodyTypeProfile : VM
     /// </para></summary>
     private void OnMeasurementCacheInvalidatingChange(object? sender, PropertyChangedEventArgs e)
     {
+        // Derived row properties (live value, flags, pick lists, Fody dependents) never change a fingerprint.
+        if (sender is VM_MeasurementDefinition
+            && (e.PropertyName == null || !MeasurementDefinitionProperties.Contains(e.PropertyName))) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.LiveValue)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.HasDuplicateName)) return;
         if (e.PropertyName == nameof(VM_MeasurementDefinition.IsRefAValid)) return;
@@ -11009,6 +11187,7 @@ public class VM_BodyTypeProfile : VM
     /// rules.</summary>
     public void RevalidateMeasurementCacheStale()
     {
+        using var perf = UiPerfTrace.Measure("RevalidateMeasurementCacheStale");
         bool wasStale = MeasurementCacheStale;
         bool nowStale = !IsMeasurementCacheConsistent();
         MeasurementCacheStale = nowStale;
@@ -11400,6 +11579,7 @@ public class VM_BodyTypeProfile : VM
     /// possible so the right pane doesn't jump when an unrelated rule is added/removed.</summary>
     public void RebuildRuleTree()
     {
+        using var perf = UiPerfTrace.Measure("RebuildRuleTree");
         // Remember selection so we can restore by (Cat, Val) after rebuild.
         string selCat = "", selVal = "";
         bool selWasValueLevel = false;
@@ -11484,6 +11664,7 @@ public class VM_BodyTypeProfile : VM
     /// here, so chaining the call keeps the two views in lock-step.</para></summary>
     public void RefreshFilteredRules()
     {
+        using var perf = UiPerfTrace.Measure("RefreshFilteredRules");
         FilteredRules.Clear();
         switch (SelectedRuleTreeNode)
         {
@@ -11532,6 +11713,7 @@ public class VM_BodyTypeProfile : VM
     /// the user notices the gap).</para></summary>
     public void RefreshSelectedNodeMatchingPresets()
     {
+        using var perf = UiPerfTrace.Measure("RefreshSelectedNodeMatchingPresets");
         // Keep the measurement-line overlay in step with the in-view rules while the toggle is on
         // (node changes, live condition edits). When off we leave the overlay alone — the toggle's
         // own handler does the one-shot clear so we don't churn the highlight every keystroke.
@@ -13353,8 +13535,8 @@ public class VM_MeasurementCondition : VM
     public bool IsMeasurementRefValid { get; set; } = true;
 
     /// <summary>True when this Measurement-kind condition names a measurement that exists but is disabled
-    /// (<see cref="MeasurementDefinition.Enabled"/> = false), so it is never scanned and the condition can never
-    /// match. Set by <see cref="VM_BodyTypeProfile.RecomputeConditionRefValidity"/>; drives an amber warning.</summary>
+    /// (<see cref="MeasurementDefinition.Enabled"/> = false), so it is never cached and the condition can never
+    /// match -- including when it is the operand of an enabled ratio, which computes it only for the ratio. Set by <see cref="VM_BodyTypeProfile.RecomputeConditionRefValidity"/>; drives an amber warning.</summary>
     public bool IsMeasurementRefDisabled { get; set; } = false;
 
     public IEnumerable<string> AvailableMeasurementNames => _parent.AvailableMeasurementNames;

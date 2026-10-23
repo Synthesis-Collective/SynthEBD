@@ -55,7 +55,6 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
     private readonly IReadOnlyDictionary<string, NamedKeyVertex> _keyVertsByName;
     private readonly IReadOnlyDictionary<string, RegionVolumeEvaluator.ResolvedRegion>? _resolvedRegions;
     private readonly IReadOnlyDictionary<string, VM_BodyTypeProfile.MeasurementLineSpec> _lineSpecs;
-    private readonly IReadOnlyDictionary<string, IReadOnlyList<string>> _regionNamesByMeasurement;
     private readonly Dictionary<RenderKey, BitmapSource?> _images = new();
     private readonly CancellationTokenSource _cts = new();
     private bool _pumping;
@@ -83,7 +82,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
         _logName = logName;
         _wantedKeys = wantedKeys;
         _imageReady = imageReady;
-        (_keyVertsByName, _resolvedRegions, _lineSpecs, _regionNamesByMeasurement) = profile.SnapshotMeasurementOverlayInputs(renderSettingsSource);
+        (_keyVertsByName, _resolvedRegions, _lineSpecs, _) = profile.SnapshotMeasurementOverlayInputs(renderSettingsSource);
     }
 
     /// <summary>Cache key string for an overlay drawing <paramref name="measurementNames"/>' lines.</summary>
@@ -245,13 +244,10 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
     {
         var keyVerts = _keyVertsByName;
         var regions = _resolvedRegions;
+        var allSpecs = _lineSpecs;
         var specs = measurementNames
-            .Where(n => _lineSpecs.ContainsKey(n))
-            .Select(n => _lineSpecs[n])
-            .ToList();
-        var regionNames = measurementNames
-            .SelectMany(n => _regionNamesByMeasurement.TryGetValue(n, out var r) ? r : Array.Empty<string>())
-            .Distinct(StringComparer.Ordinal)
+            .Where(n => allSpecs.ContainsKey(n))
+            .Select(n => (Name: n, Spec: allSpecs[n]))
             .ToList();
         return vm =>
         {
@@ -274,29 +270,28 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
                     return r;
                 }
 
+                // A Girth draws its tape path, measured on this render's own deformed mesh.
+                int AppendGirth(VM_BodyTypeProfile.MeasurementLineSpec spec, string? label,
+                    List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segs)
+                    => regions != null && regions.TryGetValue(spec.RegionRefName, out var girthRegion)
+                        ? VM_BodyTypeProfile.AppendGirthTapeSegments(girthRegion, vm.GetShapePositions(girthRegion.ShapeName),
+                            spec.GirthAggregate, spec.GirthStep, label, segs)
+                        : 0;
+
+                // Same expansion as the live viewer: a MeasurementRatio draws its operands (numerator yellow,
+                // denominator cyan), each as it would be drawn on its own.
                 var segments = new List<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)>();
-                foreach (var spec in specs)
+                var regionTints = new List<(string Region, OpenTK.Mathematics.Vector3? Color)>();
+                foreach (var (name, spec) in specs)
                 {
-                    VM_BodyTypeProfile.AppendMeasurementLineSegments(
-                        spec, "", Resolve, (_, _, _) => "", segments);
-                    // A Girth draws its tape path, measured on this render's own deformed mesh.
-                    if (spec.Kind == MeasurementKind.Girth && regions != null
-                        && regions.TryGetValue(spec.RegionRefName, out var girthRegion))
-                    {
-                        VM_BodyTypeProfile.AppendGirthTapeSegments(girthRegion, vm.GetShapePositions(girthRegion.ShapeName),
-                            spec.GirthAggregate, spec.GirthStep, null, segments);
-                    }
+                    VM_BodyTypeProfile.AppendMeasurementOverlay(spec, "", allSpecs, Resolve, (_, _, _) => "", AppendGirth,
+                        s => VM_BodyTypeProfile.CollectMeasurementRegionNames(s, keyVerts), null, name, segments, regionTints);
                 }
                 vm.SetMeasurementLines(segments);
 
-                var tint = new List<float>();
                 var tintResults = new List<string>();
-                foreach (var regionName in regionNames)
-                {
-                    tintResults.Add(regionName
-                        + (VM_BodyTypeProfile.AppendMeasurementRegionTint(vm, regions, regionName, tint) ? "=ok" : "=UNRESOLVED"));
-                }
-                vm.SetMeasurementRegionTint(tint);
+                var tint = VM_BodyTypeProfile.BuildMeasurementRegionTint(vm, regions, regionTints, tintResults);
+                vm.SetMeasurementRegionTint(tint.Triangles, tint.Ranges);
 
                 diag.Value = $"{specs.Count}/{measurementNames.Count} measurement(s) have line specs; "
                     + $"refs [{string.Join(", ", refResults.Distinct())}]; {segments.Count} segment(s); "

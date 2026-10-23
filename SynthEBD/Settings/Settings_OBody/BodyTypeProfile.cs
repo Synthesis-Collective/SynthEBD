@@ -646,11 +646,12 @@ public class MeasurementDefinition
     /// </summary>
     public List<string> MeasurementRefNames { get; set; } = new();
 
-    /// <summary>When false the measurement is kept as a definition but never evaluated, scanned, or
-    /// written to the measurement cache (each one costs cache disk space across every preset and
-    /// weight). Exception: a disabled row that an enabled <see cref="MeasurementKind.MeasurementRatio"/>
-    /// reads is still evaluated, since the ratio can't be computed without it -- see
-    /// <see cref="MeasurementMath.ActiveMeasurementNames"/>. Not part of the cache fingerprint, so
+    /// <summary>When false the measurement is kept as a definition but never written to the measurement cache
+    /// (each one costs cache disk space across every preset and weight), and no rule can read it. Normally it is
+    /// not evaluated either. Exception: a disabled row that an enabled <see cref="MeasurementKind.MeasurementRatio"/>
+    /// reads is still evaluated, on the fly, so the ratio can be computed; only the ratio's value is cached -- see
+    /// <see cref="MeasurementMath.ActiveMeasurementNames"/> / <see cref="MeasurementMath.CachedMeasurementNames"/>.
+    /// This lets ratio operands stay as readable named rows without costing cache space. Not part of the cache fingerprint, so
     /// toggling it never invalidates other cached values. Defaults to true so existing profiles load
     /// unchanged.</summary>
     public bool Enabled { get; set; } = true;
@@ -1116,9 +1117,28 @@ public static class MeasurementMath
     public static bool ReadsRegion(MeasurementKind kind) =>
         kind == MeasurementKind.RegionVolume || kind == MeasurementKind.Girth || kind == MeasurementKind.TorsoTrace;
 
-    /// <summary>Names of the measurements that are evaluated and cached: every
-    /// <see cref="MeasurementDefinition.Enabled"/> row, plus (transitively) every operand an enabled
-    /// <see cref="MeasurementKind.MeasurementRatio"/> reads, even when that operand is itself disabled.
+    /// <summary>Names of the measurements that are written to the measurement cache (and fingerprinted, so they
+    /// count toward cache completeness): exactly the <see cref="MeasurementDefinition.Enabled"/> rows. First row
+    /// wins on duplicate names, matching the evaluator. A disabled row read by an enabled ratio is evaluated
+    /// (<see cref="ActiveMeasurementNames"/>) but not cached: the ratio uses it as a map to its operand's
+    /// definition, computes it on the fly, and only the ratio's value is kept.</summary>
+    public static HashSet<string> CachedMeasurementNames(IEnumerable<MeasurementDefinition?>? definitions)
+    {
+        var cached = new HashSet<string>(StringComparer.Ordinal);
+        if (definitions == null) return cached;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var d in definitions)
+        {
+            if (d == null || string.IsNullOrEmpty(d.Name) || !seen.Add(d.Name)) continue;
+            if (d.Enabled) cached.Add(d.Name);
+        }
+        return cached;
+    }
+
+    /// <summary>Names of the measurements that are evaluated: every <see cref="MeasurementDefinition.Enabled"/>
+    /// row, plus (transitively) every operand an enabled <see cref="MeasurementKind.MeasurementRatio"/> reads,
+    /// even when that operand is itself disabled. Only the enabled ones are cached
+    /// (<see cref="CachedMeasurementNames"/>); a disabled operand is computed for the ratio and then dropped.
     /// First row wins on duplicate names, matching the evaluator.</summary>
     public static HashSet<string> ActiveMeasurementNames(IEnumerable<MeasurementDefinition?>? definitions)
     {

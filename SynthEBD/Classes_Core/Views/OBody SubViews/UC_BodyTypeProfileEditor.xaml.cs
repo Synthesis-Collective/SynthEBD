@@ -50,6 +50,22 @@ public partial class UC_BodyTypeProfileEditor : UserControl
         // before bubbling reaches the outer UserControl, and we want the iteration
         // shortcuts to work no matter where focus sits inside the editor.
         PreviewKeyDown += OnEditorPreviewKeyDown;
+        // Lag probe: every click inside the editor logs click-to-idle time (layout + render included) to
+        // Logs\UiPerf.log when it reaches the threshold, naming what was clicked. handledEventsToo so clicks
+        // a control swallows (ComboBox, DataGrid cells) are still timed.
+        AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(OnPerfProbeMouseDown), true);
+    }
+
+    private static void OnPerfProbeMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (UiPerfTrace.LogFilePath == null) return;
+        var target = e.OriginalSource as FrameworkElement;
+        // Walk up to the nearest control that names what the user aimed at.
+        DependencyObject? d = e.OriginalSource as DependencyObject;
+        while (d != null && d is not Control) d = System.Windows.Media.VisualTreeHelper.GetParent(d);
+        string what = (d?.GetType().Name ?? target?.GetType().Name ?? "?")
+            + " on " + (target?.DataContext?.GetType().Name ?? "-");
+        UiPerfTrace.MeasureUntilIdle("Click " + what);
     }
 
     /// <summary>Handles the editor's global keyboard shortcuts.
@@ -324,6 +340,10 @@ Ctrl+C: Copy the Measurements table to the clipboard as TSV. Pastes directly int
 
 Ctrl+Alt+Shift+S: Cumulative CSV across every (preset, weight) target for this profile — one row per slice, one column per measurement. Drives a full scan first when the cache isn't already complete. Default filename: {ProfileName}_AllMeasurements.csv
 
+Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z): Undo / redo the last change to the Measurements list (edits, added or deleted rows, moves, Ctrl+L loads). While a text box has focus, Ctrl+Z undoes its text first.
+
+Drag the handle at the left of a row (Key Vertices or Measurements) to reorder; select several rows to move them together. Reordering is off while the grid is sorted by a column header.
+
 Ctrl+Shift+H: Bulk histogram export. Prompts for a folder, drives a scan if needed, then writes one CSV per measurement (BinIndex, BinStart, BinEnd, Count) named {ProfileName}_{MeasurementName}_histogram.csv. Bin count matches the histogram window's persisted value when the ""Persist"" toggle is on, else the histogram default.
 
 RULES TAB
@@ -396,6 +416,8 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
     /// DataContext is VM_BodyTypeProfile (the per-profile DataTemplate wrapping the editor).</summary>
     private void RuleTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
+        UiPerfTrace.MeasureUntilIdle("RuleTree selection");
+        using var perf = UiPerfTrace.Measure("RuleTree_SelectedItemChanged");
         if (sender is not TreeView tree) return;
         if (tree.DataContext is not VM_BodyTypeProfile profile) return;
         profile.SelectedRuleTreeNode = e.NewValue; // null when nothing's selected
@@ -440,6 +462,7 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
     /// editor itself.</summary>
     private void KeyVerticesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        using var perf = UiPerfTrace.Measure("KeyVerticesGrid_SelectionChanged");
         if (sender is not DataGrid grid) return;
         if (grid.DataContext is not VM_BodyTypeProfile profile) return;
         var sel = new List<VM_NamedKeyVertex>(grid.SelectedItems.Count);
@@ -454,6 +477,7 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
     /// SelectedItem). Mirrors <see cref="KeyVerticesGrid_SelectionChanged"/>.</summary>
     private void MeasurementsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        using var perf = UiPerfTrace.Measure("MeasurementsGrid_SelectionChanged");
         if (sender is not DataGrid grid) return;
         if (grid.DataContext is not VM_BodyTypeProfile profile) return;
         var sel = new List<VM_MeasurementDefinition>(grid.SelectedItems.Count);

@@ -584,10 +584,12 @@ public static class MeasurementCacheStore
             }
         }
         var measMap = MeasurementsByName(measurements);
-        // Disabled measurements get no fingerprint: they are not "current", so they are never scanned,
-        // never required for cache completeness, dropped on hydrate, and left out when the cache is saved.
-        // (Ratio operands still resolve through measMap, which holds every row.)
-        var active = MeasurementMath.ActiveMeasurementNames(measurements);
+        // Disabled measurements get no fingerprint: they are not "current", so they are never cached, never
+        // required for cache completeness, dropped on hydrate, and left out when the cache is saved. That holds
+        // for a disabled operand of an enabled ratio too: the scan computes it on the fly for the ratio and keeps
+        // only the ratio. (The ratio's own fingerprint still folds in the operand definitions via measMap, which
+        // holds every row, so editing a disabled operand still invalidates the ratio.)
+        var active = MeasurementMath.CachedMeasurementNames(measurements);
         foreach (var def in measurements)
         {
             if (def == null || string.IsNullOrEmpty(def.Name)) continue;

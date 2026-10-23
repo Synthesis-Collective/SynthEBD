@@ -489,8 +489,17 @@ public class GlRenderer : IDisposable
     /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/>.</summary>
     public List<float> MeasurementRegionTriangles { get; } = new();
 
-    /// <summary>RGB color of the measurement-region tint. Cyan, matching the region cap-loop color.</summary>
+    /// <summary>RGB color of the measurement-region tint. Cyan, matching the region cap-loop color.
+    /// Used for the whole of <see cref="MeasurementRegionTriangles"/> when
+    /// <see cref="MeasurementRegionColorRanges"/> is empty.</summary>
     public Vector3 MeasurementRegionColor { get; set; } = new Vector3(0.20f, 0.90f, 1.0f);
+
+    /// <summary>Optional per-range colors for <see cref="MeasurementRegionTriangles"/>, in vertices (not
+    /// floats): each entry draws <c>VertexCount</c> vertices starting at <c>FirstVertex</c> in its own color.
+    /// Lets one tint show several regions apart, e.g. a measurement ratio's numerator region in yellow and its
+    /// denominator region in cyan. Empty = the whole list in <see cref="MeasurementRegionColor"/>; when
+    /// non-empty, only the listed ranges are drawn.</summary>
+    public List<(int FirstVertex, int VertexCount, Vector3 Color)> MeasurementRegionColorRanges { get; } = new();
 
     /// <summary>Opacity of the measurement-region tint (0..1).</summary>
     public float MeasurementRegionAlpha { get; set; } = 0.45f;
@@ -1357,7 +1366,24 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.PolygonOffsetFill);
         GL.PolygonOffset(-1.0f, -2.0f);
 
-        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+        int vertexCount = floats / 6;
+        if (MeasurementRegionColorRanges.Count == 0)
+        {
+            GL.DrawArrays(PrimitiveType.Triangles, 0, vertexCount);
+        }
+        else
+        {
+            // One draw per colored range (same uploaded buffer); ranges are clamped to what was uploaded.
+            foreach (var (first, count, color) in MeasurementRegionColorRanges)
+            {
+                if (first < 0 || first >= vertexCount) continue;
+                int n = Math.Min(count, vertexCount - first);
+                n -= n % 3; // whole triangles only
+                if (n <= 0) continue;
+                _debugShader.SetVector3("u_color", color.X, color.Y, color.Z);
+                GL.DrawArrays(PrimitiveType.Triangles, first, n);
+            }
+        }
 
         GL.Disable(EnableCap.PolygonOffsetFill);
         GL.Disable(EnableCap.DepthTest);

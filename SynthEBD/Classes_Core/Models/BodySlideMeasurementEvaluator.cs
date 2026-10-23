@@ -292,6 +292,15 @@ public static class BodySlideMeasurementEvaluator
                 foreach (var name in MeasurementMath.EvaluateMeasurementRatios(profile.Measurements, result.Measurements, ratioNames.Contains))
                     result.FailedMeasurements[name] = MeasurementFailureReason.MissingOperand;
             }
+
+            // Disabled operands were evaluated only so their ratios could be computed. Drop them now, so the
+            // result holds exactly what the cache would: rules here see the same values as a cache-based
+            // rescore (Match Presets), and no rule can read a disabled measurement in one path but not the other.
+            var cached = MeasurementMath.CachedMeasurementNames(profile.Measurements);
+            foreach (var name in result.Measurements.Keys.Where(n => !cached.Contains(n)).ToList())
+                result.Measurements.Remove(name);
+            foreach (var name in result.FailedMeasurements.Keys.Where(n => !cached.Contains(n)).ToList())
+                result.FailedMeasurements.Remove(name);
         }
 
         // Rule evaluation is unconditionally skippable for the partial-fill path. Descriptors

@@ -104,11 +104,9 @@ public static class MeasurementDerivation
         }
 
         // 3. Evaluate the requested measurements from the known terms.
-        foreach (var name in targetNames)
+        float? FromTerms(MeasurementDefinition def)
         {
-            if (string.IsNullOrEmpty(name) || result.ContainsKey(name)) continue;
-            if (!byName.TryGetValue(name, out var def) || !TryRefs(def, out var r)) continue;
-
+            if (!TryRefs(def, out var r)) return null;
             double? value = def.Kind switch
             {
                 MeasurementKind.AxisDistance => Get(terms, Term.Of(r[0], r[1], (int)def.Axis)),
@@ -120,11 +118,20 @@ public static class MeasurementDerivation
                     Get(terms, Term.Of(r[2], r[3], OperandAxis(def.DenominatorAxis)))),
                 _ => null, // RegionVolume / Girth read geometry; MeasurementRatio is handled in step 4
             };
-            if (value.HasValue) result[name] = (float)value.Value;
+            return value.HasValue ? (float)value.Value : null;
+        }
+        foreach (var name in targetNames)
+        {
+            if (string.IsNullOrEmpty(name) || result.ContainsKey(name)) continue;
+            if (!byName.TryGetValue(name, out var def)) continue;
+            if (FromTerms(def) is float value) result[name] = value;
         }
 
-        // 4. MeasurementRatio targets read other measurements by name: their operands may be cached or just
-        // derived above. Same evaluation as the live evaluator, so cached and live values agree.
+        // 4. MeasurementRatio targets read other measurements by name: their operands may be cached, derived
+        // above, or neither -- a disabled operand is never cached, so the ratio uses its name as a map to its
+        // definition and assembles it from the known terms here (transitively through nested ratios). Operands
+        // computed this way feed the ratio only; they are not returned. Same evaluation as the live evaluator,
+        // so cached and live values agree.
         var ratioTargets = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in targetNames)
             if (!string.IsNullOrEmpty(name) && !result.ContainsKey(name)
@@ -136,7 +143,30 @@ public static class MeasurementDerivation
             foreach (var kv in knownValues)
                 if (kv.Value.HasValue && !ratioTargets.Contains(kv.Key)) values[kv.Key] = kv.Value.Value;
             foreach (var kv in result) values[kv.Key] = kv.Value;
-            MeasurementMath.EvaluateMeasurementRatios(byName.Values, values, ratioTargets.Contains);
+
+            // Every measurement the targets read, transitively; uncached distance operands come from the terms,
+            // uncached ratio operands are evaluated alongside the targets.
+            var ratiosToEvaluate = new HashSet<string>(ratioTargets, StringComparer.Ordinal);
+            var queue = new Queue<string>(ratioTargets);
+            while (queue.Count > 0)
+            {
+                if (!byName.TryGetValue(queue.Dequeue(), out var rdef)
+                    || !MeasurementMath.TryGetRatioOperands(rdef, out var num, out var den)) continue;
+                foreach (var op in new[] { num, den })
+                {
+                    if (values.ContainsKey(op) || !byName.TryGetValue(op, out var odef)) continue;
+                    if (odef.Kind == MeasurementKind.MeasurementRatio)
+                    {
+                        if (ratiosToEvaluate.Add(op)) queue.Enqueue(op);
+                    }
+                    else if (FromTerms(odef) is float ov)
+                    {
+                        values[op] = ov;
+                    }
+                }
+            }
+
+            MeasurementMath.EvaluateMeasurementRatios(byName.Values, values, ratiosToEvaluate.Contains);
             foreach (var name in ratioTargets)
                 if (values.TryGetValue(name, out var v)) result[name] = v;
         }

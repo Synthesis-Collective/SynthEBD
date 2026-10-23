@@ -4054,13 +4054,22 @@ public partial class VM_CharacterViewer : ViewerVm
     /// vertices (6 floats each: position.xyz + normal.xyz) in the same pre-ModelScale space as the
     /// markers. Drawn translucent and depth-tested, so it shades the visible skin. Independent of the
     /// region editor's channels (<see cref="SetRegionSolid"/> / <see cref="ClearRegionOverlay"/> never
-    /// touch it). Pass null/empty to clear.</summary>
-    public void SetMeasurementRegionTint(IEnumerable<float>? interleavedTriangles)
+    /// touch it). Pass null/empty to clear. <paramref name="colorRanges"/> (in vertices) colors parts of the
+    /// tint separately -- see <see cref="GlRenderer.MeasurementRegionColorRanges"/>; null/empty draws all of
+    /// it in <see cref="MeasurementRegionDefaultColor"/>.</summary>
+    public void SetMeasurementRegionTint(IEnumerable<float>? interleavedTriangles,
+        IEnumerable<(int FirstVertex, int VertexCount, OpenTK.Mathematics.Vector3 Color)>? colorRanges = null)
     {
         Renderer.MeasurementRegionTriangles.Clear();
+        Renderer.MeasurementRegionColorRanges.Clear();
         if (interleavedTriangles != null)
             Renderer.MeasurementRegionTriangles.AddRange(interleavedTriangles);
+        if (colorRanges != null)
+            Renderer.MeasurementRegionColorRanges.AddRange(colorRanges);
     }
+
+    /// <summary>The measurement-region tint's color when no per-range colors are given.</summary>
+    public OpenTK.Mathematics.Vector3 MeasurementRegionDefaultColor => Renderer.MeasurementRegionColor;
 
     /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface + wireframe).
     /// Called when the editor deselects its region row or switches profiles.</summary>
