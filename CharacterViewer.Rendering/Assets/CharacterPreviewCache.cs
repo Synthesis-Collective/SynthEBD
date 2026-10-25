@@ -58,7 +58,10 @@ public readonly record struct DdsCubemapPixels(byte[][] Faces, int Width, int He
 public class CharacterPreviewCache
 {
     private int? _ddsMaximumFinalMipDimension;
-    /// <summary>Frozen for this cache's lifetime. Null uses decoded pixels and generated mips.
+    /// <summary>Frozen for this cache's lifetime. Defaults to <see cref="DdsMipPolicy.Parse"/> of the
+    /// <c>CVR_DDS_MAX_FINAL_MIP_DIMENSION</c> environment variable — unset means
+    /// <see cref="DdsMipPolicy.DefaultMaximumFinalMipDimension"/>; an invalid value logs and falls
+    /// back to decoded. An object initializer overrides it. Null uses decoded pixels and generated mips.
     /// Otherwise, the last supplied DDS mip must have both dimensions at most this value.
     /// One requires a full chain; int.MaxValue permits single-level textures. Sampling clamps
     /// to the last supplied mip. This is an eligibility limit, not a visual error bound.</summary>

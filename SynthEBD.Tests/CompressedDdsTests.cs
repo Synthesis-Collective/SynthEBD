@@ -68,7 +68,10 @@ public class CompressedDdsTests
     }
 
     [Theory]
-    [InlineData(null, null)] [InlineData("", null)] [InlineData("decoded", null)]
+    [InlineData(null, DdsMipPolicy.DefaultMaximumFinalMipDimension)]
+    [InlineData("", DdsMipPolicy.DefaultMaximumFinalMipDimension)]
+    [InlineData("  ", DdsMipPolicy.DefaultMaximumFinalMipDimension)]
+    [InlineData("decoded", null)] [InlineData(" Decoded ", null)]
     [InlineData("1", 1)] [InlineData("4", 4)] [InlineData(" 16 ", 16)]
     [InlineData("unlimited", int.MaxValue)]
     public void PolicyParsesExplicitLimits(string? value, int? expected)

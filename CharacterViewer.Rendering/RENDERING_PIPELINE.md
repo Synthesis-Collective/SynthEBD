@@ -46,14 +46,18 @@ A reference for how `CharacterViewer.Rendering` parses NIF meshes and renders th
 
 ## DDS upload policy
 
-The default remains decoded BGRA pixels uploaded as RGBA8 with generated mips.
-Set `CVR_DDS_MAX_FINAL_MIP_DIMENSION` before constructing `CharacterPreviewCache`,
-or initialize its nullable `DdsMaximumFinalMipDimension` property. This bounds
-both dimensions of the **last supplied mip**, not level-zero resolution:
+The default is authored-mip compressed uploads with a final-mip limit of 4
+(`DdsMipPolicy.DefaultMaximumFinalMipDimension`). `decoded` opts out to decoded
+BGRA pixels uploaded as RGBA8 with generated mips. Set
+`CVR_DDS_MAX_FINAL_MIP_DIMENSION` before constructing `CharacterPreviewCache`,
+or initialize its nullable `DdsMaximumFinalMipDimension` property (an
+initializer overrides the environment). This bounds both dimensions of the
+**last supplied mip**, not level-zero resolution:
 
 | Value | Eligibility |
 | --- | --- |
-| Unset / `decoded` / property `null` | Established decoded route |
+| Unset / empty | Default: final mip's maximum dimension at most 4 |
+| `decoded` / property `null` | Decoded route (opt-out) |
 | `1` | Full chain through 1x1 |
 | `2`, `4`, `16`, or any positive integer | Final mip's maximum dimension at most the limit |
 | `unlimited` / property `int.MaxValue` | Any valid supported chain, including one level |
@@ -62,10 +66,19 @@ Invalid environment values log an error and use decoded textures. Invalid API
 values throw. The setting is fixed for a cache lifetime; recreate the cache when
 changing it. The former experimental `CVR_DDS_UPLOAD` switch has been removed.
 
-This opt-in **changes minification**: it uses the original DDS mip chain. It is
-not an equality-preserving performance switch, and evidence renders requiring
-the established answer must use `decoded`. GPU-generated compressed mips also
-recompress filtered values and are not equivalent to the RGBA8 chain.
+The compressed route **changes minification**: it uses the original DDS mip
+chain. It is not an equality-preserving performance switch, so evidence renders
+compared against decoded captures must opt out with `decoded` (houseCARL's
+viewprobe pins it at process start for that reason). GPU-generated compressed
+mips also recompress filtered values and are not equivalent to the RGBA8 chain.
+
+Why it became the default (2026-10-25): the September validation measured one
+light NPC whose CPU decode was ~7% of render time and found no end-to-end gain.
+On NPC2's real modded mugshot workload decode was ~55% of render slot time, and
+this route halved busy time (79 tiles: 50.2 s -> 24.8 s; per-NPC 1.7-2.6x)
+with a median per-image mean absolute difference of 0.6/255, concentrated on
+alpha-tested hair edges. The viewprobe scene was also faster (34.4 -> 30.3 s)
+with private bytes 8.3 -> 3.6 GB.
 
 | DDS | Authored route |
 | --- | --- |
