@@ -249,11 +249,13 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 // an evicted part adds on top rather than clobbering.
                 double loadMsStart = _previewCache.MeshBuilder.ThreadLoadMs;
                 double buildMsStart = _previewCache.MeshBuilder.ThreadBuildMs;
+                double decodeMsStart = _previewCache.ThreadDecodeMs;
                 _previewCache.PrewarmNpc(paths, request.MeshOverrides, ct);
                 if (request.TimingsOut is { } pt)
                 {
                     pt.LoadMs += _previewCache.MeshBuilder.ThreadLoadMs - loadMsStart;
                     pt.BuildShapesMs += _previewCache.MeshBuilder.ThreadBuildMs - buildMsStart;
+                    pt.PrewarmDecodeMs += _previewCache.ThreadDecodeMs - decodeMsStart;
                 }
             }
             catch (OperationCanceledException)

@@ -63,6 +63,14 @@ public sealed class RenderTimings
     /// shared GL textures resident.</summary>
     public double DecodeMs { get; set; }
 
+    /// <summary>DDS decode cost (2D + cubemap cache misses) paid on the prewarm
+    /// worker for this NPC, ahead of the render. Kept apart from
+    /// <see cref="DecodeMs"/> so InstallMs − DecodeMs still approximates the GL
+    /// upload, and excluded from <see cref="TotalMs"/>, which is render-path
+    /// only. Off the render thread but still on each NPC's critical path, so a
+    /// high value means prewarm, not the GL thread, bounds throughput.</summary>
+    public double PrewarmDecodeMs { get; set; }
+
     /// <summary>CPU time issuing the draw pass (vm.Renderer.Render). Typically
     /// small; see the class remark about GL asynchrony.</summary>
     public double DrawMs { get; set; }
