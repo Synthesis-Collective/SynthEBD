@@ -13,7 +13,7 @@ namespace SynthEBD;
 /// <summary>
 /// View model for the OBody / BodySlide settings tab, backing the <see cref="Settings_OBody"/>
 /// model. Hosts the sub-menus shown in this tab — BodySlides, body-shape descriptors, attribute
-/// groups, misc settings, the auto-annotator/trainer, and the body-type registry/profile editor —
+/// groups, misc settings, the (hidden) trainer, the body-type registry and the Auto-Annotation editor —
 /// swapping the active one via the Click* commands. Also propagates descriptor renames/deletions
 /// across all BodySlides and referencing asset-pack subgroups.
 /// </summary>
@@ -23,8 +23,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private readonly VM_AttributeGroupMenu.Factory _attributeGroupFactory;
     private readonly VM_BodySlidesMenu.Factory _bodySlidesMenuFactory;
     private readonly VM_BodySlidePlaceHolder.Factory _bodySlidePlaceHolderFactory;
-    private readonly VM_BodySlideAnnotator.Factory _bodySlideAnnotatorFactory;
-    private readonly DescriptorDefaultSynchronizer _descriptorDefaultSynchronizer;
+    private readonly SliderNameCatalog _sliderNameCatalog;
     private readonly Func<VM_SettingsTexMesh> _texMeshSettings;
     private readonly PatcherState _patcherState;
 
@@ -33,7 +32,7 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     private HashSet<string> _declinedDescriptorImports = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Builds the descriptor / BodySlides / attribute-group / misc / annotator sub-menus, wires
+    /// Builds the descriptor / BodySlides / attribute-group / misc sub-menus, wires
     /// the Click* navigation <see cref="RelayCommand"/>s, and subscribes to the body-selection
     /// mode so switching to BodySlide mid-session re-runs installed-body detection.
     /// </summary>
@@ -46,11 +45,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         VM_OBodyMiscSettings.Factory miscSettingsFactory,
         VM_AttributeGroupMenu.Factory attributeGroupFactory,
         VM_BodySlidePlaceHolder.Factory bodySlidePlaceHolderFactory,
-        VM_BodySlideAnnotator.Factory bodySlideAnnotatorFactory,
         VM_OBodyTrainer obodyTrainer,
         VM_BodyTypeRegistry bodyTypeRegistry,
         VM_BodyTypeProfileEditor bodyTypeProfileEditor,
-        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer,
+        AutoAnnotationService autoAnnotationService,
+        SliderNameCatalog sliderNameCatalog,
         PatcherState patcherState
         )
     {
@@ -59,20 +58,23 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         _attributeGroupFactory = attributeGroupFactory;
         _bodySlidesMenuFactory = bodySlidesMenuFactory;
         _bodySlidePlaceHolderFactory = bodySlidePlaceHolderFactory;
-        _bodySlideAnnotatorFactory = bodySlideAnnotatorFactory;
-        _descriptorDefaultSynchronizer = descriptorDefaultSynchronizer;
+        _sliderNameCatalog = sliderNameCatalog;
         _texMeshSettings = texMeshSettings;
 
         DescriptorUI = bodyShapeDescriptorCreationMenuFactory(this, UpdateState, OnDescriptorValueDeletion, OnDescriptorCategoryDeletion);
         BodySlidesUI = _bodySlidesMenuFactory(generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         AttributeGroupMenu = _attributeGroupFactory(generalSettingsVM.AttributeGroupMenu, true);
         MiscUI = miscSettingsFactory();
-        AnnotatorUI = _bodySlideAnnotatorFactory(DescriptorUI, BodySlidesUI, MiscUI);
         BodyTypeRegistryUI = bodyTypeRegistry;
         BodyTypeProfileEditorUI = bodyTypeProfileEditor;
         // The editor reads the active rule file from the Misc menu; hand it a direct accessor now that
         // both exist, rather than letting it resolve this VM (which would re-enter Autofac mid-build).
         BodyTypeProfileEditorUI._miscSettingsAccessor = () => MiscUI;
+
+        // Automatic descriptor assignments follow the Auto-Annotation editor's unsaved rule edits and
+        // its in-memory measurement cache whenever the editor holds them.
+        autoAnnotationService.LiveProfileProvider = bodyType => BodyTypeProfileEditorUI.DumpProfileForRuleFile(bodyType);
+        autoAnnotationService.LiveCacheProvider = bodyType => BodyTypeProfileEditorUI.GetLiveMeasurementLookup(bodyType);
 
         BodySlidesUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
         BodyTypeProfileEditorUI.InitializeDescriptorFilter(this, generalSettingsVM.RaceGroupingEditor.RaceGroupings);
@@ -97,11 +99,6 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         ClickMiscMenu = new RelayCommand(
             canExecute: _ => true,
             execute: _ => DisplayedUI = MiscUI
-        );
-
-        ClickAnnotationMenu = new RelayCommand(
-            canExecute: _ => true,
-            execute: _ => DisplayedUI = AnnotatorUI
         );
 
         // DEPRECATED / LEGACY: activates the hidden "Annotator Training" tab (never-completed
@@ -145,14 +142,12 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     public VM_BodySlidesMenu BodySlidesUI { get; set; }
     public VM_AttributeGroupMenu AttributeGroupMenu { get; set; }
     public VM_OBodyMiscSettings MiscUI { get; set; }
-    public VM_BodySlideAnnotator AnnotatorUI { get; set; }
     public VM_BodyTypeRegistry BodyTypeRegistryUI { get; set; }
     public VM_BodyTypeProfileEditor BodyTypeProfileEditorUI { get; set; }
     public RelayCommand ClickBodySlidesMenu { get; }
     public RelayCommand ClickDescriptorsMenu { get; }
     public RelayCommand ClickAttributeGroupsMenu { get; }
     public RelayCommand ClickMiscMenu { get; }
-    public RelayCommand ClickAnnotationMenu { get; }
     /// <summary>DEPRECATED / LEGACY - selects the hidden "Annotator Training" tab; unreachable from the UI. See VM_OBodyTrainer.</summary>
     public RelayCommand ClickAnnotationTrainerMenu { get; }
     public RelayCommand ClickBodyTypeRegistryMenu { get; }
@@ -162,8 +157,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     /// <summary>
     /// Model → VM: loads attribute groups (first, so others can reference them), descriptors,
     /// the existing-BodySlides set, then disposes/rebuilds the male/female BodySlide placeholder
-    /// lists (de-duplicating labels), and loads misc / body-type registry / profile-editor /
-    /// annotator state. Kicks off non-blocking installed-body detection.
+    /// lists (de-duplicating labels), rebuilds the slider-name catalog, and loads misc / body-type
+    /// registry / Auto-Annotation editor state. Kicks off non-blocking installed-body detection.
     /// </summary>
     public void CopyInViewModelFromModel(Settings_OBody model, VM_BodyShapeDescriptorCreator descriptorCreator, VM_OBodyMiscSettings.Factory miscSettingsFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_NPCAttributeCreator attCreator, Logger logger)
     {
@@ -172,17 +167,11 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             return;
         }
         _logger.LogStartupEventStart("Loading OBody Menu UI");
-        // Suspend descriptor-default sync for the whole hydration: the sub-menus load their
-        // defaults wholesale below, and mid-load pushes would smear half-loaded values between
-        // the Label by Sliders and Label by Measurements menus. The matching
-        // EndHydrationAndReconcile at the end of this method deconflicts both sides once
-        // everything is loaded, then enables live sync.
-        _descriptorDefaultSynchronizer.BeginHydration();
         AttributeGroupMenu.CopyInViewModelFromModels(model.AttributeGroups); // get this first so other properties can reference it
 
         // Active rule files may reference descriptors this user doesn't have (a downloaded file carries
         // their definitions). Offer them before the descriptor menu loads, so accepted ones show up in
-        // both labeling menus straight away.
+        // the Auto-Annotation menu straight away.
         _declinedDescriptorImports = new HashSet<string>(model.DeclinedDescriptorImports ?? new HashSet<string>(), StringComparer.Ordinal);
         foreach (var bodyType in SettingsIO_BodyTypeRules.BodyTypesWithFiles(_patcherState.BodyTypeRuleSets))
         {
@@ -262,6 +251,13 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             existingPresets.Add(presetVM.Label);
         }
 
+        // Slider names per body type (registry catalog + loaded presets): feeds the Auto-Annotation
+        // editor's Slider-condition pickers and the BodySlides menu's body-type filter.
+        _sliderNameCatalog.Rebuild(model.BodySlidesMale.Concat(model.BodySlidesFemale), model.BodyTypeRegistry);
+        BodySlidesUI.AvailableSliderGroups.Clear();
+        BodySlidesUI.AvailableSliderGroups.Add(VM_BodySlidesMenu.BodyTypeSelectionAll);
+        foreach (var bodyType in _sliderNameCatalog.BodyTypesWithPresets) BodySlidesUI.AvailableSliderGroups.Add(bodyType);
+
         MiscUI.CopyInViewModelFromModel(model);
         MiscUI.RebuildRuleFileSelections(model);
 
@@ -274,22 +270,15 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         // the editor opens on the matching profile — it no-ops when a saved selection was restored.
         BodyTypeProfileEditorUI.BeginAutoSelectProfileFromInstalledBody();
 
-        AnnotatorUI.CopyInFromModel();
-
         CurrentlyExistingBodySlides = model.CurrentlyExistingBodySlides;
-
-        // Both labeling menus are fully loaded: deconflict their shared per-category default
-        // descriptors (empty side adopts; true conflicts follow the Misc toggle) and enable
-        // live two-way sync of future edits.
-        _descriptorDefaultSynchronizer.EndHydrationAndReconcile();
 
         _logger.LogStartupEventEnd("Loading OBody Menu UI");
     }
 
     /// <summary>
-    /// VM → Model: dumps descriptors, the male/female BodySlide presets (stripping non-manual
-    /// auto-annotated descriptors first), attribute groups, misc / body-type / profile / classification-rule
-    /// state, and the existing-BodySlides set into a new <see cref="Settings_OBody"/>.
+    /// VM → Model: dumps descriptors, the male/female BodySlide presets (manual descriptors only --
+    /// automatic ones are never stored), attribute groups, misc / body-type / Auto-Annotation state,
+    /// and the existing-BodySlides set into a new <see cref="Settings_OBody"/>.
     /// </summary>
     public Settings_OBody DumpViewModelToModel()
     {
@@ -304,10 +293,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             BodySlidesUI.CurrentlyDisplayedBodySlide.AssociatedPlaceHolder.AssociatedModel = BodySlidesUI.CurrentlyDisplayedBodySlide.DumpToModel();
         }
 
-        // clear auto-annotated descriptors
+        // Automatic assignments are computed on demand and never stored.
         foreach (var preset in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToList())
         {
-            preset.AssociatedModel.RemoveDescriptorsFromAllSlots(x => x.Source != BodyShapeAnnotationSource.Manual);
+            preset.AssociatedModel.StripNonManualDescriptors();
         }
 
         foreach (var preset in BodySlidesUI.BodySlidesMale)
@@ -326,25 +315,20 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         BodyTypeProfileEditorUI.DumpViewModelToModel(model);
 
-        model.BodySlideClassificationRules = AnnotatorUI.DumpToModel();
-
-        model.LastSelectedSliderAnnotationBodyType = AnnotatorUI.LastSelectedBodyTypeGroup;
-
         model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
         model.DeclinedDescriptorImports = new HashSet<string>(_declinedDescriptorImports, StringComparer.Ordinal);
         return model;
     }
 
     /// <summary>
-    /// Writes the labeling menus' current state for <paramref name="bodyType"/> (Label by Sliders rules and
-    /// the measurement profile, including unsaved edits) into <paramref name="ruleFile"/>. Used before a
+    /// Writes the Auto-Annotation editor's current profile for <paramref name="bodyType"/> (including
+    /// unsaved edits) into <paramref name="ruleFile"/>. Used before a
     /// file switch -- so the file being left keeps its edits and is written on the next save -- and
     /// before Duplicate, so the copy includes them.
     /// </summary>
     public void FlushLabelingStateIntoRuleFile(string bodyType, BodyTypeRuleSet ruleFile)
     {
         if (ruleFile == null) return;
-        ruleFile.SliderRules = AnnotatorUI.DumpRulesForBodyType(bodyType);
         ruleFile.MeasurementProfile = BodyTypeProfileEditorUI.DumpProfileForRuleFile(bodyType);
         ruleFile.NormalizeBodyType();
     }
@@ -352,9 +336,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     /// <summary>
     /// Makes <paramref name="next"/> the active rule file for <paramref name="bodyType"/>: flushes the menus
     /// into <paramref name="previous"/>, offers any descriptor definitions <paramref name="next"/> needs, then
-    /// reloads the body type in both labeling menus from <paramref name="next"/> (deep copies, so the menus
-    /// never alias a file object). Wrapped in a synchronizer hydration pass so the default-descriptor sync
-    /// doesn't push half-swapped values between the menus.
+    /// reloads the body type in the Auto-Annotation editor from <paramref name="next"/> (a deep copy, so the
+    /// editor never aliases a file object).
     /// </summary>
     public void SwitchActiveRuleFile(string bodyType, BodyTypeRuleSet? previous, BodyTypeRuleSet next)
     {
@@ -367,18 +350,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             DescriptorUI.MergeInMissingModels(accepted, DescriptorRulesMergeMode.Skip, new List<string>());
         }
 
-        _descriptorDefaultSynchronizer.BeginHydration();
-        try
-        {
-            AnnotatorUI.ReplaceBodyTypeRules(bodyType,
-                JSONhandler<SliderClassificationRulesByBodyType>.CloneViaJSON(next.SliderRules ?? new SliderClassificationRulesByBodyType()));
-            BodyTypeProfileEditorUI.ReplaceProfileForBodyType(bodyType,
-                next.MeasurementProfile == null ? null : JSONhandler<BodyTypeProfile>.CloneViaJSON(next.MeasurementProfile));
-        }
-        finally
-        {
-            _descriptorDefaultSynchronizer.EndHydrationAndReconcile();
-        }
+        BodyTypeProfileEditorUI.ReplaceProfileForBodyType(bodyType,
+            next.MeasurementProfile == null ? null : JSONhandler<BodyTypeProfile>.CloneViaJSON(next.MeasurementProfile));
         BodyTypeProfileEditorUI.RefreshActiveRuleFileLabel();
         _logger.LogMessage("Body Type Rules: '" + bodyType + "' now uses '" + next.Name + "' (" + next.FileName + ").");
     }
@@ -448,6 +421,13 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             {
                 UpdateDescriptors(slot, oldCategory, oldValue, newCategory, newValue);
             }
+            if (oldCategory != newCategory)
+            {
+                foreach (var categories in bodySlide.AssociatedModel.ManualCategoriesByWeight?.Values ?? Enumerable.Empty<HashSet<string>>())
+                {
+                    if (categories != null && categories.Remove(oldCategory)) categories.Add(newCategory);
+                }
+            }
         }
 
         foreach (var subgroup in _texMeshSettings().AssetPacks.SelectMany(x => x.GetAllSubgroups()).ToArray())
@@ -468,6 +448,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
             foreach(var bs in BodySlidesUI.BodySlidesMale.And(BodySlidesUI.BodySlidesFemale).ToArray())
             {
                 bs.AssociatedModel.RemoveDescriptorsFromAllSlots(x => x.Category == category);
+                foreach (var categories in bs.AssociatedModel.ManualCategoriesByWeight?.Values ?? Enumerable.Empty<HashSet<string>>())
+                {
+                    categories?.Remove(category);
+                }
             }
 
             foreach (var ap in _texMeshSettings().AssetPacks)

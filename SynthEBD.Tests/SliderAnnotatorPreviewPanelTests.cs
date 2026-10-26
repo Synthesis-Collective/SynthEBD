@@ -16,7 +16,7 @@ public class SliderAnnotatorPreviewPanelTests
     [Fact]
     public void OrderWeightKeysByProximity_OrdersByDistanceToTarget()
     {
-        var ordered = VM_SliderAnnotatorPreviewPanel.OrderWeightKeysByProximity(new[] { 0, 25, 50, 75, 100 }, 37).ToList();
+        var ordered = PreviewNpcResolver.OrderWeightKeysByProximity(new[] { 0, 25, 50, 75, 100 }, 37).ToList();
 
         // |25-37|=12, |50-37|=13, |0-37|=37, |75-37|=38, |100-37|=63
         ordered.Should().Equal(25, 50, 0, 75, 100);
@@ -26,7 +26,7 @@ public class SliderAnnotatorPreviewPanelTests
     public void OrderWeightKeysByProximity_TiesPreferTheLowerKey()
     {
         // 25 and 75 are both 25 away from 50; 0 and 100 are both 50 away.
-        var ordered = VM_SliderAnnotatorPreviewPanel.OrderWeightKeysByProximity(new[] { 0, 25, 75, 100 }, 50).ToList();
+        var ordered = PreviewNpcResolver.OrderWeightKeysByProximity(new[] { 0, 25, 75, 100 }, 50).ToList();
 
         ordered.Should().Equal(25, 75, 0, 100);
     }

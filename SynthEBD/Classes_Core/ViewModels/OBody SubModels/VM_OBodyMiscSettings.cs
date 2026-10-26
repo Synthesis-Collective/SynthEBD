@@ -20,7 +20,7 @@ public class VM_OBodyMiscSettings : VM
     /// <summary>True while rows are being (re)built, so the SelectedFile setters don't trigger file switches.</summary>
     private bool _suppressRuleFileSwitch;
     public delegate VM_OBodyMiscSettings Factory();
-    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu, VM_OBodyPreviewNpcSettings previewNpcs, DescriptorDefaultSynchronizer descriptorDefaultSynchronizer, PatcherState patcherState, SynthEBDPaths paths)
+    public VM_OBodyMiscSettings(Logger logger, RaceMenuIniHandler raceMenuHandler, VM_Settings_General generalSettingsVM, Func<VM_SettingsOBody> parentMenu, VM_OBodyPreviewNpcSettings previewNpcs, PatcherState patcherState, SynthEBDPaths paths)
     {
         _logger = logger;
         _raceMenuHandler = raceMenuHandler;
@@ -33,10 +33,6 @@ public class VM_OBodyMiscSettings : VM
         OpenRuleFolderCommand = new RelayCommand(
             canExecute: _ => true,
             execute: _ => WinExplorerOpener.OpenFolder(_paths.BodyTypeRulesDirPath));
-        // The synchronizer reads PreferSliderDefaultsOnConflict live from this VM at each
-        // reconcile, so mid-session toggle changes apply to the next import/retarget without
-        // waiting for a save round-trip.
-        descriptorDefaultSynchronizer.RegisterMiscSettings(this);
 
         generalSettingsVM.WhenAnyValue(x => x.BSSelectionMode).Subscribe(mode => {
             
@@ -129,11 +125,6 @@ public class VM_OBodyMiscSettings : VM
     public bool ShowOBodySelectionMode { get; set; }
     public bool AutoApplyMissingAnnotations { get; set; } = true;
 
-    /// <summary>Mirror of <see cref="Settings_OBody.PreferSliderDefaultsOnConflict"/>: which side
-    /// wins when load-time reconciliation of the shared per-category default descriptor finds the
-    /// Label by Sliders and Label by Measurements menus disagreeing. False (default) = the
-    /// measurement-profile value wins. Read live by <see cref="DescriptorDefaultSynchronizer"/>.</summary>
-    public bool PreferSliderDefaultsOnConflict { get; set; } = false;
 
     public bool bShowTroubleshootingSettings { get; set; } = false;
     public ObservableCollection<VM_SelectableMenuString> StashedDescriptors { get; set; } = new();
@@ -152,7 +143,7 @@ public class VM_OBodyMiscSettings : VM
     public VM_OBodyPreviewNpcSettings PreviewNpcs { get; }
 
     /// <summary>One row per body type that has at least one Body Type Rules file: a combobox choosing the
-    /// active file, which drives both Label by Sliders and Label by Measurements for that body type.</summary>
+    /// active file, which drives Auto-Annotation for that body type.</summary>
     public ObservableCollection<VM_BodyTypeRuleFileSelection> RuleFileSelections { get; } = new();
 
     /// <summary>Opens the Body Type Rules folder in Explorer (where shared rule files are dropped in).</summary>
@@ -258,7 +249,6 @@ public class VM_OBodyMiscSettings : VM
         UseVerboseScripts = model.bUseVerboseScripts;
         AutoBodySelectionMode = model.AutoBodySelectionMode;
         AutoApplyMissingAnnotations = model.AutoApplyMissingAnnotations;
-        PreferSliderDefaultsOnConflict = model.PreferSliderDefaultsOnConflict;
         OBodySelectionMode = model.OBodySelectionMode;
         OBodyEnableMultipleAssignments = model.OBodyEnableMultipleAssignments;
 
@@ -349,7 +339,6 @@ public class VM_OBodyMiscSettings : VM
         model.bUseVerboseScripts = UseVerboseScripts;
         model.AutoBodySelectionMode = AutoBodySelectionMode;
         model.AutoApplyMissingAnnotations = AutoApplyMissingAnnotations;
-        model.PreferSliderDefaultsOnConflict = PreferSliderDefaultsOnConflict;
         model.OBodySelectionMode = OBodySelectionMode;
         model.OBodyEnableMultipleAssignments = OBodyEnableMultipleAssignments;
 

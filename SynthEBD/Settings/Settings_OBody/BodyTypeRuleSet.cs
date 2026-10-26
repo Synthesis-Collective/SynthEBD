@@ -5,18 +5,14 @@ using System.IO;
 namespace SynthEBD;
 
 /// <summary>
-/// One shareable body-type rule file (<c>Body Type Rules\&lt;name&gt;.json</c>): the Label by Sliders
-/// rules and the Label by Measurements profile for a single body type, stored together.
-///
-/// <para><b>Why the two travel in one file.</b> Measurement rules can gate on descriptors the slider
-/// rules produce (<see cref="MeasurementConditionKind.DescriptorRef"/>), and the two menus share one
-/// per-category default (<see cref="DescriptorDefaultSynchronizer"/>). Splitting them would let a user
-/// pair a measurement profile with slider rules it was never tuned against.</para>
+/// One shareable body-type rule file (<c>Body Type Rules\&lt;name&gt;.json</c>): the Auto-Annotation
+/// profile (key vertices, measurements, and rules over measurements, sliders and other descriptors)
+/// for a single body type.
 ///
 /// <para><b>Several files per body type.</b> Any number of files may target the same
 /// <see cref="BodyTypeName"/>; the OBody Misc menu picks the active one per body type
 /// (<see cref="Settings_OBody.SelectedRuleFileByBodyType"/>). Only the active file feeds the
-/// labeling menus and the patcher -- see <see cref="SettingsIO_BodyTypeRules"/>.</para>
+/// Auto-Annotation menu and the patcher -- see <see cref="SettingsIO_BodyTypeRules"/>.</para>
 ///
 /// <para><b>What is deliberately not in here.</b> The profile's
 /// <see cref="BodyTypeProfile.PresetAnnotations"/> (the user's worklist verdicts) and
@@ -39,11 +35,13 @@ public class BodyTypeRuleSet
     /// <see cref="BodySlideSetting.SliderGroup"/> the classifier assigns to presets of that body.</summary>
     public string BodyTypeName { get; set; } = "";
 
-    /// <summary>Label by Sliders rules. <see cref="SliderClassificationRulesByBodyType.BodyTypeGroup"/>
-    /// is normalized to <see cref="BodyTypeName"/> on load and save.</summary>
-    public SliderClassificationRulesByBodyType SliderRules { get; set; } = new();
+    /// <summary>Legacy Label by Sliders rules. Read only so older files can be converted: on load
+    /// <see cref="SliderRuleMigration"/> folds them into <see cref="MeasurementProfile"/> as Slider-condition
+    /// rules and clears this, so it is never written back.</summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public SliderClassificationRulesByBodyType? SliderRules { get; set; }
 
-    /// <summary>Label by Measurements profile, or null when this file carries slider rules only.
+    /// <summary>The Auto-Annotation profile, or null when the file has none yet.
     /// <see cref="BodyTypeProfile.BodyTypeName"/> is normalized to <see cref="BodyTypeName"/>.</summary>
     public BodyTypeProfile? MeasurementProfile { get; set; }
 
@@ -69,12 +67,12 @@ public class BodyTypeRuleSet
     [JsonIgnore]
     public string LastPersistedJson { get; set; } = "";
 
-    /// <summary>True when the slider rules carry any rule or default, or a measurement profile exists.</summary>
+    /// <summary>True when a profile exists or legacy slider rules still await conversion.</summary>
     public bool HasContent() => HasSliderContent(SliderRules) || MeasurementProfile != null;
 
     /// <summary>True when <paramref name="rules"/> carries at least one rule or category default. The
-    /// Label by Sliders menu dumps an empty 17-category skeleton for every body type that has presets
-    /// installed; those must not be mistaken for authored content.</summary>
+    /// old Label by Sliders menu saved an empty 17-category skeleton for every body type that had
+    /// presets installed; those must not be mistaken for authored content.</summary>
     public static bool HasSliderContent(SliderClassificationRulesByBodyType? rules)
     {
         if (rules?.DescriptorClassifiers == null) return false;
@@ -85,14 +83,28 @@ public class BodyTypeRuleSet
     /// <summary>Forces the nested body-type fields to agree with <see cref="BodyTypeName"/>.</summary>
     public void NormalizeBodyType()
     {
-        SliderRules ??= new SliderClassificationRulesByBodyType();
-        SliderRules.DescriptorClassifiers ??= new();
-        SliderRules.BodyTypeGroup = BodyTypeName;
+        if (SliderRules != null) SliderRules.BodyTypeGroup = BodyTypeName;
         if (MeasurementProfile != null) MeasurementProfile.BodyTypeName = BodyTypeName;
     }
 
-    /// <summary>Every (Category, Value) this file's rules can emit or test: slider rule values and
-    /// defaults, measurement rule outputs, DescriptorRef targets, and measurement defaults.
+    /// <summary>Converts any legacy <see cref="SliderRules"/> into Slider-condition rules on
+    /// <see cref="MeasurementProfile"/> (creating the profile if needed) and clears them. Returns the
+    /// number of rules converted.</summary>
+    public int FoldLegacySliderRules(Action<string>? log)
+    {
+        var profile = MeasurementProfile;
+        int converted = SliderRuleMigration.FoldInto(SliderRules, ref profile, BodyTypeName, log);
+        if (profile != null)
+        {
+            profile.BodyTypeName = BodyTypeName;
+            MeasurementProfile = profile;
+        }
+        SliderRules = null;
+        return converted;
+    }
+
+    /// <summary>Every (Category, Value) this file's rules can emit or test: rule outputs,
+    /// DescriptorRef targets, and category defaults.
     /// Entries with an empty Value (a category mentioned without a specific value) are included so
     /// the category itself is carried.</summary>
     public HashSet<(string Category, string Value)> CollectReferencedDescriptors()
@@ -102,22 +114,6 @@ public class BodyTypeRuleSet
         {
             if (string.IsNullOrWhiteSpace(category)) return;
             result.Add((category, value ?? ""));
-        }
-
-        foreach (var classifier in SliderRules?.DescriptorClassifiers ?? new())
-        {
-            // An empty skeleton category (no default, no rules) references nothing, so its
-            // definition is not carried.
-            if (classifier == null) continue;
-            if (!string.IsNullOrEmpty(classifier.DefaultDescriptorValue))
-            {
-                Add(classifier.DescriptorCategory, classifier.DefaultDescriptorValue);
-            }
-            foreach (var rule in classifier.RuleList ?? new())
-            {
-                if (rule == null) continue;
-                Add(classifier.DescriptorCategory, rule.SelectedDescriptorValue);
-            }
         }
 
         if (MeasurementProfile != null)

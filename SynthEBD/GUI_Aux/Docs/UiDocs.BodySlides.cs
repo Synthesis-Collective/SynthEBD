@@ -61,6 +61,21 @@ public static partial class UiDocs
             technical: "Runs VM_BodySlideSetting.RemoveWeightSlot. Removed default slots are recorded in BodySlideSetting.RemovedDefaultWeightSlots so they stay removed across reloads instead of being re-seeded; distribution then reads the nearest remaining non-empty slot.",
             motivation: "Not every preset needs five annotation points; trimming slots keeps the annotation honest where the preset has nothing distinct to say at a weight.");
 
+        Add("BodySlides.ResetCategoryToAutomatic",
+            layperson: "You changed this category by hand in this weight tab, so the Auto-Annotation rules no longer decide it here. Click to give it back to the rules; their label (if any) appears again.",
+            technical: "VM_BodyShapeDescriptorShellSelector.ResetToAutomaticCommand -> VM_BodyShapeDescriptorSelectionMenu.ResetCategoryToAutomatic: removes the category from the slot's ManualCategories (persisted as BodySlideSetting.ManualCategoriesByWeight), deselects its manual values, and re-runs VM_BodySlideSetting.RefreshAutomaticAnnotationsAsync. Any toggle the user makes in a category takes the whole category over as manual in that slot, including leaving it empty.",
+            motivation: "Manual always wins per weight slot and category, so there has to be an explicit way back to the rules' answer.");
+
+        Add("BodySlides.UnevaluableCategories",
+            layperson: "These categories have Auto-Annotation rules that need body measurements this preset hasn't been measured for yet, so no automatic label is shown for them. Run Match Presets in Auto-Annotation to measure it.",
+            technical: "VM_BodySlideWeightSlot.UnevaluableCategories, from AutoAnnotationEngine.SlotResult.UnevaluableCategories: categories some eligible rule of which names a measurement absent from the slot's measurement-cache entry (or that depend on such a category through DescriptorRef). They get neither rule labels nor their default. Previewing the slot in the 3D viewer measures it live and fills them in for this session.",
+            motivation: "Assigning a category's default when its rules couldn't be checked would silently mislabel the preset; saying why a category is blank is better.");
+
+        Add("BodySlides.AcceptAutoAnnotations",
+            layperson: "Turns every label the Auto-Annotation rules currently give this preset into your own manual labels, in all weight tabs. After this, changing the rules no longer changes these categories for this preset.",
+            technical: "VM_BodySlideSetting.AcceptAutoAnnotations: VM_BodyShapeDescriptorSelectionMenu.AcceptAllAsManual on each slot - every category with a selection is marked Manual and recorded in ManualCategories, so it is stored and no longer recomputed.",
+            motivation: "Freezes a preset's labels when you are happy with them and don't want later rule edits to move them.");
+
         // ---------- Per-BodySlide editor: distribution rules ----------
 
         Add("BodySlides.AllowedRaces",

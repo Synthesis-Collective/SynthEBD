@@ -74,7 +74,7 @@ public class PreviewNpcResolver
     /// Returns every NPC in the load order that satisfies the same eligibility criteria as
     /// <see cref="FindFirstNpcAtWeight"/> (the Auto-pick rules), packaged with display info
     /// and sorted by display name. Logs the per-criterion rejection counts when the result
-    /// is empty so a blank list is diagnosable. Used by the Label by Sliders preview panel's
+    /// is empty so a blank list is diagnosable. Used by the BodySlide Compare window's
     /// "NPCs at weight" search.
     /// </summary>
     public List<PreviewNpcCandidateInfo> FindNpcsAtWeight(Gender gender, int targetWeight, int tolerance = 0)
@@ -308,6 +308,13 @@ public class PreviewNpcResolver
         return npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female)
             ? Gender.Female
             : Gender.Male;
+    }
+
+    /// <summary>Orders weight keys by distance to <paramref name="weight"/>; ties prefer the lower key.
+    /// Used to read a per-weight preview-NPC table at the configured slot nearest a continuous weight.</summary>
+    public static IEnumerable<int> OrderWeightKeysByProximity(IEnumerable<int> keys, int weight)
+    {
+        return keys.OrderBy(k => Math.Abs(k - weight)).ThenBy(k => k);
     }
 }
 

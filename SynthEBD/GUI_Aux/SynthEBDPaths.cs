@@ -101,8 +101,8 @@ public class SynthEBDPaths : VM
     public string BodyGenConfigDirPath => Path.Combine(_rootPath, bodyGenDirRelPath);
     public string OBodySettingsPath => Path.Combine(_rootPath, settingsDirRelPath, "OBodySettings.json");
 
-    /// <summary>Directory of shareable <see cref="BodyTypeRuleSet"/> files (Label by Sliders + Label by
-    /// Measurements rules, one or more files per body type). A top-level sibling of Asset Packs and
+    /// <summary>Directory of shareable <see cref="BodyTypeRuleSet"/> files (Auto-Annotation profiles, one or more
+    /// files per body type). A top-level sibling of Asset Packs and
     /// BodyGen Configurations because, like them, these are files users exchange.</summary>
     public string BodyTypeRulesDirPath => Path.Combine(_rootPath, bodyTypeRulesDirRelPath);
 

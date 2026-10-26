@@ -22,7 +22,7 @@ public class VM_BodySlideSetting : VM
     public VM_SettingsOBody ParentMenuVM;
     private readonly VM_NPCAttributeCreator _attributeCreator;
     private readonly VM_AttributeWeightModifier.Factory _weightModifierFactory;
-    private readonly BodySlideAnnotator _bodySlideAnnotator;
+    private readonly AutoAnnotationService _autoAnnotationService;
     private readonly VM_BodyShapeDescriptorCreationMenu _bodyShapeDescriptors;
     private readonly ObservableCollection<VM_RaceGrouping> _raceGroupingVMs;
     private readonly VM_BodySlidePlaceHolder.Factory _placeHolderFactory;
@@ -34,7 +34,7 @@ public class VM_BodySlideSetting : VM
     private readonly Logger _logger;
 
     public delegate VM_BodySlideSetting Factory(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
-    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, BodySlideAnnotator bodySlideAnnotator, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier, Func<VM_BodySlideCompare> compareFactory)
+    public VM_BodySlideSetting(VM_BodySlidePlaceHolder associatedPlaceHolder, ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_SettingsOBody oBodySettingsVM, VM_NPCAttributeCreator attributeCreator, VM_AttributeWeightModifier.Factory weightModifierFactory, AutoAnnotationService autoAnnotationService, IEnvironmentStateProvider environmentProvider, Logger logger, Factory selfFactory, VM_BodyShapeDescriptorSelectionMenu.Factory descriptorSelectionFactory, VM_BodySlidePlaceHolder.Factory placeHolderFactory, PatcherState patcherState, Func<VM_CharacterViewer> characterViewerFactory, BodySlideGroupClassifier classifier, Func<VM_BodySlideCompare> compareFactory)
     {
         ParentMenuVM = oBodySettingsVM;
 
@@ -44,7 +44,7 @@ public class VM_BodySlideSetting : VM
         _environmentProvider = environmentProvider;
         _attributeCreator = attributeCreator;
         _weightModifierFactory = weightModifierFactory;
-        _bodySlideAnnotator = bodySlideAnnotator;
+        _autoAnnotationService = autoAnnotationService;
         _bodyShapeDescriptors = oBodySettingsVM.DescriptorUI;
         _raceGroupingVMs = raceGroupingVMs;
         _selfFactory = selfFactory;
@@ -137,7 +137,7 @@ public class VM_BodySlideSetting : VM
             execute: _ => {
                 foreach (var slot in WeightSlots)
                 {
-                    AcceptAutoAnnotationsForMenu(slot.DescriptorsSelectionMenu);
+                    slot.DescriptorsSelectionMenu?.AcceptAllAsManual();
                 }
                 UpdateAggregateAnnotationState();
             }
@@ -242,59 +242,31 @@ public class VM_BodySlideSetting : VM
     }
 
     /// <summary>
-    /// Phase 5 helper. Looks up an applicable <see cref="BodyTypeProfile"/> for the current
-    /// preset's mesh topology, evaluates it against the live viewer state, merges classifier-
-    /// sourced descriptors into the model's per-weight slot, and refreshes the matching
-    /// selection menu so the UI reflects the merge. Failures are logged but never thrown --
-    /// classification is best-effort and must not break the preview pipeline.
+    /// Refines the previewed slot's automatic assignments with measurements taken from the live
+    /// viewer mesh -- exact for this slot even when the preset has never been scanned into the
+    /// measurement cache. Measures with the body type's active profile, then derives through
+    /// <see cref="AutoAnnotationEngine"/> exactly like the cache-based pass, and shows the result in
+    /// the slot's menu (nothing is stored). Failures are logged but never thrown.
     /// </summary>
     private void TryRunClassifierForSlot(VM_BodySlideWeightSlot slot)
     {
         try
         {
             if (slot == null) return;
-            var profiles = _patcherState?.OBodySettings?.BodyTypeProfiles;
-            if (profiles == null || profiles.Count == 0) return;
-
-            string sliderGroupHint = AssociatedPlaceHolder?.AssociatedModel?.SliderGroup;
-            var profile = BodySlideMeasurementEvaluator.FindMatchingProfile(profiles, CharacterViewer, sliderGroupHint);
-            if (profile == null) return;
-
+            if (_patcherState?.OBodySettings?.AutoApplyMissingAnnotations == false) return;
             var model = AssociatedPlaceHolder?.AssociatedModel;
-            if (model?.BodyShapeDescriptorsByWeight == null) return;
-            if (!model.BodyShapeDescriptorsByWeight.TryGetValue(slot.Weight, out var modelSlot) || modelSlot == null) return;
+            if (model == null) return;
+            var profile = _autoAnnotationService.ResolveProfile(model);
+            if (profile == null) return;
+            if (profile.Measurements == null || profile.Measurements.Count == 0) return; // the cache-free pass already covered it
 
-            // Pass the preset's gender so RuleGender-filtered rules fire correctly in the
-            // live preview (e.g. a male-only Powerful rule on a male preset). ResolveGender
-            // is a reference-comparison against the parent BodySlidesMale/Female list, so
-            // it's authoritative even when descriptors are sparse.
-            //
-            // Seed the rule pass with the descriptors senior to the classifier, so DescriptorRef
-            // conditions can test slider-assigned labels — e.g. a Belly:Chubby measurement rule
-            // excluding [Belly:Muscular] assigned by a MuscleAbs slider rule. Slider labels are
-            // derived live from the CURRENT Label-by-Sliders rules (the annotator VM when alive —
-            // it holds unsaved edits — else the persisted model), not from stored RulesBased
-            // annotations, so rule drafts count immediately without an apply pass. Manual/Library
-            // entries seed from storage; prior Classifier output is excluded by
-            // CollectExternalDescriptors, so the MergeIntoSlot below never feeds its own previous
-            // results back into this evaluation.
-            var sliderRules = ParentMenuVM?.AnnotatorUI?.DumpToModel()
-                ?? _patcherState?.OBodySettings?.BodySlideClassificationRules;
-            var universeShells = ParentMenuVM?.DescriptorUI?.DumpToViewModels()
-                ?? _patcherState?.OBodySettings?.TemplateDescriptors;
-            var descriptorUniverse = universeShells?.Flatten()
-                .Where(d => d?.ID != null)
-                .Select(d => d.ID)
-                .ToHashSet();
-            var externalDescriptors = BodySlideMeasurementEvaluator.CollectExternalDescriptors(
-                model, slot.Weight, sliderRules, descriptorUniverse);
-            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile, evaluationGender: ResolveGender(),
-                externalDescriptors: externalDescriptors);
-            BodySlideMeasurementEvaluator.MergeIntoSlot(modelSlot, result.Descriptors);
-            // Same manual-overrides-category filter MergeIntoSlot applies, so the menu never shows a
-            // classifier value selected in a category the user hand-labeled in this slot.
-            slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(
-                BodySlideMeasurementEvaluator.FilterManualOverridden(modelSlot, result.Descriptors));
+            // Measure only (skipRules): the rules run below through the shared engine, with the
+            // slot's manual ownership and slider values, exactly like the cache-based pass.
+            var result = BodySlideMeasurementEvaluator.Evaluate(CharacterViewer, profile, evaluationGender: ResolveGender(), skipRules: true);
+            var known = new HashSet<string>(result.Measurements.Keys.Concat(result.FailedMeasurements.Keys), StringComparer.Ordinal);
+            var slotModel = BuildModelForDerivation();
+            var derived = AutoAnnotationEngine.DeriveForSlot(profile, slotModel, ResolveGender(), slot.Weight, result.Measurements, known);
+            slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(derived.Descriptors);
             UpdateAggregateAnnotationState();
 
             // Parallel diagnostic to the Match Presets scan: when the viewer's
@@ -318,7 +290,7 @@ public class VM_BodySlideSetting : VM
                     + $"bp={FmtMeas("belly_projection")} hpt={FmtMeas("hip_to_torso")} "
                     + $"ww={FmtMeas("waist_width")} hipW={FmtMeas("hip_width")} "
                     + $"meas={result.Measurements.Count} failed={result.FailedMeasurements.Count} "
-                    + $"topoMismatch={result.TopologyMismatch} ruleMatches={result.Descriptors.Count}");
+                    + $"topoMismatch={result.TopologyMismatch} ruleMatches={derived.Descriptors.Count}");
             }
 
             if (result.TopologyMismatch)
@@ -559,14 +531,18 @@ public class VM_BodySlideSetting : VM
         return _placeHolderFactory(model, parentCollection);
     }
 
-    private VM_BodySlideWeightSlot CreateSlot(int weight, HashSet<AnnotatedDescriptorSignature> descriptors)
+    private VM_BodySlideWeightSlot CreateSlot(int weight, HashSet<AnnotatedDescriptorSignature> descriptors, IEnumerable<string>? manualCategories = null)
     {
         var menu = _descriptorSelectionFactory(_bodyShapeDescriptors, _raceGroupingVMs, ParentMenuVM, false, DescriptorMatchMode.Any, false);
+        menu.TracksManualCategories = true;
         if (descriptors != null)
         {
-            menu.CopyInFromHashSet(descriptors);
+            // Only manual entries are stored; anything else is a leftover from an earlier version.
+            menu.CopyInFromHashSet(descriptors.Where(d => d != null && d.Source == BodyShapeAnnotationSource.Manual).ToHashSet());
         }
+        menu.CopyInManualCategories(manualCategories);
         var slot = new VM_BodySlideWeightSlot(weight, menu, this);
+        menu.AutomaticRefreshRequested += () => _ = RefreshAutomaticAnnotationsAsync();
         // Bubble menu state changes up to the aggregate rollup.
         slot.DescriptorsSelectionMenu
             .WhenAnyValue(x => x.AnnotationState)
@@ -595,6 +571,7 @@ public class VM_BodySlideSetting : VM
 
         SelectedWeightSlot = slot;
         UpdateAggregateAnnotationState();
+        _ = RefreshAutomaticAnnotationsAsync();
     }
 
     public void RemoveWeightSlot(VM_BodySlideWeightSlot slot)
@@ -646,28 +623,6 @@ public class VM_BodySlideSetting : VM
             // color brush table still applies until stage 5/6 introduces dedicated colors.
             AggregateAnnotationState = BodyShapeAnnotationState.Mix_Manual_RulesBased;
         }
-    }
-
-    private static void AcceptAutoAnnotationsForMenu(VM_BodyShapeDescriptorSelectionMenu menu)
-    {
-        if (menu == null) return;
-        bool hasSelected = false;
-        foreach (var category in menu.DescriptorShells)
-        {
-            foreach (var value in category.DescriptorSelectors)
-            {
-                value.AnnotationState = BodyShapeAnnotationState.Manual;
-                value.TextColor = AnnotationColors.DefaultText;
-            }
-            category.AnnotationState = category.DescriptorSelectors.Any(x => x.IsSelected)
-                ? BodyShapeAnnotationState.Manual
-                : BodyShapeAnnotationState.None;
-            if (category.AnnotationState == BodyShapeAnnotationState.Manual)
-            {
-                hasSelected = true;
-            }
-        }
-        menu.AnnotationState = hasSelected ? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
     }
 
     public void UpdateStatusDisplay() // this should follow the same logic as VM_BodySlidePlaceHolder.InitializeBorderColor()
@@ -760,7 +715,9 @@ public class VM_BodySlideSetting : VM
         {
             foreach (var pair in model.BodyShapeDescriptorsByWeight.OrderBy(p => p.Key))
             {
-                var slot = CreateSlot(pair.Key, pair.Value ?? new HashSet<AnnotatedDescriptorSignature>());
+                HashSet<string>? manualCategories = null;
+                model.ManualCategoriesByWeight?.TryGetValue(pair.Key, out manualCategories);
+                var slot = CreateSlot(pair.Key, pair.Value ?? new HashSet<AnnotatedDescriptorSignature>(), manualCategories);
                 WeightSlots.Add(slot);
             }
         }
@@ -828,6 +785,75 @@ public class VM_BodySlideSetting : VM
         // dropped. Only writes back when the retry actually picks a body type -- a second miss
         // just produces the diagnostic log and leaves the preset unclassified.
         TryReclassifyIfUnknown(model);
+
+        _ = RefreshAutomaticAnnotationsAsync();
+    }
+
+    /// <summary>Guards overlapping <see cref="RefreshAutomaticAnnotationsAsync"/> runs: only the newest applies.</summary>
+    private int _autoRefreshGeneration;
+
+    /// <summary>
+    /// Computes this preset's automatic assignments for every weight slot (slider values + cached
+    /// measurements, see <see cref="AutoAnnotationService"/>) off the UI thread and shows them in the
+    /// slot menus. Runs when the preset is selected, when a category is reset to automatic, and when
+    /// a slot is added. Nothing is stored.
+    /// </summary>
+    public async Task RefreshAutomaticAnnotationsAsync()
+    {
+        int myGen = ++_autoRefreshGeneration;
+        try
+        {
+            var gender = ResolveGender();
+            var preset = BuildModelForDerivation();
+            var profile = _autoAnnotationService.ResolveProfile(preset); // reads live editor VMs: UI thread
+            if (profile == null) return;
+            // Only the (possibly large) cache file load runs in the background; the derivation itself is
+            // cheap and stays on the UI thread, because it may read the Auto-Annotation editor's
+            // in-memory cache, which a running scan writes to.
+            if (!_autoAnnotationService.HasLiveCache(profile))
+            {
+                await Task.Run(() => _autoAnnotationService.WarmDiskCache(profile));
+                if (myGen != _autoRefreshGeneration) return;
+            }
+            var results = _autoAnnotationService.DeriveForPreset(preset, gender, profile);
+            foreach (var slot in WeightSlots)
+            {
+                if (results.TryGetValue(slot.Weight, out var r))
+                {
+                    slot.DescriptorsSelectionMenu?.ApplyClassifierDescriptors(r.Descriptors);
+                    slot.UnevaluableCategories = r.UnevaluableCategories.Count == 0
+                        ? ""
+                        : "Not yet scanned for: " + string.Join(", ", r.UnevaluableCategories.OrderBy(c => c, StringComparer.Ordinal));
+                }
+            }
+            UpdateAggregateAnnotationState();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("Auto-Annotation failed for preset '" + Label + "': " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>A detached model carrying this VM's current manual state and the preset's slider values,
+    /// for the engine to derive from without touching the stored model.</summary>
+    private BodySlideSetting BuildModelForDerivation()
+    {
+        var source = AssociatedPlaceHolder.AssociatedModel;
+        var model = new BodySlideSetting
+        {
+            Label = source.Label,
+            ReferencedBodySlide = source.ReferencedBodySlide,
+            SliderGroup = source.SliderGroup,
+            SliderValues = source.SliderValues,
+            BodyShapeDescriptorsByWeight = new Dictionary<int, HashSet<AnnotatedDescriptorSignature>>(),
+            ManualCategoriesByWeight = new Dictionary<int, HashSet<string>>(),
+        };
+        foreach (var slot in WeightSlots)
+        {
+            model.BodyShapeDescriptorsByWeight[slot.Weight] = slot.DescriptorsSelectionMenu.DumpToOBodySettingsHashSet();
+            model.ManualCategoriesByWeight[slot.Weight] = new HashSet<string>(slot.DescriptorsSelectionMenu.ManualCategories, StringComparer.Ordinal);
+        }
+        return model;
     }
 
     /// <summary>
@@ -880,6 +906,10 @@ public class VM_BodySlideSetting : VM
         foreach (var slot in WeightSlots)
         {
             model.BodyShapeDescriptorsByWeight[slot.Weight] = slot.DescriptorsSelectionMenu.DumpToOBodySettingsHashSet();
+            if (slot.DescriptorsSelectionMenu.ManualCategories.Count > 0)
+            {
+                model.ManualCategoriesByWeight[slot.Weight] = new HashSet<string>(slot.DescriptorsSelectionMenu.ManualCategories, StringComparer.Ordinal);
+            }
         }
         model.RemovedDefaultWeightSlots = new HashSet<int>(RemovedDefaultWeightSlots);
 
@@ -899,7 +929,8 @@ public class VM_BodySlideSetting : VM
 
         // also copy JSonIgnored values because they're needed by the patcher or if returning to this VM
         model.SliderGroup = AssociatedPlaceHolder.AssociatedModel.SliderGroup;
-        model.SliderValues = new(AssociatedPlaceHolder.AssociatedModel.SliderValues);
+        model.SliderValues = new(AssociatedPlaceHolder.AssociatedModel.SliderValues, StringComparer.OrdinalIgnoreCase);
+        model.SourceXmlPath = AssociatedPlaceHolder.AssociatedModel.SourceXmlPath;
         model.AnnotationState = AggregateAnnotationState;
         return model;
     }
@@ -925,4 +956,8 @@ public class VM_BodySlideWeightSlot : VM
     public VM_BodyShapeDescriptorSelectionMenu DescriptorsSelectionMenu { get; }
     public VM_BodySlideSetting Parent { get; }
     public RelayCommand RemoveCommand { get; }
+
+    /// <summary>Names the categories Auto-Annotation couldn't assign in this slot because the preset
+    /// hasn't been scanned for the measurements they need; empty when every category was evaluated.</summary>
+    public string UnevaluableCategories { get; set; } = "";
 }

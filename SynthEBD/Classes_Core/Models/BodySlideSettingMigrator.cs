@@ -18,16 +18,14 @@ namespace SynthEBD;
 public class BodySlideSettingMigrator
 {
     private readonly Logger _logger;
-    private readonly AnnotationLibraryAnnotator _libraryAnnotator;
 
     // Strips trailing clone suffixes added by InitialHIMBOSetup, e.g. " (Low Weight)".
     private static readonly Regex _cloneSuffixRegex =
         new Regex(@"\s*\((Low|Medium|High)\s+Weight\)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public BodySlideSettingMigrator(Logger logger, AnnotationLibraryAnnotator libraryAnnotator)
+    public BodySlideSettingMigrator(Logger logger)
     {
         _logger = logger;
-        _libraryAnnotator = libraryAnnotator;
     }
 
     /// <summary>
@@ -55,10 +53,9 @@ public class BodySlideSettingMigrator
             }
         }
 
-        // Stage 5: coalesce HIMBO-style clones that the annotation library can now express
-        // as per-weight entries on a single preset.
-        int coalesced = CoalesceLibraryCoveredClones(settings.BodySlidesMale)
-                      + CoalesceLibraryCoveredClones(settings.BodySlidesFemale);
+        // Coalesce HIMBO-style weight-band clones into one preset with per-weight slots.
+        int coalesced = CoalesceWeightBandClones(settings.BodySlidesMale)
+                      + CoalesceWeightBandClones(settings.BodySlidesFemale);
         if (coalesced > 0)
         {
             _logger.LogMessage($"Coalesced {coalesced} HIMBO-style clone preset(s) into per-weight annotated presets.");
@@ -141,56 +138,47 @@ public class BodySlideSettingMigrator
     }
 
     /// <summary>
-    /// For each group of presets that share a <c>ReferencedBodySlide</c> AND have a matching
-    /// annotation-library entry, replaces the group with a single preset covering weight 0-100.
-    /// The surviving preset gets the base label (clone suffixes stripped), cleared descriptor slots,
-    /// and library annotations applied.  Presets with no library match are left untouched.
+    /// For each group of presets that share a <c>ReferencedBodySlide</c> and contain a clone made by the
+    /// old InitialHIMBOSetup (label ending in " (Low/Medium/High Weight)"), replaces the group with a
+    /// single preset covering weight 0-100. The survivor gets the base label (clone suffix stripped) and,
+    /// per weight slot, the union of the clones' descriptors -- the first pass already placed each clone's
+    /// descriptors in the slot nearest its weight band, so the weight dependence carries over.
     /// Returns the number of clone entries removed.
     /// </summary>
-    private int CoalesceLibraryCoveredClones(List<BodySlideSetting> presets)
+    private int CoalesceWeightBandClones(List<BodySlideSetting> presets)
     {
         if (presets == null || presets.Count == 0) return 0;
 
-        // Group by ReferencedBodySlide; only care about groups with >1 entry.
         var groups = presets
             .GroupBy(p => p.ReferencedBodySlide, System.StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
+            .Where(g => g.Count() > 1 && g.Any(p => _cloneSuffixRegex.IsMatch(p.Label ?? "")))
             .ToList();
 
-        if (groups.Count == 0) return 0;
-
         int removedTotal = 0;
-
         foreach (var group in groups)
         {
             var clones = group.ToList();
-
-            // Build a temporary preset to test whether the library has an entry for this name.
-            var probe = new BodySlideSetting { ReferencedBodySlide = group.Key };
-            bool hasLibraryEntry = _libraryAnnotator.Annotate(probe);
-            if (!hasLibraryEntry) continue;
-
-            // Keep the first clone as the surviving entry; remove the rest.
             var survivor = clones[0];
-
-            // Reset to full weight range.
             survivor.WeightRange = new NPCWeightRange { Lower = 0, Upper = 100 };
+            survivor.Label = _cloneSuffixRegex.Replace(survivor.Label ?? "", "").TrimEnd();
+            survivor.BodyShapeDescriptorsByWeight ??= new Dictionary<int, HashSet<AnnotatedDescriptorSignature>>();
 
-            // Strip clone suffix from the label.
-            survivor.Label = _cloneSuffixRegex.Replace(survivor.Label, "").TrimEnd();
-
-            // Clear all descriptor slots and apply fresh library annotations.
-            survivor.ClearAllDescriptorSlots();
-            _libraryAnnotator.Annotate(survivor);
-
-            // Remove the other clones from the list.
             for (int i = 1; i < clones.Count; i++)
             {
+                foreach (var (weight, slot) in clones[i].BodyShapeDescriptorsByWeight ?? new())
+                {
+                    if (slot == null) continue;
+                    if (!survivor.BodyShapeDescriptorsByWeight.TryGetValue(weight, out var target) || target == null)
+                    {
+                        target = new HashSet<AnnotatedDescriptorSignature>();
+                        survivor.BodyShapeDescriptorsByWeight[weight] = target;
+                    }
+                    target.UnionWith(slot);
+                }
                 presets.Remove(clones[i]);
                 removedTotal++;
             }
         }
-
         return removedTotal;
     }
 

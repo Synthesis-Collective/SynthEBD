@@ -89,11 +89,6 @@
     <None Remove="InternalData\Common Scripts\Source\SynthEBDCommonFuncs.psc" />
     <None Remove="InternalData\Common Scripts\SynthEBDcLib.pex" />
     <None Remove="InternalData\Common Scripts\SynthEBDCommonFuncs.pex" />
-    <None Remove="InternalData\Default BodySlide Annotations\BHUNP 3BBB.csv" />
-    <None Remove="InternalData\Default BodySlide Annotations\BHUNP Unified UNP.csv" />
-    <None Remove="InternalData\Default BodySlide Annotations\CBBE.csv" />
-    <None Remove="InternalData\Default BodySlide Annotations\HIMBO.csv" />
-    <None Remove="InternalData\Default BodySlide Annotations\UNP.csv" />
     <None Remove="InternalData\EBD Code\SSE\EBDGlobalFuncs.pex" />
     <None Remove="InternalData\EBD Code\SSE\Source\EBDGlobalFuncs.psc" />
     <None Remove="InternalData\EBD Code\VR\EBDGlobalFuncs.pex" />
@@ -229,21 +224,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\QuestSeq\SynthEBD.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="InternalData\Default BodySlide Annotations\BHUNP 3BBB.csv">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="InternalData\Default BodySlide Annotations\BHUNP Unified UNP.csv">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="InternalData\Default BodySlide Annotations\CBBE.csv">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="InternalData\Default BodySlide Annotations\HIMBO.csv">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="InternalData\Default BodySlide Annotations\UNP.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="InternalData\JContainers Domain\PSM_SynthEBD.pex">

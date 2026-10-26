@@ -19,10 +19,18 @@
             <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0" Grid.Column="0" VerticalScrollBarVisibility="Auto">
+        <!-- Shown when the user has taken this category over from Auto-Annotation in a preset's
+             weight slot: gives it back so the rules decide again. -->
+        <Button Grid.Row="0" Grid.Column="0" Content="Reset to automatic" HorizontalAlignment="Left" Margin="10 0 0 3" Padding="6 0"
+                Command="{Binding ResetToAutomaticCommand}"
+                Visibility="{Binding IsManual, Converter={StaticResource BoolToVis}}"
+                local:DocTooltip.Key="BodySlides.ResetCategoryToAutomatic"/>
+
+        <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding DescriptorSelectors}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

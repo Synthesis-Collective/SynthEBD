@@ -285,9 +285,8 @@ public partial class UC_BodyTypeProfileEditor : UserControl
         TryPrime();
         // Loaded fires on every navigation into this menu (the DataTemplate swaps the control
         // back into the visual tree), unlike TryPrime's once-only priming. Re-derive the state
-        // that depends on sibling menus' live edits — Label-by-Sliders rules and manual
-        // annotations feed the classifier's DescriptorRef seeds, and those menus have no
-        // notification channel into this one.
+        // that depends on sibling menus' live edits — manual annotations feed the classifier's
+        // DescriptorRef seeds, and the BodySlides menu has no notification channel into this one.
         if (DataContext is VM_BodyTypeProfileEditor editor)
         {
             editor.RefreshCrossMenuStateOnShow();
@@ -443,11 +442,16 @@ Ctrl+C: Copy the selected row's ""{PresetLabel} ({Weight})"" identifier to the c
         // doesn't generate a code-behind field for the Rules TabItem. Match by Header text
         // instead — the literal "Rules" header is the same constant the user sees.
         if (tc.SelectedItem is not TabItem ti) return;
-        if (ti.Header as string != "Rules") return;
+        if (this.DataContext is not VM_BodyTypeProfileEditor editor) return;
 
-        if (this.DataContext is VM_BodyTypeProfileEditor editor)
+        switch (ti.Header as string)
         {
-            editor.RefreshAvailableDescriptorsFromLiveSettings();
+            case "Rules":
+                editor.RefreshAvailableDescriptorsFromLiveSettings();
+                break;
+            case "Sliders":
+                editor.RefreshSlidersTabIfStale();
+                break;
         }
     }
 

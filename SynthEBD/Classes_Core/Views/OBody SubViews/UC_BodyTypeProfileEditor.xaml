@@ -1147,9 +1147,16 @@
                                             <RowDefinition Height="260" MinHeight="80"/>
                                         </Grid.RowDefinitions>
                                     <DockPanel Grid.Row="0">
-                                        <Button DockPanel.Dock="Top" Content="+ Add Rule" Command="{Binding AddRule}"
-                                                HorizontalAlignment="Left" Padding="6,2" Margin="0,5"
-                                                local:DocTooltip.Key="BodyTypeProfiles.AddRule"/>
+                                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,5">
+                                            <Button Content="+ Add Rule" Command="{Binding AddRule}"
+                                                    HorizontalAlignment="Left" Padding="6,2"
+                                                    local:DocTooltip.Key="BodyTypeProfiles.AddRule"/>
+                                            <!-- Slider-condition pickers offer the body type's catalog sliders; this adds the
+                                                 names found only in preset XMLs (mostly outfit zap/squeeze sliders). -->
+                                            <CheckBox Content="{Binding ShowPresetOnlySlidersLabel}" IsChecked="{Binding ShowPresetOnlySliders}"
+                                                      VerticalAlignment="Center" Margin="12,0,0,0"
+                                                      local:DocTooltip.Key="BodyTypeProfiles.ShowPresetOnlySliders"/>
+                                        </StackPanel>
                                         <!-- Virtualized: only the rules in view get their (heavy) template built, so
                                              selecting a large category no longer instantiates every rule, group and
                                              condition row up front. The ScrollViewer lives in the ItemsControl's own
@@ -1311,9 +1318,9 @@
                                                                                     <ItemsControl.ItemTemplate>
                                                                                         <DataTemplate DataType="{x:Type local:VM_MeasurementCondition}">
                                                                                             <StackPanel Orientation="Horizontal" Margin="0,1">
-                                                                                                <!-- Kind picker: Measurement | DescriptorRef. Toggling swaps which controls are visible
-                                                                                                     via the IsMeasurementKind / IsDescriptorRefKind visibility bindings. The inactive
-                                                                                                     kind's fields stay in memory so flipping back doesn't lose the prior values. -->
+                                                                                                <!-- Kind picker: Measurement | DescriptorRef | Slider. Toggling swaps which controls are
+                                                                                                     visible via the Is*Kind visibility bindings. The inactive kinds' fields stay in memory
+                                                                                                     so flipping back doesn't lose the prior values. -->
                                                                                                 <ComboBox ItemsSource="{Binding KindOptions}"
                                                                                                           SelectedItem="{Binding Kind, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           MinWidth="105" Margin="0,0,5,0"
@@ -1325,12 +1332,26 @@
                                                                                                           Style="{StaticResource InvalidConditionRefComboBoxStyle}"
                                                                                                           MinWidth="160" Margin="0,0,5,0"
                                                                                                           Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
+
+                                                                                                <!-- Slider-kind row: slider name + which value (Small / Big / Either / Interpolated);
+                                                                                                     comparator and threshold below are shared with the Measurement kind. -->
+                                                                                                <ComboBox ItemsSource="{Binding AvailableSliderNames}" IsEditable="True"
+                                                                                                          Text="{Binding SliderName, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          MinWidth="160" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsSliderKind, Converter={StaticResource BoolToVis}}"
+                                                                                                          local:DocTooltip.Key="BodyTypeProfiles.ConditionSliderName"/>
+                                                                                                <ComboBox SelectedValue="{Binding SliderType, UpdateSourceTrigger=PropertyChanged}"
+                                                                                                          ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:BodySliderType}}}"
+                                                                                                          MinWidth="100" Margin="0,0,5,0"
+                                                                                                          Visibility="{Binding IsSliderKind, Converter={StaticResource BoolToVis}}"
+                                                                                                          local:DocTooltip.Key="BodyTypeProfiles.ConditionSliderType"/>
+
                                                                                                 <ComboBox SelectedValue="{Binding Comparator, UpdateSourceTrigger=PropertyChanged}"
                                                                                                           ItemsSource="{Binding Source={local:EnumBindingSource {x:Type local:MeasurementComparator}}}"
                                                                                                           MinWidth="140" Margin="0,0,5,0"
-                                                                                                          Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
+                                                                                                          Visibility="{Binding IsThresholdKind, Converter={StaticResource BoolToVis}}"/>
                                                                                                 <TextBox Text="{Binding ValueText, UpdateSourceTrigger=PropertyChanged}" MinWidth="80" Margin="0,0,5,0"
-                                                                                                         Visibility="{Binding IsMeasurementKind, Converter={StaticResource BoolToVis}}"/>
+                                                                                                         Visibility="{Binding IsThresholdKind, Converter={StaticResource BoolToVis}}"/>
 
                                                                                                 <!-- DescriptorRef-kind row -->
                                                                                                 <CheckBox Content="NOT" IsChecked="{Binding Negate, UpdateSourceTrigger=PropertyChanged}"
@@ -1349,7 +1370,7 @@
                                                                                                           local:DocTooltip.Key="BodyTypeProfiles.ConditionRefValue"/>
 
                                                                                                 <!-- Live readout for the currently-previewed preset: measurement value (Measurement
-                                                                                                     kind) or Match/Not Match (DescriptorRef, honoring NOT). Green = the preset satisfies
+                                                                                                     kind), slider value (Slider kind) or Match/Not Match (DescriptorRef, honoring NOT). Green = the preset satisfies
                                                                                                      this condition, red = it doesn't, gray = no preset loaded / value unresolved. -->
                                                                                                 <TextBlock Text="{Binding ConditionReadout}" VerticalAlignment="Center"
                                                                                                            FontWeight="Bold" MinWidth="55" Margin="4,0,8,0"
@@ -1503,6 +1524,12 @@
                                     </Expander>
                                     <local:UC_PresetAnnotationTable DataContext="{Binding DataContext.AnnotationTable, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"/>
                                 </DockPanel>
+                            </TabItem>
+
+                            <!-- Sliders: preset slider table, editable slider readout with heatmap, Save / Save As.
+                                 VM_AutoAnnotationSliders lives on the editor, one level up. -->
+                            <TabItem Header="Sliders">
+                                <local:UC_AutoAnnotationSliders DataContext="{Binding DataContext.Sliders, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"/>
                             </TabItem>
 
                             <TabItem Header="Preview">

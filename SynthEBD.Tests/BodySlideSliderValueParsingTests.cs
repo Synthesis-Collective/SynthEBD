@@ -115,7 +115,7 @@ public class BodySlideSliderValueParsingTests
         // Would both have been 0 under int parsing, and both 26/16 if the model were still int.
         slider.Big.Should().BeApproximately(26.282051f, 1e-5f);
         slider.Small.Should().BeApproximately(15.769231f, 1e-5f);
-        BodySlideAnnotator.InterpolateSliderValue(slider, 50)
+        MeasurementMath.InterpolateSliderValue(slider, 50)
             .Should().BeApproximately((26.282051f + 15.769231f) / 2f, 1e-4f);
     }
 }

@@ -87,10 +87,10 @@ public class Settings_OBody
     public List<BodyTypeRegistryEntry> BodyTypeRegistry { get; set; } = new();
 
     /// <summary>
-    /// Label by Measurements profiles of the <b>active</b> rule file for each body type -- a runtime
+    /// Auto-Annotation profiles of the <b>active</b> rule file for each body type -- a runtime
     /// view, not persisted here. The source of truth is the <see cref="BodyTypeRuleSet"/> files in
     /// <c>Body Type Rules\</c>; <see cref="SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews"/> fills
-    /// this at load, the profile editor dumps into it, and
+    /// this at load, the Auto-Annotation editor dumps into it, and
     /// <see cref="SettingsIO_BodyTypeRules.SaveRuleSets"/> folds it back into the files. At most one
     /// profile per body type. Empty = classifier no-ops.
     /// </summary>
@@ -100,11 +100,13 @@ public class Settings_OBody
     public bool bUseVerboseScripts { get; set; } = false;
     public OBodySelectionMode OBodySelectionMode { get; set; } = OBodySelectionMode.Native;
     public AutoBodySelectionMode AutoBodySelectionMode { get; set; } = AutoBodySelectionMode.INI;
-    /// <summary>Label by Sliders rules of the active rule file for each body type, keyed by slider
-    /// group (= body type name). Runtime view like <see cref="BodyTypeProfiles"/>: not persisted here,
-    /// filled from and folded back into the <see cref="BodyTypeRuleSet"/> files.</summary>
-    [JsonIgnore]
-    public Dictionary<string, SliderClassificationRulesByBodyType> BodySlideClassificationRules { get; set; } = new();
+    /// <summary>A released build's Label by Sliders rules, keyed by body type. Read only so they can be
+    /// converted into Slider-condition rules in the body type rule files
+    /// (<see cref="SettingsIO_BodyTypeRules.FoldLegacyOBodySliderRules(Settings_OBody, List{BodyTypeRuleSet})"/>);
+    /// never written back.</summary>
+    [JsonProperty("BodySlideClassificationRules")]
+    public Dictionary<string, SliderClassificationRulesByBodyType>? LegacyBodySlideClassificationRules { get; set; }
+    public bool ShouldSerializeLegacyBodySlideClassificationRules() => false;
 
     /// <summary>Active rule file per body type: body type name → <see cref="BodyTypeRuleSet.FileName"/>
     /// (case-insensitive). Set by the Misc menu's per-body-type combobox. A body type with no entry,
@@ -129,16 +131,6 @@ public class Settings_OBody
 
     public bool AutoApplyMissingAnnotations { get; set; } = true;
 
-    /// <summary>
-    /// Conflict policy for <see cref="DescriptorDefaultSynchronizer"/>'s load-time reconciliation of
-    /// the per-category default descriptor shared between Label by Sliders
-    /// (<see cref="SliderClassificationRulesByBodyType"/>) and Label by Measurements
-    /// (<see cref="BodyTypeProfile.DefaultDescriptorValuesByCategory"/>): when saved settings carry
-    /// two different non-empty defaults for the same (body type, category), true means the slider
-    /// side's value wins; false (default) means the measurement side's value wins. Live edits always
-    /// propagate both ways regardless of this flag — it only breaks pre-existing disagreements.
-    /// </summary>
-    public bool PreferSliderDefaultsOnConflict { get; set; } = false;
     public bool OBodyEnableMultipleAssignments { get; set; } = false;
 
     /// <summary>
@@ -148,13 +140,7 @@ public class Settings_OBody
     public OBodyPreviewNpcSettings PreviewNpcs { get; set; } = new();
 
     /// <summary>
-    /// Body type (e.g. "CBBE 3BA") most recently selected in the Label by Sliders menu, so the
-    /// menu reopens on it next session instead of starting unselected. Empty = never selected.
-    /// </summary>
-    public string LastSelectedSliderAnnotationBodyType { get; set; } = "";
-
-    /// <summary>
-    /// Body type most recently selected in the Label by Measurements editor, so the editor reopens on
+    /// Body type most recently selected in the Auto-Annotation editor, so the editor reopens on
     /// it next session instead of the first body type (or the installed-body auto-detection result).
     /// Stored by body type rather than profile Id because the profile shown for a body type depends
     /// on which rule file is active. Empty = never selected.
@@ -187,7 +173,7 @@ public class Settings_OBody
         return false;
     }
 
-    public void ImportBodySlides(List<BodyShapeDescriptorShell> templateDescriptors, SettingsIO_OBody oBodyIO, string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
+    public void ImportBodySlides(string gameDataFolder, Logger logger, BodySlideGroupClassifier classifier = null)
     {
         logger.LogStartupEventStart("Detecting currently installed BodySlides");
 
@@ -205,8 +191,6 @@ public class Settings_OBody
                 }
             }
         }
-
-        var defaultAnnotationDict = oBodyIO.LoadDefaultBodySlideAnnotation();
 
         CurrentlyExistingBodySlides.Clear();
         List<BodySlideSetting> currentBodySlides = new List<BodySlideSetting>();
@@ -281,28 +265,14 @@ public class Settings_OBody
                                 newPreset.HideInMenu = true;
                             }
 
-                            if (defaultAnnotationDict.ContainsKey(presetName))
-                            {
-                                foreach (var annotation in defaultAnnotationDict[presetName])
-                                {
-                                    // Flatten() yields one BodyShapeDescriptor per (Category, Value)
-                                    // across the new shell-grouped collection. The .ID.ToString()
-                                    // comparison stays unchanged — the descriptor still carries the
-                                    // full Category+Value pair in its ID.
-                                    var descriptor = templateDescriptors.Flatten().FirstOrDefault(x => x.ID.ToString().Equals(annotation, StringComparison.OrdinalIgnoreCase));
-                                    if (descriptor != null)
-                                    {
-                                        // Default CSV-shipped annotations are treated as Library-sourced (Tier 1).
-                                        newPreset.AddDescriptorToAllSlots(new AnnotatedDescriptorSignature(descriptor.ID, BodyShapeAnnotationSource.Library));
-                                    }
-                                }
-                            }
-
                             currentBodySlides.Add(newPreset);
                             currentPreset = newPreset;
                         }
 
                         currentPreset.SliderGroup = groupName;
+                        // Slider values below are applied file by file, so a preset defined in
+                        // several files ends up with the last file's values: record that file.
+                        currentPreset.SourceXmlPath = xmlFilePath;
 
                         var sliders = preset.Elements("SetSlider");
                         foreach (var slider in sliders)
@@ -375,6 +345,15 @@ public class BodySlideSetting : IProbabilityWeighted, IBodyShapeRuleCandidate
     public HashSet<int> RemovedDefaultWeightSlots { get; set; } = new();
 
     /// <summary>
+    /// Categories the user has taken over from Auto-Annotation, per weight slot. A category listed
+    /// here (or holding any Manual descriptor in that slot) is never assigned automatically there,
+    /// even when the user left it empty -- that is how "manually set to nothing" is recorded, since
+    /// only Manual descriptors are stored. See <see cref="AutoAnnotationEngine"/>.
+    /// </summary>
+    public Dictionary<int, HashSet<string>> ManualCategoriesByWeight { get; set; } = new();
+    public bool ShouldSerializeManualCategoriesByWeight() => ManualCategoriesByWeight != null && ManualCategoriesByWeight.Values.Any(v => v != null && v.Count > 0);
+
+    /// <summary>
     /// Legacy backing field. Captured by Newtonsoft when reading pre-v1 settings files;
     /// the migrator drains this into <see cref="BodyShapeDescriptorsByWeight"/>.
     /// Marked NeverSerialize so freshly written files only contain the new shape.
@@ -422,6 +401,11 @@ public class BodySlideSetting : IProbabilityWeighted, IBodyShapeRuleCandidate
 
     [JsonIgnore]
     public Dictionary<string, BodySlideSlider> SliderValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The SliderPresets XML file this preset's slider values were read from at startup (the
+    /// last file read, on a duplicate preset name). Lets the Auto-Annotation Sliders pane write edited slider values back.</summary>
+    [JsonIgnore]
+    public string SourceXmlPath { get; set; } = "";
 }
 
 public class AnnotatedDescriptorSignature: BodyShapeDescriptor.LabelSignature
@@ -625,6 +609,50 @@ public static class BodySlideSettingExtensions
             result.Add(d);
         }
         return result;
+    }
+
+    /// <summary>
+    /// Categories the user owns at <paramref name="weight"/>: those recorded in
+    /// <see cref="BodySlideSetting.ManualCategoriesByWeight"/> plus those holding a Manual descriptor.
+    /// Uses the slot keyed exactly at the weight, else the nearest slot (ties round down), the same
+    /// slot <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/> reads.
+    /// </summary>
+    public static HashSet<string> GetManualCategories(this BodySlideSetting bs, int weight)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (bs == null) return result;
+        foreach (var d in PerWeightDescriptorLookup.GetSlotAtOrNearest(bs, weight) ?? Enumerable.Empty<AnnotatedDescriptorSignature>())
+        {
+            if (d != null && d.Source == BodyShapeAnnotationSource.Manual && !string.IsNullOrEmpty(d.Category)) result.Add(d.Category);
+        }
+        if (bs.ManualCategoriesByWeight != null && bs.ManualCategoriesByWeight.Count > 0)
+        {
+            // Resolve the same slot key the descriptors use, so ownership and values never disagree.
+            var slotKeys = bs.BodyShapeDescriptorsByWeight?.Keys ?? (IEnumerable<int>)bs.ManualCategoriesByWeight.Keys;
+            int slotWeight = PerWeightDescriptorLookup.ChooseNearestKey(slotKeys, weight);
+            if (bs.ManualCategoriesByWeight.TryGetValue(slotWeight, out var categories) && categories != null)
+            {
+                result.UnionWith(categories.Where(c => !string.IsNullOrEmpty(c)));
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Removes every descriptor whose source isn't Manual. Automatic assignments are computed on
+    /// demand and never stored, so any persisted non-Manual entry is a leftover from an earlier
+    /// version (library, rule-based or classifier output). Returns the number removed.
+    /// </summary>
+    public static int StripNonManualDescriptors(this BodySlideSetting bs)
+    {
+        if (bs?.BodyShapeDescriptorsByWeight == null) return 0;
+        int removed = 0;
+        foreach (var slot in bs.BodyShapeDescriptorsByWeight.Values)
+        {
+            if (slot == null) continue;
+            removed += slot.RemoveWhere(d => d == null || d.Source != BodyShapeAnnotationSource.Manual);
+        }
+        return removed;
     }
 
     /// <summary>

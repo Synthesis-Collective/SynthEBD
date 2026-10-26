@@ -21,22 +21,22 @@ public static partial class UiDocs
         Add("BodyTypeProfiles.BodyTypePicker",
             layperson: "Picks which body type you are working on. Each body type has at most one measurement profile at a time: the one inside the rule file currently chosen for it in OBody Misc settings.",
             technical: "Bound to VM_BodyTypeProfileEditor.SelectedBodyType (registry body types plus any body type with a loaded profile), two-way synced with SelectedProfile. A body type whose active BodyTypeRuleSet has no MeasurementProfile selects no profile and enables Create Profile.",
-            motivation: "Profiles now live in shareable per-body-type rule files, so the editor chooses a body type rather than a free-standing profile; which file supplies the profile is decided in one place (Misc) for both labeling menus.");
+            motivation: "Profiles live in shareable per-body-type rule files, so the editor chooses a body type rather than a free-standing profile; which file supplies the profile is decided in one place (Misc).");
 
         Add("BodyTypeProfiles.ActiveRuleFile",
-            layperson: "The rule file this body type's measurement profile (and its Label by Sliders rules) is saved into. Change it in OBody Misc settings > Body Type Rules.",
+            layperson: "The rule file this body type's Auto-Annotation profile is saved into. Change it in OBody Misc settings > Body Type Rules.",
             technical: "VM_OBodyMiscSettings.GetActiveRuleFile(SelectedBodyType): display name and file name of the active BodyTypeRuleSet in 'Body Type Rules\\'. 'none yet' means the body type has no file; one is created on save once something is authored.",
             motivation: "Several rule files can exist for one body type (your defaults plus downloaded variants); showing which one is being edited prevents editing the wrong file.");
 
         Add("BodyTypeProfiles.CreateProfile",
             layperson: "Starts an empty measurement profile for the selected body type, stored in its active rule file.",
-            technical: "Ensures the body type has an active BodyTypeRuleSet (VM_OBodyMiscSettings.EnsureRuleFileForBodyType creates an unsaved one named after the body type if needed), then adds a new BodyTypeProfile via ReplaceProfileForBodyType and reconciles its category defaults with Label by Sliders. Enabled only when the body type has no profile.",
+            technical: "Ensures the body type has an active BodyTypeRuleSet (VM_OBodyMiscSettings.EnsureRuleFileForBodyType creates an unsaved one named after the body type if needed), then adds a new BodyTypeProfile via ReplaceProfileForBodyType. Enabled only when the body type has no profile.",
             motivation: "Replaces the old free-form Add: a profile always belongs to exactly one rule file and body type, so creating one is tied to the selected body type.");
 
         Add("BodyTypeProfiles.RemoveProfile",
-            layperson: "Deletes the selected body type's measurement profile from its rule file. The file's Label by Sliders rules and your worklist annotations are kept.",
+            layperson: "Deletes the selected body type's Auto-Annotation profile from its rule file. Your worklist annotations are kept.",
             technical: "Confirms, then ReplaceProfileForBodyType(bodyType, null): the profile VM is dropped (its PresetAnnotations / AnnotatorPrefs are parked and survive the save) and the active BodyTypeRuleSet's MeasurementProfile becomes null when the views are folded back on save.",
-            motivation: "A rule file may legitimately carry slider rules only; this is the way back to that state without deleting the file.");
+            motivation: "Lets you start a body type over without deleting its rule file.");
 
         Add("BodyTypeProfiles.ProfileName",
             layperson: "The profile's own name, used in log messages and to name its measurement cache file. The rule file's name is set separately in OBody Misc settings.",
@@ -288,9 +288,9 @@ public static partial class UiDocs
             motivation: "Guaranteed rollback is what makes aggressive experimentation on live rules safe.");
 
         Add("BodyTypeProfiles.ConditionKind",
-            layperson: "What this condition tests: a body measurement against a number, or whether a label applies to the preset - from another rule here, from the Label by Sliders rules, or applied by hand.",
-            technical: "Bound to MeasurementConditionKind. Measurement is the classic 'measurement comparator threshold' test; DescriptorRef tests membership in the matched-descriptor set, honoring NOT. That set holds descriptors produced by rules earlier in the topological evaluation order PLUS an external seed (CollectExternalDescriptors): labels a Label by Sliders RULE matched for this preset at the evaluated weight - derived live from the current rule set, so slider-rule drafts count without an apply pass - and the preset's stored Manual/Library annotations. Prior Classifier output is excluded so re-runs never read their own results, and a category covered by a seed skips its measurement-side default. The Label by Sliders per-category DEFAULT is deliberately not seeded: it is the same value as this menu's default for that category (the two are kept synchronized), so seeding it would cancel the default it duplicates and leave the category unlabeled. The inactive kind's fields stay in memory, so flipping back loses nothing.",
-            motivation: "DescriptorRef enables aggregator rules - for example ExtremeShape:Any defined as 'any other ExtremeShape descriptor fired' - without duplicating every underlying threshold. Live slider-label seeding lets the two labeling systems compose while you iterate: a slider rule can assign Belly:Muscular from MuscleAbs, and measurement rules for Belly:Chubby/Fat can exclude it, with edits on either side visible to the other immediately.");
+            layperson: "What this condition tests: a body measurement against a number, one of the preset's BodySlide slider values against a number, or whether a label applies to the preset - from another rule here or applied by hand.",
+            technical: "Bound to MeasurementConditionKind. Measurement compares a measurement value with the threshold; Slider compares a value of the preset's slider (SliderSample: the preset's SliderValues at the evaluated weight), needing no mesh or cache; DescriptorRef tests membership in the matched-descriptor set, honoring NOT. That set holds descriptors produced by rules earlier in the topological evaluation order plus the preset's stored Manual annotations (CollectExternalDescriptors); a manually set category skips its own rules and default. The inactive kinds' fields stay in memory, so flipping back loses nothing.",
+            motivation: "All three kinds run in one pass, so one category can be decided by sliders, measurements or other labels - for example Belly:Muscular from the MuscleAbs slider while measurement rules for Belly:Chubby exclude it with a DescriptorRef.");
 
         Add("BodyTypeProfiles.ConditionNegate",
             layperson: "Flips the check: the condition passes only if the referenced label did NOT apply.",
@@ -298,8 +298,8 @@ public static partial class UiDocs
             motivation: "Exclusion predicates like 'curvy but not unrealistic' would otherwise require authoring mirror-image rules.");
 
         Add("BodyTypeProfiles.ConditionRefCategory",
-            layperson: "The category of the label that this condition checks for. The label can come from another rule here, from the Label by Sliders rules, or from a manual annotation.",
-            technical: "Bound to RefCategory; options come from GetSafeDescriptorRefsForCondition, which offers the full descriptor catalog minus any choice that would create a circular dependency between rules referencing each other's output. Categories flagged Rules only (BodyShapeDescriptorShell.IsRulesOnly) are deliberately INCLUDED here - that flag hides a category from the distribution pickers only, so intermediate categories authored purely to be referenced by other rules remain fully available to this dropdown. A descriptor no measurement rule produces is always cycle-safe and resolves at evaluation against the live Label by Sliders rule output and the preset's manual/library annotations.",
+            layperson: "The category of the label that this condition checks for. The label can come from another rule here or from a manual annotation.",
+            technical: "Bound to RefCategory; options come from GetSafeDescriptorRefsForCondition, which offers the full descriptor catalog minus any choice that would create a circular dependency between rules referencing each other's output. Categories flagged Rules only (BodyShapeDescriptorShell.IsRulesOnly) are deliberately INCLUDED here - that flag hides a category from the distribution pickers only, so intermediate categories authored purely to be referenced by other rules remain fully available to this dropdown. A descriptor no rule produces is always cycle-safe and can only be matched by a manual annotation.",
             motivation: "Cycle-safe options at the source prevent authoring reference chains the topological evaluator could never order.");
 
         Add("BodyTypeProfiles.ConditionRefValue",
@@ -309,8 +309,85 @@ public static partial class UiDocs
 
         Add("BodyTypeProfiles.ConditionReadout",
             layperson: "Live result of this condition for the preset shown in the viewer - green means it passes, red means it fails.",
-            technical: "ConditionReadout: for Measurement conditions, the named measurement's LiveValue tested with the comparator; for DescriptorRef conditions, 'Match' or 'Not Match' against the previewed preset's matched descriptors - rule matches, materialized category defaults, the preset's live-derived Label by Sliders labels at the previewed weight, and its stored manual/library annotations - honoring NOT. A gray dash means no preset is loaded or the value cannot resolve; the color is driven by ConditionConforms.",
+            technical: "ConditionReadout: for Measurement conditions, the named measurement's LiveValue tested with the comparator; for Slider conditions, the slider value the condition reads (Small, Big, or the value interpolated at the preview weight; Either shows the interpolated value) from the previewed preset including the Sliders tab's unsaved edits, or 'unset' when the preset doesn't set the slider; for DescriptorRef conditions, 'Match' or 'Not Match' against the previewed preset's matched descriptors - rule matches, materialized category defaults and its stored manual annotations - honoring NOT. A gray dash means no preset is loaded or the value cannot resolve; the color is driven by ConditionConforms.",
             motivation: "Seeing each condition pass or fail against a live preset pinpoints exactly which clause blocks an expected match.");
+
+        Add("BodyTypeProfiles.ConditionSliderName",
+            layperson: "The BodySlide slider this condition looks at. You can pick one from the list or type any slider name.",
+            technical: "Bound to MeasurementCondition.SliderName. The list is VM_BodyTypeProfile.AvailableSliderNames: the body type's registry catalog plus every slider a condition already references, and the names found only in preset XMLs when 'Show preset-only sliders' is on. A preset that doesn't set the slider fails the condition.",
+            motivation: "Slider values are the cheapest signal there is - no scan needed - and some traits (muscle definition, for example) show up in sliders more reliably than in mesh measurements.");
+
+        Add("BodyTypeProfiles.ConditionSliderType",
+            layperson: "Which of the slider's values the condition tests. Every preset stores two values per slider - one used at NPC weight 0 (Small) and one at weight 100 (Big) - and the game blends between them by weight. 'Small', 'Big' and 'Either' test the stored values and so label every weight the same; 'Interpolated' tests the blended value at each weight, so the label can apply only where it is true.",
+            technical: "Sets MeasurementCondition.SliderType (BodySliderType). Small/Big/Either compare the authored endpoint values and are weight-independent; Interpolated compares Small + (Big - Small) * weight/100 at the evaluated weight slot. EqualTo / NotEqualTo compare the slider value rounded to the nearest whole number (halves away from zero); ordered comparators use the exact value.",
+            motivation: "A preset is a family of shapes blended by NPC weight; Interpolated conditions let one threshold produce weight-aware labels.");
+
+        Add("BodyTypeProfiles.ShowPresetOnlySliders",
+            layperson: "BodySlide preset files often carry slider entries for outfits ('squeeze' sliders and similar) alongside real body sliders. By default the slider lists only show this body type's official sliders; tick this to also list every extra name found in your installed presets.",
+            technical: "Session-only VM_BodyTypeProfile.ShowPresetOnlySliders. Off: the Body Type Registry catalog plus any names referenced by existing conditions. On: the union with all names parsed from loaded preset XMLs (SliderNameCatalog). Body types without a catalog always show the full union. Logs\\SliderNameProvenance.txt lists every name with its source.",
+            motivation: "One outfit preset collection can inject hundreds of names into a body's slider list, burying the sliders rules are actually written against - but the unusual ones must stay reachable.");
+
+        // ---------- Sliders tab ----------
+
+        Add("AutoAnnotationSliders.SliderPicker",
+            layperson: "Picks which slider's numbers appear in the preset table's Low / High / Interp columns, so you can sort every preset by that slider. It also picks the slider the heatmap shows.",
+            technical: "Sets VM_AutoAnnotationSliders.SelectedSliderName; VM_SliderPresetRow.Low/High/Interpolated show that slider's authored Small/Big values and its interpolation at the editor's preview weight. Options: the body type's catalog, plus preset-only names when that toggle is on.",
+            motivation: "Sorting all presets by the slider a Slider condition tests shows where a proposed threshold lands across your installed presets.");
+
+        Add("AutoAnnotationSliders.PresetFilter",
+            layperson: "Type here to narrow the preset table to names containing the text.",
+            technical: "Case-insensitive substring filter over the rows built from the editor's preset list (same gender and body type as the right rail).",
+            motivation: "Preset collections routinely run to hundreds of entries.");
+
+        Add("AutoAnnotationSliders.ShowPresetOnlySliders",
+            layperson: "Also list slider names found only in preset files (mostly outfit 'squeeze' sliders) in the slider picker.",
+            technical: "Session-only VM_AutoAnnotationSliders.ShowPresetOnlySliders; reconciles AvailableSliderNames from SliderNameCatalog.",
+            motivation: "Keeps the picker focused on body sliders while the unusual names stay reachable.");
+
+        Add("AutoAnnotationSliders.ShowMovedVertices",
+            layperson: "Paints, on the 3D preview, the body vertices the picked slider moves, as a heatmap from blue (barely moved) to red (moved most). Pick the slider in the 'Slider' box or by clicking a row in the slider list.",
+            technical: "VM_CharacterViewer.HighlightSliderMorph on the editor's viewer for ActiveHighlightSlider (the picker's slider, or the clicked readout row), rebuilt on every BodySlideApplied so it follows preset, weight and edit changes; ClearSliderHighlight otherwise.",
+            motivation: "Slider names don't always map obviously to a body region; seeing exactly what a slider moves turns rule authoring from guesswork into inspection.");
+
+        Add("AutoAnnotationSliders.PresetList",
+            layperson: "The presets of this body type. Click a column header to sort; click a row to show that preset in the 3D view (the same as picking it in the right panel).",
+            technical: "Rows from VM_BodyTypeProfileEditor.FilteredPresets. Selecting a row sets the editor's SelectedPreset, which reloads the viewer; the selection follows the right rail's picker the other way too.",
+            motivation: "Pairs the sorted numbers with the live 3D preview without leaving the editor.");
+
+        Add("AutoAnnotationSliders.Readout",
+            layperson: "The selected preset and the SliderPresets file it comes from. 'unsaved edits' appears once you change a slider.",
+            technical: "SelectedPresetLabel and SourceFileDisplay (BodySlideSetting.SourceXmlPath, recorded at import: the last file that defined the preset). IsDirty compares the working copy with the preset's stored slider values.",
+            motivation: "Save writes back to that exact file, so it is shown before you save.");
+
+        Add("AutoAnnotationSliders.ShowUnsetSliders",
+            layperson: "Also lists the body type's sliders this preset doesn't set, so you can give them a value.",
+            technical: "Adds SliderNameCatalog.CatalogSliders(body type) rows not in the preset (shown in italics); typing a value into one adds the slider to the working copy.",
+            motivation: "BodySlide leaves sliders at 0 out of the file, so adding one is the only way to set it.");
+
+        Add("AutoAnnotationSliders.ReadoutGrid",
+            layperson: "Every slider of the selected preset. Edit the Low (weight 0) or High (weight 100) value and the 3D preview updates right away; changed sliders are shown in bold. Click a row to point the heatmap at that slider.",
+            technical: "VM_EditableSliderRow per slider. Edits update VM_AutoAnnotationSliders.WorkingCopy (never the preset itself until Save); a throttled ReapplyPreviewMorph re-applies it to the viewer and refreshes live measurements. While unsaved, the editor previews the working copy (PreviewPresetModel), so Slider conditions and live measurement readouts reflect the edits.",
+            motivation: "Lets you test 'what would this preset be labeled if this slider were higher' without leaving SynthEBD or touching the preset file.");
+
+        Add("AutoAnnotationSliders.Save",
+            layperson: "Writes your slider changes back into the preset's own BodySlide file. A backup of the file is made first.",
+            technical: "BodySlidePresetXmlWriter.WritePreset(SourceXmlPath, ReferencedBodySlide, ...): copies the file to '<file>.<timestamp>.bak', replaces only that preset's SetSlider entries (attributes and Group tags kept), then adopts the values as the preset's SliderValues. The changed slider hash makes the next Match Presets scan re-measure the preset.",
+            motivation: "Closes the loop from 'this preset should be a bit different' to an actual preset file BodySlide can build.");
+
+        Add("AutoAnnotationSliders.Revert",
+            layperson: "Throws away your unsaved slider changes.",
+            technical: "Rebuilds the working copy from the preset's stored slider values and re-applies the preview.",
+            motivation: "Makes experimenting with sliders safe.");
+
+        Add("AutoAnnotationSliders.SaveAsName",
+            layperson: "The name for the new preset Save As creates.",
+            technical: "VM_AutoAnnotationSliders.SaveAsName; defaults to the selected preset's name.",
+            motivation: "A new name keeps the original preset intact.");
+
+        Add("AutoAnnotationSliders.SaveAs",
+            layperson: "Saves the current slider values as a new preset, into a new BodySlide file or added to an existing one. The new preset appears in your BodySlide list right away; the original preset is left unchanged.",
+            technical: "Save dialog (OverwritePrompt off: an existing file gets the preset added, or the same-named preset's sliders replaced); BodySlidePresetXmlWriter.WritePreset carries the source preset's 'set' attribute and Group tags. The new BodySlideSetting is added through VM_BodySlidesMenu.AddSavedPreset to the preview gender's list and selected.",
+            motivation: "Lets you build preset variants from inside SynthEBD while judging them against the Auto-Annotation rules.");
 
         // ---------- Rules tab: matching-presets pane ----------
 

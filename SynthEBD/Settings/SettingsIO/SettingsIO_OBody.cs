@@ -190,6 +190,14 @@ public class SettingsIO_OBody
         // Drain any legacy flat-descriptor data into the per-weight model. Safe no-op once SchemaVersion >= 1.
         _bodySlideSettingMigrator.MigrateIfNeeded(oBodySettings);
 
+        // Only Manual descriptors are stored: automatic assignments are computed on demand
+        // (AutoAnnotationService). Drop library / rule-based / classifier leftovers from earlier versions.
+        int stripped = oBodySettings.BodySlidesMale.Concat(oBodySettings.BodySlidesFemale).Sum(p => p.StripNonManualDescriptors());
+        if (stripped > 0)
+        {
+            _logger.LogMessage($"Removed {stripped} stored automatic BodySlide descriptor(s); automatic assignments are now computed when needed.");
+        }
+
         foreach (var attributeGroup in _patcherState.GeneralSettings.AttributeGroups) // add any available attribute groups from the general patcher settings
         {
             if (!oBodySettings.AttributeGroups.Select(x => x.Label).Contains(attributeGroup.Label))
@@ -199,58 +207,5 @@ public class SettingsIO_OBody
         }
         _logger.LogStartupEventEnd("Loading OBody settings from disk");
         return oBodySettings;
-    }
-
-    /// <summary>
-    /// Reads the shipped default BodySlide annotation CSVs from InternalData, building a map from config name
-    /// to its set of descriptor strings. Reads from disk; the first column is the config name and remaining
-    /// columns are descriptors. Returns an empty map if the annotation directory is absent.
-    /// </summary>
-    /// <returns>Config-name to descriptor-set map.</returns>
-    public Dictionary<string, HashSet<string>> LoadDefaultBodySlideAnnotation()
-    {
-        Dictionary<string, HashSet<string>> output = new Dictionary<string, HashSet<string>>();
-
-        string annotationDir = Path.Combine(_environmentProvider.InternalDataPath, "Default BodySlide Annotations");
-
-        if (Directory.Exists(annotationDir))
-        {
-            var filePaths = Directory.GetFiles(annotationDir, "*.csv").OrderBy(f => f); // sort alphabetical https://stackoverflow.com/questions/6294275/sorting-the-result-of-directory-getfiles-in-c-sharp
-
-            foreach (string path in filePaths)
-            {
-                string[] lines = System.IO.File.ReadAllLines(path);
-                foreach (string line in lines)
-                {
-                    string[] columns = line.Split(',');
-                        
-                    if (columns.Length > 1)
-                    {
-                        string configName = columns[0].Trim();
-                        HashSet<string> descriptors = new HashSet<string>();
-
-                        for (int i = 1; i < columns.Length; i++ )
-                        {
-                            string descriptor = columns[i].Trim();
-                            if (descriptor.Any())
-                            {
-                                descriptors.Add(columns[i].Trim());
-                            }
-                        }
-
-                        if (output.ContainsKey(configName))
-                        {
-                            output[configName] = descriptors;
-                        }
-                        else
-                        {
-                            output.Add(configName, descriptors);
-                        }
-                    }
-                }
-            }
-        }
-
-        return output;
     }
 }

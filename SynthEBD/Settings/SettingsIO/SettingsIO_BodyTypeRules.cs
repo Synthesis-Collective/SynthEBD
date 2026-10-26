@@ -7,10 +7,9 @@ namespace SynthEBD;
 ///
 /// <para><b>Active-file projection.</b> Every file is loaded into
 /// <see cref="PatcherState.BodyTypeRuleSets"/>, but only the active file per body type feeds anything.
-/// <see cref="ApplyActiveRuleSetViews"/> projects the active files into the two runtime views on
-/// <see cref="Settings_OBody"/> (<see cref="Settings_OBody.BodySlideClassificationRules"/> and
-/// <see cref="Settings_OBody.BodyTypeProfiles"/>), which is what the labeling menus load from and the
-/// patcher reads. <see cref="SaveRuleSets"/> is the inverse: it folds the (VM-dumped) views back into
+/// <see cref="ApplyActiveRuleSetViews"/> projects the active files into the runtime view
+/// <see cref="Settings_OBody.BodyTypeProfiles"/>, which is what the Auto-Annotation menu loads from and
+/// the patcher reads. <see cref="SaveRuleSets"/> is the inverse: it folds the (VM-dumped) views back into
 /// the active files and writes whatever changed.</para>
 ///
 /// <para>The views hold deep copies, so a VM editing a view never aliases a rule-set object -- in
@@ -65,6 +64,9 @@ public class SettingsIO_BodyTypeRules
             ruleSet.FilePath = path;
             if (string.IsNullOrWhiteSpace(ruleSet.Name)) ruleSet.Name = Path.GetFileNameWithoutExtension(path);
             ruleSet.NormalizeBodyType();
+            // Older files carry Label by Sliders rules: convert them into Slider-condition rules. The
+            // file is rewritten on the next save (its content no longer matches LastPersistedJson).
+            ruleSet.FoldLegacySliderRules(msg => logger?.LogMessage(path + ": " + msg));
             ruleSet.LastPersistedJson = text;
             result.Add(ruleSet);
         }
@@ -135,14 +137,12 @@ public class SettingsIO_BodyTypeRules
     }
 
     /// <summary>Projects the active file of every body type into
-    /// <see cref="Settings_OBody.BodySlideClassificationRules"/> and
     /// <see cref="Settings_OBody.BodyTypeProfiles"/> (deep copies). Also pins each body type's
     /// resolved active file into <see cref="Settings_OBody.SelectedRuleFileByBodyType"/> so the
     /// selection is explicit from here on.</summary>
     public static void ApplyActiveRuleSetViews(Settings_OBody settings, IEnumerable<BodyTypeRuleSet> ruleSets)
     {
         if (settings == null) return;
-        settings.BodySlideClassificationRules = new Dictionary<string, SliderClassificationRulesByBodyType>(StringComparer.OrdinalIgnoreCase);
         settings.BodyTypeProfiles = new List<BodyTypeProfile>();
 
         foreach (var bodyType in BodyTypesWithFiles(ruleSets))
@@ -150,10 +150,6 @@ public class SettingsIO_BodyTypeRules
             var active = ResolveActive(settings, ruleSets, bodyType);
             if (active == null) continue;
             SetSelectedFileName(settings, bodyType, active.FileName);
-
-            var sliderRules = JSONhandler<SliderClassificationRulesByBodyType>.CloneViaJSON(active.SliderRules ?? new SliderClassificationRulesByBodyType());
-            sliderRules.BodyTypeGroup = active.BodyTypeName;
-            settings.BodySlideClassificationRules[active.BodyTypeName] = sliderRules;
 
             if (active.MeasurementProfile != null)
             {
@@ -212,15 +208,10 @@ public class SettingsIO_BodyTypeRules
 
     /// <summary>The fold step of <see cref="SaveRuleSets(Settings_OBody, List{BodyTypeRuleSet}, string, Logger?, out string)"/>,
     /// separated for testing. For every body type present in the views or in the files: the active
-    /// file's slider rules and profile are replaced by the views' (an absent view means "none" -- the
-    /// views are complete because they were projected from, and dumped over, the active files).</summary>
+    /// file's profile is replaced by the view's (an absent view means "none" -- the views are complete
+    /// because they were projected from, and dumped over, the active files).</summary>
     public static void FoldViewsIntoActiveFiles(Settings_OBody settings, List<BodyTypeRuleSet> ruleSets, string directory)
     {
-        var sliderViews = new Dictionary<string, SliderClassificationRulesByBodyType>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in settings.BodySlideClassificationRules ?? new())
-        {
-            if (!string.IsNullOrWhiteSpace(kv.Key) && kv.Value != null) sliderViews[kv.Key] = kv.Value;
-        }
         var profileViews = new Dictionary<string, BodyTypeProfile>(StringComparer.OrdinalIgnoreCase);
         foreach (var p in settings.BodyTypeProfiles ?? new())
         {
@@ -228,23 +219,20 @@ public class SettingsIO_BodyTypeRules
         }
 
         var bodyTypes = new List<string>(BodyTypesWithFiles(ruleSets));
-        foreach (var bt in sliderViews.Keys.Concat(profileViews.Keys))
+        foreach (var bt in profileViews.Keys)
         {
             if (!bodyTypes.Contains(bt, StringComparer.OrdinalIgnoreCase)) bodyTypes.Add(bt);
         }
 
         foreach (var bodyType in bodyTypes)
         {
-            sliderViews.TryGetValue(bodyType, out var sliderView);
             profileViews.TryGetValue(bodyType, out var profileView);
 
             var active = ResolveActive(settings, ruleSets, bodyType);
             if (active == null)
             {
-                // No file yet: only create one for authored content. The Label by Sliders menu dumps
-                // an empty skeleton for every body type with installed presets, which must not spawn
-                // a file per installed body.
-                if (!BodyTypeRuleSet.HasSliderContent(sliderView) && profileView == null) continue;
+                // No file yet: only create one for an authored profile.
+                if (profileView == null) continue;
                 active = new BodyTypeRuleSet
                 {
                     Name = bodyType,
@@ -255,14 +243,59 @@ public class SettingsIO_BodyTypeRules
                 SetSelectedFileName(settings, bodyType, active.FileName);
             }
 
-            active.SliderRules = sliderView != null
-                ? JSONhandler<SliderClassificationRulesByBodyType>.CloneViaJSON(sliderView)
-                : new SliderClassificationRulesByBodyType();
+            active.SliderRules = null;
             active.MeasurementProfile = profileView != null
                 ? JSONhandler<BodyTypeProfile>.CloneViaJSON(profileView)
                 : null;
             active.NormalizeBodyType();
         }
+    }
+
+    /// <summary>
+    /// Converts the released build's Label by Sliders rules, stored in <c>OBodySettings.json</c> as
+    /// <see cref="Settings_OBody.LegacyBodySlideClassificationRules"/>, into Slider-condition rules on
+    /// each body type's active rule file (creating the file when the body type has none), then clears
+    /// the legacy block so it is not written back. Run after <see cref="LoadRuleSets()"/> and before
+    /// <see cref="ApplyActiveRuleSetViews"/>. Returns the number of rules converted.
+    /// </summary>
+    public int FoldLegacyOBodySliderRules(Settings_OBody settings, List<BodyTypeRuleSet> ruleSets)
+        => FoldLegacyOBodySliderRules(settings, ruleSets, _paths.BodyTypeRulesDirPath, _logger);
+
+    /// <summary>Static core of <see cref="FoldLegacyOBodySliderRules(Settings_OBody, List{BodyTypeRuleSet})"/>.</summary>
+    public static int FoldLegacyOBodySliderRules(Settings_OBody settings, List<BodyTypeRuleSet> ruleSets, string directory, Logger? logger)
+    {
+        var legacy = settings?.LegacyBodySlideClassificationRules;
+        if (settings == null || legacy == null || legacy.Count == 0) return 0;
+
+        int converted = 0;
+        foreach (var (key, rules) in legacy)
+        {
+            string bodyType = !string.IsNullOrWhiteSpace(rules?.BodyTypeGroup) ? rules!.BodyTypeGroup : key;
+            if (string.IsNullOrWhiteSpace(bodyType) || !BodyTypeRuleSet.HasSliderContent(rules)) continue;
+
+            var active = ResolveActive(settings, ruleSets, bodyType);
+            if (active == null)
+            {
+                active = new BodyTypeRuleSet
+                {
+                    Name = bodyType,
+                    BodyTypeName = bodyType,
+                    FilePath = UniqueFilePath(directory, bodyType, ruleSets),
+                };
+                ruleSets.Add(active);
+                SetSelectedFileName(settings, bodyType, active.FileName);
+            }
+
+            var profile = active.MeasurementProfile;
+            converted += SliderRuleMigration.FoldInto(rules, ref profile, bodyType, msg => logger?.LogMessage("OBodySettings.json: " + msg));
+            if (profile != null)
+            {
+                profile.BodyTypeName = active.BodyTypeName;
+                active.MeasurementProfile = profile;
+            }
+        }
+        settings.LegacyBodySlideClassificationRules = null;
+        return converted;
     }
 
     /// <summary>A path in <paramref name="directory"/> for a new file named after

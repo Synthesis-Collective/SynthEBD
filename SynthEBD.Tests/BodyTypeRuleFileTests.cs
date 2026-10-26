@@ -36,15 +36,19 @@ public class BodyTypeRuleFileTests : IDisposable
             {
                 DescriptorCategory = category,
                 DefaultDescriptorValue = defaultValue,
-                RuleList = ruleValues.Select(v => new DescriptorAssignmentRuleSet { SelectedDescriptorValue = v }).ToList(),
+                RuleList = ruleValues.Select(v => new DescriptorAssignmentRuleSet
+                {
+                    SelectedDescriptorValue = v,
+                    RuleListORlogic = new()
+                    {
+                        new AndGatedSliderRuleGroup
+                        {
+                            RuleListANDlogic = new() { new SliderClassificationRule { SliderName = "MuscleAbs", SliderType = BodySliderType.Interpolated, Comparator = ">=", Value = 60 } },
+                        },
+                    },
+                }).ToList(),
             },
         },
-    };
-
-    private static SliderClassificationRulesByBodyType EmptySkeleton(string bodyType) => new()
-    {
-        BodyTypeGroup = bodyType,
-        DescriptorClassifiers = new() { new DescriptorClassificationRuleSet { DescriptorCategory = "Build", DefaultDescriptorValue = "" } },
     };
 
     private static BodyTypeProfile Profile(string bodyType) => new()
@@ -121,6 +125,7 @@ public class BodyTypeRuleFileTests : IDisposable
                               ("Build", new[] { "Powerful", "Slight" }),
                               ("Chest", new[] { "Busty" }));
 
+        ruleSet.FoldLegacySliderRules(null);
         ruleSet.RefreshDescriptorDefinitions(catalog);
 
         var carried = ruleSet.DescriptorDefinitions.SelectMany(s => s.Descriptors.Select(d => s.Category + ":" + d.ID.Value)).ToList();
@@ -178,12 +183,12 @@ public class BodyTypeRuleFileTests : IDisposable
         var settings = new Settings_OBody();
 
         SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews(settings, ruleSets);
-        settings.BodySlideClassificationRules["CBBE 3BA"].DescriptorClassifiers[0].DefaultDescriptorValue.Should().Be("Normal", "Beta sorts before Zulu");
+        settings.BodyTypeProfiles.Single().DefaultDescriptorValuesByCategory["Belly"].Should().Be("Normal", "Beta sorts before Zulu");
         SettingsIO_BodyTypeRules.GetSelectedFileName(settings, "cbbe 3ba").Should().Be("b.json");
 
         SettingsIO_BodyTypeRules.SetSelectedFileName(settings, "CBBE 3BA", "a.json");
         SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews(settings, ruleSets);
-        settings.BodySlideClassificationRules["CBBE 3BA"].DescriptorClassifiers[0].DefaultDescriptorValue.Should().Be("Chubby");
+        settings.BodyTypeProfiles.Single().DefaultDescriptorValuesByCategory["Belly"].Should().Be("Chubby");
     }
 
     [Fact]
@@ -195,10 +200,8 @@ public class BodyTypeRuleFileTests : IDisposable
 
         SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews(settings, ruleSets);
         settings.BodyTypeProfiles[0].Rules.Clear();
-        settings.BodySlideClassificationRules["CBBE 3BA"].DescriptorClassifiers.Clear();
 
-        ruleSets[0].MeasurementProfile!.Rules.Should().ContainSingle();
-        ruleSets[0].SliderRules.DescriptorClassifiers.Should().ContainSingle();
+        ruleSets[0].MeasurementProfile!.Rules.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -213,10 +216,8 @@ public class BodyTypeRuleFileTests : IDisposable
         SettingsIO_BodyTypeRules.SaveRuleSets(settings, ruleSets, _dir, null, out var errors).Should().BeTrue(errors);
         var stamp = File.GetLastWriteTimeUtc(existingPath);
 
-        // HIMBO: only the empty skeleton the Label by Sliders menu dumps for installed body types.
-        settings.BodySlideClassificationRules["HIMBO"] = EmptySkeleton("HIMBO");
-        // BHUNP: a real rule -> gets a file.
-        settings.BodySlideClassificationRules["BHUNP"] = SliderRules("BHUNP", "Belly", null, "Chubby");
+        // BHUNP: a new profile -> gets a file. HIMBO has no profile -> no file.
+        settings.BodyTypeProfiles.Add(Profile("BHUNP"));
         System.Threading.Thread.Sleep(20);
 
         SettingsIO_BodyTypeRules.SaveRuleSets(settings, ruleSets, _dir, null, out errors).Should().BeTrue(errors);
@@ -239,7 +240,54 @@ public class BodyTypeRuleFileTests : IDisposable
 
         var reloaded = SettingsIO_BodyTypeRules.LoadRuleSets(_dir, null).Single();
         reloaded.MeasurementProfile.Should().BeNull();
-        reloaded.SliderRules.DescriptorClassifiers.Should().ContainSingle();
+        reloaded.SliderRules.Should().BeNull("converted slider rules are never written back");
+    }
+
+    // ---------- Label by Sliders migration ----------
+
+    [Fact]
+    public void Load_ConvertsLegacySliderRulesIntoTheProfile_AndSaveDropsThem()
+    {
+        var path = WriteFile("3ba.json", new BodyTypeRuleSet { Name = "3BA", BodyTypeName = "CBBE 3BA", SliderRules = SliderRules("CBBE 3BA", "BellyMorph", "Low Definition", "Muscular"), MeasurementProfile = Profile("CBBE 3BA") });
+
+        var ruleSets = SettingsIO_BodyTypeRules.LoadRuleSets(_dir, null);
+        var ruleSet = ruleSets.Single();
+        ruleSet.SliderRules.Should().BeNull();
+        var converted = ruleSet.MeasurementProfile!.Rules.Single(r => r.Descriptor.Category == "BellyMorph");
+        converted.Descriptor.Value.Should().Be("Muscular");
+        converted.GroupsORlogic.Single().ConditionsANDlogic.Single().Kind.Should().Be(MeasurementConditionKind.Slider);
+        ruleSet.MeasurementProfile.DefaultDescriptorValuesByCategory["BellyMorph"].Should().Be("Low Definition");
+        ruleSet.MeasurementProfile.Name.Should().Be("CBBE 3BA profile", "the existing profile keeps its name, so its measurement cache file stays the same");
+
+        var settings = new Settings_OBody();
+        SettingsIO_BodyTypeRules.ApplyActiveRuleSetViews(settings, ruleSets);
+        SettingsIO_BodyTypeRules.SaveRuleSets(settings, ruleSets, _dir, null, out var errors).Should().BeTrue(errors);
+
+        File.ReadAllText(path).Should().NotContain("SliderRules").And.Contain("\"Slider\"");
+        var reloaded = SettingsIO_BodyTypeRules.LoadRuleSets(_dir, null).Single();
+        reloaded.MeasurementProfile!.Rules.Count(r => r.Descriptor.Category == "BellyMorph").Should().Be(1, "re-loading converts nothing twice");
+    }
+
+    [Fact]
+    public void LegacyOBodySettingsSliderRules_AreFoldedIntoRuleFiles()
+    {
+        WriteFile("3ba.json", new BodyTypeRuleSet { Name = "3BA", BodyTypeName = "CBBE 3BA", MeasurementProfile = Profile("CBBE 3BA") });
+        var json = "{ \"BodySlideClassificationRules\": { \"CBBE 3BA\": " + JSONhandler<SliderClassificationRulesByBodyType>.Serialize(SliderRules("CBBE 3BA", "Belly", null, "Muscular"), out _, out _)
+                 + ", \"HIMBO\": " + JSONhandler<SliderClassificationRulesByBodyType>.Serialize(SliderRules("HIMBO", "Build", "Medium", "Powerful"), out _, out _) + " } }";
+        var settings = JSONhandler<Settings_OBody>.Deserialize(json, out bool ok, out var error);
+        ok.Should().BeTrue(error);
+        var ruleSets = SettingsIO_BodyTypeRules.LoadRuleSets(_dir, null);
+
+        SettingsIO_BodyTypeRules.FoldLegacyOBodySliderRules(settings, ruleSets, _dir, null).Should().Be(2);
+
+        settings.LegacyBodySlideClassificationRules.Should().BeNull();
+        ruleSets.Single(r => r.BodyTypeName == "CBBE 3BA").MeasurementProfile!.Rules.Should().Contain(r => r.Descriptor.Category == "Belly" && r.Descriptor.Value == "Muscular");
+        var himbo = ruleSets.Single(r => r.BodyTypeName == "HIMBO");
+        himbo.MeasurementProfile!.Rules.Should().ContainSingle(r => r.Descriptor.Value == "Powerful");
+        himbo.MeasurementProfile.DefaultDescriptorValuesByCategory["Build"].Should().Be("Medium");
+        SettingsIO_BodyTypeRules.GetSelectedFileName(settings, "HIMBO").Should().Be("HIMBO.json");
+
+        JSONhandler<Settings_OBody>.Serialize(settings, out _, out _).Should().NotContain("BodySlideClassificationRules");
     }
 
     [Fact]

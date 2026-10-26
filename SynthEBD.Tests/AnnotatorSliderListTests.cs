@@ -22,7 +22,7 @@ public class AnnotatorSliderListTests
     [Fact]
     public void BuildVisibleSliderNames_CatalogMode_ExcludesPresetOnlyNames()
     {
-        var visible = VM_SliderClassificationRulesByBodyType.BuildVisibleSliderNames(
+        var visible = SliderNameCatalog.BuildVisibleSliderNames(
             Catalog, PresetContributed, Enumerable.Empty<string>(), showAll: false);
 
         visible.Should().Equal("Belly", "Breasts", "ShoulderWidth");
@@ -31,7 +31,7 @@ public class AnnotatorSliderListTests
     [Fact]
     public void BuildVisibleSliderNames_ShowAll_IncludesPresetContributedNames()
     {
-        var visible = VM_SliderClassificationRulesByBodyType.BuildVisibleSliderNames(
+        var visible = SliderNameCatalog.BuildVisibleSliderNames(
             Catalog, PresetContributed, Enumerable.Empty<string>(), showAll: true);
 
         visible.Should().Equal("Apprentice Bikini Squeeze", "Belly", "Breasts", "CustomMorph", "ShoulderWidth");
@@ -43,7 +43,7 @@ public class AnnotatorSliderListTests
         // "CustomMorph" is preset-only and the toggle is off, but a saved rule references it —
         // it must stay visible so the rule row's picker doesn't blank out. Null/whitespace
         // references (empty rule rows) are ignored.
-        var visible = VM_SliderClassificationRulesByBodyType.BuildVisibleSliderNames(
+        var visible = SliderNameCatalog.BuildVisibleSliderNames(
             Catalog, PresetContributed, new[] { "CustomMorph", null, " " }, showAll: false);
 
         visible.Should().Equal("Belly", "Breasts", "CustomMorph", "ShoulderWidth");
@@ -52,7 +52,7 @@ public class AnnotatorSliderListTests
     [Fact]
     public void BuildVisibleSliderNames_DeduplicatesCaseInsensitively()
     {
-        var visible = VM_SliderClassificationRulesByBodyType.BuildVisibleSliderNames(
+        var visible = SliderNameCatalog.BuildVisibleSliderNames(
             new[] { "Belly" }, new[] { "BELLY" }, new[] { "belly" }, showAll: true);
 
         visible.Should().ContainSingle().Which.Should().Be("Belly");
@@ -69,7 +69,7 @@ public class AnnotatorSliderListTests
         };
 
         var desired = new[] { "Appended", "Belly", "Breasts", "NewName" };
-        VM_SliderClassificationRulesByBodyType.ReconcileSliderNameCollection(target, desired);
+        SliderNameCatalog.ReconcileSliderNameCollection(target, desired);
 
         target.Should().Equal("Appended", "Belly", "Breasts", "NewName");
         resetRaised.Should().BeFalse("a Reset event would null the SelectedItem of bound ComboBoxes");
@@ -82,7 +82,7 @@ public class AnnotatorSliderListTests
         var target = new ObservableCollection<string> { "Apprentice Bikini Squeeze", "Belly", "Breasts", "CustomMorph", "ShoulderWidth" };
 
         var desired = new[] { "Belly", "Breasts", "CustomMorph", "ShoulderWidth" };
-        VM_SliderClassificationRulesByBodyType.ReconcileSliderNameCollection(target, desired);
+        SliderNameCatalog.ReconcileSliderNameCollection(target, desired);
 
         target.Should().Equal(desired);
     }
@@ -95,7 +95,7 @@ public class AnnotatorSliderListTests
         var target = new ObservableCollection<string> { "belly", "Breasts" };
 
         var desired = new[] { "Belly", "Breasts" };
-        VM_SliderClassificationRulesByBodyType.ReconcileSliderNameCollection(target, desired);
+        SliderNameCatalog.ReconcileSliderNameCollection(target, desired);
 
         target.Should().HaveCount(2);
         target[0].Should().BeOneOf("belly", "Belly");

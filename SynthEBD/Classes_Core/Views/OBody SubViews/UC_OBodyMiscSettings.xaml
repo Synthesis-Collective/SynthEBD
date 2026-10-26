@@ -37,20 +37,16 @@
 
         <Button Command="{Binding SetRaceMenuINI}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0 0 0 10" Foreground="{DynamicResource ActionGoodForeground}" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" local:DocTooltip.Key="OBody.SetRaceMenuIni">Set RaceMenu INI to enable OBody/AutoBody</Button>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" local:DocTooltip.Key="OBody.AutoApplyMissingAnnotations" Margin="0 0 5 0">Auto-Apply Body Shape Descriptors If Missing</TextBlock>
+        <TextBlock Grid.Row="1" Grid.Column="0" local:DocTooltip.Key="OBody.AutoApplyMissingAnnotations" Margin="0 0 5 0">Auto-Annotate Body Shape Descriptors</TextBlock>
         <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding AutoApplyMissingAnnotations}"></CheckBox>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" local:DocTooltip.Key="OBody.PreferSliderDefaultsOnConflict" Margin="0 0 5 0">Default Descriptor Conflicts: Label by Sliders Wins</TextBlock>
-        <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding PreferSliderDefaultsOnConflict}"></CheckBox>
-
-        <!-- Body Type Rules: which rule file is active per body type. One combobox per body type drives
-             both Label by Sliders and Label by Measurements, because the two travel in one file. -->
+        <!-- Body Type Rules: which rule file is active per body type (drives the Auto-Annotation menu). -->
         <TextBlock Grid.Row="3" Grid.Column="0" Margin="0 10 0 10" VerticalAlignment="Top"
                    local:DocTooltip.Key="OBody.BodyTypeRuleFiles">Body Type Rules</TextBlock>
         <Button Grid.Row="3" Grid.Column="1" Margin="5 10 0 10" VerticalAlignment="Top" HorizontalAlignment="Right"
                 Command="{Binding OpenRuleFolderCommand}" local:DocTooltip.Key="OBody.BodyTypeRuleFilesOpenFolder">Open Folder</Button>
         <StackPanel Grid.Row="3" Grid.Column="2" Margin="0 10 0 10">
-            <TextBlock Text="No rule files yet. Creating rules in Label by Sliders or Label by Measurements creates one."
+            <TextBlock Text="No rule files yet. Creating a profile in Auto-Annotation creates one."
                        FontStyle="Italic">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">

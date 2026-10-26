@@ -56,8 +56,7 @@ public class Patcher
     private readonly VanillaBodyPathSetter _vanillaBodyPathSetter;
     private readonly UniqueNPCData _uniqueNPCData;
     private readonly Converters _converters;
-    private readonly BodySlideAnnotator _bodySlideAnnotator;
-    private readonly AnnotationLibraryAnnotator _libraryAnnotator;
+    private readonly AutoAnnotationService _autoAnnotationService;
     private readonly HeadPartAuxFunctions _headPartAuxFunctions;
     private readonly EasyNPCProfileParser _easyNPCProfileParser;
     private readonly NPC2ProfileParser _npc2ProfileParser;
@@ -78,7 +77,7 @@ public class Patcher
     private int _patchedNpcCount { get; set; }
 
     /// <summary>Stores the injected dependencies and creates the initial <see cref="AssetStatsTracker"/>. All collaborators are supplied by Autofac.</summary>
-    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, BodySlideAnnotator bodySlideAnnotator, AnnotationLibraryAnnotator libraryAnnotator, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
+    public Patcher(IOutputEnvironmentStateProvider environmentProvider, PatcherState patcherState, VM_StatusBar statusBar, CombinationLog combinationLog, SynthEBDPaths paths, Logger logger, PatchableRaceResolver raceResolver, VerboseLoggingNPCSelector verboseModeNPCSelector, AssetAndBodyShapeSelector assetAndBodyShapeSelector, AssetSelector assetSelector, AssetReplacerSelector assetReplacerSelector, RecordGenerator recordGenerator, RecordPathParser recordPathParser, BodyGenPreprocessing bodyGenPreprocessing, BodyGenSelector bodyGenSelector, BodyGenWriter bodyGenWriter, HeightPatcher heightPatcher, OBodyPreprocessing oBodyPreprocessing, OBodySelector oBodySelector, OBodyWriter oBodyWriter, HeadPartPreprocessing headPartPreProcessing, HeadPartSelector headPartSelector, HeadPartWriter headPartWriter, HeadPartAuxFunctions headPartAuxFunctions, CommonScripts commonScripts, FaceTextureScriptWriter faceTextureScriptWriter, EBDScripts ebdScripts, JContainersDomain jContainersDomain, QuestInit questInit, DictionaryMapper dictionaryMapper, UpdateHandler updateHandler, MiscValidation miscValidation, PatcherIO patcherIO, NPCInfo.Factory npcInfoFactory, VanillaBodyPathSetter vanillaBodyPathSetter, UniqueNPCData uniqueNPCData, Converters converters, AutoAnnotationService autoAnnotationService, EasyNPCProfileParser easyNPCProfileParser, NPC2ProfileParser npc2ProfileParser, SurrogateNPCProvider surrogateNpcProvider, SkyPatcherInterface skyPatcherInterface, AssetAssignmentJsonDictHandler assetAssignmentJsonDictHandler, FaceGenPatcher faceGenPatcher)
     {
         _environmentProvider = environmentProvider;
         _patcherState = patcherState;
@@ -116,8 +115,7 @@ public class Patcher
         _vanillaBodyPathSetter = vanillaBodyPathSetter;
         _uniqueNPCData = uniqueNPCData;
         _converters = converters;
-        _bodySlideAnnotator = bodySlideAnnotator;
-        _libraryAnnotator = libraryAnnotator;
+        _autoAnnotationService = autoAnnotationService;
         _easyNPCProfileParser = easyNPCProfileParser;
         _npc2ProfileParser = npc2ProfileParser;
         _surrogateNpcProvider = surrogateNpcProvider;
@@ -454,11 +452,12 @@ public class Patcher
 
             if (copiedOBodySettings.AutoApplyMissingAnnotations)
             {
-                // Tier 1: annotation library (per-weight descriptors)
-                _libraryAnnotator.AnnotateAll(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale));
-
-                // Tier 2: rule-based annotator
-                _bodySlideAnnotator.AnnotateBodySlides(copiedOBodySettings.BodySlidesMale.And(copiedOBodySettings.BodySlidesFemale).ToList(), copiedOBodySettings.BodySlideClassificationRules, copiedOBodySettings.TemplateDescriptors.Flatten().Select(x => x.ID).ToHashSet(), false, null);
+                // Automatic assignments are never stored, so compute them now from the active
+                // Auto-Annotation rules (slider values + cached measurements) into the working copies.
+                // From here on they are used exactly like Manual descriptors.
+                int autoAdded = _autoAnnotationService.ApplyToPresetCopies(copiedOBodySettings.BodySlidesMale, Gender.Male)
+                    + _autoAnnotationService.ApplyToPresetCopies(copiedOBodySettings.BodySlidesFemale, Gender.Female);
+                _logger.LogMessage("Auto-Annotation: assigned " + autoAdded + " automatic descriptor(s) across BodySlide presets.");
             }
 
             BodySlideTracker = new();

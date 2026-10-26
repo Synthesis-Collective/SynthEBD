@@ -274,7 +274,8 @@ public class VM_PresetAnnotationTable : VM
 
                 // Same gender-aware evaluation as RunScanAsync — keeps Male/Female rules
                 // scoped correctly when the annotation table populates the shared cache.
-                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true, evaluationGender: gender);
+                var result = BodySlideMeasurementEvaluator.Evaluate(viewer, profileModel, includeDrafts: true, evaluationGender: gender,
+                    sliders: SliderSample.For(model, weight));
 
                 // Persist measurements into the shared cache. The Match Presets display
                 // re-derives its descriptor list from these whenever rules change.

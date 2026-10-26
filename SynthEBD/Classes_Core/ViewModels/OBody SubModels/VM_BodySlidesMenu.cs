@@ -10,9 +10,13 @@ public class VM_BodySlidesMenu : VM
 {
     public delegate VM_BodySlidesMenu Factory(ObservableCollection<VM_RaceGrouping> raceGroupingVMs);
     private readonly VM_BodyShapeDescriptorSelectionMenu.Factory _filterFactory;
-    public VM_BodySlidesMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlidePlaceHolder.Factory placeHolderFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory, Func<VM_SettingsOBody> oBodyVM, VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory)
+    private readonly AutoAnnotationService _autoAnnotationService;
+    private readonly VM_BodySlidePlaceHolder.Factory _placeHolderFactory;
+    public VM_BodySlidesMenu(ObservableCollection<VM_RaceGrouping> raceGroupingVMs, VM_BodySlidePlaceHolder.Factory placeHolderFactory, VM_BodySlideSetting.Factory bodySlideFactory, VM_BodySlideExchange.Factory exchangeFactory, Func<VM_SettingsOBody> oBodyVM, VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory, AutoAnnotationService autoAnnotationService)
     {
         _filterFactory = filterFactory;
+        _autoAnnotationService = autoAnnotationService;
+        _placeHolderFactory = placeHolderFactory;
 
         AddPreset = new RelayCommand(
             canExecute: _ => true,
@@ -54,18 +58,22 @@ public class VM_BodySlidesMenu : VM
             });
 
         RemovePresetsUnannotated = new RelayCommand(
-            canExecute: _ => true,
-            execute: x =>
+            canExecute: _ => !IsComputingAutomaticAnnotations,
+            execute: async x =>
             {
-                if (MessageWindow.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that are not currently annotated with Body Shape Descriptors?"))
+                if (!MessageWindow.DisplayNotificationYesNo("", "Are you sure you want to remove all displayed BodySlides that have no Body Shape Descriptors, neither manual nor automatic?"))
                 {
-                    for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
+                    return;
+                }
+                // Automatic assignments aren't stored, so compute them before judging "unannotated".
+                var effective = await ComputeEffectiveDescriptorsAsync(CurrentlyDisplayedBodySlides.ToList());
+                for (int i = 0; i < CurrentlyDisplayedBodySlides.Count; i++)
+                {
+                    var ph = CurrentlyDisplayedBodySlides[i];
+                    if (!effective.TryGetValue(ph, out var descriptors) || descriptors.Count == 0)
                     {
-                        if (!CurrentlyDisplayedBodySlides[i].AssociatedModel.HasAnyDescriptors())
-                        {
-                            CurrentlyDisplayedBodySlides.RemoveAt(i);
-                            i--;
-                        }
+                        CurrentlyDisplayedBodySlides.RemoveAt(i);
+                        i--;
                     }
                 }
             });
@@ -176,8 +184,7 @@ public class VM_BodySlidesMenu : VM
             TogglePresetVisibility();
         }).DisposeWith(this);
 
-        // When the master list gets (re)populated (typically by VM_BodySlideAnnotator after
-        // all presets finish loading), refresh the gender-scoped dropdown. Also watch the
+        // When the master list gets (re)populated (typically after all presets finish loading), refresh the gender-scoped dropdown. Also watch the
         // per-gender collections so that adds/removes through the UI stay in sync.
         AvailableSliderGroups.CollectionChanged += (_, _) => RefreshAvailableBodyTypesForGender();
         BodySlidesFemale.CollectionChanged += OnPresetCollectionChanged;
@@ -267,7 +274,7 @@ public class VM_BodySlidesMenu : VM
     private VM_BodySlidePlaceHolder _stashedPlaceHolder;
 
     /// <summary>(model Label, gender) of every preset that is both hidden and disabled
-    /// (<see cref="VM_BodySlidePlaceHolder.IsHiddenAndDisabled"/>) - the keys the Label by Measurements
+    /// (<see cref="VM_BodySlidePlaceHolder.IsHiddenAndDisabled"/>) - the keys the Auto-Annotation
     /// measurement cache uses, so cache-driven views can drop those slices.</summary>
     public HashSet<(string Label, Gender Gender)> GetHiddenAndDisabledPresetKeys()
     {
@@ -302,7 +309,7 @@ public class VM_BodySlidesMenu : VM
                 continue;
             }
 
-            if (_selectedDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(_selectedDescriptors, b.AssociatedModel.GetDescriptorUnion(), DescriptorFilter.MatchMode, out _))
+            if (_selectedDescriptors.Any() && !BodyShapeDescriptor.DescriptorsMatch(_selectedDescriptors, GetFilterDescriptors(b), DescriptorFilter.MatchMode, out _))
             {
                 b.IsVisible = false;
                 continue;
@@ -340,8 +347,111 @@ public class VM_BodySlidesMenu : VM
                 _selectedDescriptors = DictionaryMapper.BodyShapeDescriptorsToDictionary(selectedDescriptorSet);
             }
 
-            TogglePresetVisibility();
+            _ = RefreshDescriptorFilterAsync();
         }).DisposeWith(this);
+    }
+
+    /// <summary>True while automatic assignments are being computed for the Descriptor Filter or
+    /// "remove unannotated".</summary>
+    public bool IsComputingAutomaticAnnotations { get; private set; }
+
+    /// <summary>Manual + automatic descriptors per preset, computed when the Descriptor Filter was last
+    /// set. Null while no filter is active.</summary>
+    private Dictionary<VM_BodySlidePlaceHolder, HashSet<BodyShapeDescriptor.LabelSignature>>? _filterDescriptors;
+    private int _filterGeneration;
+
+    /// <summary>
+    /// Re-filters the list. With descriptors selected in the filter, first computes every preset's
+    /// automatic assignments (they are never stored) so the filter matches what the patcher will see.
+    /// Computed once per filter change, not kept in sync with later rule edits.
+    /// </summary>
+    private async Task RefreshDescriptorFilterAsync()
+    {
+        int myGen = ++_filterGeneration;
+        if (!_selectedDescriptors.Any())
+        {
+            _filterDescriptors = null;
+            TogglePresetVisibility();
+            return;
+        }
+        var map = await ComputeEffectiveDescriptorsAsync(BodySlidesMale.Concat(BodySlidesFemale).ToList());
+        if (myGen != _filterGeneration) return;
+        _filterDescriptors = map;
+        TogglePresetVisibility();
+    }
+
+    private HashSet<BodyShapeDescriptor.LabelSignature> GetFilterDescriptors(VM_BodySlidePlaceHolder placeHolder)
+    {
+        if (_filterDescriptors != null && _filterDescriptors.TryGetValue(placeHolder, out var effective)) return effective;
+        return placeHolder.AssociatedModel.GetDescriptorUnion().Select(d => d.ToLabelSignature()).ToHashSet();
+    }
+
+    /// <summary>Manual + automatic descriptors (union over weight slots) for each placeholder. Profiles
+    /// are resolved here on the UI thread (they may come from the Auto-Annotation editor's live VMs);
+    /// the derivation runs in the background against the saved measurement caches.</summary>
+    private async Task<Dictionary<VM_BodySlidePlaceHolder, HashSet<BodyShapeDescriptor.LabelSignature>>> ComputeEffectiveDescriptorsAsync(List<VM_BodySlidePlaceHolder> placeHolders)
+    {
+        // The selected preset's editor may hold unsaved manual edits; fold them into its model first.
+        if (CurrentlyDisplayedBodySlide != null && placeHolders.Contains(CurrentlyDisplayedBodySlide.AssociatedPlaceHolder))
+        {
+            CurrentlyDisplayedBodySlide.AssociatedPlaceHolder.AssociatedModel = CurrentlyDisplayedBodySlide.DumpToModel();
+        }
+
+        var maleSet = new HashSet<VM_BodySlidePlaceHolder>(BodySlidesMale);
+        var profiles = new Dictionary<string, BodyTypeProfile?>(StringComparer.OrdinalIgnoreCase);
+        var work = new List<(VM_BodySlidePlaceHolder PlaceHolder, BodySlideSetting Model, Gender Gender, BodyTypeProfile? Profile)>();
+        foreach (var ph in placeHolders)
+        {
+            var model = ph?.AssociatedModel;
+            if (model == null) continue;
+            var bodyType = model.SliderGroup ?? "";
+            if (!profiles.TryGetValue(bodyType, out var profile))
+            {
+                profile = _autoAnnotationService.ResolveProfile(model);
+                profiles[bodyType] = profile;
+            }
+            work.Add((ph, model, maleSet.Contains(ph) ? Gender.Male : Gender.Female, profile));
+        }
+
+        IsComputingAutomaticAnnotations = true;
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var result = new Dictionary<VM_BodySlidePlaceHolder, HashSet<BodyShapeDescriptor.LabelSignature>>();
+                foreach (var item in work)
+                {
+                    result[item.PlaceHolder] = item.Profile == null
+                        ? item.Model.GetDescriptorUnion().Where(d => d.Source == BodyShapeAnnotationSource.Manual).Select(d => d.ToLabelSignature()).ToHashSet()
+                        : _autoAnnotationService.GetEffectiveDescriptorUnion(item.Model, item.Gender, item.Profile, useLiveSources: false);
+                }
+                return result;
+            });
+        }
+        finally
+        {
+            IsComputingAutomaticAnnotations = false;
+        }
+    }
+
+    /// <summary>Adds a preset just written to a SliderPresets XML (the Auto-Annotation Sliders tab's
+    /// Save As) to the <paramref name="gender"/> list, or updates the slider values of the listed preset
+    /// with that name. Returns its placeholder.</summary>
+    public VM_BodySlidePlaceHolder AddSavedPreset(BodySlideSetting preset, Gender gender)
+    {
+        var list = gender == Gender.Male ? BodySlidesMale : BodySlidesFemale;
+        CurrentlyExistingBodySlides.Add(preset.ReferencedBodySlide);
+        var existing = list.FirstOrDefault(p => string.Equals(p.AssociatedModel?.ReferencedBodySlide, preset.ReferencedBodySlide, StringComparison.Ordinal));
+        if (existing != null)
+        {
+            existing.AssociatedModel.SliderValues = preset.SliderValues;
+            existing.AssociatedModel.SourceXmlPath = preset.SourceXmlPath;
+            existing.InitializeBorderColor();
+            return existing;
+        }
+        var placeHolder = _placeHolderFactory(preset, list);
+        list.Add(placeHolder);
+        return placeHolder;
     }
 
     public void StashAndNullDisplayedBodySlide()

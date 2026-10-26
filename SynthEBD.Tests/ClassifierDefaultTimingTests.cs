@@ -16,17 +16,10 @@ namespace SynthEBD.Tests;
 /// Normal default — and lets the redundant explicit middle-bin rules be deleted in favor of the
 /// per-Category default.
 ///
-/// Also covers external-descriptor seeding: labels from sources senior to the classifier are
-/// passed as <c>externalDescriptors</c> so DescriptorRef conditions gate on them like rule output,
-/// and a seeded Category suppresses its own default. Slider labels are derived LIVE from the
-/// Label-by-Sliders rule set by <see cref="BodySlideAnnotator.DeriveDescriptorsForSlot"/> (no
-/// "apply annotations" pass required — see the end-to-end test); stored Manual/Library annotations
-/// seed via <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/>'s slot policy.
-///
-/// <para>Only slider-rule MATCHES seed — the slider side's per-category default does not, because it
-/// duplicates the (synchronized) measurement-side default and would suppress it. That pairing is
-/// pinned by <c>SliderCategoryDefault_IsNotSeeded_SoMeasurementDefaultStillEmits</c> and
-/// <c>SliderRuleMatch_StillSeeds_ButSliderDefaultDoesNot</c>.</para>
+/// Also covers external-descriptor seeding (stored Manual annotations gate DescriptorRef conditions
+/// like rule output, and a seeded Category suppresses its own default) and the unified engine
+/// (<see cref="AutoAnnotationEngine"/>): Slider, Measurement and DescriptorRef rules in one pass, and
+/// which categories can be evaluated when a measurement isn't cached.
 /// </summary>
 public class ClassifierDefaultTimingTests
 {
@@ -309,10 +302,10 @@ public class ClassifierDefaultTimingTests
         new(new BodyShapeDescriptor.LabelSignature { Category = cat, Value = val }, source);
 
     [Fact]
-    public void CollectExternalDescriptors_NoRulesSupplied_LegacyFallback_ReadsStoredNonClassifierEntries()
+    public void CollectExternalDescriptors_SeedsOnlyManualEntries()
     {
-        // Without a slider rule set (null), stored RulesBased entries seed as-is alongside
-        // Manual/Library — the legacy fallback for callers that can't resolve the rules.
+        // Only hand labels seed. Automatic leftovers (rule-based, library, classifier) are never read,
+        // so an evaluation can't feed its own earlier output back into its DescriptorRef conditions.
         var preset = new BodySlideSetting
         {
             BodyShapeDescriptorsByWeight = new Dictionary<int, HashSet<AnnotatedDescriptorSignature>>
@@ -330,12 +323,7 @@ public class ClassifierDefaultTimingTests
 
         var seeds = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100);
 
-        seeds.Should().BeEquivalentTo(new[]
-        {
-            ("Belly", "Muscular"),
-            ("Chest", "Busty"),
-            ("Hips", "Wide"),
-        });
+        seeds.Should().BeEquivalentTo(new[] { ("Chest", "Busty") });
     }
 
     [Fact]
@@ -391,11 +379,11 @@ public class ClassifierDefaultTimingTests
         BodySlideMeasurementEvaluator.CollectExternalDescriptors(new BodySlideSetting(), 50).Should().BeEmpty();
     }
 
-    // ---------- CollectExternalDescriptors: live slider-rule derivation ----------
+    // ---------- Unified engine: slider, measurement and DescriptorRef rules in one pass ----------
 
     private const string SliderBodyType = "CBBE 3BA";
 
-    private static BodySlideSetting MakeSliderPreset(params (string Name, int Small, int Big)[] sliders)
+    private static BodySlideSetting MakeSliderPreset(params (string Name, float Small, float Big)[] sliders)
     {
         var preset = new BodySlideSetting { Label = "TestPreset", SliderGroup = SliderBodyType };
         foreach (var (name, small, big) in sliders)
@@ -405,267 +393,123 @@ public class ClassifierDefaultTimingTests
         return preset;
     }
 
-    /// <summary>One slider-rule set for one category: each (value, slider, comparator, threshold)
-    /// entry becomes a single-condition Interpolated rule assigning that descriptor value.</summary>
-    private static Dictionary<string, SliderClassificationRulesByBodyType> SliderRules(
-        string category, string? defaultValue, params (string Value, string Slider, string Comparator, int Threshold)[] rules) =>
-        new()
-        {
-            [SliderBodyType] = new SliderClassificationRulesByBodyType
-            {
-                BodyTypeGroup = SliderBodyType,
-                DescriptorClassifiers = new List<DescriptorClassificationRuleSet>
-                {
-                    new()
-                    {
-                        DescriptorCategory = category,
-                        DefaultDescriptorValue = defaultValue,
-                        RuleList = rules.Select(r => new DescriptorAssignmentRuleSet
-                        {
-                            SelectedDescriptorValue = r.Value,
-                            RuleListORlogic = new List<AndGatedSliderRuleGroup>
-                            {
-                                new()
-                                {
-                                    RuleListANDlogic = new List<SliderClassificationRule>
-                                    {
-                                        new() { SliderName = r.Slider, SliderType = BodySliderType.Interpolated, Comparator = r.Comparator, Value = r.Threshold },
-                                    },
-                                },
-                            },
-                        }).ToList(),
-                    },
-                },
-            },
-        };
+    private static MeasurementCondition Slider(string name, BodySliderType type, MeasurementComparator cmp, float val) =>
+        new() { Kind = MeasurementConditionKind.Slider, SliderName = name, SliderType = type, Comparator = cmp, Value = val };
 
-    private static HashSet<BodyShapeDescriptor.LabelSignature> SliderUniverse(string category, params string[] values) =>
-        values.Select(v => new BodyShapeDescriptor.LabelSignature { Category = category, Value = v }).ToHashSet();
-
-    /// <summary>The user's core ask: slider labels seed from the CURRENT rule set with no
-    /// "apply annotations" pass — a clean preset with empty descriptor slots still seeds
-    /// Belly:Muscular wherever the MuscleAbs blend crosses the rule threshold.</summary>
-    [Fact]
-    public void CollectExternalDescriptors_WithRules_DerivesSliderLabelsLive_NoApplyNeeded()
+    private static BodyTypeProfile MakeProfile(Dictionary<string, string>? defaults, params MeasurementRule[] rules)
     {
-        // MuscleAbs blends 0 -> 80, so "Interp >= 60" holds at weights 75 (60) and 100 (80).
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular", "Normal");
-
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 75, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
-        // Below the threshold no slider rule matched, so nothing seeds — the category default is
-        // NOT a senior-source label (see SliderCategoryDefault_IsNotSeeded_SoMeasurementDefaultStillEmits).
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, rules, universe)
-            .Should().BeEmpty();
-        // Arbitrary off-slot weight: interpolation runs at the exact weight (37 -> 29.6 < 60).
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 37, rules, universe)
-            .Should().BeEmpty();
-
-        // The derivation is a pure query — the preset's stored slots stay untouched.
-        preset.EnumerateAllDescriptors().Should().BeEmpty();
+        var profile = new BodyTypeProfile { BodyTypeName = SliderBodyType, Rules = rules.ToList() };
+        foreach (var (k, v) in defaults ?? new()) profile.DefaultDescriptorValuesByCategory[k] = v;
+        return profile;
     }
 
+    private static List<(string Category, string Value)> Derive(BodyTypeProfile profile, BodySlideSetting preset, int weight,
+        Dictionary<string, float>? meas, IReadOnlyCollection<string>? known = null) =>
+        AutoAnnotationEngine.DeriveForSlot(profile, preset, Gender.Female, weight, meas, known)
+            .Descriptors.Select(d => (d.Category, d.Value)).ToList();
+
+    /// <summary>A slider rule (Belly:Muscular at MuscleAbs Interp >= 60) and measurement rules that
+    /// exclude [Belly:Muscular] run in ONE pass: the measurement rules see the slider rule's output
+    /// through DescriptorRef exactly as they would another measurement rule's.</summary>
     [Fact]
-    public void CollectExternalDescriptors_WithRules_IgnoresStaleStoredRulesBased()
-    {
-        // The stored RulesBased Belly:Muscular is stale (written before the rule was revised);
-        // with live rules supplied it must NOT seed — only the fresh derivation counts, so
-        // Manual/Library entries survive and the stale slider label disappears.
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 30)); // never reaches the >= 60 threshold
-        preset.BodyShapeDescriptorsByWeight[100].Add(Annotated("Belly", "Muscular", BodyShapeAnnotationSource.RulesBased));
-        preset.BodyShapeDescriptorsByWeight[100].Add(Annotated("Chest", "Busty", BodyShapeAnnotationSource.Manual));
-        var rules = SliderRules("Belly", defaultValue: null, ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular");
-
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Chest", "Busty") });
-    }
-
-    [Fact]
-    public void CollectExternalDescriptors_WithRules_ManualCategoryBlocksSliderDerivationInItsSlotOnly()
-    {
-        // Manual precedence mirrors the annotate pass, per (weight slot, category): the slot the user
-        // hand-labeled is never rules-derived, while other slots still derive from the rules. The
-        // Manual entry itself seeds only at its own slot.
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        preset.BodyShapeDescriptorsByWeight[0].Add(Annotated("Belly", "Chubby", BodyShapeAnnotationSource.Manual));
-        var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular", "Normal");
-
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
-        BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, rules, universe)
-            .Should().BeEquivalentTo(new[] { ("Belly", "Chubby") });
-    }
-
-    [Fact]
-    public void DeriveDescriptorsForSlot_MatchesAppliedAnnotations_PerSlot()
-    {
-        // Drift guard: the pure per-slot query must agree with what AnnotateBodySlide actually
-        // writes, slot for slot (same rules, same universe, clean preset).
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular", "Normal");
-
-        var derivedBySlot = preset.BodyShapeDescriptorsByWeight.Keys.ToDictionary(
-            w => w,
-            w => BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, w)
-                .Select(d => (d.Category, d.Value)).OrderBy(p => p).ToList());
-
-        BodySlideAnnotator.AnnotateBodySlide(preset, rules, universe,
-            overwriteExistingAutoAnnotations: true, specifiedDescriptorCategory: null, logMessage: null);
-
-        foreach (var (weight, slot) in preset.BodyShapeDescriptorsByWeight)
-        {
-            var applied = slot.Where(d => d.Source == BodyShapeAnnotationSource.RulesBased)
-                .Select(d => (d.Category, d.Value)).OrderBy(p => p).ToList();
-            derivedBySlot[weight].Should().Equal(applied, "slot {0} must derive exactly what the annotator applied", weight);
-        }
-    }
-
-    [Fact]
-    public void DeriveDescriptorsForSlot_HonorsDescriptorUniverseGating()
+    public void EndToEnd_SliderRuleGatesMeasurementRules_InOnePass()
     {
         var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
-
-        // Rule value missing from the universe -> rule skipped -> default fills instead.
-        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, SliderUniverse("Belly", "Normal"), 100)
-            .Select(d => (d.Category, d.Value))
-            .Should().BeEquivalentTo(new[] { ("Belly", "Normal") });
-
-        // Default value missing from the universe -> nothing fills below the threshold.
-        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, SliderUniverse("Belly", "Muscular"), 0)
-            .Should().BeEmpty();
-
-        // Null universe -> no filtering (rules and default apply as authored).
-        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, null, 100)
-            .Select(d => (d.Category, d.Value))
-            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
-    }
-
-    /// <summary>End-to-end composition of the user's scenario with NO apply pass anywhere:
-    /// a clean preset + a Label-by-Sliders rule (Belly:Muscular at MuscleAbs Interp >= 60) seed
-    /// the measurement classifier, whose Belly:Chubby / Belly:Fat rules exclude [Belly:Muscular]
-    /// and whose nested Build:Powerful aggregator requires NOT Chubby AND NOT Fat.</summary>
-    [Fact]
-    public void EndToEnd_SliderRuleSeedsMeasurementClassifier_WithoutAppliedAnnotations()
-    {
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        var sliderRules = SliderRules("Belly", defaultValue: null, ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular");
-
-        var measurementRules = new List<MeasurementRule>
-        {
+        var profile = MakeProfile(null,
             Rule("Build", "Powerful",
                  Meas("arm_thickness", MeasurementComparator.GreaterThanOrEqual, 1.2f),
                  Ref("Belly", "Chubby", negate: true),
                  Ref("Belly", "Fat", negate: true)),
+            Rule("Belly", "Muscular", Slider("MuscleAbs", BodySliderType.Interpolated, MeasurementComparator.GreaterThanOrEqual, 60)),
             Rule("Belly", "Chubby",
                  Meas("belly_projection", MeasurementComparator.GreaterThanOrEqual, 16f),
                  Ref("Belly", "Muscular", negate: true)),
             Rule("Belly", "Fat",
                  Meas("belly_projection", MeasurementComparator.GreaterThanOrEqual, 20f),
-                 Ref("Belly", "Muscular", negate: true)),
-        };
+                 Ref("Belly", "Muscular", negate: true)));
         var meas = new Dictionary<string, float> { ["belly_projection"] = 22f, ["arm_thickness"] = 1.5f };
 
-        // Weight 100: MuscleAbs = 80 >= 60 -> Muscular seeds -> Chubby/Fat blocked -> Powerful fires.
-        var seedsAt100 = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, sliderRules, universe);
-        var (at100, _) = Run(measurementRules, meas, new Dictionary<string, string>(), seedsAt100);
+        // Weight 100: MuscleAbs = 80 -> Muscular -> Chubby/Fat blocked -> Powerful fires.
+        var at100 = Derive(profile, preset, 100, meas);
+        at100.Should().Contain(("Belly", "Muscular"));
         at100.Should().Contain(("Build", "Powerful"));
         at100.Should().NotContain(("Belly", "Chubby"));
-        at100.Should().NotContain(("Belly", "Fat"));
 
-        // Weight 0: MuscleAbs = 0 -> no Muscular seed -> the fat belly reads Chubby+Fat, blocking Powerful.
-        var seedsAt0 = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, sliderRules, universe);
-        var (at0, _) = Run(measurementRules, meas, new Dictionary<string, string>(), seedsAt0);
+        // Weight 0: MuscleAbs = 0 -> no Muscular -> the fat belly reads Chubby + Fat, blocking Powerful.
+        var at0 = Derive(profile, preset, 0, meas);
         at0.Should().Contain(("Belly", "Chubby"));
         at0.Should().Contain(("Belly", "Fat"));
         at0.Should().NotContain(("Build", "Powerful"));
     }
 
-    // ---------- Slider-side category defaults must not suppress the measurement-side default ----------
-
-    /// <summary>The reported bug, end to end. Label by Sliders has an Arms classifier with NO rules and
-    /// the default "Medium"; Label by Measurements has Arms:Small / Arms:Large rules that this preset
-    /// misses and the same "Medium" default (the two are kept identical by
-    /// DescriptorDefaultSynchronizer). Seeding the slider default marked Arms covered, so the
-    /// measurement default was suppressed and the preset came out with NO Arms descriptor — and
-    /// clearing the slider default did not help, because the synchronizer cleared the measurement
-    /// default with it. Excluding slider defaults from the seed is what breaks that loop.</summary>
     [Fact]
-    public void SliderCategoryDefault_IsNotSeeded_SoMeasurementDefaultStillEmits()
+    public void SliderOnlyCategory_IsAssigned_WithoutAnyMeasurementCache()
     {
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 40));
-        var sliderRules = SliderRules("Arms", defaultValue: "Medium"); // default only, no rules
-        var universe = SliderUniverse("Arms", "Small", "Medium", "Large");
+        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
+        var profile = MakeProfile(new() { ["BellyMorph"] = "Low Definition", ["Arms"] = "Medium" },
+            Rule("BellyMorph", "Muscular", Slider("MuscleAbs", BodySliderType.Interpolated, MeasurementComparator.GreaterThanOrEqual, 70)),
+            Rule("Arms", "Large", Meas("Arm_Volume", MeasurementComparator.GreaterThanOrEqual, 350f)));
 
-        var seeds = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, sliderRules, universe);
-        seeds.Should().BeEmpty("a category default is a catch-all, not a senior-source label");
+        var result = AutoAnnotationEngine.DeriveForSlot(profile, preset, Gender.Female, 100, measurements: null);
 
-        var measurementRules = new List<MeasurementRule>
-        {
-            Rule("Arms", "Small", Meas("Arm_Volume", MeasurementComparator.LessThan, 220f)),
+        result.Descriptors.Select(d => (d.Category, d.Value)).Should().BeEquivalentTo(new[] { ("BellyMorph", "Muscular") });
+        // Arms needs a measurement the preset was never scanned for: no rule label and no default.
+        result.UnevaluableCategories.Should().BeEquivalentTo(new[] { "Arms" });
+
+        // At weight 0 the slider rule misses, so its category falls to its default.
+        Derive(profile, preset, 0, null).Should().BeEquivalentTo(new[] { ("BellyMorph", "Low Definition") });
+    }
+
+    [Fact]
+    public void FailedButKnownMeasurement_IsEvaluable_SoTheDefaultApplies()
+    {
+        // The cache entry carries Arm_Volume but it failed to compute: the rule is tested (and fails),
+        // exactly as at scan time, so the category is decided and falls to its default.
+        var preset = MakeSliderPreset();
+        var profile = MakeProfile(new() { ["Arms"] = "Medium" },
+            Rule("Arms", "Large", Meas("Arm_Volume", MeasurementComparator.GreaterThanOrEqual, 350f)));
+
+        Derive(profile, preset, 50, new Dictionary<string, float>(), known: new[] { "Arm_Volume" })
+            .Should().BeEquivalentTo(new[] { ("Arms", "Medium") });
+    }
+
+    [Fact]
+    public void Category_DependingOnAnUnevaluableCategory_IsUnevaluableToo()
+    {
+        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
+        var profile = MakeProfile(new() { ["Shape"] = "Ambiguous" },
             Rule("Arms", "Large", Meas("Arm_Volume", MeasurementComparator.GreaterThanOrEqual, 350f)),
-        };
-        var defaults = new Dictionary<string, string> { ["Arms"] = "Medium" };
-        var meas = new Dictionary<string, float> { ["Arm_Volume"] = 260f }; // between the two rules
+            Rule("Shape", "Strong", Slider("MuscleAbs", BodySliderType.Big, MeasurementComparator.GreaterThan, 10), Ref("Arms", "Large")));
 
-        var (matches, defs) = Run(measurementRules, meas, defaults, seeds);
+        var result = AutoAnnotationEngine.DeriveForSlot(profile, preset, Gender.Female, 100, measurements: null);
 
-        matches.Should().BeEmpty();
-        defs.Should().Contain(("Arms", "Medium"));
-    }
-
-    /// <summary>The other half of the invariant: a slider RULE match still seeds and still suppresses,
-    /// so a slider-labeled preset never also collects the measurement default. Same preset, same rule
-    /// set, two weights — above the threshold the rule fires and covers the category; below it nothing
-    /// seeds and the measurement default fills.</summary>
-    [Fact]
-    public void SliderRuleMatch_StillSeeds_ButSliderDefaultDoesNot()
-    {
-        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        var sliderRules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular", "Normal");
-        var defaults = new Dictionary<string, string> { ["Belly"] = "Normal" };
-        var noRules = new List<MeasurementRule>();
-        var noMeas = new Dictionary<string, float>();
-
-        // Weight 100: MuscleAbs = 80 >= 60 -> the rule matched -> seeds and suppresses the default.
-        var seedsAt100 = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 100, sliderRules, universe);
-        seedsAt100.Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
-        var (_, defsAt100) = Run(noRules, noMeas, defaults, seedsAt100);
-        defsAt100.Should().NotContain(("Belly", "Normal"));
-
-        // Weight 0: no rule matched -> the slider default does NOT seed -> measurement default emits.
-        var seedsAt0 = BodySlideMeasurementEvaluator.CollectExternalDescriptors(preset, 0, sliderRules, universe);
-        seedsAt0.Should().BeEmpty();
-        var (_, defsAt0) = Run(noRules, noMeas, defaults, seedsAt0);
-        defsAt0.Should().Contain(("Belly", "Normal"));
+        result.Descriptors.Should().BeEmpty("Shape reads Arms, which can't be evaluated, so neither its rule nor its default applies");
+        result.UnevaluableCategories.Should().BeEquivalentTo(new[] { "Arms", "Shape" });
     }
 
     [Fact]
-    public void DeriveDescriptorsForSlot_IncludeCategoryDefaults_TogglesOnlyTheDefaultFill()
+    public void ManualCategory_SeedsReferences_EvenWhenItsOwnRulesAreUnevaluable()
     {
+        // The user hand-labeled Arms:Large, so Shape's [Arms:Large] reference is decided by the user,
+        // not by the unscanned Arms measurement.
         var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
-        var rules = SliderRules("Belly", defaultValue: "Normal", ("Muscular", "MuscleAbs", ">=", 60));
-        var universe = SliderUniverse("Belly", "Muscular", "Normal");
+        preset.BodyShapeDescriptorsByWeight[100].Add(Annotated("Arms", "Large", BodyShapeAnnotationSource.Manual));
+        var profile = MakeProfile(new() { ["Shape"] = "Ambiguous" },
+            Rule("Arms", "Large", Meas("Arm_Volume", MeasurementComparator.GreaterThanOrEqual, 350f)),
+            Rule("Shape", "Strong", Ref("Arms", "Large")));
 
-        // A matched rule is returned either way — the flag never touches rule output.
-        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, 100, includeCategoryDefaults: false)
-            .Select(d => (d.Category, d.Value))
-            .Should().BeEquivalentTo(new[] { ("Belly", "Muscular") });
+        Derive(profile, preset, 100, null).Should().BeEquivalentTo(new[] { ("Shape", "Strong") });
+    }
 
-        // No rule matched: the default fills only when asked for (true is the annotate-pass default).
-        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, 0)
-            .Select(d => (d.Category, d.Value))
-            .Should().BeEquivalentTo(new[] { ("Belly", "Normal") });
-        BodySlideAnnotator.DeriveDescriptorsForSlot(preset, rules, universe, 0, includeCategoryDefaults: false)
-            .Should().BeEmpty();
+    [Fact]
+    public void SliderCondition_UsesTheSampleWeight_AndFailsWithoutASample()
+    {
+        var rule = Rule("Belly", "Muscular", Slider("MuscleAbs", BodySliderType.Interpolated, MeasurementComparator.GreaterThanOrEqual, 60));
+        var preset = MakeSliderPreset(("MuscleAbs", 0, 80));
+        var empty = new Dictionary<string, float>();
+
+        MeasurementMath.RuleMatches(rule, empty, null, SliderSample.For(preset, 100)).Should().BeTrue();
+        MeasurementMath.RuleMatches(rule, empty, null, SliderSample.For(preset, 50)).Should().BeFalse();
+        MeasurementMath.RuleMatches(rule, empty, null, null).Should().BeFalse();
     }
 }

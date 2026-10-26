@@ -110,7 +110,98 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     public DescriptorMatchMode MatchMode { get; set; } = DescriptorMatchMode.All;
     public BodyShapeAnnotationState AnnotationState { get; set; } = BodyShapeAnnotationState.None;
     private bool _initializing { get; set; } = false;
+    private bool _applyingAutomatic;
     public bool ShowPriority { get; set; } = false;
+
+    /// <summary>
+    /// True for a BodySlide preset's weight-slot menu, where selections are a mix of automatic
+    /// (Auto-Annotation) and manual assignments. A user edit to any value of a category then takes the
+    /// whole category over as manual (<see cref="ManualCategories"/>), and only manual selections are
+    /// dumped for storage. Every other menu (distribution rules, filters) leaves this false.
+    /// </summary>
+    public bool TracksManualCategories { get; set; } = false;
+
+    /// <summary>Categories the user owns in this slot, even when left with no value. Only meaningful
+    /// when <see cref="TracksManualCategories"/> is set.</summary>
+    public HashSet<string> ManualCategories { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Raised when a category is reset to automatic, so the owner can recompute and
+    /// re-apply the automatic assignments for this slot.</summary>
+    public event Action? AutomaticRefreshRequested;
+
+    /// <summary>True while selections are being changed by code rather than by the user.</summary>
+    internal bool IsChangingProgrammatically => _initializing || _applyingAutomatic;
+
+    /// <summary>Called by a selector when the user toggles it: the selector's whole category becomes
+    /// manual -- every value still selected in it is marked Manual, and the category is recorded in
+    /// <see cref="ManualCategories"/> so an emptied category stays empty.</summary>
+    internal void OnUserEditedSelector(VM_BodyShapeDescriptorSelector selector)
+    {
+        if (!TracksManualCategories || IsChangingProgrammatically || selector == null) return;
+        var shell = DescriptorShells.FirstOrDefault(s => s.DescriptorSelectors.Contains(selector));
+        if (shell == null) return;
+        TakeOverCategory(shell);
+    }
+
+    private void TakeOverCategory(VM_BodyShapeDescriptorShellSelector shell)
+    {
+        ManualCategories.Add(shell.TrackedShell.Category);
+        foreach (var s in shell.DescriptorSelectors)
+        {
+            if (s.IsSelected) s.AnnotationState = BodyShapeAnnotationState.Manual;
+        }
+        shell.RefreshIsManual();
+    }
+
+    /// <summary>Marks every category that currently has a selection as manual -- "Accept automatic
+    /// annotations": the current values stop following the rules.</summary>
+    public void AcceptAllAsManual()
+    {
+        foreach (var shell in DescriptorShells)
+        {
+            if (shell.DescriptorSelectors.Any(s => s.IsSelected)) TakeOverCategory(shell);
+        }
+        BuildHeader();
+    }
+
+    /// <summary>Gives <paramref name="category"/> back to Auto-Annotation: drops its manual values and
+    /// asks the owner to re-apply the automatic ones.</summary>
+    public void ResetCategoryToAutomatic(string category)
+    {
+        if (!ManualCategories.Remove(category) && !DescriptorShells.Any(s => s.TrackedShell.Category == category)) return;
+        var shell = DescriptorShells.FirstOrDefault(s => s.TrackedShell.Category == category);
+        if (shell != null)
+        {
+            _applyingAutomatic = true;
+            try
+            {
+                foreach (var s in shell.DescriptorSelectors) s.IsSelected = false;
+            }
+            finally { _applyingAutomatic = false; }
+            shell.RefreshIsManual();
+        }
+        BuildHeader();
+        AutomaticRefreshRequested?.Invoke();
+    }
+
+    /// <summary>Loads the stored manual-category ownership for this slot.</summary>
+    public void CopyInManualCategories(IEnumerable<string>? categories)
+    {
+        ManualCategories.Clear();
+        foreach (var c in categories ?? Enumerable.Empty<string>())
+        {
+            if (!string.IsNullOrEmpty(c)) ManualCategories.Add(c);
+        }
+        // A category holding a manual selection is owned even if it wasn't recorded.
+        foreach (var shell in DescriptorShells)
+        {
+            if (shell.DescriptorSelectors.Any(s => s.IsSelected && s.AnnotationState == BodyShapeAnnotationState.Manual))
+            {
+                ManualCategories.Add(shell.TrackedShell.Category);
+            }
+            shell.RefreshIsManual();
+        }
+    }
 
     public HashSet<BodyShapeDescriptor.LabelSignature> BackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
     public HashSet<BodyShapeDescriptor.PrioritizedLabelSignature> PrioritizedBackupStash { get; set; } = new(); // if a descriptor is present in the model but not present in the corresponding UI, stash here to write back to the model
@@ -301,7 +392,11 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         return output;
     }
 
-    /// <summary>Dumps the selected descriptors as annotated signatures (carrying annotation state), as stored in OBody settings.</summary>
+    private static bool IsAutomaticState(BodyShapeAnnotationState state) =>
+        state == BodyShapeAnnotationState.Classifier || state == BodyShapeAnnotationState.RulesBased || state == BodyShapeAnnotationState.Library;
+
+    /// <summary>Dumps the manual selections as annotated signatures, as stored in OBody settings.
+    /// Automatic selections are left out: they are recomputed whenever they are needed.</summary>
     /// <returns>The annotated descriptor signatures.</returns>
     public HashSet<AnnotatedDescriptorSignature> DumpToOBodySettingsHashSet()
     {
@@ -310,7 +405,8 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         {
             foreach (var shell in DescriptorShells)
             {
-                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected).Select(x => new AnnotatedDescriptorSignature(new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }, x.AnnotationState)).ToHashSet());
+                // Automatic (Auto-Annotation) selections are computed on demand and never stored.
+                output.UnionWith(shell.DescriptorSelectors.Where(x => x.IsSelected && !IsAutomaticState(x.AnnotationState)).Select(x => new AnnotatedDescriptorSignature(new BodyShapeDescriptor.LabelSignature() { Category = shell.TrackedShell.Category, Value = x.Value }, x.AnnotationState)).ToHashSet());
             }
         }
         return output;
@@ -373,12 +469,21 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
     }
 
     /// <summary>
-    /// Replaces this menu's <see cref="BodyShapeAnnotationState.Classifier"/>-tagged selections
-    /// with the supplied set. Used by <see cref="BodySlideMeasurementEvaluator"/> after a
-    /// per-weight evaluation pass so the UI mirrors the merged model state.
-    /// Manual / Library / RulesBased selections are left untouched -- they win every conflict.
+    /// Replaces this menu's automatic (<see cref="BodyShapeAnnotationState.Classifier"/>) selections
+    /// with the supplied set, computed by <see cref="AutoAnnotationEngine"/>. Categories in
+    /// <see cref="ManualCategories"/> and any manual selection are left untouched -- manual wins.
     /// </summary>
-    public void ApplyClassifierDescriptors(IEnumerable<AnnotatedDescriptorSignature> classifierDescriptors)
+    public void ApplyClassifierDescriptors(IEnumerable<BodyShapeDescriptor.LabelSignature> classifierDescriptors)
+    {
+        _applyingAutomatic = true;
+        try
+        {
+            ApplyClassifierDescriptorsCore(classifierDescriptors);
+        }
+        finally { _applyingAutomatic = false; }
+    }
+
+    private void ApplyClassifierDescriptorsCore(IEnumerable<BodyShapeDescriptor.LabelSignature> classifierDescriptors)
     {
         // Build a lookup of incoming (Category, Value) for fast hit checks.
         var incoming = new HashSet<(string Cat, string Val)>();
@@ -394,6 +499,7 @@ public class VM_BodyShapeDescriptorSelectionMenu : VM
         foreach (var shell in DescriptorShells)
         {
             string category = shell.TrackedShell?.Category ?? string.Empty;
+            if (ManualCategories.Contains(category)) continue;
             foreach (var selector in shell.DescriptorSelectors)
             {
                 bool isCurrentlyClassifier = selector.IsSelected && selector.AnnotationState == BodyShapeAnnotationState.Classifier;
@@ -469,7 +575,23 @@ public class VM_BodyShapeDescriptorShellSelector : VM, IHasAnnotationState
         }).DisposeWith(this);
 
         this.WhenAnyValue(x => x.AnnotationState).Subscribe(x => UpdateTextColor(x)).DisposeWith(this);
+
+        ResetToAutomaticCommand = new RelayCommand(
+            canExecute: _ => true,
+            execute: _ => ParentMenu.ResetCategoryToAutomatic(TrackedShell.Category));
     }
+
+    /// <summary>True when this category is user-owned in a preset slot (see
+    /// <see cref="VM_BodyShapeDescriptorSelectionMenu.ManualCategories"/>). Shows the "Reset to
+    /// automatic" button.</summary>
+    public bool IsManual { get; private set; }
+
+    /// <summary>Gives the category back to Auto-Annotation.</summary>
+    public RelayCommand ResetToAutomaticCommand { get; }
+
+    /// <summary>Re-reads <see cref="IsManual"/> from the parent menu.</summary>
+    public void RefreshIsManual() => IsManual = ParentMenu.TracksManualCategories && ParentMenu.ManualCategories.Contains(TrackedShell.Category);
+
     public VM_BodyShapeDescriptorShell TrackedShell { get; set; }
     public VM_BodyShapeDescriptorSelectionMenu ParentMenu { get; set; }
     public ObservableCollection<VM_BodyShapeDescriptorSelector> DescriptorSelectors { get; set; } = new();
@@ -546,6 +668,8 @@ public class VM_BodyShapeDescriptorSelector : VM, IHasAnnotationState
         TrackedDescriptor.WhenAnyValue(x => x.Value).Subscribe(_ => Value = TrackedDescriptor.Value).DisposeWith(this);
         this.WhenAnyValue(x => x.IsSelected).Subscribe(_ => AnnotationState = IsSelected ? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None).DisposeWith(this);
         this.WhenAnyValue(x => x.AnnotationState).Subscribe(x => UpdateTextColor(x)).DisposeWith(this);
+        // A toggle the user makes (not one made by code) takes the whole category over as manual.
+        this.WhenAnyValue(x => x.IsSelected).Skip(1).Subscribe(_ => ParentMenu?.OnUserEditedSelector(this)).DisposeWith(this);
     }
 
     public VM_BodyShapeDescriptor TrackedDescriptor { get; set; }
@@ -581,7 +705,7 @@ public enum BodyShapeAnnotationState
     Mix_Manual_RulesBased,
     /// <summary>Imported from an annotation library.</summary>
     Library,
-    /// <summary>Assigned by the ML BodySlide classifier.</summary>
+    /// <summary>Assigned automatically by the Auto-Annotation rules (computed on demand, never stored).</summary>
     Classifier,
     /// <summary>A mix of multiple sources.</summary>
     Mixed

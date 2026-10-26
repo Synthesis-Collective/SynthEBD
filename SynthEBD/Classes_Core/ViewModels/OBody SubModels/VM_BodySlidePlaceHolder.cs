@@ -13,26 +13,21 @@ namespace SynthEBD
 {
     /// <summary>
     /// Lightweight list-node view model for a <see cref="BodySlideSetting"/> in the OBody BodySlide list.
-    /// Holds display label/border color and visibility (hidden vs. shown), runs auto-annotation on load,
-    /// and lazily references the heavyweight <see cref="VM_BodySlideSetting"/> only while selected.
+    /// Holds display label/border color and visibility (hidden vs. shown), and lazily references the heavyweight <see cref="VM_BodySlideSetting"/> only while selected.
     /// </summary>
     [DebuggerDisplay("{Label}")]
     public class VM_BodySlidePlaceHolder : VM
     {
         private readonly PatcherState _patcherState;
         private readonly VM_SettingsOBody _obodyVM;
-        private readonly BodySlideAnnotator _bodySlideAnnotator;
-        private readonly AnnotationLibraryAnnotator _libraryAnnotator;
         /// <summary>Autofac factory delegate for <see cref="VM_BodySlidePlaceHolder"/>.</summary>
         public delegate VM_BodySlidePlaceHolder Factory(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection);
 
-        /// <summary>Seeds label/border color, runs initial annotation, and subscribes to mirror the associated VM's label/color plus recompute visibility from the hidden flag and the menu's "show hidden" toggle.</summary>
-        public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM, BodySlideAnnotator bodySlideAnnotator, AnnotationLibraryAnnotator libraryAnnotator)
+        /// <summary>Seeds label/border color and annotation state, and subscribes to mirror the associated VM's label/color plus recompute visibility from the hidden flag and the menu's "show hidden" toggle.</summary>
+        public VM_BodySlidePlaceHolder(BodySlideSetting model, ObservableCollection<VM_BodySlidePlaceHolder> parentCollection, PatcherState patcherState, VM_SettingsOBody oBodySettingsVM)
         {
             _patcherState = patcherState;
             _obodyVM = oBodySettingsVM;
-            _bodySlideAnnotator = bodySlideAnnotator;
-            _libraryAnnotator = libraryAnnotator;
 
             AssociatedModel = model;
             Label = model.Label;
@@ -74,7 +69,7 @@ namespace SynthEBD
 
         /// <summary>True when the preset is both hidden and excluded from random distribution (the state the
         /// list's HD button and the import-time outfit/refit rule produce). Such presets are left out of the
-        /// Label by Measurements / Label by Sliders menus. Reads the editor VM's live checkbox when one is attached,
+        /// Auto-Annotation menu. Reads the editor VM's live checkbox when one is attached,
         /// since the model's AllowRandom is only refreshed on deselect.</summary>
         public bool IsHiddenAndDisabled => IsHidden && !(AssociatedViewModel?.bAllowRandom ?? AssociatedModel.AllowRandom);
 
@@ -107,23 +102,12 @@ namespace SynthEBD
             }
         }
 
-        /// <summary>Marks the model as manually annotated if any manual descriptors exist, then (when auto-apply is enabled) runs the annotation-library and rule-based annotators in sequence.</summary>
+        /// <summary>Marks the model as manually annotated if any manual descriptors exist. Automatic
+        /// assignments are computed on demand (<see cref="AutoAnnotationService"/>), never at load.</summary>
         private void InitializeAnnotation()
         {
             bool hasAnnotations = AssociatedModel.EnumerateAllDescriptors().Any(x => x.Source == BodyShapeAnnotationSource.Manual);
-            if (hasAnnotations)
-            {
-                AssociatedModel.AnnotationState = BodyShapeAnnotationState.Manual;
-            }
-
-            if (_patcherState.OBodySettings.AutoApplyMissingAnnotations) // Trigger from _patcherState rather than the MiscUI VM because the BodySlide VMs load first
-            {
-                // Tier 1: annotation library (per-weight descriptors shipped with SynthEBD or provided by the user)
-                _libraryAnnotator.Annotate(AssociatedModel);
-
-                // Tier 2: rule-based annotator
-                _bodySlideAnnotator.AnnotateBodySlide(AssociatedModel, _patcherState.OBodySettings.BodySlideClassificationRules, _patcherState.OBodySettings.TemplateDescriptors.Flatten().Select(x => x.ID).ToHashSet(), false, null);
-            }
+            AssociatedModel.AnnotationState = hasAnnotations ? BodyShapeAnnotationState.Manual : BodyShapeAnnotationState.None;
         }
 
         /// <summary>Sets the border color: "missing" if the referenced BodySlide no longer exists, "hidden" if hidden in menu, otherwise the color for the model's annotation state. Mirrors VM_BodySlideSetting.UpdateStatusDisplay().</summary>

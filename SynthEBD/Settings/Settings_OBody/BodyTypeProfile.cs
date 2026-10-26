@@ -702,6 +702,36 @@ public enum MeasurementConditionKind
     /// <see cref="MeasurementCondition.Comparator"/>, and
     /// <see cref="MeasurementCondition.Value"/>.</summary>
     DescriptorRef = 1,
+    /// <summary>The condition compares one of the evaluated preset's BodySlide slider values
+    /// against a threshold. Reads <see cref="MeasurementCondition.SliderName"/>,
+    /// <see cref="MeasurementCondition.SliderType"/>, <see cref="MeasurementCondition.Comparator"/>
+    /// and <see cref="MeasurementCondition.Value"/>. Needs no mesh or measurement cache -- only the
+    /// preset's slider values and the evaluated weight (see <see cref="SliderSample"/>).</summary>
+    Slider = 2,
+}
+
+/// <summary>The slider values a <see cref="MeasurementConditionKind.Slider"/> condition reads: the
+/// evaluated preset's authored sliders and the NPC weight being evaluated (which an
+/// <see cref="BodySliderType.Interpolated"/> condition blends at). Passed alongside the measurement
+/// values to every rule-evaluation entry point; null means "no preset context", and every Slider
+/// condition then fails.</summary>
+public sealed class SliderSample
+{
+    public SliderSample(IReadOnlyDictionary<string, BodySlideSlider>? values, int weight)
+    {
+        Values = values;
+        Weight = weight;
+    }
+
+    /// <summary>The preset's sliders keyed by slider name (<see cref="BodySlideSetting.SliderValues"/>).</summary>
+    public IReadOnlyDictionary<string, BodySlideSlider>? Values { get; }
+
+    /// <summary>NPC weight (0-100) the evaluation is for.</summary>
+    public int Weight { get; }
+
+    /// <summary>Sample for <paramref name="preset"/> at <paramref name="weight"/>; null when there is no preset.</summary>
+    public static SliderSample? For(BodySlideSetting? preset, int weight)
+        => preset?.SliderValues == null ? null : new SliderSample(preset.SliderValues, weight);
 }
 
 /// <summary>
@@ -738,6 +768,16 @@ public class MeasurementCondition
     /// is <em>absent</em> from the current match set (the "exclude" flavor). Defaults to false:
     /// match when the descriptor is present. Ignored for <see cref="MeasurementConditionKind.Measurement"/>.</summary>
     public bool Negate { get; set; } = false;
+
+    // --- Slider-kind fields (Comparator and Value are shared with the Measurement kind) ---
+    /// <summary>When <see cref="Kind"/> = <see cref="MeasurementConditionKind.Slider"/>, the BodySlide
+    /// slider this condition tests. Ignored otherwise.</summary>
+    public string SliderName { get; set; } = "";
+
+    /// <summary>When <see cref="Kind"/> = <see cref="MeasurementConditionKind.Slider"/>, which of the
+    /// slider's values is tested: the authored Small (weight 0) or Big (weight 100) value, Either of
+    /// them, or the value Interpolated at the evaluated weight. Ignored otherwise.</summary>
+    public BodySliderType SliderType { get; set; } = BodySliderType.Interpolated;
 }
 
 /// <summary>
@@ -2282,7 +2322,8 @@ public static class MeasurementMath
     public static bool RuleMatches(
         MeasurementRule rule,
         IReadOnlyDictionary<string, float> measurements,
-        IReadOnlySet<(string Category, string Value)>? matchedDescriptors = null)
+        IReadOnlySet<(string Category, string Value)>? matchedDescriptors = null,
+        SliderSample? sliders = null)
     {
         if (rule?.GroupsORlogic == null || rule.GroupsORlogic.Count == 0) return false;
         foreach (var group in rule.GroupsORlogic)
@@ -2296,7 +2337,7 @@ public static class MeasurementMath
             foreach (var cond in group.ConditionsANDlogic)
             {
                 if (cond == null) { allMatch = false; break; }
-                if (!ConditionMatches(cond, measurements, matchedDescriptors)) { allMatch = false; break; }
+                if (!ConditionMatches(cond, measurements, matchedDescriptors, sliders)) { allMatch = false; break; }
             }
             if (allMatch) return true;
         }
@@ -2307,14 +2348,19 @@ public static class MeasurementMath
     /// measurement values and matched-descriptor set. Branches on
     /// <see cref="MeasurementCondition.Kind"/>: <see cref="MeasurementConditionKind.Measurement"/>
     /// does the threshold compare; <see cref="MeasurementConditionKind.DescriptorRef"/> tests
-    /// the matched-descriptor set membership, honoring <see cref="MeasurementCondition.Negate"/>.</summary>
-    private static bool ConditionMatches(
+    /// the matched-descriptor set membership, honoring <see cref="MeasurementCondition.Negate"/>;
+    /// <see cref="MeasurementConditionKind.Slider"/> tests a slider value from <paramref name="sliders"/>.</summary>
+    public static bool ConditionMatches(
         MeasurementCondition cond,
         IReadOnlyDictionary<string, float> measurements,
-        IReadOnlySet<(string Category, string Value)>? matchedDescriptors)
+        IReadOnlySet<(string Category, string Value)>? matchedDescriptors,
+        SliderSample? sliders = null)
     {
         switch (cond.Kind)
         {
+            case MeasurementConditionKind.Slider:
+                return SliderConditionMatches(cond, sliders);
+
             case MeasurementConditionKind.DescriptorRef:
                 // An aggregator condition with a blank Category or Value is malformed — fail
                 // closed (treat as not-matching) so a half-edited rule can't accidentally match
@@ -2333,4 +2379,59 @@ public static class MeasurementMath
                 return Compare(val, cond.Comparator, cond.Value);
         }
     }
+
+    /// <summary>
+    /// Evaluates a <see cref="MeasurementConditionKind.Slider"/> condition. Small / Big / Either read
+    /// the authored endpoint values (weight-independent); Interpolated reads the value the slider has
+    /// at <see cref="SliderSample.Weight"/>. A slider the preset doesn't set fails the condition, and
+    /// so does a null sample (no preset context).
+    /// <para>EqualTo / NotEqualTo compare the slider value rounded to the nearest whole number (halves
+    /// away from zero): thresholds are authored as whole BodySlide values, while interpolated and some
+    /// authored values are fractional. The ordering comparators use the exact value.</para>
+    /// </summary>
+    public static bool SliderConditionMatches(MeasurementCondition cond, SliderSample? sliders)
+    {
+        if (string.IsNullOrEmpty(cond?.SliderName) || sliders?.Values == null) return false;
+        if (!sliders.Values.TryGetValue(cond.SliderName, out var slider) || slider == null) return false;
+        return cond.SliderType switch
+        {
+            BodySliderType.Small => CompareSlider(slider.Small, cond.Comparator, cond.Value),
+            BodySliderType.Big => CompareSlider(slider.Big, cond.Comparator, cond.Value),
+            BodySliderType.Either => CompareSlider(slider.Small, cond.Comparator, cond.Value)
+                || CompareSlider(slider.Big, cond.Comparator, cond.Value),
+            BodySliderType.Interpolated => CompareSlider(InterpolateSliderValue(slider, sliders.Weight), cond.Comparator, cond.Value),
+            _ => false,
+        };
+    }
+
+    /// <summary>The slider value a <see cref="MeasurementConditionKind.Slider"/> condition reads, for
+    /// live readouts: the Small, Big or Interpolated value (Either shows the Interpolated value). Null
+    /// when the preset doesn't set the slider or there is no sample.</summary>
+    public static float? ReadSliderValue(MeasurementCondition cond, SliderSample? sliders)
+    {
+        if (string.IsNullOrEmpty(cond?.SliderName) || sliders?.Values == null) return null;
+        if (!sliders.Values.TryGetValue(cond.SliderName, out var slider) || slider == null) return null;
+        return cond.SliderType switch
+        {
+            BodySliderType.Small => slider.Small,
+            BodySliderType.Big => slider.Big,
+            _ => InterpolateSliderValue(slider, sliders.Weight),
+        };
+    }
+
+    private static bool CompareSlider(float sliderValue, MeasurementComparator comparator, float threshold)
+    {
+        if (comparator == MeasurementComparator.EqualTo || comparator == MeasurementComparator.NotEqualTo)
+        {
+            sliderValue = (float)Math.Round(sliderValue, MidpointRounding.AwayFromZero);
+        }
+        return Compare(sliderValue, comparator, threshold);
+    }
+
+    /// <summary>
+    /// The value a slider has at <paramref name="weight"/> (0-100): the linear blend between its authored
+    /// Small (weight 0) and Big (weight 100) values -- the same interpolation the game applies to morphs.
+    /// </summary>
+    public static float InterpolateSliderValue(BodySlideSlider slider, int weight)
+        => slider.Small + (slider.Big - slider.Small) * (weight / 100f);
 }

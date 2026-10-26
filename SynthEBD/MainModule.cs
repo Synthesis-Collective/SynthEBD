@@ -85,8 +85,6 @@ public class MainModule : Autofac.Module
         builder.RegisterType<VM_BodyTypeProfileEditor>().AsSelf().SingleInstance();
         builder.RegisterType<VM_OBodyPreviewNpcSettings>().AsSelf().SingleInstance();
         builder.RegisterType<VM_BodySlidesMenu>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_BodySlideAnnotator>().AsSelf().SingleInstance();
-        builder.RegisterType<DescriptorDefaultSynchronizer>().AsSelf().SingleInstance();
         builder.RegisterType<VM_HeadPartImport>().AsSelf().SingleInstance();
         builder.RegisterType<ConfigDrafter>().AsSelf().SingleInstance();
         builder.RegisterType<VM_ConfigDrafter>().AsSelf().SingleInstance();
@@ -198,9 +196,8 @@ public class MainModule : Autofac.Module
         builder.RegisterType<AttributeMatcher>().AsSelf().SingleInstance();
         builder.RegisterType<RecordIntellisense>().AsSelf().SingleInstance();
         builder.RegisterType<AssetPackValidator>().AsSelf().SingleInstance();
-        builder.RegisterType<BodySlideAnnotator>().AsSelf().SingleInstance();
-        builder.RegisterType<AnnotationLibraryLoader>().AsSelf().SingleInstance();
-        builder.RegisterType<AnnotationLibraryAnnotator>().AsSelf().SingleInstance();
+        builder.RegisterType<AutoAnnotationService>().AsSelf().SingleInstance();
+        builder.RegisterType<SliderNameCatalog>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideSettingMigrator>().AsSelf().SingleInstance();
         builder.RegisterType<SliderCatalogLoader>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideGroupClassifier>().AsSelf().SingleInstance();

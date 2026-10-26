@@ -34,96 +34,6 @@ public static partial class UiDocs
             technical: "Displays VM_OBodyMiscSettings: the OBody/AutoBody assignment mode selectors, auto-annotation toggle, verbose-script toggle, slider-catalog overrides, body-type family compatibility map, and the per-weight preview NPC table. All values round-trip to Settings_OBody via CopyIn/DumpViewModelToModel.",
             motivation: "These options affect the whole BodySlide pipeline rather than any single preset, so they live on their own page instead of being repeated per BodySlide.");
 
-        Add("OBody.AnnotatorMenu",
-            layperson: "Opens the rule editor that labels body presets automatically. You describe what slider values mean (for example, a high weight slider means a chubby build) and SynthEBD applies the matching labels to presets for you.",
-            technical: "Edits the Label by Sliders rules of each body type's active Body Type Rules file (BodyTypeRuleSet.SliderRules; at runtime Settings_OBody.BodySlideClassificationRules, keyed by slider group). A manual label in a (weight slot, category) blocks rule-derived labels for that category in that slot only. BodySlideAnnotator evaluates these rules once per descriptor weight slot to assign body shape descriptors: Small/Big/Either conditions read the preset's authored endpoint slider values (labeling all slots or none), while Interpolated conditions read the weight-blended value at each slot, so their labels can apply to just part of the weight range. Rule-derived annotations are marked as non-manual and are recomputed rather than saved.",
-            motivation: "Manually annotating hundreds of installed presets is tedious. Authoring rules once per body type lets every current and future preset be labeled automatically and consistently.");
-
-        Add("OBody.AnnotatorViewerSplitter",
-            layperson: "Drag to resize the middle editor area and the 3D preview panel.",
-            technical: "GridSplitter between the middle column (rule editor above, preset browser + slider readout below) and the viewer rail (CharacterViewer + NPC search). Same layout pattern as the Label by Measurements editor.",
-            motivation: "Rule authoring wants width for AND/OR groups while shape inspection wants width for the 3D view; a splitter lets each task claim the space it needs.");
-
-        Add("OBody.AnnotatorRulesBrowserSplitter",
-            layperson: "Drag to trade height between the annotation rules above and the preset list below.",
-            technical: "Horizontal GridSplitter between the classification-rule editor (upper middle) and the preset browser / slider readout pair (lower middle).",
-            motivation: "Deep rule trees and long preset lists compete for the same vertical space; the divider lets whichever is being worked on take more of it.");
-
-        Add("OBody.AnnotatorBrowserReadoutSplitter",
-            layperson: "Drag to trade width between the preset list and the slider-value table.",
-            technical: "Vertical GridSplitter between the sortable preset list and the selected preset's slider readout in the lower middle pane.",
-            motivation: "Long preset labels and long slider names both want width; the divider lets the user favor whichever they are reading.");
-
-        Add("OBody.AnnotatorPreviewGender",
-            layperson: "Chooses whether the preset list and 3D preview show presets from your male or female BodySlide list.",
-            technical: "Selects between Settings_OBody.BodySlidesMale and BodySlidesFemale as the preset-list source, and picks the male/female half of the Misc-settings per-weight preview NPC pair (and of the NPC search results).",
-            motivation: "BodySlide presets are distributed per gender, and a preset only previews meaningfully on a body of the matching gender.");
-
-        Add("OBody.AnnotatorPreviewSliderPicker",
-            layperson: "Picks which slider's numbers appear in the preset list's Low / High / Interp columns, so you can sort every preset by that slider.",
-            technical: "Sets the slider whose authored Small/Big values and interpolated value (at the preview weight) populate VM_AnnotatorPresetRow.Low/High/Interpolated. Options mirror the rule editor's slider list: the body type's registry catalog (plus rule-referenced names) by default, expanding to preset-contributed names when the rule editor's 'Show preset-only sliders' toggle is on. Presets lacking the slider show blank cells.",
-            motivation: "When tuning a rule threshold like 'BellyMuscle >= 60', sorting all presets by that slider shows exactly where a proposed cutoff lands across your installed presets.");
-
-        Add("OBody.AnnotatorShowPresetOnlySliders",
-            layperson: "BodySlide preset files often carry slider entries for outfits (bikini/corset 'squeeze' sliders and similar) alongside real body sliders. By default the slider menus only list this body type's official sliders; tick this to also list every extra name found in your installed presets.",
-            technical: "Toggles VM_SliderClassificationRulesByBodyType.ShowPresetOnlySliders (session-only). Off: pickers offer the Body Type Registry catalog plus any names referenced by saved rules (kept visible so existing rules never blank out). On: the union with all names parsed from loaded preset XMLs. Body types without a catalog (e.g. Unknown) always show the full union and hide this toggle. Logs\\SliderNameProvenance.txt lists every name with its source and contributing presets.",
-            motivation: "One squeeze-slider collection preset can inject hundreds of outfit names into a 157-slider body catalog, drowning the sliders rules are actually written against — but the exotic names must stay reachable for the rare rule that needs one.");
-
-        Add("OBody.AnnotatorFilterPresets",
-            layperson: "While checked, the preset list on the right only shows presets that this rule's conditions match at the current preview weight. Check it on several rules to see only presets matching all of them - which can be none.",
-            technical: "Session-only VM_DescriptorAssignmentRuleSet.FilterPresets (never saved). The preview rail intersects every checked rule of the displayed body type via BodySlideAnnotator.PresetMatchesAllRules - the same OR-of-AND evaluation the annotate pass uses - with Interpolated conditions blended at the panel's preview weight. Live: condition edits, weight changes, and checkbox flips re-filter (throttled); switching body types applies that body type's own checkboxes.",
-            motivation: "Calibrating a threshold is a loop of 'which presets does this catch?' - filtering the list to the rule's live matches answers it at a glance, and stacking filters exposes overlaps or dead combinations between rules.");
-
-        Add("OBody.AnnotatorPresetFilter",
-            layperson: "Type here to narrow the preset list to names containing the text.",
-            technical: "Case-insensitive substring filter over the preset labels in the list below. Filtering does not change the selected preset or the 3D preview.",
-            motivation: "Installed preset collections routinely run to hundreds of entries; scrolling for one by eye is slower than typing three letters.");
-
-        Add("OBody.AnnotatorPresetList",
-            layperson: "The presets of this body type. Click a column header to sort by name or by the picked slider's values; click a row to show that preset in the 3D view.",
-            technical: "Presets from the gendered BodySlide list whose SliderGroup matches the annotator's selected body type. Selection triggers LoadNpcAsync + ApplyBodySlide(preset, preview weight) on the rail's CharacterViewer. The Interp column is the linear Small-to-Big blend at the current preview weight — the value the Interpolated slider-rule type tests.",
-            motivation: "Rules are authored against slider numbers, but whether a threshold is right is a visual question; pairing the sorted numbers with a live 3D preview closes that loop without leaving the annotator.");
-
-        Add("OBody.AnnotatorSliderReadout",
-            layperson: "Every slider of the selected preset with its low-weight, high-weight, and current-weight values.",
-            technical: "One row per entry in the selected preset's SliderValues dictionary: authored Small (weight 0), Big (weight 100), and the interpolated value at the preview weight. The filter box does a case-insensitive substring match on slider names. Interp recomputes when the preview weight changes.",
-            motivation: "When deciding which slider drives a visual feature you see in the preview, you need the full value table of the preset in front of you, not just the one slider you already guessed.");
-
-        Add("OBody.AnnotatorSliderReadoutSelect",
-            layperson: "Click a slider row here to highlight the body vertices that slider moves in the 3D preview (when 'Show moved vertices' is ticked). This lets you check what a slider actually controls before writing a rule against it.",
-            technical: "The readout grid's SelectedItem re-points VM_SliderAnnotatorPreviewPanel.ActiveHighlightSlider to the clicked row's slider name, then re-applies the heatmap. It is a second highlight entry point alongside the sort-slider picker, since a preset's readout can list sliders the catalog-first picker hides. No effect unless a preset is selected and the highlight toggle is on.",
-            motivation: "The sort-slider picker is filtered to the body type's catalog, but a preset carries its own slider set; letting any readout row drive the highlight means you can inspect exactly the sliders a given preset defines.");
-
-        Add("OBody.AnnotatorShowMovedVertices",
-            layperson: "Paints, on the 3D preview, the body vertices the picked slider moves - as a heatmap from blue (barely moved) through green to red (moved most). Pick the slider in the 'Slider' box above or by clicking a row in the slider readout. Needs a preset selected first (that's what loads the slider's morph data), so it stays greyed out until you pick one.",
-            technical: "Toggles VM_SliderAnnotatorPreviewPanel.ShowMovedVertices. When on with a selected preset and a chosen slider, VM_CharacterViewer.HighlightSliderMorph pulls that slider's sparse per-vertex deltas from the already-loaded .tri/OSD morph context (no file re-parse), keeps vertices whose |delta| exceeds ~1e-4 mesh units (dropping near-zero authored noise), and draws them as an unlit, always-on-top surface patch coloured by |delta| relative to the slider's own maximum. The set is direction-agnostic - Small and Big scale the same morph, so the same vertices are shown at any weight - and the patch is rebuilt on every preset/weight/NPC change so it tracks the current pose. IsEnabled is bound to CanHighlight (a preset being selected).",
-            motivation: "Slider names like 'BellyMuscle' or 'Waist' don't always map obviously to a body region, and a rule written against the wrong slider mislabels every preset. Seeing exactly which vertices a slider drives turns rule authoring from guesswork into direct inspection - and the magnitude ramp shows not just where but how strongly the slider acts.");
-
-        Add("OBody.AnnotatorPreviewWeight",
-            layperson: "The NPC weight (0-100) the preview shows. It also drives the 'Interp' columns and which NPC the weight search looks for.",
-            technical: "Continuous 0-100 value applied as the morph weight in ApplyBodySlide, as the interpolation point for both Interp columns, as the target for Find NPCs at Weight, and as the lookup weight for the default preview NPC (nearest configured slot in the Misc-settings per-weight table; ties round down).",
-            motivation: "Interpolated rules label presets differently across the weight range, so verifying them requires scrubbing the preview through weights — one shared weight keeps the numbers, the 3D shape, and the NPC consistent.");
-
-        Add("OBody.AnnotatorFindNpcs",
-            layperson: "Lists NPCs of the shown gender whose weight matches the value on the left, so you can preview the preset on a character who actually has that weight in-game.",
-            technical: "Background scan of the winning NPC overrides using the same eligibility rules as the Misc-settings Auto-pick: matching gender, exact weight, Unique flag, vanilla Skyrim.esm race with ActorTypeNPC, and vanilla body/skeleton mesh paths (so the BodySlide morph topology is valid for the preview). Results log per-criterion rejection counts when empty.",
-            motivation: "Preset annotations gate what NPCs receive at their own weight; picking a real NPC at the weight being inspected makes the preview representative rather than hypothetical.");
-
-        Add("OBody.AnnotatorNpcResults",
-            layperson: "NPCs found at the requested weight. Click one to preview the selected preset on that character.",
-            technical: "Results of Find NPCs at Weight (name > EditorID > FormKey display). Clicking a row writes the NPC into the override picker below, which reloads the viewer with that NPC.",
-            motivation: "Routing the click through the override picker keeps a single source of truth for who is being previewed, visible and editable in one place.");
-
-        Add("OBody.AnnotatorPreviewNpcOverride",
-            layperson: "Shows a specific NPC in the 3D preview instead of the default preview NPC. Clear it to go back to the default.",
-            technical: "Session-only FormKey override (not saved). When empty, the preview NPC comes from the OBody Misc 'Preview NPC by Weight' table at the configured slot nearest the preview weight, for the shown gender — the same policy as the BodySlides and Label by Measurements previews, adapted for this panel's continuous weight.",
-            motivation: "The per-weight defaults keep the panel working out of the box, while an override lets you check how a preset reads on the specific character you actually care about.");
-
-        Add("OBody.AnnotatorSliderType",
-            layperson: "Chooses which value of the slider this rule tests. Every preset stores two values per slider - one used at NPC weight 0 (Small) and one at weight 100 (Big) - and the game blends between them based on each NPC's weight. 'Small', 'Big', and 'Either' test those stored endpoint values and label the whole preset. 'Interpolated' tests the blended value at each weight step instead, so the label can apply only to the weights where it is true - for example, 'narrow shoulders' only below the weight where the shoulder slider crosses your threshold.",
-            technical: "Sets SliderClassificationRule.SliderType. Small/Big/Either compare the preset XML's authored endpoint values and are weight-independent, so the rule annotates every weight slot or none (legacy whole-preset behavior). Interpolated compares Small + (Big - Small) * weight/100 - the same linear blend the game applies to morphs - evaluated at each slot of BodyShapeDescriptorsByWeight, and the descriptor is added only to the slots where the rule passes. Interpolated values can be fractional, so = and != compare against the nearest whole number; ordered comparators use the raw value. Conditions of different types can be mixed in one AND group; each slot evaluates all of them together.",
-            motivation: "A preset is not one shape - it is a family of shapes blended by NPC weight, and a preset can be narrow at low weight yet broad at high weight. Endpoint rules cannot express that, but per-weight descriptor slots already exist and the patcher already reads the slot nearest each NPC's weight, so evaluating the blend per slot lets one simple threshold rule produce weight-aware labels automatically.");
-
         // DEPRECATED / LEGACY: kept for DocTooltip key parity only - the "Annotator Training" tab is
         // hidden (never-completed ML-on-slider-values trainer, superseded by the geometry/measurement-
         // based Body Type Registry + Profiles). See VM_OBodyTrainer.
@@ -138,9 +48,9 @@ public static partial class UiDocs
             motivation: "New body mods appear constantly; a user-extensible registry means SynthEBD can classify presets for bodies it did not ship knowledge of, without waiting for a program update.");
 
         Add("OBody.BodyTypeProfilesMenu",
-            layperson: "Opens the editor where each body type gets measurement instructions for the 3D shape analyzer: which points on the mesh to track and what measurements mean which body shape labels.",
-            technical: "Edits the measurement profile of each body type's active Body Type Rules file (BodyTypeRuleSet.MeasurementProfile; at runtime Settings_OBody.BodyTypeProfiles). Each BodyTypeProfile pairs a body type from the registry with key vertices, measurement definitions, and classification rules used by the 3D-mesh BodySlide classifier. A profile is authored once per body type and reused for every preset sharing that body's mesh topology.",
-            motivation: "Slider-value rules cannot see the actual mesh; measuring the morphed 3D shape gives more reliable classification, but requires per-body-type reference points, which is what these profiles record.");
+            layperson: "Opens Auto-Annotation: the rules that label body presets automatically. A rule can look at measurements of the 3D body, at the preset's slider values, or at labels other rules already gave, and every preset category you haven't labeled by hand gets the labels its rules produce.",
+            technical: "Edits the Auto-Annotation profile of each body type's active Body Type Rules file (BodyTypeRuleSet.MeasurementProfile; at runtime Settings_OBody.BodyTypeProfiles): key vertices, regions, measurement definitions, and rules whose conditions are Measurement, DescriptorRef or Slider kind, all evaluated in one dependency-ordered pass. Automatic assignments are computed on demand by AutoAnnotationService (when a preset is selected, by the BodySlides Descriptor Filter, and before patching) from the preset's sliders plus its measurement-cache entry, and are never stored. A Manual label owns its (weight slot, category).",
+            motivation: "One engine for every kind of rule means a slider threshold, a mesh measurement and a combination of other labels can all describe the same category, and the patcher always sees labels that match the current rules.");
 
         // ---------- (O/Auto)Body Integration: Misc Settings page ----------
 
@@ -150,19 +60,14 @@ public static partial class UiDocs
             motivation: "BodySlide-style morphs and BodyGen are mutually exclusive RaceMenu features and the required ini flags are easy to get wrong by hand; this button applies the correct combination in one click.");
 
         Add("OBody.AutoApplyMissingAnnotations",
-            layperson: "When checked, any body preset you have not labeled yourself gets labeled automatically using the Annotator rules each time the patcher runs. The automatic labels are not saved; they are recalculated every run.",
-            technical: "Mirror of Settings_OBody.AutoApplyMissingAnnotations. At load and at patch time, presets without manual descriptors pass through the annotation library (tier 1, per-weight descriptors) and the rule-based annotator (tier 2, BodySlideClassificationRules). Non-manual annotations are stripped on save and recomputed, and pre-run validation skips the missing-annotation warning while this is enabled.",
-            motivation: "Descriptor-based rules only work if presets carry descriptors. Auto-annotation gives unlabeled presets sensible labels without forcing you to hand-annotate your whole BodySlide library.");
-
-        Add("OBody.PreferSliderDefaultsOnConflict",
-            layperson: "The Label by Sliders and Label by Measurements menus share one default label per body type and category, and they stay in sync automatically. This picks which menu's value wins if loaded settings arrive with the two already disagreeing: checked means Label by Sliders wins, unchecked means Label by Measurements wins.",
-            technical: "Mirror of Settings_OBody.PreferSliderDefaultsOnConflict, read live by DescriptorDefaultSynchronizer. After settings hydration (and on profile import/duplicate/BodyTypeName retarget) the synchronizer reconciles every (body type, category) default: an empty side always adopts the non-empty side; a true conflict (both non-empty, different) resolves to the slider side when checked, the measurement side when unchecked, with the overwrite logged. Live edits in either menu always propagate both ways regardless of this flag.",
-            motivation: "Both labeling systems carry a per-category default, and DescriptorRef seeding makes the slider side's copy the operative one at evaluation time - so a disagreement would leave one menu displaying a default that silently never fires. Sync removes the divergence; this toggle only decides which value survives when old or imported settings already disagree.");
+            layperson: "When checked, every body preset gets the labels the Auto-Annotation rules give it, for every category you haven't labeled by hand. The automatic labels are never saved; they are worked out again whenever they are needed, so they always follow the current rules.",
+            technical: "Mirror of Settings_OBody.AutoApplyMissingAnnotations, the on/off switch for AutoAnnotationService: the BodySlides preset editor shows automatic labels when a preset is selected, the Descriptor Filter and 'remove unannotated' include them, and the patcher computes them into its working copy of the presets before distribution (Patcher.RunPatcher). Categories whose rules need a measurement the preset hasn't been scanned for get no automatic label. Pre-run validation skips the missing-annotation warning while this is enabled.",
+            motivation: "Descriptor-based rules only work if presets carry descriptors. Automatic labels give every preset sensible ones without hand-annotating the whole BodySlide library, and computing them on demand keeps them from going stale when rules change.");
 
         Add("OBody.BodyTypeRuleFiles",
-            layperson: "Your Label by Sliders and Label by Measurements rules are stored as separate files, one or more per body type, so they can be shared. Each row picks which file a body type uses; the choice applies to both labeling menus.",
-            technical: "One VM_BodyTypeRuleFileSelection per body type with at least one BodyTypeRuleSet in 'Body Type Rules\\'. The selection persists in Settings_OBody.SelectedRuleFileByBodyType (by file name). SettingsIO_BodyTypeRules projects each active file into Settings_OBody.BodySlideClassificationRules / BodyTypeProfiles at load and folds the menus' state back into the active files on save. Switching flushes the menus' current state into the file being left, then reloads that body type in both menus from the new file.",
-            motivation: "Measurement rules can depend on slider-rule output (DescriptorRef conditions) and the two menus share per-category defaults, so they travel together in one file; separate files per body type make a tuned rule set easy to share or swap without touching the rest of the settings.");
+            layperson: "Your Auto-Annotation rules are stored as separate files, one or more per body type, so they can be shared. Each row picks which file a body type uses.",
+            technical: "One VM_BodyTypeRuleFileSelection per body type with at least one BodyTypeRuleSet in 'Body Type Rules\\'. The selection persists in Settings_OBody.SelectedRuleFileByBodyType (by file name). SettingsIO_BodyTypeRules projects each active file into Settings_OBody.BodyTypeProfiles at load and folds the editor's state back into the active files on save. Older files' Label by Sliders rules are converted to Slider-condition rules on load (SliderRuleMigration). Switching flushes the editor's current state into the file being left, then reloads that body type from the new file.",
+            motivation: "Separate files per body type make a tuned rule set easy to share or swap without touching the rest of the settings.");
 
         Add("OBody.BodyTypeRuleFilesOpenFolder",
             layperson: "Opens the Body Type Rules folder. Drop rule files you downloaded here, then restart SynthEBD to pick them up.",
@@ -171,8 +76,8 @@ public static partial class UiDocs
 
         Add("OBody.BodyTypeRuleFileSelect",
             layperson: "Chooses the active rule file for this body type. If the file uses body shape descriptors you don't have, you're asked whether to import them; your existing descriptors are never changed.",
-            technical: "Setting VM_BodyTypeRuleFileSelection.SelectedFile calls VM_SettingsOBody.SwitchActiveRuleFile: flush the menus into the previous file, offer missing DescriptorDefinitions (DescriptorUI.MergeInMissingModels, Skip mode; a skip is remembered in Settings_OBody.DeclinedDescriptorImports), then ReplaceBodyTypeRules / ReplaceProfileForBodyType inside a DescriptorDefaultSynchronizer hydration pass.",
-            motivation: "One selection drives both menus so a measurement profile is never paired with slider rules it wasn't written against.");
+            technical: "Setting VM_BodyTypeRuleFileSelection.SelectedFile calls VM_SettingsOBody.SwitchActiveRuleFile: flush the editor into the previous file, offer missing DescriptorDefinitions (DescriptorUI.MergeInMissingModels, Skip mode; a skip is remembered in Settings_OBody.DeclinedDescriptorImports), then ReplaceProfileForBodyType.",
+            motivation: "Swapping files is how you try a different rule set for one body type without losing the current one.");
 
         Add("OBody.BodyTypeRuleFileName",
             layperson: "The display name of the selected rule file, shown in the list. The file keeps its name on disk.",

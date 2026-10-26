@@ -147,7 +147,7 @@ public class VM_OBodyTrainerExporter : VM
     public RelayCommand TrainModel { get; }
     public RelayCommand ExportTrainingSet { get; }
 
-    /// <summary>Rebuilds the available-BodySlide list from the parent OBody VM, grouped and sorted by slider group, pre-selecting those matching the currently displayed annotation rule set, then refreshes slider names and descriptor categories.</summary>
+    /// <summary>Rebuilds the available-BodySlide list from the parent OBody VM, grouped and sorted by slider group, pre-selecting those of the body type selected in the Auto-Annotation menu, then refreshes slider names and descriptor categories.</summary>
     public void Reinitialize()
     {
         var parentVM = _parentVM();
@@ -157,7 +157,7 @@ public class VM_OBodyTrainerExporter : VM
         foreach (var bs in parentVM.BodySlidesUI.CurrentlyDisplayedBodySlides)
         {
             var newShell = new VM_SelectableBodySlidePlaceHolder(bs,this);
-            if (parentVM.AnnotatorUI.DisplayedRuleSet != null && bs.AssociatedModel.SliderGroup == parentVM.AnnotatorUI.DisplayedRuleSet.BodyTypeGroup)
+            if (!string.IsNullOrEmpty(parentVM.BodyTypeProfileEditorUI.SelectedBodyType) && bs.AssociatedModel.SliderGroup == parentVM.BodyTypeProfileEditorUI.SelectedBodyType)
             {
                 newShell.IsSelected = true;
             }

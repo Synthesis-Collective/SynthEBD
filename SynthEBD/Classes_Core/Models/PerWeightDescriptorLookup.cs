@@ -60,10 +60,16 @@ public static class PerWeightDescriptorLookup
         var slots = preset?.BodyShapeDescriptorsByWeight;
         if (slots == null || slots.Count == 0) return null;
         if (slots.TryGetValue(weight, out var exact) && exact != null) return exact;
+        return slots[ChooseNearestKey(slots.Keys, weight)];
+    }
 
+    /// <summary><paramref name="weight"/> itself when it is one of <paramref name="keys"/>, otherwise the
+    /// nearest key with ties rounding down. 0 when <paramref name="keys"/> is empty.</summary>
+    public static int ChooseNearestKey(IEnumerable<int> keys, int weight)
+    {
         int bestKey = 0;
         int bestDist = int.MaxValue;
-        foreach (var key in slots.Keys)
+        foreach (var key in keys)
         {
             int dist = Math.Abs(key - weight);
             if (dist < bestDist || (dist == bestDist && key < bestKey))
@@ -72,7 +78,7 @@ public static class PerWeightDescriptorLookup
                 bestKey = key;
             }
         }
-        return slots[bestKey];
+        return bestKey;
     }
 
     /// <summary>True when <paramref name="slot"/> holds a Manual descriptor in <paramref name="category"/>.

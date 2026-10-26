@@ -600,7 +600,7 @@ public class VM_BodySlideComparePane : VM
         var table = _patcherState?.OBodySettings?.PreviewNpcs?.WeightPreviewNpcs;
         if (table == null || table.Count == 0) return FormKey.Null;
 
-        foreach (var slotWeight in VM_SliderAnnotatorPreviewPanel.OrderWeightKeysByProximity(table.Keys, Weight))
+        foreach (var slotWeight in PreviewNpcResolver.OrderWeightKeysByProximity(table.Keys, Weight))
         {
             var pair = table[slotWeight];
             if (pair == null) continue;

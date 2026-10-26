@@ -42,11 +42,8 @@ public class VM_BodyTypeProfileEditor : VM
     /// only legitimate consumer; making it public would invite misuse from unrelated VMs.</summary>
     internal Logger? Logger => _logger;
 
-    /// <summary>Keeps each profile's per-category default descriptors in lockstep with the
-    /// Label by Sliders menu (and with sibling profiles of the same body type). Profiles push
-    /// their default edits through it (<see cref="VM_BodyTypeProfile.SetDefaultValueForCategory"/>)
-    /// and reconcile on import/duplicate/BodyTypeName retarget.</summary>
-    internal DescriptorDefaultSynchronizer Synchronizer { get; }
+    /// <summary>Slider names per body type, for the Rules tab's Slider-condition pickers and the Sliders tab.</summary>
+    internal SliderNameCatalog SliderNames { get; }
     private readonly Func<VM_SettingsOBody> _oBodyVM;
     private readonly IEnvironmentStateProvider _environmentProvider;
     private readonly PatcherState _patcherState;
@@ -82,7 +79,7 @@ public class VM_BodyTypeProfileEditor : VM
         VM_BodyShapeDescriptorSelectionMenu.Factory filterFactory,
         SynthEBDPaths paths,
         InstalledBodyTypeDetector bodyTypeDetector,
-        DescriptorDefaultSynchronizer descriptorDefaultSynchronizer,
+        SliderNameCatalog sliderNameCatalog,
         Func<VM_BodySlideCompare> compareFactory)
     {
         _logger = logger;
@@ -93,8 +90,7 @@ public class VM_BodyTypeProfileEditor : VM
         _paths = paths;
         _bodyTypeDetector = bodyTypeDetector;
         _compareFactory = compareFactory;
-        Synchronizer = descriptorDefaultSynchronizer;
-        descriptorDefaultSynchronizer.RegisterProfileEditor(this);
+        SliderNames = sliderNameCatalog;
 
         // Slow-handler trace for this editor (only operations >= 100 ms are written): Logs\UiPerf.log.
         if (System.Windows.Application.Current != null && !string.IsNullOrEmpty(paths?.LogFolderPath))
@@ -240,6 +236,15 @@ public class VM_BodyTypeProfileEditor : VM
         AnnotationQueue = new VM_AnnotationQueue(this);
         SuggestMeasurements = new VM_SuggestMeasurementsPanel(this);
         SuggestRules = new VM_SuggestRulesPanel(this);
+        Sliders = new VM_AutoAnnotationSliders(this, logger, sliderNameCatalog, oBodyVM);
+        Sliders.DisposeWith(this);
+        // The Sliders tab lists the same presets as the right rail's picker; rebuild once a burst of
+        // list changes (a filter keystroke, a gender switch) settles.
+        Observable.FromEventPattern<System.Collections.Specialized.NotifyCollectionChangedEventHandler, System.Collections.Specialized.NotifyCollectionChangedEventArgs>(
+                h => FilteredPresets.CollectionChanged += h, h => FilteredPresets.CollectionChanged -= h)
+            .Throttle(TimeSpan.FromMilliseconds(100), RxApp.MainThreadScheduler)
+            .Subscribe(_ => Sliders.RebuildPresetRows())
+            .DisposeWith(this);
 
         VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
         VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
@@ -262,7 +267,13 @@ public class VM_BodyTypeProfileEditor : VM
                     RebuildFilteredPresets();
                     break;
                 case nameof(SelectedPreset):
+                    Sliders.OnEditorPresetChanged();
+                    _ = RefreshPreviewAsync();
+                    break;
                 case nameof(PreviewWeight):
+                    Sliders.OnPreviewWeightChanged();
+                    _ = RefreshPreviewAsync();
+                    break;
                 case nameof(PreviewNpcOverride):
                     _ = RefreshPreviewAsync();
                     break;
@@ -705,6 +716,7 @@ public class VM_BodyTypeProfileEditor : VM
     /// </para></summary>
     public void RefreshAvailableDescriptorsFromLiveSettings()
     {
+        SelectedProfile?.RebuildAvailableSliderNames();
         var oBody = _oBodyVM?.Invoke();
         if (oBody?.DescriptorUI == null) return;
 
@@ -756,9 +768,9 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Re-derives every piece of editor state that depends on OTHER menus' live edits,
     /// called by the view each time the editor enters the visual tree (menu navigation into Body
-    /// Type Profiles). The classifier's external-descriptor seeds read the Label-by-Sliders rules
-    /// and the presets' manual annotations — both edited in sibling menus with no notification
-    /// channel into this one — so returning to this menu re-syncs the descriptor catalog, re-derives
+    /// Type Profiles). The classifier's external-descriptor seeds read the presets' manual
+    /// annotations — edited in the BodySlides menu with no notification channel into this one —
+    /// so returning to this menu re-syncs the descriptor catalog, re-derives
     /// the cached scan results against a fresh seed context, and refreshes the live preview pane's
     /// matches + per-condition badges. Guards mirror <see cref="OnAutoRebuildScanResultsTick"/>:
     /// no rebuild mid-scan, on an invalidated measurement cache (the numbers themselves are stale —
@@ -959,6 +971,27 @@ public class VM_BodyTypeProfileEditor : VM
         return model;
     }
 
+    /// <summary>Lookup into <paramref name="bodyType"/>'s in-memory measurement cache for
+    /// <see cref="AutoAnnotationService"/>, or null when that profile has nothing cached in memory
+    /// (the service then reads the cache file). Entries are converted per lookup, so the cache is never copied.</summary>
+    public Func<(string PresetLabel, Gender Gender, int Weight), AutoAnnotationService.SlotMeasurements?>? GetLiveMeasurementLookup(string bodyType)
+    {
+        var vm = Profiles.FirstOrDefault(p => string.Equals(p.BodyTypeName, bodyType, StringComparison.OrdinalIgnoreCase));
+        if (vm == null || vm.MeasurementCache.Count == 0) return null;
+        var cache = vm.MeasurementCache;
+        return key =>
+        {
+            if (!cache.TryGetValue(key, out var entry) || entry == null) return null;
+            var slot = new AutoAnnotationService.SlotMeasurements { PresetSliderHash = entry.PresetSliderHash ?? "" };
+            foreach (var (name, value) in entry.Measurements)
+            {
+                slot.Known.Add(name);
+                if (value.HasValue) slot.Values[name] = value.Value;
+            }
+            return slot;
+        };
+    }
+
     /// <summary>
     /// Swaps the profile shown for <paramref name="bodyType"/> for <paramref name="newProfile"/> (null =
     /// the body type has no profile). Called when the Misc menu switches the body type's active rule file,
@@ -1009,8 +1042,7 @@ public class VM_BodyTypeProfileEditor : VM
         if (string.IsNullOrWhiteSpace(bodyType)) return;
         // Make sure the body type has an active rule file for the profile to live in.
         _oBodyVM()?.MiscUI?.EnsureRuleFileForBodyType(bodyType);
-        var vm = ReplaceProfileForBodyType(bodyType, new BodyTypeProfile { Name = bodyType, BodyTypeName = bodyType });
-        if (vm != null) Synchronizer?.ReconcileProfile(vm);
+        ReplaceProfileForBodyType(bodyType, new BodyTypeProfile { Name = bodyType, BodyTypeName = bodyType });
         _logger?.LogMessage("BodyTypeProfileEditor: created a measurement profile for body type '" + bodyType + "'.");
     }
 
@@ -1018,10 +1050,10 @@ public class VM_BodyTypeProfileEditor : VM
     {
         var profile = SelectedProfile;
         if (profile == null) return;
-        if (!MessageWindow.DisplayNotificationYesNo("Remove Measurement Profile?",
-                "This removes the Label by Measurements profile (key vertices, regions, measurements and rules) for body type '"
+        if (!MessageWindow.DisplayNotificationYesNo("Remove Auto-Annotation Profile?",
+                "This removes the Auto-Annotation profile (key vertices, regions, measurements and rules) for body type '"
                 + profile.BodyTypeName + "' from its active rule file (" + ActiveRuleFileLabel + ").\n\n"
-                + "The file's Label by Sliders rules and your worklist annotations are kept. The file is rewritten on the next save. Continue?"))
+                + "Your worklist annotations are kept. The file is rewritten on the next save. Continue?"))
         {
             return;
         }
@@ -1367,7 +1399,7 @@ public class VM_BodyTypeProfileEditor : VM
         // re-check our generation after the LoadNpcAsync await so older calls bail before
         // their ApplyBodySlide races against the newer call's deformation.
         int myGen = ++_refreshPreviewGeneration;
-        var snapshotPreset = SelectedPreset?.AssociatedModel;
+        var snapshotPreset = PreviewPresetModel;
         int snapshotWeight = PreviewWeight;
         Gender snapshotGender = PreviewGender;
         FormKey snapshotNpcOverride = PreviewNpcOverride;
@@ -1422,6 +1454,26 @@ public class VM_BodyTypeProfileEditor : VM
         {
             _logger?.LogError("BodyTypeProfileEditor.RefreshPreviewAsync failed: " + ExceptionLogger.GetExceptionStack(ex));
         }
+    }
+
+    /// <summary>The Sliders tab: preset slider table, editable readout, heatmap, Save / Save As.</summary>
+    public VM_AutoAnnotationSliders Sliders { get; }
+
+    /// <summary>Rebuilds the Sliders tab's preset table (slider catalog may have changed). Called when the tab is shown.</summary>
+    internal void RefreshSlidersTabIfStale() => Sliders.RebuildPresetRows();
+
+    /// <summary>The preset model the viewer, live measurements and Slider conditions use for the
+    /// selected preset: the Sliders tab's working copy while it holds unsaved edits, else the preset.</summary>
+    public BodySlideSetting? PreviewPresetModel => Sliders?.PreviewModelFor(SelectedPreset?.AssociatedModel) ?? SelectedPreset?.AssociatedModel;
+
+    /// <summary>Re-applies the preview morph without reloading the NPC -- after a slider edit in the
+    /// Sliders tab -- and refreshes the live readouts.</summary>
+    internal void ReapplyPreviewMorph()
+    {
+        var model = PreviewPresetModel;
+        if (model == null) return;
+        CharacterViewer.ApplyBodySlide(model, PreviewWeight);
+        SelectedProfile?.RefreshMeasurementValues();
     }
 
     /// <summary>Logs a one-line diagnostic to the patcher's main log. Used by sub-VMs (suggest pass, etc.).</summary>
@@ -2280,8 +2332,8 @@ public class VM_BodyTypeProfileEditor : VM
                     skipRules: isPartialFill,
                     resolvedRegions: resolvedRegionsByWeight != null
                         && resolvedRegionsByWeight.TryGetValue(weight, out var rrForWeight) ? rrForWeight : null,
-                    externalDescriptors: BodySlideMeasurementEvaluator.CollectExternalDescriptors(
-                        model, weight, scanSeedContext.SliderClassificationRules, scanSeedContext.DescriptorUniverse));
+                    externalDescriptors: BodySlideMeasurementEvaluator.CollectExternalDescriptors(model, weight),
+                    sliders: SliderSample.For(model, weight));
 
                 if (VerboseScan)
                 {
@@ -4965,16 +5017,6 @@ public class VM_BodyTypeProfileEditor : VM
             }
         }
 
-        context.SliderClassificationRules = oBody?.AnnotatorUI?.DumpToModel()
-            ?? _patcherState?.OBodySettings?.BodySlideClassificationRules;
-
-        var universeShells = oBody?.DescriptorUI?.DumpToViewModels()
-            ?? _patcherState?.OBodySettings?.TemplateDescriptors;
-        context.DescriptorUniverse = universeShells?.Flatten()
-            .Where(d => d?.ID != null)
-            .Select(d => d.ID)
-            .ToHashSet();
-
         return context;
     }
 
@@ -5088,13 +5130,12 @@ public sealed class ExternalDescriptorSeedContext
     /// builder was asked to skip it.</summary>
     public Dictionary<(string PresetLabel, Gender Gender), BodySlideSetting> PresetModelLookup { get; } = new();
 
-    /// <summary>The Label-by-Sliders classification rules to derive slider labels from, live
-    /// from the annotator VM when possible. Null = slider labels fall back to the preset's stored
-    /// RulesBased annotations (see <see cref="BodySlideMeasurementEvaluator.CollectExternalDescriptors"/>).</summary>
-    public Dictionary<string, SliderClassificationRulesByBodyType>? SliderClassificationRules { get; set; }
-
-    /// <summary>The descriptor catalog the slider engine gates its output on. Null = no filtering.</summary>
-    public HashSet<BodyShapeDescriptor.LabelSignature>? DescriptorUniverse { get; set; }
+    /// <summary>Slider values of the key's preset at the key's weight, for Slider-kind conditions.
+    /// Null when the preset can't be resolved (its Slider conditions then fail).</summary>
+    public SliderSample? SliderSampleFor((string PresetLabel, Gender Gender, int Weight) key)
+        => PresetModelLookup.TryGetValue((key.PresetLabel, key.Gender), out var preset)
+            ? SliderSample.For(preset, key.Weight)
+            : null;
 }
 
 public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTarget
@@ -5110,15 +5151,6 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         Id = _source.Id;
         Name = _source.Name ?? "";
         BodyTypeName = _source.BodyTypeName ?? "";
-
-        // Retargeting this profile to a different body type changes which Label-by-Sliders rule
-        // set (and which sibling profiles) share its default descriptors — reconcile the new body
-        // type's defaults per the Misc conflict policy. Skip(1) ignores the ctor assignment above;
-        // bulk-hydration reconciliation is handled by the synchronizer's end-of-hydration pass.
-        this.WhenAnyValue(x => x.BodyTypeName)
-            .Skip(1)
-            .Subscribe(_ => _parent?.Synchronizer?.ReconcileProfile(this))
-            .DisposeWith(this);
 
         FingerprintVertexCount = _source.Fingerprint?.VertexCount ?? 0;
         FingerprintShapeCounts = _source.Fingerprint?.ShapeVertexCounts != null
@@ -6817,6 +6849,41 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     public RelayCommand DeleteSelectedTreeNodeCommand { get; }
 
     public IEnumerable<string> AvailableMeasurementNames => Measurements.Select(m => m.Name).Where(n => !string.IsNullOrEmpty(n));
+
+    /// <summary>Slider names the Rules tab's Slider-condition pickers offer: this body type's registry
+    /// catalog, plus the names found only in preset XMLs when <see cref="ShowPresetOnlySliders"/> is on,
+    /// plus every slider a condition already references. One shared, diff-reconciled collection so
+    /// open pickers keep their selection (<see cref="SliderNameCatalog.ReconcileSliderNameCollection"/>).</summary>
+    public ObservableCollection<string> AvailableSliderNames { get; } = new();
+
+    /// <summary>Session-only toggle: also offer slider names found only in preset XMLs (mostly outfit
+    /// zap/squeeze sliders embedded in presets).</summary>
+    public bool ShowPresetOnlySliders { get; set; }
+
+    /// <summary>Checkbox caption, with how many names the toggle would add.</summary>
+    public string ShowPresetOnlySlidersLabel { get; private set; } = "Show preset-only sliders";
+
+    private void OnShowPresetOnlySlidersChanged() => RebuildAvailableSliderNames();
+
+    /// <summary>Recomputes <see cref="AvailableSliderNames"/> from the slider catalog and the rules.</summary>
+    public void RebuildAvailableSliderNames()
+    {
+        var catalog = _parent?.SliderNames;
+        var catalogNames = catalog?.CatalogSliders(BodyTypeName ?? "") ?? Array.Empty<string>();
+        var presetNames = catalog?.PresetSliders(BodyTypeName ?? "") ?? Array.Empty<string>();
+        var referenced = Rules.SelectMany(r => r.Groups).SelectMany(g => g.Conditions)
+            .Where(c => c.Kind == MeasurementConditionKind.Slider).Select(c => c.SliderName);
+        bool showAll = ShowPresetOnlySliders || catalogNames.Count == 0;
+        SliderNameCatalog.ReconcileSliderNameCollection(AvailableSliderNames,
+            SliderNameCatalog.BuildVisibleSliderNames(catalogNames, presetNames, referenced, showAll));
+        int presetOnly = presetNames.Count(n => !catalogNames.Contains(n, StringComparer.OrdinalIgnoreCase));
+        ShowPresetOnlySlidersLabel = "Show preset-only sliders (" + presetOnly + ")";
+    }
+
+    /// <summary>Slider values of the previewed preset at the preview weight (the Sliders tab's unsaved
+    /// edits included), for the Slider conditions' live readouts.</summary>
+    internal SliderSample? PreviewSliderSample => _parent == null ? null : SliderSample.For(_parent.PreviewPresetModel, _parent.PreviewWeight);
+
     public IEnumerable<string> AvailableKeyVertexNames => KeyVertices.Select(k => k.Name).Where(n => !string.IsNullOrEmpty(n));
 
     /// <summary>Region names available to a RegionVolume measurement's Region dropdown (the region
@@ -6893,17 +6960,9 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
 
         RefreshDefaultStateForCategory(category);
         MarkScanResultsStale();
-
-        // Mirror the edit (including clears) into the Label by Sliders menu and any sibling
-        // profiles of the same body type. The no-op early-return above plus the synchronizer's
-        // re-entrancy guard make the fan-out loop-safe; hydration-time population writes
-        // _defaultValueByCategory directly, so only real user edits reach this push.
-        _parent?.Synchronizer?.PushFromMeasurementProfile(this, category, newVal);
     }
 
-    /// <summary>Snapshot of every (Category → default Value) this profile carries, for
-    /// <see cref="DescriptorDefaultSynchronizer"/>'s reconciliation sweep (which mutates the
-    /// underlying map via <see cref="SetDefaultValueForCategory"/> while iterating).</summary>
+    /// <summary>Snapshot of every (Category → default Value) this profile carries.</summary>
     internal IReadOnlyDictionary<string, string> GetDefaultValuesByCategory() =>
         new Dictionary<string, string>(_defaultValueByCategory, StringComparer.Ordinal);
 
@@ -8565,10 +8624,9 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// on every <see cref="Rules"/> row. Unlike <c>BodySlideMeasurementEvaluator.Evaluate</c> this
     /// ignores the <see cref="VM_MeasurementRule.IsDraft"/> flag so the user can see what draft
     /// rules would produce without flipping the flag (which would leak descriptors into the real
-    /// patcher pipeline). The pass is seeded with the previewed preset's live-derived slider labels
-    /// (from the current Label-by-Sliders rules — drafts count without an apply pass) plus its
-    /// stored Manual / Library annotations, so DescriptorRef conditions read them like the
-    /// production evaluator does. Each match row carries a trace of the specific conditions that
+    /// patcher pipeline). The pass reads the previewed preset's slider values (the Sliders tab's
+    /// unsaved edits included) and is seeded with its stored Manual annotations, so Slider and
+    /// DescriptorRef conditions behave as in the production evaluator. Each match row carries a trace of the specific conditions that
     /// fired, so calibration is a glance, not a hunt.</summary>
     public void RefreshPreviewDescriptors()
     {
@@ -8601,25 +8659,23 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             ruleVMByModel[m] = r;
         }
 
-        // External seed, mirroring the production evaluator: the previewed preset's slider labels
-        // derived live from the current Label-by-Sliders rules at the previewed weight (rule
-        // drafts count immediately — no apply pass needed), plus its stored Manual / Library
-        // annotations, so DescriptorRef conditions gate here exactly like at scan time. The
-        // preset lookup is skipped (the preset model is already in hand). Empty when no preset
-        // is loaded (bare-NPC preview).
-        var previewPresetModel = _parent?.SelectedPreset?.AssociatedModel;
+        // External seed, mirroring the production evaluator: the previewed preset's stored Manual
+        // annotations, so DescriptorRef conditions gate here exactly like at scan time. Empty when
+        // no preset is loaded (bare-NPC preview).
+        var previewPresetModel = _parent?.PreviewPresetModel;
         HashSet<(string Category, string Value)> externals;
         if (previewPresetModel != null)
         {
-            var seedContext = _parent!.BuildExternalDescriptorSeedContext(includePresetLookup: false);
-            externals = BodySlideMeasurementEvaluator.CollectExternalDescriptors(
-                previewPresetModel, _parent.PreviewWeight, seedContext.SliderClassificationRules, seedContext.DescriptorUniverse);
+            externals = BodySlideMeasurementEvaluator.CollectExternalDescriptors(previewPresetModel, _parent!.PreviewWeight);
         }
         else
         {
             externals = new HashSet<(string Category, string Value)>();
         }
 
+        var previewSliders = previewPresetModel != null && _parent != null
+            ? SliderSample.For(previewPresetModel, _parent.PreviewWeight)
+            : null;
         var previewDefaults = BodySlideMeasurementEvaluator.RunClassifierRules(
             eligibleModels, meas, _defaultValueByCategory,
             (model, matched) =>
@@ -8630,11 +8686,12 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                     Category = sourceVm.DescriptorCategory,
                     Value = sourceVm.DescriptorValue,
                     IsDraft = sourceVm.IsDraft,
-                    ConditionTrace = BuildMatchTrace(model, meas, matched),
+                    ConditionTrace = BuildMatchTrace(model, meas, matched, previewSliders),
                 });
                 if (sourceVm.IsDraft) drafts++; else promoted++;
             },
-            externals);
+            externals,
+            previewSliders);
 
         if (meas.Count == 0)
         {
@@ -8671,7 +8728,8 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     private static string BuildMatchTrace(
         MeasurementRule rule,
         IReadOnlyDictionary<string, float> meas,
-        IReadOnlySet<(string Category, string Value)>? matched = null)
+        IReadOnlySet<(string Category, string Value)>? matched = null,
+        SliderSample? sliders = null)
     {
         if (rule.GroupsORlogic == null) return "";
         foreach (var g in rule.GroupsORlogic)
@@ -8694,6 +8752,12 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                     if (!fires) { allMatch = false; break; }
                     string negPrefix = c.Negate ? "NOT " : "";
                     parts.Add($"{negPrefix}{c.RefCategory}:{c.RefValue}");
+                }
+                else if (c.Kind == MeasurementConditionKind.Slider)
+                {
+                    if (!MeasurementMath.SliderConditionMatches(c, sliders)) { allMatch = false; break; }
+                    var sv = MeasurementMath.ReadSliderValue(c, sliders);
+                    parts.Add($"{c.SliderName} ({c.SliderType})={sv:F1} {ComparatorSymbol(c.Comparator)} {c.Value:0.###}");
                 }
                 else
                 {
@@ -10925,8 +10989,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// and repopulated by <see cref="VM_BodyTypeProfileEditor.RunScanAsync"/>.</summary>
     public Dictionary<(string PresetLabel, Gender Gender, int Weight), List<BodyShapeDescriptor.LabelSignature>> ScanResults { get; } = new();
 
-    /// <summary>Per-(preset, weight) external seeds -- Label-by-Sliders matches plus stored
-    /// Manual / Library annotations -- captured alongside <see cref="ScanResults"/> by
+    /// <summary>Per-(preset, weight) external seeds -- the stored Manual annotations -- captured alongside <see cref="ScanResults"/> by
     /// <see cref="RebuildScanResultsFromCache"/>. <see cref="ScanResults"/> holds the classifier's
     /// output only, and seeds are never emitted there (they gate DescriptorRef conditions and
     /// suppress their Category's default); so a slider-only Category (e.g. BellyMorph) would show
@@ -12019,7 +12082,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             // + materialized defaults; `derived` covers only the latter two).
             foreach (var ext in GetExternalDescriptorsFor(kv.Key, seedContext)) matched.Add(ext);
 
-            if (MeasurementMath.RuleMatches(ruleModel, floats, matched)) set.Add(kv.Key);
+            if (MeasurementMath.RuleMatches(ruleModel, floats, matched, seedContext?.SliderSampleFor(kv.Key))) set.Add(kv.Key);
         }
         return set;
     }
@@ -12415,10 +12478,9 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// current rules against its cached measurements. Cheap: rule evaluation only, no
     /// mesh work. Mirrors the rule-loop in <see cref="BodySlideMeasurementEvaluator.Evaluate"/>
     /// so re-deriving from cache produces the same descriptors as a fresh evaluation —
-    /// including the external-descriptor seed: the key's preset is resolved from the BodySlides
-    /// menu, its slider labels are derived live from the current Label-by-Sliders rules at the
-    /// key's weight, and its stored Manual / Library annotations are added, so DescriptorRef
-    /// conditions gate here exactly like at scan time. <paramref name="seedContext"/> lets bulk
+    /// including the external-descriptor seed and slider values: the key's preset is resolved from
+    /// the BodySlides menu, its stored Manual annotations seed the pass and its slider values feed
+    /// Slider conditions at the key's weight, exactly like at scan time. <paramref name="seedContext"/> lets bulk
     /// callers (RebuildScanResultsFromCache, ComputeRuleMatchSet) pay the context assembly once;
     /// null = assemble it per call.</summary>
     public List<BodyShapeDescriptor.LabelSignature> DeriveDescriptorsFor(
@@ -12458,7 +12520,8 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // a default value fire). Gender is taken from the cache key — every cached entry was scanned
         // with a known (PresetLabel, Gender, Weight) coordinate.
         var eligible = BodySlideMeasurementEvaluator.FilterEligibleRules(profileModel.Rules, key.Gender, includeDrafts);
-        externals = GetExternalDescriptorsFor(key, seedContext ?? _parent?.BuildExternalDescriptorSeedContext(), includeStoredAnnotations);
+        seedContext ??= _parent?.BuildExternalDescriptorSeedContext();
+        externals = GetExternalDescriptorsFor(key, seedContext, includeStoredAnnotations);
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var defaults = BodySlideMeasurementEvaluator.RunClassifierRules(
@@ -12473,7 +12536,8 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                         Value = rule.Descriptor.Value,
                     });
             },
-            externals);
+            externals,
+            seedContext?.SliderSampleFor(key));
 
         // Default pass: emit each Category's default for any Category that produced no rule
         // descriptor on this slice, so the editor's cached Match-Presets display agrees with a
@@ -12531,15 +12595,12 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     {
         if (seedContext == null) return new HashSet<(string Category, string Value)>();
         return seedContext.PresetModelLookup.TryGetValue((key.PresetLabel, key.Gender), out var presetModel)
-            ? BodySlideMeasurementEvaluator.CollectExternalDescriptors(
-                presetModel, key.Weight, seedContext.SliderClassificationRules, seedContext.DescriptorUniverse,
-                includeStoredAnnotations)
+            ? BodySlideMeasurementEvaluator.CollectExternalDescriptors(presetModel, key.Weight, includeStoredAnnotations)
             : new HashSet<(string Category, string Value)>();
     }
 
     /// <summary>Every descriptor one slice carries <b>by rules alone</b>: this profile's classifier
-    /// output plus Label-by-Sliders rule labels, with the preset's stored Manual / Library annotations
-    /// left out of both the seed and the result. Without them a Category's default is no longer
+    /// output, with the preset's stored Manual annotations left out of both the seed and the result. Without them a Category's default is no longer
     /// suppressed by a hand label, and aggregator rules see only rule-derived descriptors -- so this is
     /// what the rules say, independent of any contradicting annotation. Used by Show Spread's
     /// "Ignore Manual Annotations" mode; pass one <paramref name="seedContext"/> for a whole batch.</summary>
@@ -13425,6 +13486,8 @@ public class VM_MeasurementCondition : VM
         RefCategory = source.RefCategory ?? "";
         RefValue = source.RefValue ?? "";
         Negate = source.Negate;
+        SliderName = source.SliderName ?? "";
+        SliderType = source.SliderType;
 
         DeleteCommand = new RelayCommand(
             canExecute: _ => true,
@@ -13448,6 +13511,8 @@ public class VM_MeasurementCondition : VM
             case nameof(RefCategory):
             case nameof(RefValue):
             case nameof(Negate):
+            case nameof(SliderName):
+            case nameof(SliderType):
                 RefreshLiveReadout();
                 break;
         }
@@ -13512,6 +13577,13 @@ public class VM_MeasurementCondition : VM
     public string RefValue { get; set; }
     public bool Negate { get; set; }
 
+    // --- Slider-kind fields (Comparator and Value are shared with the Measurement kind) ---
+    public string SliderName { get; set; } = "";
+    public BodySliderType SliderType { get; set; } = BodySliderType.Interpolated;
+
+    /// <summary>The owning profile's slider-name list (catalog first).</summary>
+    public ObservableCollection<string>? AvailableSliderNames => _parent?.ParentRule?.ParentProfile?.AvailableSliderNames;
+
     /// <summary>Live readout shown to the right of the condition: for a Measurement condition the
     /// previewed preset's value of the measurement (e.g. "32.4500"); for a DescriptorRef condition
     /// "Match" / "Not Match" (honoring <see cref="Negate"/>). "—" when no preset is loaded or the
@@ -13531,6 +13603,18 @@ public class VM_MeasurementCondition : VM
     {
         var profile = _parent?.ParentRule?.ParentProfile;
         if (profile == null) { ConditionReadout = ""; ConditionConforms = null; return; }
+
+        if (Kind == MeasurementConditionKind.Slider)
+        {
+            if (string.IsNullOrWhiteSpace(SliderName)) { ConditionReadout = ""; ConditionConforms = null; return; }
+            var model = DumpToModel();
+            var sample = profile.PreviewSliderSample;
+            var sliderValue = MeasurementMath.ReadSliderValue(model, sample);
+            if (sliderValue is not float sv) { ConditionReadout = sample == null ? "—" : "unset"; ConditionConforms = sample == null ? null : false; return; }
+            ConditionReadout = sv.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            ConditionConforms = MeasurementMath.SliderConditionMatches(model, sample);
+            return;
+        }
 
         if (Kind == MeasurementConditionKind.Measurement)
         {
@@ -13588,11 +13672,18 @@ public class VM_MeasurementCondition : VM
     /// <summary>Drives XAML visibility for the DescriptorRef-kind controls.</summary>
     public bool IsDescriptorRefKind => Kind == MeasurementConditionKind.DescriptorRef;
 
+    /// <summary>Drives XAML visibility for the Slider-kind controls.</summary>
+    public bool IsSliderKind => Kind == MeasurementConditionKind.Slider;
+
+    /// <summary>Drives XAML visibility for the comparator + threshold shared by the Measurement and Slider kinds.</summary>
+    public bool IsThresholdKind => Kind == MeasurementConditionKind.Measurement || Kind == MeasurementConditionKind.Slider;
+
     /// <summary>Available enum values for the Kind ComboBox in the Rules tab.</summary>
     public static IReadOnlyList<MeasurementConditionKind> KindOptions { get; } = new[]
     {
         MeasurementConditionKind.Measurement,
         MeasurementConditionKind.DescriptorRef,
+        MeasurementConditionKind.Slider,
     };
 
     /// <summary>Cycle-filtered list of descriptor Categories the user can reference from
@@ -13648,6 +13739,8 @@ public class VM_MeasurementCondition : VM
         RefCategory = RefCategory?.Trim() ?? "",
         RefValue = RefValue?.Trim() ?? "",
         Negate = Negate,
+        SliderName = SliderName?.Trim() ?? "",
+        SliderType = SliderType,
     };
 }
 
