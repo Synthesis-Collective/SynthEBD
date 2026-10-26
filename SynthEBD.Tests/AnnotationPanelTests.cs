@@ -83,6 +83,53 @@ public class AnnotationPanelTests
         AnnotationPanelLayout.PickEvenlySpaced(new PanelSample[0], 5).Should().BeEmpty();
     }
 
+    // ---------- random sample (Show Sample) ----------
+
+    [Fact]
+    public void Random_CappedAtPopulation_NoDuplicates()
+    {
+        var samples = Enumerable.Range(0, 7).Select(i => S("P" + i, i)).ToList();
+        var picks = AnnotationPanelLayout.PickRandom(samples, 50, new System.Random(1));
+        picks.Should().HaveCount(7).And.OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void Random_TakesRequestedCount_Distinct()
+    {
+        var samples = Enumerable.Range(0, 200).Select(i => S("P" + i, i)).ToList();
+        var picks = AnnotationPanelLayout.PickRandom(samples, 50, new System.Random(7));
+        picks.Should().HaveCount(50).And.OnlyHaveUniqueItems();
+        picks.Should().OnlyContain(i => i >= 0 && i < 200);
+    }
+
+    [Fact]
+    public void Random_SameSeed_SameDraw_DifferentSeed_Differs()
+    {
+        var samples = Enumerable.Range(0, 100).Select(i => S("P" + i, i)).ToList();
+        var a = AnnotationPanelLayout.PickRandom(samples, 20, new System.Random(42));
+        var b = AnnotationPanelLayout.PickRandom(samples, 20, new System.Random(42));
+        var c = AnnotationPanelLayout.PickRandom(samples, 20, new System.Random(43));
+        a.Should().Equal(b);
+        a.Should().NotEqual(c);
+    }
+
+    [Fact]
+    public void Random_OnePerPreset_DrawsEachLabelAtMostOnce()
+    {
+        // 10 presets x 3 weights: one-per-preset can return at most 10.
+        var samples = Enumerable.Range(0, 30).Select(i => S("P" + (i % 10), i, weight: i / 10 * 50)).ToList();
+        var picks = AnnotationPanelLayout.PickRandom(samples, 50, new System.Random(3), onePerPreset: true);
+        picks.Should().HaveCount(10);
+        Labels(samples, picks).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public void Random_ZeroOrEmpty_PicksNothing()
+    {
+        AnnotationPanelLayout.PickRandom(new[] { S("A", 1) }, 0, new System.Random(1)).Should().BeEmpty();
+        AnnotationPanelLayout.PickRandom(new PanelSample[0], 5, new System.Random(1)).Should().BeEmpty();
+    }
+
     // ---------- paging ----------
 
     [Theory]

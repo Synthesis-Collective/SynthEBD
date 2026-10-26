@@ -62,6 +62,36 @@ public static class AnnotationPanelLayout
         return picks;
     }
 
+    /// <summary>
+    /// Draws up to <paramref name="take"/> distinct samples uniformly at random (without replacement)
+    /// and returns their indices in draw order. With <paramref name="onePerPreset"/>, at most one
+    /// slice per preset label is drawn (a random one of its weights), so the sample covers as many
+    /// different presets as possible. Fewer are returned when the population is smaller.
+    /// <para>Used by the Show Sample window (<see cref="VM_DescriptorSample"/>). The caller owns
+    /// <paramref name="rng"/>, so a fixed seed reproduces a draw.</para>
+    /// </summary>
+    public static IReadOnlyList<int> PickRandom(IReadOnlyList<PanelSample> samples, int take, Random rng, bool onePerPreset = false)
+    {
+        if (take <= 0 || samples.Count == 0) return Array.Empty<int>();
+        var indices = Enumerable.Range(0, samples.Count).ToArray();
+        // Full Fisher-Yates shuffle: the one-per-preset filter below may skip arbitrarily many.
+        for (int i = indices.Length - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            (indices[i], indices[j]) = (indices[j], indices[i]);
+        }
+
+        var picks = new List<int>(Math.Min(take, indices.Length));
+        var seenLabels = new HashSet<string>(StringComparer.Ordinal);
+        foreach (int i in indices)
+        {
+            if (picks.Count >= take) break;
+            if (onePerPreset && !seenLabels.Add(samples[i].PresetLabel ?? "")) continue;
+            picks.Add(i);
+        }
+        return picks;
+    }
+
     /// <summary>Number of pages for <paramref name="total"/> items (at least 1, so an empty Panel
     /// still reads "page 1 / 1").</summary>
     public static int PageCount(int total, int pageSize = DefaultPageSize)

@@ -1039,7 +1039,7 @@
                                         <KeyBinding Modifiers="Control+Shift+Alt" Key="P" Command="{Binding SaveRulesPatchWithDeletesToJson}"/>
                                     </Grid.InputBindings>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="280" MinWidth="200"/>
+                                        <ColumnDefinition Width="360" MinWidth="200"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
@@ -1080,7 +1080,8 @@
                                             <TextBlock Grid.Row="2" Grid.Column="1" Text="Val" Margin="2,0,0,0"
                                                        VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}" FontSize="10"/>
                                         </Grid>
-                                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
+                                        <!-- Wraps rather than clips when the splitter narrows the pane. -->
+                                        <WrapPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,5,0,0">
                                             <Button Content="+ Add" Command="{Binding AddDescriptorCommand}"
                                                     Padding="6,2" Margin="0,0,5,0"
                                                     local:DocTooltip.Key="BodyTypeProfiles.AddDescriptor"/>
@@ -1091,7 +1092,11 @@
                                                     Command="{Binding DataContext.ShowSpreadFromRulesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     Padding="6,2" Margin="5,0,0,0"
                                                     local:DocTooltip.Key="BodyTypeProfiles.ShowSpreadRules"/>
-                                        </StackPanel>
+                                            <Button Content="Show Sample"
+                                                    Command="{Binding DataContext.ShowSampleFromRulesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    Padding="6,2" Margin="5,0,0,0"
+                                                    local:DocTooltip.Key="BodyTypeProfiles.ShowSampleRules"/>
+                                        </WrapPanel>
                                         <TreeView ItemsSource="{Binding RuleTreeCategories}"
                                                   SelectedItemChanged="RuleTree_SelectedItemChanged"
                                                   Margin="0,0,0,0">

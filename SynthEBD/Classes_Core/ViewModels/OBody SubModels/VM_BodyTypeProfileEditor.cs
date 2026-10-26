@@ -191,6 +191,14 @@ public class VM_BodyTypeProfileEditor : VM
             canExecute: _ => !IsScanning && GetRuleTreeCategory(SelectedProfile) != null,
             execute: _ => _ = OpenSpreadAsync(GetRuleTreeCategory(SelectedProfile)));
 
+        ShowSampleFromRulesCommand = new RelayCommand(
+            canExecute: _ => !IsScanning && SelectedProfile?.SelectedRuleTreeNode is VM_RuleTreeValueNode,
+            execute: _ =>
+            {
+                if (SelectedProfile?.SelectedRuleTreeNode is VM_RuleTreeValueNode v)
+                    _ = OpenDescriptorSampleAsync(v.Category, v.Value);
+            });
+
         ShowSpreadFromMatchPresetsCommand = new RelayCommand(
             canExecute: _ => !IsScanning && SelectedProfile != null && GetMatchPresetsFilterCategory() != null,
             execute: _ => _ = OpenSpreadAsync(GetMatchPresetsFilterCategory()));
@@ -471,6 +479,9 @@ public class VM_BodyTypeProfileEditor : VM
 
     /// <summary>Opens Show Spread for the Category selected in the Rules-tab tree.</summary>
     public RelayCommand ShowSpreadFromRulesCommand { get; }
+
+    /// <summary>Opens Show Sample for the descriptor value selected in the Rules-tab tree.</summary>
+    public RelayCommand ShowSampleFromRulesCommand { get; }
 
     /// <summary>Opens Show Spread for the one Category the Match Presets descriptor filter is narrowed to.</summary>
     public RelayCommand ShowSpreadFromMatchPresetsCommand { get; }
@@ -4523,6 +4534,36 @@ public class VM_BodyTypeProfileEditor : VM
         catch (Exception ex)
         {
             _logger?.LogError("Failed to open the Show Spread window: " + ExceptionLogger.GetExceptionStack(ex));
+        }
+    }
+
+    /// <summary>Opens a <see cref="Window_DescriptorSample"/>: a random sample of the slices that carry
+    /// <paramref name="category"/> = <paramref name="value"/> on the selected profile, rendered side by
+    /// side. Same preamble as Show Spread. Non-modal; several windows may be open at once.</summary>
+    internal async System.Threading.Tasks.Task OpenDescriptorSampleAsync(string category, string value)
+    {
+        var profile = SelectedProfile;
+        if (profile == null || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(value) || IsScanning) return;
+
+        var prepared = await PrepareThumbnailWindowAsync(profile, "Show Sample");
+        if (prepared == null) return;
+        var (gender, scene) = prepared.Value;
+
+        VM_DescriptorSample? vm = null;
+        try
+        {
+            vm = new VM_DescriptorSample(this, profile, category, value, gender, scene, CharacterViewer,
+                PresetLookupFor(gender), _logger);
+            var window = new Window_DescriptorSample { DataContext = vm };
+            window.Owner = System.Windows.Application.Current?.MainWindow;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            // The VM starts rendering and hooks the editor on construction: release it when the
+            // window never came up to own it.
+            vm?.Dispose();
+            _logger?.LogError("Failed to open the Show Sample window: " + ExceptionLogger.GetExceptionStack(ex));
         }
     }
 

@@ -35,6 +35,7 @@ public static partial class UiDocs
         RegisterBodySlideCompare();
         RegisterBodyTypeSpread();
         RegisterAnnotationPanel();
+        RegisterDescriptorSample();
         RegisterBodyGenEditor();
         RegisterCharacterViewer();
         RegisterDistributionTools();
