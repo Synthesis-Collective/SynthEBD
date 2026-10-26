@@ -22,6 +22,14 @@ public readonly record struct DdsPixels(byte[] Data, int Width, int Height);
 /// </summary>
 public readonly record struct DdsCubemapPixels(byte[][] Faces, int Width, int Height);
 
+/// <summary>One CPU DDS decode (a pixel- or cubemap-cache miss), reported to
+/// <see cref="CharacterPreviewCache.DecodeObserver"/>. <see cref="Reason"/> is the innermost
+/// <see cref="CharacterPreviewCache.DecodeReason"/> scope on the decoding thread, or
+/// "unattributed".</summary>
+public readonly record struct DdsDecodeEvent(
+    string RelativeGamePath, string DiskPath, string Reason, int Width, int Height,
+    double Milliseconds, bool Cubemap);
+
 /// <summary>
 /// Process-wide cache of expensive read-only inputs to the 3D preview pipeline.
 ///
@@ -70,6 +78,45 @@ public class CharacterPreviewCache
         get => _ddsMaximumFinalMipDimension;
         init => _ddsMaximumFinalMipDimension = value is <= 0
             ? throw new ArgumentOutOfRangeException(nameof(value), "Final mip dimension must be positive.") : value;
+    }
+
+    /// <summary>Optional host profiling hook, invoked on the decoding thread after each
+    /// successful decode. Must be cheap; exceptions are swallowed. Null (the default)
+    /// costs one null check per decode.</summary>
+    public Action<DdsDecodeEvent>? DecodeObserver { get; set; }
+
+    [ThreadStatic] private static string? _decodeReason;
+
+    /// <summary>Tags decodes made on this thread with <paramref name="reason"/> until the
+    /// returned scope is disposed (restores the previous tag, so scopes nest).</summary>
+    public static DecodeReasonScope DecodeReason(string reason)
+    {
+        var previous = _decodeReason;
+        _decodeReason = reason;
+        return new DecodeReasonScope(previous);
+    }
+
+    public readonly struct DecodeReasonScope : IDisposable
+    {
+        private readonly string? _previous;
+        internal DecodeReasonScope(string? previous) { _previous = previous; }
+        public void Dispose() => _decodeReason = _previous;
+    }
+
+    private void NotifyDecode(string relativeGamePath, string diskPath, int width, int height,
+        long ticks, bool cubemap)
+    {
+        var observer = DecodeObserver;
+        if (observer == null) return;
+        try
+        {
+            observer(new DdsDecodeEvent(relativeGamePath, diskPath, _decodeReason ?? "unattributed",
+                width, height, ticks * 1000.0 / System.Diagnostics.Stopwatch.Frequency, cubemap));
+        }
+        catch
+        {
+            // Profiling must never disrupt a load.
+        }
     }
 
     private long _decodeCalls, _decodedBytes;
@@ -314,6 +361,7 @@ public class CharacterPreviewCache
 
         // Don't cache misses — see method-level remark.
         if (decoded == null) return null;
+        NotifyDecode(relativeGamePath, diskPath, decoded.Value.Width, decoded.Value.Height, dt, cubemap: false);
 
         lock (_pixelLock)
         {
@@ -394,8 +442,21 @@ public class CharacterPreviewCache
             if (_fullyTransparentCache.TryGetValue(diskPath, out bool cached))
                 return cached;
 
-        var pixels = GetOrLoadDdsPixels(relativeGamePath);
-        bool verdict = pixels != null && IsAllAlphaZero(pixels.Value.Data);
+        // A block-level proof of one non-zero alpha texel settles "not fully
+        // transparent" exactly, without decoding (an ordinary opaque diffuse is
+        // proven by its first block). Anything unproven takes the full decode.
+        bool verdict;
+        if (DdsAlphaProbe.ProvesNonZeroAlpha(diskPath))
+        {
+            verdict = false;
+        }
+        else
+        {
+            DdsPixels? pixels;
+            using (DecodeReason("alpha-check"))
+                pixels = GetOrLoadDdsPixels(relativeGamePath);
+            verdict = pixels != null && IsAllAlphaZero(pixels.Value.Data);
+        }
 
         lock (_transparencyLock)
             _fullyTransparentCache[diskPath] = verdict;
@@ -486,6 +547,7 @@ public class CharacterPreviewCache
         System.Threading.Interlocked.Add(ref _decodeTicks, dt);
         _threadDecodeTicks += dt;
         if (decoded == null) return null;
+        NotifyDecode(relativeGamePath, diskPath, decoded.Value.Width, decoded.Value.Height, dt, cubemap: true);
 
         lock (_cubemapLock)
         {
@@ -766,7 +828,10 @@ public class CharacterPreviewCache
             if (!string.IsNullOrWhiteSpace(paths.FaceTintPath))
             {
                 ct.ThrowIfCancellationRequested();
-                GetOrLoadDdsPixels(paths.FaceTintPath);
+                // Uploaded through the ordinary LoadTexture route (tinting is on
+                // the GPU), so an eligible compressed FaceTint needs no decode.
+                using (DecodeReason("prewarm-facetint"))
+                    PrewarmTexture(paths.FaceTintPath);
             }
 
             // Attire / headgear mesh overrides (Include Default Outfit / headgear).
@@ -964,18 +1029,27 @@ public class CharacterPreviewCache
         }
     }
 
-    // Diffuse still needs decoded alpha for collision-proxy classification.
-    // Other eligible 2D slots stay lazy. Inspection reads only the header, checks
-    // the payload length, and retains no second CPU block cache. If the current
-    // GL context lacks support, LoadTexture performs the ordinary lazy decode.
-    private void PrewarmTexture(string path, bool requirePixels = false)
+    // A diffuse also warms its collision-proxy transparency verdict, which
+    // DdsAlphaProbe usually settles from one block (an unproven texture is decoded
+    // here, off the render thread, as before). Eligible 2D slots then stay lazy:
+    // inspection reads only the header, checks the payload length, and retains no
+    // second CPU block cache. If the current GL context lacks support, LoadTexture
+    // performs the ordinary lazy decode. The decoded route still decodes here for
+    // the upload, exactly as before.
+    private void PrewarmTexture(string path, bool isDiffuse = false)
     {
-        if (!requirePixels && DdsMaximumFinalMipDimension is int maximum)
+        if (isDiffuse)
+        {
+            using (DecodeReason("prewarm-diffuse"))
+                IsFullyTransparent(path);
+        }
+        if (DdsMaximumFinalMipDimension is int maximum)
         {
             string? disk = ResolveAssetPath(path);
             if (disk != null && CompressedDds.Inspect(disk, maximum, out _) == DdsReadStatus.Eligible) return;
         }
-        GetOrLoadDdsPixels(path);
+        using (DecodeReason(isDiffuse ? "prewarm-diffuse" : "prewarm"))
+            GetOrLoadDdsPixels(path);
     }
 
     /// <summary>Derives the weight-0 companion for a NIF path ending in

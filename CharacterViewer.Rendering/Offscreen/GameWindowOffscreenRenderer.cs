@@ -257,6 +257,13 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     pt.BuildShapesMs += _previewCache.MeshBuilder.ThreadBuildMs - buildMsStart;
                     pt.PrewarmDecodeMs += _previewCache.ThreadDecodeMs - decodeMsStart;
                 }
+                if (request.PrewarmFallbackPathsOut != null &&
+                    _dataFolderFallbackHits.TryGetValue(request, out var prewarmHits) && !prewarmHits.IsEmpty)
+                {
+                    var fallbackPaths = new List<string>(prewarmHits.Keys);
+                    fallbackPaths.Sort(StringComparer.OrdinalIgnoreCase);
+                    request.PrewarmFallbackPathsOut.AddRange(fallbackPaths);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -561,7 +568,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     /// callers hold the result in a <c>using var</c>, which tolerates null.</summary>
     private IDisposable? PushDataFolderFallbackSinkIfRequested(OffscreenRenderRequest request)
     {
-        if (request.DataFolderFallbackPathsOut == null) return null;
+        if (request.DataFolderFallbackPathsOut == null && request.PrewarmFallbackPathsOut == null) return null;
         var hits = _dataFolderFallbackHits.GetValue(request,
             _ => new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase));
         return _assets.PushDataFolderFallbackSink(p => hits.TryAdd(p, 0));

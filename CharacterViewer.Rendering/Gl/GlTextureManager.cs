@@ -187,7 +187,9 @@ public class GlTextureManager : IDisposable
             }
         }
         var decodeTimer = System.Diagnostics.Stopwatch.StartNew();
-        var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
+        DdsPixels? pixels;
+        using (CharacterPreviewCache.DecodeReason("upload-decoded"))
+            pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
             // Track for the post-load missing-texture overlay. Only counts
@@ -220,6 +222,7 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public int LoadTextureWithFaceTint(string diffusePath, string faceTintPath)
     {
+        using var decodeReason = CharacterPreviewCache.DecodeReason("face-tint-blend");
         var diffuseSource = _previewCache.GetOrLoadDdsPixels(diffusePath);
         if (diffuseSource == null) return WhiteTexture;
 
@@ -274,6 +277,7 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public int LoadTextureWithHairTint(string diffusePath, float tintR, float tintG, float tintB)
     {
+        using var decodeReason = CharacterPreviewCache.DecodeReason("hair-tint");
         var source = _previewCache.GetOrLoadDdsPixels(diffusePath);
         if (source == null)
         {
@@ -348,7 +352,9 @@ public class GlTextureManager : IDisposable
 
         // Not a cubemap (or not a readable DDS): fall through to the legacy
         // 2D sphere-map path so mod-shipped panoramic envmaps still render.
-        var pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
+        DdsPixels? pixels;
+        using (CharacterPreviewCache.DecodeReason("envmap-2d"))
+            pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
             _logger.LogMessage("GlTextures: Env map not found '" + relativeGamePath + "'");

@@ -263,6 +263,16 @@ public sealed class OffscreenRenderRequest
     /// </summary>
     public List<string>? DataFolderFallbackPathsOut { get; init; }
 
+    /// <summary>Optional, for a request that is only prewarmed and never rendered (a
+    /// host warming a tile ahead of time with a request of its own). When non-null,
+    /// <see cref="IOffscreenRenderer.PrewarmAsync"/> appends the data-folder-fallback
+    /// game paths recorded during the warm-up, sorted, so the host can carry them into
+    /// the later render's own request — which may hit the warm caches without
+    /// re-resolving those paths. Enables tracking by itself (no
+    /// <see cref="DataFolderFallbackPathsOut"/> needed). Leave null for the ordinary
+    /// prewarm-then-render flow on one request, where the render reports them.</summary>
+    public List<string>? PrewarmFallbackPathsOut { get; init; }
+
     /// <summary>
     /// Optional output collection. If non-null and <see cref="MeshOverrides"/>
     /// were supplied, the renderer appends every texture game-path that FIRST

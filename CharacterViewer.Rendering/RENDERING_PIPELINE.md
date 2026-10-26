@@ -101,11 +101,15 @@ sRGB labels: shader gamma/tint math is unchanged. Texture wrap, trilinear
 filtering and up to 8x anisotropy follow the ordinary path. Driver queries must
 confirm compressed storage and the exact block bytes at every level.
 
-CPU face/hair tint APIs continue to clone decoded pixels. Transparency
-classification still decodes the same diffuse alpha and caches the result by
-physical source. Prewarming retains diffuse/FaceTint and cube decodes; eligible
-other 2D slots inspect their headers and defer uploading, avoiding an eager
-decode. Unsupported GL contexts decode lazily on demand. There is no additional
+The CPU face/hair tint APIs (`LoadTextureWithFaceTint`/`LoadTextureWithHairTint`)
+still clone decoded pixels, but nothing calls them: tints are applied in the
+shader. Collision-proxy transparency classification (`IsFullyTransparent`) first
+asks `DdsAlphaProbe` to prove a non-zero alpha texel from the compressed blocks
+(BC1/2/3/7; an opaque diffuse is settled by its first block) and decodes only
+when that proof fails, so its verdict is unchanged; the result is still cached by
+physical source. Prewarming warms that verdict for diffuse slots and keeps cube
+decodes; eligible 2D slots, FaceTint included, inspect their headers and defer
+uploading, avoiding an eager decode. Unsupported GL contexts decode lazily on demand. There is no additional
 persistent compressed CPU cache: block buffers are temporary upload inputs.
 
 Resident keys include the numeric threshold and distinguish authored requests from decoded requests while
