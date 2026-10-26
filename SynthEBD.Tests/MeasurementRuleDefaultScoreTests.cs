@@ -364,30 +364,30 @@ public class MeasurementRuleDefaultScoreTests
     [Fact]
     public void RefToDefaultValue_TunnelsIntoTheDefaultMargin()
     {
-        // The live Realism:UnrealisticChest shape: chest_projection > 17 AND [Belly:Normal],
+        // The live ExtremeShape:Chest shape: chest_projection > 17 AND [Belly:Normal],
         // where Belly:Normal is Belly's default (its legacy rule is fully disabled).
         var bellyFat = MakeRule("Belly", "Fat", RuleGender.Either,
             Grp(Meas("belly", MeasurementComparator.GreaterThanOrEqual, 10f)));
         var bellyNormalLegacy = MakeRule("Belly", "Normal", RuleGender.Either,
             DisabledGrp(Ref("Belly", "Fat", negate: true)));
-        var realism = MakeRule("Realism", "UnrealisticChest", RuleGender.Either,
+        var extremeChest = MakeRule("ExtremeShape", "Chest", RuleGender.Either,
             Grp(Meas("chest_projection", MeasurementComparator.GreaterThan, 17f), Ref("Belly", "Normal")));
-        var all = new List<VM_MeasurementRule> { bellyFat, bellyNormalLegacy, realism };
+        var all = new List<VM_MeasurementRule> { bellyFat, bellyNormalLegacy, extremeChest };
         var defaults = Defaults(("Belly", "Normal"));
 
         // chest (20−17)/17 = +0.176; Belly default = −((8−10)/10) = +0.20 → min = +0.176.
-        RuleScore(realism, new Dictionary<string, float?> { ["chest_projection"] = 20f, ["belly"] = 8f },
+        RuleScore(extremeChest, new Dictionary<string, float?> { ["chest_projection"] = 20f, ["belly"] = 8f },
                 all, defaults, Gender.Female)!
             .Value.Should().BeApproximately(+0.176, 0.001);
 
         // Belly creeping toward Fat (9.5 → default +0.05) becomes the binding constraint.
-        RuleScore(realism, new Dictionary<string, float?> { ["chest_projection"] = 20f, ["belly"] = 9.5f },
+        RuleScore(extremeChest, new Dictionary<string, float?> { ["chest_projection"] = 20f, ["belly"] = 9.5f },
                 all, defaults, Gender.Female)!
             .Value.Should().BeApproximately(+0.05, 0.001);
 
         // Without the defaults map the disabled legacy producer is all the scorer can see:
         // producer exists but is unscorable → the group is unscorable → null (old behavior).
-        RuleScore(realism, new Dictionary<string, float?> { ["chest_projection"] = 20f, ["belly"] = 8f },
+        RuleScore(extremeChest, new Dictionary<string, float?> { ["chest_projection"] = 20f, ["belly"] = 8f },
                 all, null, Gender.Female)
             .Should().BeNull();
     }

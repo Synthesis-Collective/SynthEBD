@@ -687,8 +687,8 @@ public enum RuleGender
 /// <see cref="Measurement"/> (default) is the classical <c>measurement [comparator] value</c>
 /// test; <see cref="DescriptorRef"/> is an aggregator-style "did another rule's descriptor
 /// already fire on this evaluation?" test, allowing one rule to derive its output from the
-/// match-set of other rules (e.g. a Realism:Unrealistic aggregator built from UnrealisticChest
-/// OR UnrealisticButt OR UnrealisticWaist). Mixing both kinds inside a single AND group is
+/// match-set of other rules (e.g. an ExtremeShape:Any aggregator built from ExtremeShape:Chest
+/// OR ExtremeShape:Butt OR ExtremeShape:Waist). Mixing both kinds inside a single AND group is
 /// permitted — the engine just AND-s the booleans either way.</summary>
 public enum MeasurementConditionKind
 {

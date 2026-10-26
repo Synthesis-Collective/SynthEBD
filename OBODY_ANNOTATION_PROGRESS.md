@@ -68,7 +68,7 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 - **▶ Shape APPROVED 2026-10-22 at `3180be9b56` (v5.11):** v5.10 scaled Apple to the frame (`belly_proj2_to_hip >=
   0.1835`, other rules exclude it via `NOT [Shape:Apple]`); v5.11 added the Rectangle cap (`hip_to_shoulder < 1.02`)
   and the two-step lat-flare route (Hourglass when lat flare < 0.889, or < 0.9013 with bust >= 0.745). 161/167 on the
-  current verdicts. Next cells: Realism, then Build (re-check Build: it reads Shape). Details: `HANDOFF_shape_rules.md`.
+  current verdicts. Next cells: ExtremeShape (renamed from Realism 2026-10-23), then Build (re-check Build: it reads Shape). Details: `HANDOFF_shape_rules.md`.
 - **▶ Shape rules v5.9 (2026-10-21):** approval review 17/18, then v5.8 (AmBarbarian fix: rear cut 0.845 for wide
   busts + a lat-flare route to Hourglass) and v5.9 (explicit `Shape:Ambiguous` when a wide, large bust hides the
   waist, `chest_to_hip >= 0.885` AND `stem_window_length < -1.17`; big-bust Pear route) are applied -- in-app 93/96 on
@@ -175,8 +175,8 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 | Butt        | ✅ 4 | ⏳ 4 | **APPROVED 2026-10-08.** leaf; Flat `< 2.05` / Medium (default) / Large `>= 3.09` / Very Large `>= 4.07` AND `GluteFold_Projection >= 4.10` on `fold_to_butt` (`D47`) |
 | Chest       | ✅ 3 | ⏳ 0 | **APPROVED 2026-10-08.** Petite = BustSize Flat/Petite/Small, Medium = default (BustSize Medium), Busty = Large and up; 17/18 judged in 3D after `D51`. 3BA reads `BustSize`; CBBE's Cup-based Chest rules removed (`D42`) -- the transfer restores Chest there |
 | Hips        | ✅ 3 | ⏳ 3 | **APPROVED 2026-09-13.** leaf; now `hip_width` (absolute X span of the re-boxed hip-side KVs) -- Narrow < 25.5 / Wide > 30.3; see `N2`, `D20` |
-| Realism     | ✏️ 6 | ⏳ 6 | 3BA also reads `Belly` |
-| Shape       | ✅ 10 | ⏳ 5 | **APPROVED 2026-10-22** (hash `3180be9b56`, v5.11; earlier freezes `d72518a0ac` / `293fc5dbe9`, provisional `5b89a36bcd`). Apple scaled to the frame (`belly_proj2_to_hip`), Rectangle needs hips not wider than the shoulders, small-hip Pear vs Hourglass by lat flare + bust width; Hourglass / Pear / Bottom Hourglass / Rectangle / Spoon / Inverted Triangle / Apple; bodies whose wide, large bust hides the waist match none and take the default `Ambiguous`; torso-trace stem window + lat flare (`D54`), v5.8 AmBarbarian fix, v5.9 Ambiguous + big-bust Pear; 93/96 on the current verdicts; reads `ShoulderWidth` |
+| ExtremeShape | ✏️ 7 | ⏳ 6 | Renamed from `Realism` 2026-10-23. **Multi-value**: a preset may carry several part values (no mutual `NOT` refs). Default `None`; `Any` = rollup of the parts. v5 (2026-10-24): approval review done; WaistPinch being re-judged (armpit-anchored). Leaf since v1 (no refs) |
+| Shape       | ✅ 10 | ⏳ 5 | **APPROVED 2026-10-22** (hash `ddfab9e2a0` = v5.11 `3180be9b56` after an app save, see 2026-10-23 log; earlier freezes `d72518a0ac` / `293fc5dbe9`, provisional `5b89a36bcd`). Apple scaled to the frame (`belly_proj2_to_hip`), Rectangle needs hips not wider than the shoulders, small-hip Pear vs Hourglass by lat flare + bust width; Hourglass / Pear / Bottom Hourglass / Rectangle / Spoon / Inverted Triangle / Apple; bodies whose wide, large bust hides the waist match none and take the default `Ambiguous`; torso-trace stem window + lat flare (`D54`), v5.8 AmBarbarian fix, v5.9 Ambiguous + big-bust Pear; 93/96 on the current verdicts; reads `ShoulderWidth` |
 | ShoulderMorph | ✅ 1 | ⏳ — | **APPROVED 2026-09-26.** leaf (`D12`); Normal / Muscular on `Delt_Cap_Ratio >= 0.435`; feeds Build |
 | ShoulderWidth | ✅ 2 | ⏳ — | **APPROVED 2026-09-26.** leaf (`D12`); Narrow < 28.0 / Medium / Wide >= 31.5 on `shoulder_width` (apparent width, deltoid-contaminated); read by Shape and Build |
 | Thighs      | ✅ 3 | ⏳ 3 | **APPROVED 2026-09-29.** leaf; Skinny `< 11.65` / Normal (default) / Thick `>= 14.5` on `thigh_thickness`; read by Build (Curvy, Slight, Powerful) |
@@ -191,17 +191,17 @@ category)**. Goal for this phase: drive every **CBBE 3BA** cell to **Approved**.
 Derived from the `DescriptorRef` cross-references (a rule in category A that reads category B's
 result). Lock **leaves first** so aggregators sit on stable ground; **`Build` last**.
 
-- **tier 1 (leaves):** Arms, Belly, BustHeight, BustSize, Butt, Hips, Thighs, Waist (+ BicepBulge, ShoulderMorph, ShoulderWidth)
-- **tier 2:** Chest (reads BustSize), Realism (reads Belly), Shape (reads ShoulderWidth since `D21`)
-- **tier 3:** **Build** (reads Arms, Belly, Chest, Hips, Realism, Shape, Thighs, Waist)
+- **tier 1 (leaves):** Arms, Belly, BustHeight, BustSize, Butt, ExtremeShape (since v1), Hips, Thighs, Waist (+ BicepBulge, ShoulderMorph, ShoulderWidth)
+- **tier 2:** Chest (reads BustSize), Shape (reads ShoulderWidth since `D21`)
+- **tier 3:** **Build** (reads Arms, Belly, Chest, ExtremeShape, Hips, Shape, Thighs, Waist)
 
 **Re-review triggers** (change the left -> re-check the right):
 
 | Change this (3BA) | Re-check |
 |-------------------|----------|
 | BustSize | Chest, Build |
-| Belly    | Realism, Build |
-| Arms / Chest / Hips / Realism / Shape / Thighs / Waist | Build |
+| Belly    | ExtremeShape, Build |
+| Arms / Chest / ExtremeShape / Hips / Shape / Thighs / Waist | Build |
 | ShoulderWidth | Shape, Build |
 
 The scanner reprints this map each run.
@@ -518,14 +518,64 @@ CBBE / 3BA) are gone from both profiles, as are the catalog entry and every refe
 - Status: ✅ **Approved 2026-09-13** (user's call). Terminal until deliberately reopened. Re-open if the
   25.5 / 30.3 cuts, the hip-side boxes, or their criteria change. Transfer nuance: `N2`.
 
-### Realism
+### ExtremeShape  (renamed from `Realism` 2026-10-23)
 | | Status | Rules | Values | Key measurements | Reads |
 |--|--|--|--|--|--|
-| **3BA** | ✏️ | 6 | Unrealistic, UnrealisticChest, UnrealisticChestLift, UnrealisticButt, UnrealisticThighs, UnrealisticWaist | `chest_projection`, `chest_sag_ratio`, `butt_projection`, `thigh_thickness_to_hip`, `waist_to_hip` | self + `TrunkThickness:{Thin,Medium}` + `BellyMorph:Muscular` |
+| **3BA** | ✏️ | 7 | Any (rollup), Chest, ChestLift, Butt, Thighs, WaistPinch, HipWidth; default None | `chest_projection`, `chest_sag_ratio`, `butt_projection`, `thigh_thickness_to_hip`, `waist_to_hip` | self + `TrunkThickness:{Thin,Medium}` + `BellyMorph:Muscular` |
 | CBBE (defer) | ⏳ | 6 | (same 6 values) | + `chest_proj_to_chest_width` | self only |
 
 **Notes / opinions:** _(to fill)_ -- 3BA Realism additionally reads `Belly`, so Belly changes on 3BA
 can flip Realism (tier-2, after Belly).
+- **2026-10-23 -- renamed `Realism` -> `ExtremeShape`.** Values were `Unrealistic` (now `Any`) and `Unrealistic<Part>`
+  (now `<Part>`); added default `None`. "Unrealistic" read as a judgment of real people; ExtremeShape describes the
+  preset's proportions (beyond human anatomy, as in fantasy/comic art). **Authoring rule: unlike the other categories,
+  values are NOT mutually exclusive** -- do not add `NOT [ExtremeShape:...]` refs between parts. `None` needs no rule
+  (the default only fires when no part rule fires); `Any` is the existing OR-of-parts DescriptorRef rule.
+  `Build:Exaggerated` and `Chest` are kept as shipped aggregators for config compatibility (descriptions say so).
+  Older entries below still use the old names.
+- **2026-10-23 -- v1 cuts** (`apply_extremeshape_v1.py`, lists `extremeshape_<value>_review.txt`; the user tags only
+  the extremes they see, so an untagged row = no). The user renamed `Waist` -> **`WaistPinch`** and added **`HipWidth`**
+  (hips too wide for the body's height -- an independent axis).
+  - **WaistPinch** `waist_to_hip < 0.424` (was 0.5017; yes <= 0.414 / no >= 0.434): 4,665 -> 539 slices. 14/14.
+  - **Chest** single group `L_Breast_Vol > 2090` -- the user judges total bust volume, not projection, and the frame
+    does not excuse it (Thick-trunk miilf / ousnius 0042 are yes). yes >= 2148.9 / no <= 2031.4: 286 slices. 14/14.
+  - **ChestLift** unchanged: verdicts match the live rule 12/12.
+  - **Thighs** `thigh_thickness_to_hip > 0.5135` (was 0.6, unreachable since the hip-side KV re-box): 113 slices.
+    PROVISIONAL -- 2 yes, a 0.002 gap; `extremeshape_thighs2_review.txt` (top 3%, Lexi@50 at 0.512) confirms it.
+  - **Butt** OPEN (live `butt_projection > 8.0` gets 10/14). The user judges projection AND the knee-fold-glute angle,
+    modulated by hip girth (wide hips may project more). Offline: `butt_projection / hip_girth` with
+    `Butt_Projection_Angle2` separates 13/14 only as a weighted sum, which rules cannot express; both inputs are
+    disabled (not in the cache). subtly plus@100 has Angle2 = 64.8 deg (all others 13-37) -- check for a KV artifact.
+  - **HipWidth** has no rule; `extremeshape_hipwidth_review.txt` (`hip_width`, p86 -> max) is pending. Add it to the
+    `Any` rollup when its rule lands.
+- **2026-10-23 -- v2** (`apply_extremeshape_v2.py`; lists `extremeshape_hipwidth_review.txt`, `_butt2d_review.txt`).
+  The user tags every extreme they see on a row, so a tag on another value is a yes for that value; an untagged
+  value is a no only on its own list.
+  - **Butt** staircase over `butt_proj_to_hip_girth` and `Butt_Projection_Angle2` (both enabled + cached 2026-10-23):
+    (angle >= 26 AND ratio >= 0.096) OR (angle >= 33 AND ratio >= 0.084), both AND angle < 55. 33/34; miss
+    ArkaiyisAngel@100 (0.0945 / 39.3 deg, no). 358 slices (was 828). **The < 55 cap is PROVISIONAL**: it exists for
+    subtly plus (64.8 deg, judged no); `extremeshape_butt_angle_check.txt` (15 presets >= 45 deg) asks whether
+    those angles are a key-vertex artifact.
+  - **HipWidth** new rule -- the user: a wider waist carries wider hips, a narrow waist makes them look extreme:
+    (hip_width > 42 AND waist_to_hip < 0.50) OR (hip_width > 38 AND waist_to_hip < 0.36). 16/17; miss Generic
+    Preset XXtra No Muscle@75 (38.0 / 0.432, yes) vs AstralChubby@50 (39.7 / 0.426, no). 117 slices. In `Any`.
+  - **WaistPinch** `< 0.430` (AstralChubby@50 0.426 yes; 1 Ultimate@50 0.434 no). 685 slices. 17/18 (Generic
+    XXtra@75 at 0.432 sits in the noisy 0.426-0.434 band).
+- **2026-10-24 -- v3** (`apply_extremeshape_v3.py`). The user on subtly plus@100: its thighs are very full, so the
+  butt does not stand out behind them -- butt size relative to thigh depth is what reads. Butt g2 (the steep-angle
+  step) gains `thigh_to_butt2 >= 0.269` (GluteFold_Projection / thigh_depth, now enabled) and the `< 55 deg` cap is
+  dropped. 34/34 offline (cut between Aphrodite 1@25 0.275 yes and subtly plus@100 0.263 no; also removes
+  ArkaiyisAngel@100, 0.242). 357 slices offline; 13 slices above 55 deg now fire -- the angle check list judges them.
+- **2026-10-24 -- v4** (`apply_extremeshape_v4.py`; lists `_thighs2_review.txt`, `_butt_angle_check.txt`).
+  - **Thighs** -- the user: thigh thickness does not work in isolation; a broader waist conveys a larger build that
+    carries bigger thighs (My preset@75 reads acceptable), and a small body's relatively thick thighs are not extreme
+    (mapa preset@25, th/hip 0.532). Now `thigh_thickness >= 16.7 AND thigh_to_waist >= 1.195` (new ratio
+    thigh_thickness / waist_width). 27/27 across both thigh lists; nearest Leg Days@50 1.201 yes vs DaeDaddy's TLBB
+    Extra@0 1.192 no. 197 slices. Needs Match Presets.
+  - **Butt** g3: `angle >= 42 AND thigh_to_butt2 >= 0.36` -- a steep fold angle on a butt standing well out from the
+    thighs is extreme even with a modest projection (Extreme Huge@0, Fin Vahzah Slen@100). Excludes DaughterOfMalacath
+    @100 (0.311; the user's barely-no -- a very powerful build can hold a sharp angle, but not much beyond this).
+    48/48 Butt verdicts (Alien 2.0@100 skipped as a near-duplicate of the judged Alien 2.1@100). 375 slices.
 - **`D24` 2026-09-14:** `UnrealisticChest` gained a fourth group, `chest_projection > 16.0 AND
   `[Belly:Muscular]`, so a slider-assigned Muscular belly is treated like a Flat one instead of
   falling through to the unconditional `> 19`. Purely additive (138 rows gain the value when Muscular
@@ -639,7 +689,7 @@ comparison. Dependents: Build (`Build:Curvy` g1 reads `Waist:Pinched`). The CBBE
 ### Build  (aggregator -- approve last)
 | | Status | Rules | Values | Key measurements | Reads |
 |--|--|--|--|--|--|
-| **3BA** | 🔧 | 8 | Slight, Medium, Curvy, Chubby, Exaggerated, Powerful, Athletic | (none -- pure DescriptorRef) | Arms, Belly, Chest, Hips, Realism, Shape, Thighs, Waist |
+| **3BA** | 🔧 | 8 | Slight, Medium, Curvy, Chubby, Exaggerated, Powerful, Athletic | (none -- pure DescriptorRef) | Arms, Belly, Chest, ExtremeShape, Hips, Shape, Thighs, Waist |
 | CBBE (defer) | ⏳ | 7 | (same 6 values) | (none -- pure DescriptorRef) | + also reads `Cup` |
 
 **Presets to watch when Build is reviewed:**
@@ -2264,6 +2314,22 @@ Stable IDs (mirroring `CODE_REVIEW_NOTES.md`). Resolve during sessions; record t
 
 Append newest at the top. Keep entries short: date, what changed, what got approved.
 
+- **2026-10-24 (v5)** -- **`ExtremeShape` v5** (`apply_extremeshape_v5.py`, backup `*.pre-extremeshape-v5.bak`), after the approval review + second pass (verdicts merged into `obody_arm_tools/extremeshape_judged.json` / `_yes_tags.json`): **Thighs** -> `thigh_thickness >= 17.0 AND thigh_thickness_to_hip >= 0.5036` (the user: wide hips or a large powerful build carry thick thighs; 51/52, miss CP pear@100); **ChestLift** `chest_sag_ratio < 1.014` (was 1.0; the areola edit raised sag -- TooMuch4U@75 1.011 yes, Nordic Curvy 7B Final 2@0 1.016 no; 38/38; Golden Rounded@50 re-judged sagging). Chest 40/40, Butt 73/74 (CP Dibella@100: the user sees a sharp sag right behind the thigh, possibly caught by the angle), HipWidth 42/43. **WaistPinch is being re-judged from scratch**: the user's earlier WaistPinch verdicts anchored on the hips and are stale; the new frame is the waist against the armpit width, very wide hips being HipWidth's job (`extremeshape_waistpinch2_review.txt`, 23 rows incl. CP pear / CP Chungus / Molly / Flying-Dutchman). Hash `e0c5c75e13`, Draft. BustHeight re-review split into its own session.
+
+- **2026-10-24 (breast region)** -- **`L_Breast_Conservative` edited by the user** to drop 190 areola vertices that pushed `L_ChestFront` forward (CP Chungus@100 read as ChestLift); **`R_Breast_Conservative` re-mirrored** (`apply_breast_region_remirror.py`: 2,146 members each, R = exact mirror of L). Backups: rule file `*.pre-breast-region-edit.bak` / `*.pre-breast-remirror.bak`, the two regions + KVs in `Settings\Bak\07 - before breast region edit 2026-10-24\`, measurement cache `*.pre-breast-region-edit.bak`. Cache purged + rebuilt. 1,705 slices moved on chest_projection / chest_sag_vertical / chest_sag_ratio / sternum_to_chest. **Approved categories moved (no rule hash changed, so obody_scan shows no drift):** BustHeight 219 slices (Lifted->Typical 181, **Lifted->Sagging 18**, Typical->Sagging 15; annotated agreement 36/40 -> 35/40, JamesDogg's (Busty) EO@100 Lifted -> Sagging at sag 1.131 -> 1.281) -- **BustHeight needs re-review**; Shape 21 slices (none of 359 judged slices moved); BustSize 2 (annotations 29/31 unchanged). **App follow-up (unfiled):** the measurement cache did not notice the region edit and stayed stale until purged -- region edits should invalidate cached measurements that read the region.
+
+- **2026-10-24 (v4)** -- **`ExtremeShape` v4** (`apply_extremeshape_v4.py`, backup `*.pre-extremeshape-v4.bak`): Thighs -> `thigh_thickness >= 16.7 AND thigh_to_waist >= 1.195` (new ratio), Butt gains g3 (steep angle + stands out from the thighs). Match Presets run; in-app every judged row agrees except the two self-contradicting Generic XXtra@75 calls (HipWidth, WaistPinch). Approval review: `extremeshape_approval_review.txt` (26 fresh rows, `make_extremeshape_approval_review.py`). Hash `76ce97a2a3`, Draft.
+
+- **2026-10-24** -- **`ExtremeShape` v3** (`apply_extremeshape_v3.py`, backup `*.pre-extremeshape-v3.bak`): Butt's steep-angle group also needs `thigh_to_butt2 >= 0.269` (the butt must stand out from the thighs); angle cap dropped; `thigh_to_butt2` enabled. Match Presets run: **34/34 Butt verdicts in-app**, 357 slices (offline estimate matched; 47 slices differ from it, all duplicate preset names such as `Bombshell` read from a different file offline). Hash `611c8b34d5`, Draft.
+
+- **2026-10-23 (v2)** -- **`ExtremeShape` v2** (`apply_extremeshape_v2.py`, backup `*.pre-extremeshape-v2.bak`): Butt staircase on butt projection / hip girth x gluteal-fold angle (angle < 55 cap provisional), new HipWidth rule (hip width modulated by waist, in `Any`), WaistPinch `< 0.430`. Before it: `Butt_Projection_Angle2` + `hip_girth` enabled and `butt_proj_to_hip_girth` added (backup `*.pre-butt-measures.bak`), Match Presets run. Every judged row agrees except ArkaiyisAngel@100 (Butt) and Generic XXtra@75 (HipWidth, WaistPinch). Hash `f07499a17f`, still Draft. Pending: Thighs2 list, Butt angle check.
+
+- **2026-10-23 (latest)** -- **`ExtremeShape` v1** (`apply_extremeshape_v1.py`, backups `*.pre-extremeshape-v1.bak`): WaistPinch (renamed from Waist by the user) `< 0.424`, Chest -> `L_Breast_Vol > 2090`, Thighs `> 0.5135` (provisional), ChestLift unchanged, Butt open, HipWidth definition added (no rule). Agrees with every verdict except Butt (10/14). ExtremeShape is now a leaf (Chest no longer reads TrunkThickness / BellyMorph). 3BA hash `e98328e006`, still Draft. Three `Waist` PresetAnnotations renamed to WaistPinch. Details in the ExtremeShape notes.
+
+- **2026-10-23 (later)** -- **`Shape` freeze re-pointed `3180be9b56` -> `ddfab9e2a0`, no logic change.** The first app save after v5.11 wrote `"IsDisabled": false` and `"Description": ""` into the four groups v5.11 appended to Shape:Hourglass (g20-g23) as bare dicts; conditions identical, all four enabled either way. Verified by replaying `apply_shape_rules_v5_11.patch()` on `pre-shape-v5.11.bak` (-> `3180be9b56`) and field-diffing against live. `obody_scan.py` now fills a missing group `IsDisabled` as false (`normalize_rule`), so the replay itself hashes `ddfab9e2a0` and future script-appended groups won't show as drift; every other live hash is unchanged by that fix.
+
+- **2026-10-23** -- **`Realism` renamed to `ExtremeShape`** (rename only, still Draft): `Unrealistic` -> `Any`, `Unrealistic<Part>` -> `<Part>`, new default `None` (slider + measurement defaults, definition entry). Multi-value by design (see the ExtremeShape notes). `Build:Exaggerated` now reads `[ExtremeShape:Any]`; Build and Chest descriptions note they are kept as aggregators for config compatibility. Hashes: 3BA ExtremeShape `2c276d3a32`, CBBE `9bf893b220`; Build's hash moves with the ref (`b81bbb4584`, status revise). Backups `*.pre-extremeshape.bak`. (The Shape drift noticed here is resolved in the next entry.)
+
 - **2026-10-22** -- **`Shape` re-frozen at `3180be9b56`** (v5.11, 10 rules). v5.10: Apple also needs `belly_proj2_to_hip >= 0.1835` (the same belly reads less dominant on very wide hips); the other rules exclude Apple via `NOT [Shape:Apple]`. v5.11: Rectangle needs `hip_to_shoulder < 1.02`; front-view Pear with a non-modest bust and hips < 1.5 x the upper body goes to Hourglass when lat flare < 0.889, or < 0.9013 with `chest_to_hip >= 0.745`. 161/167 on the current verdicts (misses: ousnius 0610, Kushi Pop, Efim17 bust just over Pear's 0.8 limit, Wendy, CustomPreset59 at Rectangle's waist cut, Militant). Re-review trigger: **Build** reads Shape.
 
 - **2026-10-21 (later)** -- **`Shape` re-frozen at `d72518a0ac`** (v5.9b, 10 rules): the explicit `Shape:Ambiguous` rule is gone; the other Shape rules carry its inline negation (`chest_to_hip < 0.885` OR `stem_window_length >= -1.17`), so those bodies fall through to the default `Ambiguous` -- kept generic because male presets may reach it through other rules. Identical calls on all 23,805 cached slices.
@@ -2500,9 +2566,9 @@ block" here (it preserves approved baselines). Do not hand-edit hashes except wh
       "hash": "4482f3bf10",
       "status": "deferred"
     },
-    "Realism": {
+    "ExtremeShape": {
       "count": 6,
-      "hash": "532020c394",
+      "hash": "9bf893b220",
       "status": "deferred"
     },
     "Shape": {
@@ -2567,14 +2633,14 @@ block" here (it preserves approved baselines). Do not hand-edit hashes except wh
       "hash": "57873f5afc",
       "status": "approved"
     },
-    "Realism": {
-      "count": 6,
-      "hash": "e2d7d58c70",
+    "ExtremeShape": {
+      "count": 7,
+      "hash": "e0c5c75e13",
       "status": "draft"
     },
     "Shape": {
       "count": 10,
-      "hash": "3180be9b56",
+      "hash": "ddfab9e2a0",
       "status": "approved"
     },
     "ShoulderMorph": {

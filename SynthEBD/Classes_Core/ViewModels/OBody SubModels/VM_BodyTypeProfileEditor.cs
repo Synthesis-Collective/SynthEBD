@@ -2288,7 +2288,7 @@ public class VM_BodyTypeProfileEditor : VM
                     // Dump key measurements + viewer state so we can correlate scan
                     // output with CSV exports and detect deformation issues at extreme
                     // weights. Keys chosen to cover the most commonly-misbehaving rules:
-                    // Cup/Chest (cp), UnrealisticWaist (wh), ChestSag (csr), Arms (att),
+                    // Cup/Chest (cp), ExtremeShape:Waist (wh), ChestSag (csr), Arms (att),
                     // Belly/Shape Apple gate (bp), Hips (hpt), waist_width raw, hip_width.
                     string FmtMeas(string key)
                     {
@@ -3001,7 +3001,7 @@ public class VM_BodyTypeProfileEditor : VM
                     // so every rule reachable from this Category is scored at most once per
                     // row however many values (and the default's rivals) ask for it. Matters
                     // for reference-heavy Categories like Build, whose values all tunnel into
-                    // the same Arms/Belly/Realism producers.
+                    // the same Arms/Belly/ExtremeShape producers.
                     var ctx = new RuleScoreContext();
                     double? best = ScoreDescriptorValue(
                         cat, scoredValue, entry.Measurements, scoringMetric, stdDevs,

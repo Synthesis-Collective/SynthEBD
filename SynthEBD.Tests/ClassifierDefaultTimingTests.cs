@@ -12,7 +12,7 @@ namespace SynthEBD.Tests;
 /// matched-descriptor set the moment that Category resolves with no rule match, so it is visible to
 /// later aggregator (<see cref="MeasurementConditionKind.DescriptorRef"/>) rules that reference it.
 /// This is what lets a "secondary" rule depend on a "primary" Category's default — e.g.
-/// Realism:UnrealisticChest's <c>[Belly:Normal]</c> branch firing when the belly fell through to its
+/// ExtremeShape:Chest's <c>[Belly:Normal]</c> branch firing when the belly fell through to its
 /// Normal default — and lets the redundant explicit middle-bin rules be deleted in favor of the
 /// per-Category default.
 ///
@@ -59,11 +59,11 @@ public class ClassifierDefaultTimingTests
     public void Aggregator_ReferencingDefaultValue_Fires_WhenCategoryFallsToDefault()
     {
         // Belly:Flat needs belly_projection < 12.5; here it's 15 so Belly falls to its Normal default.
-        // Realism:UnrealisticChest is listed FIRST (before the Belly rule) to also prove the topo sort
+        // ExtremeShape:Chest is listed FIRST (before the Belly rule) to also prove the topo sort
         // reorders it after the whole Belly category resolves + the default materializes.
         var rules = new List<MeasurementRule>
         {
-            Rule("Realism", "UnrealisticChest", Meas("chest_projection", MeasurementComparator.GreaterThan, 17f), Ref("Belly", "Normal")),
+            Rule("ExtremeShape", "Chest", Meas("chest_projection", MeasurementComparator.GreaterThan, 17f), Ref("Belly", "Normal")),
             Rule("Belly", "Flat", Meas("belly_projection", MeasurementComparator.LessThan, 12.5f)),
         };
         var defaults = new Dictionary<string, string> { ["Belly"] = "Normal" };
@@ -71,7 +71,7 @@ public class ClassifierDefaultTimingTests
 
         var (matches, defs) = Run(rules, meas, defaults);
 
-        matches.Should().Contain(("Realism", "UnrealisticChest"));
+        matches.Should().Contain(("ExtremeShape", "Chest"));
         matches.Should().NotContain(("Belly", "Flat"));
         defs.Should().Contain(("Belly", "Normal")); // belly still emitted as a default descriptor
     }
@@ -84,7 +84,7 @@ public class ClassifierDefaultTimingTests
         var rules = new List<MeasurementRule>
         {
             Rule("Belly", "Flat", Meas("belly_projection", MeasurementComparator.LessThan, 12.5f)),
-            Rule("Realism", "UnrealisticChest", Meas("chest_projection", MeasurementComparator.GreaterThan, 17f), Ref("Belly", "Normal")),
+            Rule("ExtremeShape", "Chest", Meas("chest_projection", MeasurementComparator.GreaterThan, 17f), Ref("Belly", "Normal")),
         };
         var defaults = new Dictionary<string, string> { ["Belly"] = "Normal" };
         var meas = new Dictionary<string, float> { ["chest_projection"] = 18f, ["belly_projection"] = 10f };
@@ -92,7 +92,7 @@ public class ClassifierDefaultTimingTests
         var (matches, defs) = Run(rules, meas, defaults);
 
         matches.Should().Contain(("Belly", "Flat"));
-        matches.Should().NotContain(("Realism", "UnrealisticChest"));
+        matches.Should().NotContain(("ExtremeShape", "Chest"));
         defs.Should().NotContain(("Belly", "Normal")); // Belly covered by a rule -> no default
     }
 

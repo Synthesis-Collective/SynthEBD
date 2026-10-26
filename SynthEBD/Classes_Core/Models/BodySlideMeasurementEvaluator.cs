@@ -406,7 +406,7 @@ public static class BodySlideMeasurementEvaluator
     /// set the moment that Category is fully evaluated with no rule match</b>, i.e. BEFORE any
     /// later aggregator (<see cref="MeasurementConditionKind.DescriptorRef"/>) rule that depends on
     /// the Category runs. This makes a "primary" Category's default value visible to "secondary"
-    /// aggregator rules — e.g. <c>Realism:UnrealisticChest</c>'s <c>[Belly:Normal]</c> branch fires
+    /// aggregator rules — e.g. <c>ExtremeShape:Chest</c>'s <c>[Belly:Normal]</c> branch fires
     /// when the belly fell through to its <c>Normal</c> default. The previous "apply every default
     /// after the whole rule pass" ordering could never satisfy such a reference, so those branches
     /// were silently dead (and could be authored as the now-redundant explicit middle-bin rule).
