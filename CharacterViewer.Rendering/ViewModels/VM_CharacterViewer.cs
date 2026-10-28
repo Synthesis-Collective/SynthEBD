@@ -61,6 +61,10 @@ public partial class VM_CharacterViewer : ViewerVm
 
     // GL rendering objects — created once, reused across NPC loads
     public GlRenderer Renderer { get; } = new();
+
+    /// <summary>Overlay channels of the body-shape authoring tools (key vertices, regions,
+    /// measurements, slider heatmap), registered in <see cref="Renderer"/>'s overlay list.</summary>
+    public BodyShapeOverlay BodyShapeOverlay { get; } = new();
     public GlTextureManager? TextureManager { get; private set; }
     public OrbitCamera Camera { get; } = new();
 
@@ -738,6 +742,7 @@ public partial class VM_CharacterViewer : ViewerVm
     {
         _logGate = logGate;
         _previewCache = previewCache;
+        Renderer.Overlays.Add(BodyShapeOverlay);
         // Mesh parser is shared via the preview cache so its parsed-NIF LRU
         // survives across viewer instances (the BodySlide menu disposes the
         // previous viewer on every preset switch).
@@ -2864,7 +2869,7 @@ public partial class VM_CharacterViewer : ViewerVm
             }
         }
 
-        Renderer.KeyVertexMarkers.Add(pick.LocalPos);
+        BodyShapeOverlay.KeyVertexMarkers.Add(pick.LocalPos);
         // Parallel bookkeeping so SelectMirrorPicks can resolve each marker back
         // to its (mesh, vertexIndex) without having to guess from position alone.
         _keyVertexPicks.Add(pick);
@@ -3342,7 +3347,7 @@ public partial class VM_CharacterViewer : ViewerVm
     }
 
     /// <summary>
-    /// Parallel to <see cref="GlRenderer.KeyVertexMarkers"/>: holds full pick metadata
+    /// Parallel to <see cref="BodyShapeOverlay.KeyVertexMarkers"/>: holds full pick metadata
     /// (mesh + vertex index) so SelectMirrorPicks can map each marker back to its mesh.
     /// Kept in sync via NotifyKeyVertexPicked / ClearKeyVertexMarkers.
     /// </summary>
@@ -3363,20 +3368,20 @@ public partial class VM_CharacterViewer : ViewerVm
 
     /// <summary>Called by the view (<see cref="UC_CharacterViewer"/>) whenever the
     /// picks ListBox selection changes. Replaces the cached selection wholesale and
-    /// mirrors it into <see cref="GlRenderer.SelectedKeyVertexMarkerIndices"/> so the
+    /// mirrors it into <see cref="BodyShapeOverlay.SelectedKeyVertexMarkerIndices"/> so the
     /// corresponding marker spheres render in the "selected" color.</summary>
     public void SetSelectedPicks(IEnumerable<PickRow> selection)
     {
         _selectedPicks.Clear();
-        Renderer.SelectedKeyVertexMarkerIndices.Clear();
+        BodyShapeOverlay.SelectedKeyVertexMarkerIndices.Clear();
         if (selection == null) return;
         foreach (var p in selection)
         {
             _selectedPicks.Add(p);
-            // Picks and Renderer.KeyVertexMarkers are parallel — the row's position
+            // Picks and BodyShapeOverlay.KeyVertexMarkers are parallel — the row's position
             // in Picks is also its marker index.
             int idx = Picks.IndexOf(p);
-            if (idx >= 0) Renderer.SelectedKeyVertexMarkerIndices.Add(idx);
+            if (idx >= 0) BodyShapeOverlay.SelectedKeyVertexMarkerIndices.Add(idx);
         }
     }
 
@@ -3478,9 +3483,9 @@ public partial class VM_CharacterViewer : ViewerVm
         }
 
         // Renderer marker at the same slot (orange sphere list is parallel to _keyVertexPicks).
-        if (rowIdx < Renderer.KeyVertexMarkers.Count)
+        if (rowIdx < BodyShapeOverlay.KeyVertexMarkers.Count)
         {
-            Renderer.KeyVertexMarkers[rowIdx] = newPos;
+            BodyShapeOverlay.KeyVertexMarkers[rowIdx] = newPos;
         }
 
         if (rowIdx == Picks.Count - 1) LastPickSummary = Picks[rowIdx].Display;
@@ -3513,17 +3518,17 @@ public partial class VM_CharacterViewer : ViewerVm
     /// Intended for the BodyTypeProfile editor, which resolves every <c>BoundingBox</c>
     /// key-vertex to a mesh-local position whenever <c>RefreshMeasurementValues</c> runs and
     /// pushes them here so the yellow markers track preset/weight change. Explicit picks
-    /// continue to live in <see cref="GlRenderer.KeyVertexMarkers"/> and aren't touched.
+    /// continue to live in <see cref="BodyShapeOverlay.KeyVertexMarkers"/> and aren't touched.
     /// </summary>
     public void SetBoxResolvedMarkers(IEnumerable<OpenTK.Mathematics.Vector3> positions)
     {
-        Renderer.BoxResolvedMarkers.Clear();
+        BodyShapeOverlay.BoxResolvedMarkers.Clear();
         if (positions == null) return;
-        foreach (var p in positions) Renderer.BoxResolvedMarkers.Add(p);
+        foreach (var p in positions) BodyShapeOverlay.BoxResolvedMarkers.Add(p);
     }
 
     /// <summary>Replaces the single preview marker (see
-    /// <see cref="GlRenderer.PreviewKeyVertexMarkers"/>) with the resolved position of
+    /// <see cref="BodyShapeOverlay.PreviewKeyVertexMarkers"/>) with the resolved position of
     /// <paramref name="shapeName"/>[<paramref name="vertexIndex"/>]. Pass null/empty shape or
     /// negative index to clear. Used by the BodyTypeProfile editor to render a transient
     /// "you-are-here" sphere when the user selects a KeyVertex row, without populating the
@@ -3531,25 +3536,25 @@ public partial class VM_CharacterViewer : ViewerVm
     /// current mesh state.</summary>
     public void SetPreviewKeyVertex(string? shapeName, int vertexIndex)
     {
-        Renderer.PreviewKeyVertexMarkers.Clear();
+        BodyShapeOverlay.PreviewKeyVertexMarkers.Clear();
         if (string.IsNullOrEmpty(shapeName) || vertexIndex < 0) return;
         if (TryGetCurrentVertex(shapeName, vertexIndex, out var pos))
         {
-            Renderer.PreviewKeyVertexMarkers.Add(pos);
+            BodyShapeOverlay.PreviewKeyVertexMarkers.Add(pos);
         }
     }
 
     /// <summary>Replaces the pending-box pick preview markers (see
-    /// <see cref="GlRenderer.PreviewPickMarkers"/>) with the supplied world-space positions.
+    /// <see cref="BodyShapeOverlay.PreviewPickMarkers"/>) with the supplied world-space positions.
     /// Pass null or an empty enumerable to clear. Driven by the BodyTypeProfile editor while
     /// a pending box is being authored — it re-runs FindBestInBox on every box-coord /
     /// criterion change and pushes the resolved vertex (or pair) here so the user sees
     /// exactly what Confirm would commit.</summary>
     public void SetPreviewPickMarkers(IEnumerable<OpenTK.Mathematics.Vector3>? positions)
     {
-        Renderer.PreviewPickMarkers.Clear();
+        BodyShapeOverlay.PreviewPickMarkers.Clear();
         if (positions == null) return;
-        foreach (var p in positions) Renderer.PreviewPickMarkers.Add(p);
+        foreach (var p in positions) BodyShapeOverlay.PreviewPickMarkers.Add(p);
     }
 
     /// <summary>
@@ -3701,8 +3706,8 @@ public partial class VM_CharacterViewer : ViewerVm
     /// button. Phase 3 will replace this with per-profile clearing.</summary>
     public void ClearKeyVertexMarkers()
     {
-        Renderer.KeyVertexMarkers.Clear();
-        Renderer.SelectedKeyVertexMarkerIndices.Clear();
+        BodyShapeOverlay.KeyVertexMarkers.Clear();
+        BodyShapeOverlay.SelectedKeyVertexMarkerIndices.Clear();
         _keyVertexPicks.Clear();
         _selectedPicks.Clear();
         Picks.Clear();
@@ -3722,10 +3727,10 @@ public partial class VM_CharacterViewer : ViewerVm
     {
         if (_keyVertexPicks.Count == 0) return;
 
-        Renderer.KeyVertexMarkers.Clear();
+        BodyShapeOverlay.KeyVertexMarkers.Clear();
         // Indices may shift if any pick fails to resolve mid-list below — clear and
         // re-derive at the end from the still-valid _selectedPicks row references.
-        Renderer.SelectedKeyVertexMarkerIndices.Clear();
+        BodyShapeOverlay.SelectedKeyVertexMarkerIndices.Clear();
 
         for (int i = 0; i < _keyVertexPicks.Count; i++)
         {
@@ -3738,7 +3743,7 @@ public partial class VM_CharacterViewer : ViewerVm
             }
 
             _keyVertexPicks[i] = new KeyVertexPick(pick.Mesh!, pick.VertexIndex, pos);
-            Renderer.KeyVertexMarkers.Add(pos);
+            BodyShapeOverlay.KeyVertexMarkers.Add(pos);
 
             if (i < Picks.Count)
             {
@@ -3757,7 +3762,7 @@ public partial class VM_CharacterViewer : ViewerVm
         foreach (var row in _selectedPicks)
         {
             int idx = Picks.IndexOf(row);
-            if (idx >= 0) Renderer.SelectedKeyVertexMarkerIndices.Add(idx);
+            if (idx >= 0) BodyShapeOverlay.SelectedKeyVertexMarkerIndices.Add(idx);
         }
     }
 
@@ -3976,13 +3981,13 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>
     /// Replaces the renderer's measurement-line overlay with <paramref name="segments"/>.
     /// Positions are in the same pre-ModelScale mesh-local space as
-    /// <see cref="GlRenderer.KeyVertexMarkers"/>; pass <c>null</c> or an empty sequence
+    /// <see cref="BodyShapeOverlay.KeyVertexMarkers"/>; pass <c>null</c> or an empty sequence
     /// to clear the overlay. Used by the BodyTypeProfile editor to visualize the
     /// currently-selected measurement.
     /// </summary>
     /// <summary>
     /// Single canonical entry point. Each tuple's <c>Label</c> populates
-    /// <see cref="GlRenderer.MeasurementLineSegment.Label"/> for the hover-tooltip path;
+    /// <see cref="OverlayLineSegment.Label"/> for the hover-tooltip path;
     /// pass null/empty when a segment shouldn't surface a tooltip (e.g. the bulge-bin
     /// debug overlay where individual lines don't map to a named measurement). The
     /// renderer ignores Label; it's purely transit data for
@@ -3993,11 +3998,11 @@ public partial class VM_CharacterViewer : ViewerVm
     /// </summary>
     public void SetMeasurementLines(IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color, string? Label)> segments)
     {
-        Renderer.MeasurementLines.Clear();
+        BodyShapeOverlay.MeasurementLines.Clear();
         if (segments == null) return;
         foreach (var s in segments)
         {
-            Renderer.MeasurementLines.Add(new GlRenderer.MeasurementLineSegment
+            BodyShapeOverlay.MeasurementLines.Add(new OverlayLineSegment
             {
                 A = s.A,
                 B = s.B,
@@ -4018,13 +4023,13 @@ public partial class VM_CharacterViewer : ViewerVm
         IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>? loopEdges,
         OpenTK.Mathematics.Vector3 edgeColor)
     {
-        Renderer.RegionCapMarkers.Clear();
-        Renderer.RegionOverlayLines.Clear();
+        BodyShapeOverlay.RegionCapMarkers.Clear();
+        BodyShapeOverlay.RegionOverlayLines.Clear();
         if (loopVertices != null)
-            foreach (var v in loopVertices) Renderer.RegionCapMarkers.Add(v);
+            foreach (var v in loopVertices) BodyShapeOverlay.RegionCapMarkers.Add(v);
         if (loopEdges != null)
             foreach (var (a, b) in loopEdges)
-                Renderer.RegionOverlayLines.Add(new GlRenderer.MeasurementLineSegment { A = a, B = b, Color = edgeColor });
+                BodyShapeOverlay.RegionOverlayLines.Add(new OverlayLineSegment { A = a, B = b, Color = edgeColor });
     }
 
     /// <summary>Replaces the renderer's "Solid" region-view geometry: the selected region's closed
@@ -4037,16 +4042,16 @@ public partial class VM_CharacterViewer : ViewerVm
         IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B)>? wireEdges = null,
         OpenTK.Mathematics.Vector3 wireColor = default)
     {
-        Renderer.RegionSolidTriangles.Clear();
-        Renderer.RegionWireLines.Clear();
+        BodyShapeOverlay.RegionSolidTriangles.Clear();
+        BodyShapeOverlay.RegionWireLines.Clear();
         if (interleavedTriangles != null)
-            Renderer.RegionSolidTriangles.AddRange(interleavedTriangles);
+            BodyShapeOverlay.RegionSolidTriangles.AddRange(interleavedTriangles);
         if (wireEdges != null)
             foreach (var (a, b) in wireEdges)
-                Renderer.RegionWireLines.Add(new GlRenderer.MeasurementLineSegment { A = a, B = b, Color = wireColor });
+                BodyShapeOverlay.RegionWireLines.Add(new OverlayLineSegment { A = a, B = b, Color = wireColor });
     }
 
-    /// <summary>Replaces the region wireframe channel (<see cref="GlRenderer.RegionWireLines"/>) with
+    /// <summary>Replaces the region wireframe channel (<see cref="BodyShapeOverlay.RegionWireLines"/>) with
     /// <b>per-segment-colored</b> line segments, instead of the single-color wire <see cref="SetRegionSolid"/>
     /// pushes. The editor uses this to recolor an edited region's wireframe: cyan for untouched edges,
     /// green for the half-edges around curated <i>added</i> vertices, and small red/green node crosses
@@ -4055,47 +4060,47 @@ public partial class VM_CharacterViewer : ViewerVm
     public void SetRegionWireColored(
         IEnumerable<(OpenTK.Mathematics.Vector3 A, OpenTK.Mathematics.Vector3 B, OpenTK.Mathematics.Vector3 Color)>? segments)
     {
-        Renderer.RegionWireLines.Clear();
+        BodyShapeOverlay.RegionWireLines.Clear();
         if (segments == null) return;
         foreach (var s in segments)
-            Renderer.RegionWireLines.Add(new GlRenderer.MeasurementLineSegment { A = s.A, B = s.B, Color = s.Color });
+            BodyShapeOverlay.RegionWireLines.Add(new OverlayLineSegment { A = s.A, B = s.B, Color = s.Color });
     }
 
-    /// <summary>Replaces the measurement-region tint (<see cref="GlRenderer.MeasurementRegionTriangles"/>):
+    /// <summary>Replaces the measurement-region tint (<see cref="BodyShapeOverlay.MeasurementRegionTriangles"/>):
     /// the surface patches of the regions the displayed measurements use, as interleaved triangle
     /// vertices (6 floats each: position.xyz + normal.xyz) in the same pre-ModelScale space as the
     /// markers. Drawn translucent and depth-tested, so it shades the visible skin. Independent of the
     /// region editor's channels (<see cref="SetRegionSolid"/> / <see cref="ClearRegionOverlay"/> never
     /// touch it). Pass null/empty to clear. <paramref name="colorRanges"/> (in vertices) colors parts of the
-    /// tint separately -- see <see cref="GlRenderer.MeasurementRegionColorRanges"/>; null/empty draws all of
+    /// tint separately -- see <see cref="BodyShapeOverlay.MeasurementRegionColorRanges"/>; null/empty draws all of
     /// it in <see cref="MeasurementRegionDefaultColor"/>.</summary>
     public void SetMeasurementRegionTint(IEnumerable<float>? interleavedTriangles,
         IEnumerable<(int FirstVertex, int VertexCount, OpenTK.Mathematics.Vector3 Color)>? colorRanges = null)
     {
-        Renderer.MeasurementRegionTriangles.Clear();
-        Renderer.MeasurementRegionColorRanges.Clear();
+        BodyShapeOverlay.MeasurementRegionTriangles.Clear();
+        BodyShapeOverlay.MeasurementRegionColorRanges.Clear();
         if (interleavedTriangles != null)
-            Renderer.MeasurementRegionTriangles.AddRange(interleavedTriangles);
+            BodyShapeOverlay.MeasurementRegionTriangles.AddRange(interleavedTriangles);
         if (colorRanges != null)
-            Renderer.MeasurementRegionColorRanges.AddRange(colorRanges);
+            BodyShapeOverlay.MeasurementRegionColorRanges.AddRange(colorRanges);
     }
 
     /// <summary>The measurement-region tint's color when no per-range colors are given.</summary>
-    public OpenTK.Mathematics.Vector3 MeasurementRegionDefaultColor => Renderer.MeasurementRegionColor;
+    public OpenTK.Mathematics.Vector3 MeasurementRegionDefaultColor => BodyShapeOverlay.MeasurementRegionColor;
 
     /// <summary>Clears the region overlay (cap-loop markers + edges + the Solid surface + wireframe).
     /// Called when the editor deselects its region row or switches profiles.</summary>
     public void ClearRegionOverlay()
     {
-        Renderer.RegionCapMarkers.Clear();
-        Renderer.RegionOverlayLines.Clear();
-        Renderer.RegionSolidTriangles.Clear();
-        Renderer.RegionWireLines.Clear();
+        BodyShapeOverlay.RegionCapMarkers.Clear();
+        BodyShapeOverlay.RegionOverlayLines.Clear();
+        BodyShapeOverlay.RegionSolidTriangles.Clear();
+        BodyShapeOverlay.RegionWireLines.Clear();
     }
 
     /// <summary>
     /// Lights up the vertices a single BodySlide slider moves as an unlit magnitude heatmap over the
-    /// current (deformed) body, feeding <see cref="GlRenderer.SliderHeatmapTriangles"/>. Iterates the
+    /// current (deformed) body, feeding <see cref="BodyShapeOverlay.SliderHeatmapTriangles"/>. Iterates the
     /// cached deformable body shapes, pulls each shape's sparse per-vertex deltas for
     /// <paramref name="sliderName"/> from the already-loaded .tri/OSD morph context via
     /// <see cref="BodySlideDeformer.TryGetSliderDeltas"/> (no file re-parse), and builds the patch with
@@ -4106,7 +4111,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// </summary>
     public void HighlightSliderMorph(string? sliderName, float minDelta = SliderHeatmapBuilder.DefaultMinDelta)
     {
-        var output = Renderer.SliderHeatmapTriangles;
+        var output = BodyShapeOverlay.SliderHeatmapTriangles;
         output.Clear();
 
         if (string.IsNullOrWhiteSpace(sliderName)) return;
@@ -4135,14 +4140,14 @@ public partial class VM_CharacterViewer : ViewerVm
     /// or NPC reloaded). Cheap; safe to call when nothing is highlighted.</summary>
     public void ClearSliderHighlight()
     {
-        Renderer.SliderHeatmapTriangles.Clear();
+        BodyShapeOverlay.SliderHeatmapTriangles.Clear();
     }
 
     /// <summary>
     /// Returns the label of the closest labeled measurement-line segment within
     /// <paramref name="thresholdPixels"/> screen-space distance of the cursor, or null when
     /// no labeled segment is close enough. Unlabeled segments are skipped — they still
-    /// render through <see cref="GlRenderer.MeasurementLines"/> but don't surface a
+    /// render through <see cref="BodyShapeOverlay.MeasurementLines"/> but don't surface a
     /// tooltip. Used by <c>UC_CharacterViewer.HoverTimer_Tick</c> as a labeled-overlay
     /// hit-test that takes priority over the mesh hover-tooltip because the lines render
     /// on top of the body with depth test disabled (so they're visually in front
@@ -4159,7 +4164,7 @@ public partial class VM_CharacterViewer : ViewerVm
         float viewportWidth, float viewportHeight,
         float thresholdPixels)
     {
-        if (Renderer.MeasurementLines.Count == 0) return null;
+        if (BodyShapeOverlay.MeasurementLines.Count == 0) return null;
         if (viewportWidth <= 0f || viewportHeight <= 0f) return null;
 
         float aspect = viewportWidth / viewportHeight;
@@ -4172,9 +4177,9 @@ public partial class VM_CharacterViewer : ViewerVm
         float bestDepth = float.MaxValue;
         var mouse = new OpenTK.Mathematics.Vector2(mouseX, mouseY);
 
-        for (int i = 0; i < Renderer.MeasurementLines.Count; i++)
+        for (int i = 0; i < BodyShapeOverlay.MeasurementLines.Count; i++)
         {
-            var seg = Renderer.MeasurementLines[i];
+            var seg = BodyShapeOverlay.MeasurementLines[i];
             if (string.IsNullOrEmpty(seg.Label)) continue;
 
             if (!TryProjectToPixel(seg.A * modelScale, vp, viewportWidth, viewportHeight, out var pa, out float depthA))

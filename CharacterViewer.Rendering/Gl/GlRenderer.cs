@@ -99,11 +99,10 @@ public class GlRenderer : IDisposable
     private const float BloomSoftKnee = 0.35f;
     private int _debugVbo;
 
-    // Slider-morph heatmap pass (Label by Sliders annotator). A batched,
-    // single-upload/single-draw channel parallel to RegionSolidTriangles, but
-    // with a per-vertex color attribute (location 2) so each moved vertex is
-    // painted by its |morph delta| magnitude. Uses its own VAO (9-float stride:
-    // pos.xyz + normal.xyz + color.rgb) and an unlit shader. See DrawSliderHeatmap.
+    // Vertex-colour overlay pass. A batched, single-upload/single-draw overlay
+    // primitive parallel to the solid triangles, but with a per-vertex color
+    // attribute (location 2) so each vertex carries its own colour. Uses its own VAO (9-float stride:
+    // pos.xyz + normal.xyz + color.rgb) and an unlit shader. See DrawOverlayVertexColorTriangles.
     private GlShaderProgram? _heatmapShader;
     private int _heatmapVao;
     private int _heatmapVbo;
@@ -406,160 +405,374 @@ public class GlRenderer : IDisposable
     /// because texture binding is decided at scene-build time.</summary>
     public bool UseBlankDetailFallback { get; set; } = false;
 
-    /// <summary>World-space (pre-ModelScale) positions where a sphere gizmo
-    /// should be drawn. Used by the BodySlide classifier's key-vertex picking
-    /// workflow. Positions are in the same space as <see cref="GlMesh.CpuPositions"/>
-    /// so they track the character through ModelScale changes.</summary>
-    public List<Vector3> KeyVertexMarkers { get; } = new();
-
-    /// <summary>RGB color for the key-vertex marker spheres.</summary>
-    public Vector3 KeyVertexMarkerColor { get; set; } = new Vector3(1.0f, 0.38f, 0.15f);
-
-    /// <summary>Indices into <see cref="KeyVertexMarkers"/> that should render in
-    /// <see cref="KeyVertexMarkerSelectedColor"/> instead of the default — driven by the
-    /// pick-info ListBox selection in the viewer so the user can identify which marker
-    /// corresponds to the clicked row.</summary>
-    public HashSet<int> SelectedKeyVertexMarkerIndices { get; } = new();
-
-    /// <summary>RGB color for selected key-vertex marker spheres (overrides
-    /// <see cref="KeyVertexMarkerColor"/> per-marker when the index appears in
-    /// <see cref="SelectedKeyVertexMarkerIndices"/>).</summary>
-    public Vector3 KeyVertexMarkerSelectedColor { get; set; } = new Vector3(0.25f, 1.0f, 0.35f);
-
-    /// <summary>Bounding-box-resolved markers — rendered by the same path as
-    /// <see cref="KeyVertexMarkers"/> but in a distinguishable color so the user can see
-    /// which of their named key vertices are static picks vs. AABB re-scans. Owned by the
-    /// BodyTypeProfile editor; repopulated on every <c>RefreshMeasurementValues</c>.</summary>
-    public List<Vector3> BoxResolvedMarkers { get; } = new();
-
-    /// <summary>RGB color for BB-resolved marker spheres. Yellow matches the Pick Box UI accent.</summary>
-    public Vector3 BoxResolvedMarkerColor { get; set; } = new Vector3(1.0f, 0.80f, 0.25f);
-
-    /// <summary>Transient preview marker — one position, owned by the BodyTypeProfile editor
-    /// to show the currently-selected KeyVertex row's location without populating
-    /// <see cref="KeyVertexMarkers"/> (which would add a row to the picks ListBox). Cleared
-    /// when the user deselects or switches profile. Renders in
-    /// <see cref="PreviewKeyVertexMarkerColor"/> via the same DrawMarkerList path.</summary>
-    public List<Vector3> PreviewKeyVertexMarkers { get; } = new();
-
-    /// <summary>RGB color for the preview marker. Defaults to the same green as the
-    /// selected-pick color so the visual language is consistent — "this dot is the row
-    /// you have highlighted in the editor".</summary>
-    public Vector3 PreviewKeyVertexMarkerColor { get; set; } = new Vector3(0.25f, 1.0f, 0.35f);
-
-    /// <summary>Pending-box pick preview — the vertex (or vertices, for mirror criteria)
-    /// that the current pending box + criterion would resolve to if the user clicked Confirm
-    /// right now. Updated live as the user tweaks min/max coords or swaps the criterion,
-    /// cleared when the pending box is dismissed. Purple to distinguish from the orange
-    /// committed picks and yellow BB-resolved markers.</summary>
-    public List<Vector3> PreviewPickMarkers { get; } = new();
-
-    /// <summary>RGB color for the pending-box pick preview spheres. Purple — sits visually
-    /// apart from orange (picks), yellow (BB-resolved), and green (selected/preview-row).</summary>
-    public Vector3 PreviewPickMarkerColor { get; set; } = new Vector3(0.78f, 0.30f, 1.0f);
-
-    /// <summary>Region-overlay cap-loop vertex markers — the resolved boundary-loop vertices of
-    /// the RegionVolume region currently selected in the BodyTypeProfile editor. Rendered by the
-    /// same <see cref="DrawMarkerList"/> path as the key-vertex markers; the matching loop edges
-    /// are drawn from <see cref="RegionOverlayLines"/>. Owned by the editor; cleared on deselect.</summary>
-    public List<Vector3> RegionCapMarkers { get; } = new();
-
-    /// <summary>RGB color for the region cap-loop markers. Cyan — distinct from orange (picks),
-    /// yellow (BB-resolved), green (preview-row), and purple (pending-box preview).</summary>
-    public Vector3 RegionCapMarkerColor { get; set; } = new Vector3(0.20f, 0.90f, 1.0f);
-
-    /// <summary>Region "Solid" view-mode geometry: the selected region's closed surface (patch +
-    /// caps) as interleaved triangle vertices, 6 floats each (position.xyz + normal.xyz), in the same
-    /// pre-ModelScale local space as the markers. Drawn lit (<c>u_shaded=1</c>) with depth test off in
-    /// the marker pass, so the region reads as a solid magenta object visible through the body from any
-    /// angle — reusing the always-on-top overlay path instead of making the body transparent. Empty in
-    /// End-Cap mode. Owned by the editor; rebuilt per preset/weight like the cap-loop overlay.</summary>
-    public List<float> RegionSolidTriangles { get; } = new();
-
-    /// <summary>RGB color for the Solid-mode region surface. Magenta — distinct from the cyan cap
-    /// markers/edges drawn on top of it.</summary>
-    public Vector3 RegionSolidColor { get; set; } = new Vector3(1.0f, 0.10f, 0.85f);
-
-    /// <summary>Measurement-region tint geometry: the surface patches of the regions the displayed
-    /// measurements use (a RegionVolume's region, or the region behind a Region-strategy key vertex),
-    /// in the same 6-float interleaved layout and pre-ModelScale space as <see cref="RegionSolidTriangles"/>.
-    /// Unlike that channel it is drawn <b>translucent and depth-tested</b> (<see cref="DrawMeasurementRegions"/>),
-    /// so it reads as a tint on the visible skin rather than a solid seen through the body. Kept separate
-    /// from the region editor's channel so the two never clear each other. Pushed by
-    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/>.</summary>
-    public List<float> MeasurementRegionTriangles { get; } = new();
-
-    /// <summary>RGB color of the measurement-region tint. Cyan, matching the region cap-loop color.
-    /// Used for the whole of <see cref="MeasurementRegionTriangles"/> when
-    /// <see cref="MeasurementRegionColorRanges"/> is empty.</summary>
-    public Vector3 MeasurementRegionColor { get; set; } = new Vector3(0.20f, 0.90f, 1.0f);
-
-    /// <summary>Optional per-range colors for <see cref="MeasurementRegionTriangles"/>, in vertices (not
-    /// floats): each entry draws <c>VertexCount</c> vertices starting at <c>FirstVertex</c> in its own color.
-    /// Lets one tint show several regions apart, e.g. a measurement ratio's numerator region in yellow and its
-    /// denominator region in cyan. Empty = the whole list in <see cref="MeasurementRegionColor"/>; when
-    /// non-empty, only the listed ranges are drawn.</summary>
-    public List<(int FirstVertex, int VertexCount, Vector3 Color)> MeasurementRegionColorRanges { get; } = new();
-
-    /// <summary>Opacity of the measurement-region tint (0..1).</summary>
-    public float MeasurementRegionAlpha { get; set; } = 0.45f;
-
-    /// <summary>Slider-morph heatmap geometry (Label by Sliders annotator): the surface patch of the
-    /// vertices a designated BodySlide slider moves, as interleaved triangle vertices with 9 floats each
-    /// (position.xyz + normal.xyz + color.rgb), in the same pre-ModelScale local space as
-    /// <see cref="RegionSolidTriangles"/>. Unlike the region-solid channel the color is per-vertex (a
-    /// |morph delta| cold/hot ramp), so it has no single-color property. Drawn UNLIT and depth-test-off
-    /// in the marker pass (<see cref="DrawSliderHeatmap"/>) so it reads as an always-on-top magnitude
-    /// map. Populated by <see cref="VM_CharacterViewer.HighlightSliderMorph"/>; cleared on deselect.</summary>
-    public List<float> SliderHeatmapTriangles { get; } = new();
-
-    /// <summary>World-space radius of each marker sphere before ModelScale is
-    /// applied. Small enough not to obscure neighbouring vertices on a dense
-    /// classifier mesh, while still readable at typical viewer zooms.</summary>
-    public float KeyVertexMarkerRadius { get; set; } = 0.275f;
-
-    /// <summary>
-    /// Line-segment overlays used by the BodyTypeProfile editor to visualize the
-    /// currently-selected measurement. Positions are in the same pre-ModelScale
-    /// mesh-local space as <see cref="KeyVertexMarkers"/> so they track ModelScale.
-    /// </summary>
-    public List<MeasurementLineSegment> MeasurementLines { get; } = new();
-
-    /// <summary>Region-overlay cap-loop edges — the boundary-loop edges of the RegionVolume region
-    /// currently selected in the BodyTypeProfile editor. Same <see cref="MeasurementLineSegment"/>
-    /// shape and same draw path (<see cref="DrawMeasurementLines"/>) as <see cref="MeasurementLines"/>,
-    /// kept in a separate channel so the region overlay and the measurement overlay don't clobber
-    /// each other. Drawn at the thick contour width. Owned by the editor; cleared on deselect.</summary>
-    public List<MeasurementLineSegment> RegionOverlayLines { get; } = new();
-
-    /// <summary>Region "Solid" view-mode wireframe — the patch's triangle edges, drawn THIN (so the
-    /// dense bump mesh reads as a wireframe rather than a fat tangle) over the magenta solid. Separate
-    /// channel from <see cref="RegionOverlayLines"/> precisely because of the different line width.
-    /// Owned by the editor; populated only in Solid mode, cleared otherwise.</summary>
-    public List<MeasurementLineSegment> RegionWireLines { get; } = new();
-
-    /// <summary>Line width (px) for <see cref="RegionWireLines"/>. Thin — a true wireframe.</summary>
-    public float RegionWireWidth { get; set; } = 1.25f;
-
     /// <summary>Whether this context honors glLineWidth &gt; 1 (probed once in <see cref="Initialize"/>).
-    /// False on forward-compatible core contexts, where the overlay line channels fall back to
-    /// screen-aligned quads.</summary>
+    /// False on forward-compatible core contexts, where overlay lines fall back to screen-aligned
+    /// quads.</summary>
     private bool _wideLinesSupported = true;
 
-    public struct MeasurementLineSegment
-    {
-        public Vector3 A;
-        public Vector3 B;
-        public Vector3 Color;
+    /// <summary>
+    /// Host overlays drawn after the scene, the wireframe overlay and the clip-plane visual, and
+    /// before the light-direction gizmos. Drawn in list order; each one composes the overlay
+    /// primitives below (<see cref="BeginOverlaySurfacePass"/>, <see cref="BeginOverlayLinePass"/>
+    /// and the <c>DrawOverlay*</c> methods). Positions handed to the primitives are in the same
+    /// pre-<see cref="ModelScale"/> mesh-local space as <see cref="GlMesh.CpuPositions"/>.
+    /// </summary>
+    public List<IRenderOverlay> Overlays { get; } = new();
 
-        /// <summary>Optional tooltip label shown when the user hovers near this segment in
-        /// the WPF viewer (see <c>VM_CharacterViewer.HitTestMeasurementLine</c> +
-        /// <c>UC_CharacterViewer.HoverTimer_Tick</c>). Null/empty when the segment is
-        /// untagged — those segments still render but are ignored by the hover hit-test.
-        /// Renderer side never reads this field; it's purely transit metadata between the
-        /// caller that builds the overlay (e.g. <c>VM_BodyTypeProfileEditor.RefreshMeasurementHighlight</c>)
-        /// and the hover handler.</summary>
-        public string? Label;
+    // ═══════════════════════════════════════════════════════════════════════
+    //  OVERLAY PRIMITIVES
+    //
+    //  Valid only inside IRenderOverlay.Draw. Two pass kinds share the debug
+    //  shader and VAO (position.xyz + normal.xyz): a surface pass (lit, depth
+    //  test off, back-face cull on) for markers and triangle patches, and a
+    //  line pass (unlit, depth test off) for line segments. Each Begin
+    //  returns the GL state to restore at the matching End.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>GL state saved by a Begin*Pass call and restored by the matching End*Pass.</summary>
+    public readonly struct OverlayPassState
+    {
+        internal OverlayPassState(bool depthWasEnabled, bool cullWasEnabled)
+        {
+            DepthWasEnabled = depthWasEnabled;
+            CullWasEnabled = cullWasEnabled;
+        }
+        internal bool DepthWasEnabled { get; }
+        internal bool CullWasEnabled { get; }
+    }
+
+    /// <summary>
+    /// Starts a surface pass: debug shader, lit (<c>u_shaded=1</c>), opaque, depth test off,
+    /// back-face culling on, so everything drawn reads as always-on-top. Returns false (and
+    /// draws nothing) before <see cref="Initialize"/>.
+    /// </summary>
+    public bool BeginOverlaySurfacePass(in OverlayContext ctx, out OverlayPassState state)
+    {
+        state = default;
+        if (_debugShader == null) return false;
+
+        var view = ctx.View;
+        var projection = ctx.Projection;
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 1f);
+        // Opaque. debug.frag gained u_alpha for the clip-plane fill; an unset
+        // uniform defaults to 0, so every caller must push it or draw invisible.
+        _debugShader.SetFloat("u_alpha", 1f);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        state = new OverlayPassState(GL.IsEnabled(EnableCap.DepthTest), GL.IsEnabled(EnableCap.CullFace));
+        GL.Disable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
+        return true;
+    }
+
+    /// <summary>Ends a surface pass, restoring the depth and cull state saved at its start.</summary>
+    public void EndOverlaySurfacePass(in OverlayPassState state)
+    {
+        if (state.DepthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        if (!state.CullWasEnabled) GL.Disable(EnableCap.CullFace);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>Switches the surface pass between lit and flat shading.</summary>
+    public void SetOverlayShaded(bool shaded) => _debugShader?.SetFloat("u_shaded", shaded ? 1f : 0f);
+
+    /// <summary>Draws a 6-float (position.xyz + normal.xyz) triangle list as an opaque solid in
+    /// <paramref name="color"/>. Surface pass only. Positions are scaled by ModelScale via a scratch
+    /// copy so the caller's list is never mutated.</summary>
+    public void DrawOverlaySolidTriangles(List<float> triangles, Vector3 color)
+    {
+        int floats = UploadScaledPosNormal(triangles, ref _overlaySolidScratch);
+        if (floats == 0) return;
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+    }
+    private float[]? _overlaySolidScratch;
+
+    /// <summary>Draws a 6-float triangle list as a lit, translucent, depth-tested tint, so it shades
+    /// only the visible surface. Surface pass only; this draw alone re-enables the depth test with a
+    /// small polygon offset (the patch lies exactly on the surface and would z-fight) and blends with
+    /// the destination alpha kept at 1, so an offscreen BGRA readback stays opaque. It relies on the
+    /// scene FBO's depth buffer still holding the scene, as the wireframe overlay does. Restores
+    /// depth-off / opaque / depth-writes-on before returning. When <paramref name="colorRanges"/> is
+    /// non-empty, only the listed vertex ranges are drawn, each in its own colour.</summary>
+    public void DrawOverlayTranslucentTint(List<float> triangles, Vector3 color, float alpha,
+        IReadOnlyList<(int FirstVertex, int VertexCount, Vector3 Color)> colorRanges)
+    {
+        int floats = UploadScaledPosNormal(triangles, ref _overlayTintScratch);
+        if (floats == 0) return;
+
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        _debugShader.SetFloat("u_alpha", alpha);
+        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFuncSeparate(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
+            BlendingFactorSrc.Zero, BlendingFactorDest.One);
+        GL.DepthMask(false);
+        GL.Enable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.PolygonOffsetFill);
+        GL.PolygonOffset(-1.0f, -2.0f);
+
+        int vertexCount = floats / 6;
+        if (colorRanges.Count == 0)
+        {
+            GL.DrawArrays(PrimitiveType.Triangles, 0, vertexCount);
+        }
+        else
+        {
+            // One draw per colored range (same uploaded buffer); ranges are clamped to what was uploaded.
+            foreach (var (first, count, rangeColor) in colorRanges)
+            {
+                if (first < 0 || first >= vertexCount) continue;
+                int n = Math.Min(count, vertexCount - first);
+                n -= n % 3; // whole triangles only
+                if (n <= 0) continue;
+                _debugShader.SetVector3("u_color", rangeColor.X, rangeColor.Y, rangeColor.Z);
+                GL.DrawArrays(PrimitiveType.Triangles, first, n);
+            }
+        }
+
+        GL.Disable(EnableCap.PolygonOffsetFill);
+        GL.Disable(EnableCap.DepthTest);
+        GL.DepthMask(true);
+        if (!blendWasEnabled) GL.Disable(EnableCap.Blend);
+        _debugShader.SetFloat("u_alpha", 1f);
+    }
+    private float[]? _overlayTintScratch;
+
+    /// <summary>Copies a 6-float (position + normal) triangle list into <paramref name="scratch"/> with
+    /// positions scaled by ModelScale, and uploads it to the bound debug VBO. Returns the float count,
+    /// or 0 (nothing uploaded) when the list holds less than one triangle.</summary>
+    private int UploadScaledPosNormal(List<float> src, ref float[]? scratch)
+    {
+        int floats = src.Count;
+        if (floats < 18) return 0; // need at least one triangle (3 verts * 6 floats)
+        var buf = scratch;
+        if (buf == null || buf.Length < floats) buf = scratch = new float[floats];
+        float s = ModelScale;
+        for (int i = 0; i < floats; i += 6)
+        {
+            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
+            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
+        }
+        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+        return floats;
+    }
+
+    /// <summary>Draws a 9-float (position.xyz + normal.xyz + color.rgb) triangle list unlit, coloured
+    /// per vertex, through the dedicated vertex-colour shader and VAO. Batched (one BufferData + one
+    /// DrawArrays), so it scales to many thousands of vertices. Surface pass only, and it leaves its
+    /// own shader bound, so draw it after the pass's debug-shader primitives.</summary>
+    public void DrawOverlayVertexColorTriangles(List<float> triangles, in OverlayContext ctx)
+    {
+        if (_heatmapShader == null) return;
+        int floats = triangles.Count;
+        if (floats < 27) return; // need at least one triangle (3 verts * 9 floats)
+
+        var src = triangles;
+        var buf = _heatmapScratch;
+        if (buf == null || buf.Length < floats) buf = _heatmapScratch = new float[floats];
+        float s = ModelScale;
+        for (int i = 0; i < floats; i += 9)
+        {
+            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
+            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
+            buf[i + 6] = src[i + 6];     buf[i + 7] = src[i + 7];     buf[i + 8] = src[i + 8];     // color (per-vertex)
+        }
+
+        var view = ctx.View;
+        var projection = ctx.Projection;
+        _heatmapShader.Use();
+        _heatmapShader.SetMatrix4("u_view", ref view);
+        _heatmapShader.SetMatrix4("u_projection", ref projection);
+        GL.BindVertexArray(_heatmapVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
+        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 9);
+    }
+    private float[]? _heatmapScratch;
+
+    /// <summary>Draws a sphere of <paramref name="radius"/> (pre-ModelScale) at each position.
+    /// Surface pass only. Markers whose index is in <paramref name="selectedIndices"/> draw in
+    /// <paramref name="selectedColor"/>.</summary>
+    public void DrawOverlayMarkers(
+        List<Vector3> markers, Vector3 color, float radius,
+        HashSet<int>? selectedIndices = null, Vector3 selectedColor = default)
+    {
+        if (markers.Count == 0) return;
+
+        var unit = GetUnitSphereMesh();
+        var scratch = _sphereScratch ??= new float[unit.Length];
+        float worldRadius = radius * ModelScale;
+
+        // Set the default color once; swap to the selected color only when a marker's
+        // index lands in selectedIndices, and only emit the uniform update on transition.
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        bool currentlySelected = false;
+
+        for (int i = 0; i < markers.Count; i++)
+        {
+            bool markerSelected = selectedIndices != null && selectedIndices.Contains(i);
+            if (markerSelected != currentlySelected)
+            {
+                var c = markerSelected ? selectedColor : color;
+                _debugShader.SetVector3("u_color", c.X, c.Y, c.Z);
+                currentlySelected = markerSelected;
+            }
+
+            var worldCenter = markers[i] * ModelScale;
+            for (int v = 0; v < unit.Length; v += 6)
+            {
+                scratch[v + 0] = worldCenter.X + unit[v + 0] * worldRadius;
+                scratch[v + 1] = worldCenter.Y + unit[v + 1] * worldRadius;
+                scratch[v + 2] = worldCenter.Z + unit[v + 2] * worldRadius;
+                scratch[v + 3] = unit[v + 3];
+                scratch[v + 4] = unit[v + 4];
+                scratch[v + 5] = unit[v + 5];
+            }
+            GL.BufferData(BufferTarget.ArrayBuffer,
+                scratch.Length * sizeof(float), scratch, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, scratch.Length / 6);
+        }
+    }
+
+    /// <summary>
+    /// Starts a line pass: debug shader, flat (<c>u_shaded=0</c>) so lighting doesn't tint the
+    /// colour, depth test off so segments stay visible through the scene. Returns false (and
+    /// draws nothing) before <see cref="Initialize"/>.
+    /// </summary>
+    public bool BeginOverlayLinePass(in OverlayContext ctx, out OverlayPassState state)
+    {
+        state = default;
+        if (_debugShader == null) return false;
+
+        var view = ctx.View;
+        var projection = ctx.Projection;
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 0f);
+        _debugShader.SetFloat("u_alpha", 1f);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        state = new OverlayPassState(GL.IsEnabled(EnableCap.DepthTest), cullWasEnabled: false);
+        GL.Disable(EnableCap.DepthTest);
+
+        // Two verts per line, 6 floats per vert (pos + unused normal); the quad fallback needs
+        // six verts (two triangles) per segment.
+        _lineScratch = new float[_wideLinesSupported ? 12 : 36];
+        return true;
+    }
+
+    /// <summary>Ends a line pass, restoring line width and the depth state saved at its start.</summary>
+    public void EndOverlayLinePass(in OverlayPassState state)
+    {
+        if (_wideLinesSupported) GL.LineWidth(1.0f);
+        if (state.DepthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>Draws each segment <paramref name="widthPixels"/> wide. Line pass only.
+    /// <para>When the context rejects wide lines (a forward-compatible core context such as the
+    /// offscreen renderer's), each segment is instead expanded on the CPU into a screen-aligned
+    /// quad <paramref name="widthPixels"/> wide, emitted directly in NDC with identity
+    /// view/projection. Without this the overlay silently draws at 1 px, which vanishes in a
+    /// scaled-down thumbnail.</para></summary>
+    public void DrawOverlayLines(List<OverlayLineSegment> lines, float widthPixels, in OverlayContext ctx)
+    {
+        if (lines.Count == 0 || _lineScratch == null) return;
+        var buf = _lineScratch;
+        if (!_wideLinesSupported)
+        {
+            var viewProj = ctx.View * ctx.Projection;
+            DrawOverlayLinesAsQuads(lines, buf, widthPixels, ref viewProj, ctx.ViewportWidth, ctx.ViewportHeight);
+            return;
+        }
+
+        GL.LineWidth(widthPixels);
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var seg = lines[i];
+            var a = seg.A * ModelScale;
+            var b = seg.B * ModelScale;
+
+            buf[0] = a.X; buf[1] = a.Y; buf[2] = a.Z; buf[3] = 0f; buf[4] = 0f; buf[5] = 0f;
+            buf[6] = b.X; buf[7] = b.Y; buf[8] = b.Z; buf[9] = 0f; buf[10] = 0f; buf[11] = 0f;
+
+            _debugShader!.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            GL.BufferData(BufferTarget.ArrayBuffer, 12 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+        }
+    }
+    private float[]? _lineScratch;
+
+    /// <summary>Quad fallback for <see cref="DrawOverlayLines"/>: projects both endpoints to NDC,
+    /// offsets them by half of <paramref name="widthPixels"/> perpendicular to the segment in pixel
+    /// space, and draws two triangles with identity view/projection (restored afterwards). Z is
+    /// pinned to 0 -- depth test is off for the overlay pass, and this keeps the quad inside the
+    /// near/far clip range. Segments with an endpoint behind the camera (w &lt;= 0) are skipped;
+    /// that only happens with the camera inside the mesh.</summary>
+    private void DrawOverlayLinesAsQuads(List<OverlayLineSegment> lines, float[] buf, float widthPixels,
+        ref Matrix4 viewProj, int viewportWidth, int viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0) return;
+
+        var identity = Matrix4.Identity;
+        _debugShader!.SetMatrix4("u_view", ref identity);
+        _debugShader.SetMatrix4("u_projection", ref identity);
+
+        // Quad winding follows the segment's screen direction, so either face may point at the camera.
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        GL.Disable(EnableCap.CullFace);
+
+        float halfWidth = MathF.Max(widthPixels, 1f) * 0.5f;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var seg = lines[i];
+            var ca = new Vector4(seg.A * ModelScale, 1f) * viewProj;
+            var cb = new Vector4(seg.B * ModelScale, 1f) * viewProj;
+            if (ca.W <= 1e-6f || cb.W <= 1e-6f) continue;
+
+            var na = ca.Xy / ca.W;
+            var nb = cb.Xy / cb.W;
+            // Direction in pixel space, so the perpendicular offset is a true pixel width even when
+            // the viewport isn't square.
+            var dirPx = new Vector2((nb.X - na.X) * viewportWidth, (nb.Y - na.Y) * viewportHeight);
+            float len = dirPx.Length;
+            Vector2 perpPx = len > 1e-6f
+                ? new Vector2(-dirPx.Y, dirPx.X) / len * halfWidth
+                : new Vector2(0f, halfWidth); // zero-length: a small square dot
+            var off = new Vector2(perpPx.X * 2f / viewportWidth, perpPx.Y * 2f / viewportHeight);
+            if (len <= 1e-6f)
+            {
+                var along = new Vector2(halfWidth * 2f / viewportWidth, 0f);
+                na -= along;
+                nb += along;
+            }
+
+            var p0 = na + off; var p1 = na - off; var p2 = nb + off; var p3 = nb - off;
+            int k = 0;
+            void Put(Vector2 p)
+            {
+                buf[k++] = p.X; buf[k++] = p.Y; buf[k++] = 0f;
+                buf[k++] = 0f; buf[k++] = 0f; buf[k++] = 0f;
+            }
+            Put(p0); Put(p1); Put(p2);
+            Put(p2); Put(p1); Put(p3);
+
+            _debugShader.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            GL.BufferData(BufferTarget.ArrayBuffer, 36 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        }
+
+        if (cullWasEnabled) GL.Enable(EnableCap.CullFace);
     }
 
     /// <summary>When true, renders arrow gizmos showing each directional light's shining
@@ -794,9 +1007,9 @@ public class GlRenderer : IDisposable
         // Debug (line-based) shader for the key-light arrow gizmo
         _debugShader = GlShaderProgram.Load(shaderDirectory, "debug.vert", "debug.frag");
 
-        // Slider-morph heatmap shader — reads position + normal + per-vertex color
-        // (locations 0/1/2) from the dedicated heatmap VAO and paints each vertex by
-        // its color unlit (see DrawSliderHeatmap / heatmap.frag).
+        // Vertex-colour overlay shader — reads position + normal + per-vertex color
+        // (locations 0/1/2) from the dedicated VAO and paints each vertex by its
+        // color unlit (see DrawOverlayVertexColorTriangles / heatmap.frag).
         _heatmapShader = GlShaderProgram.Load(shaderDirectory, "heatmap.vert", "heatmap.frag");
 
         // Wireframe shader — reads position (location 0) from the standard mesh
@@ -875,7 +1088,7 @@ public class GlRenderer : IDisposable
 
         // Wide-line capability probe. A forward-compatible core context (the offscreen renderer's
         // GameWindow) rejects glLineWidth > 1 with GL_INVALID_VALUE and keeps drawing 1 px lines, so
-        // the overlay line channels switch to CPU-expanded quads there (see DrawLineSegmentList).
+        // overlay lines switch to CPU-expanded quads there (see DrawOverlayLines).
         while (GL.GetError() != ErrorCode.NoError) { }
         GL.LineWidth(2.0f);
         _wideLinesSupported = GL.GetError() != ErrorCode.InvalidValue;
@@ -1285,383 +1498,19 @@ public class GlRenderer : IDisposable
         // top of it.
         DrawClipPlaneVisual(camera, ref view, ref projection);
 
-        // Key-vertex marker gizmos (BodySlide classifier). Drawn with depth
-        // test off so markers on the far side of the model remain visible to
-        // the user while assigning key vertices.
-        DrawKeyVertexMarkers(ref view, ref projection);
-
-        // Measurement lines (BodyTypeProfile editor). Drawn after markers so the
-        // connection between the two endpoint gizmos reads clearly.
-        DrawMeasurementLines(ref view, ref projection, viewportWidth, viewportHeight);
+        // Host overlays (markers, surface patches, line segments). Mostly depth-test-off so
+        // they stay visible through the model.
+        if (Overlays.Count > 0)
+        {
+            var overlayContext = new OverlayContext(view, projection, viewportWidth, viewportHeight);
+            foreach (var overlay in Overlays)
+                overlay.Draw(this, overlayContext);
+        }
 
         // Overlay: directional-light direction arrows. Drawn last with depth test off
         // so they behave like gizmos (always visible through the model).
         if (ShowKeyLightVisualization)
             DrawDirectionalLightArrows(camera, ref view, ref projection);
-    }
-
-    /// <summary>
-    /// Draws a small shaded sphere at each entry in <see cref="KeyVertexMarkers"/>.
-    /// Reuses the debug shader (which already supports <c>u_shaded=1</c> lighting)
-    /// and pre-multiplies the stored mesh-local positions by ModelScale so the
-    /// markers track the character when height is adjusted.
-    /// </summary>
-    private void DrawKeyVertexMarkers(ref Matrix4 view, ref Matrix4 projection)
-    {
-        if (_debugShader == null) return;
-        if (KeyVertexMarkers.Count == 0
-            && BoxResolvedMarkers.Count == 0
-            && PreviewKeyVertexMarkers.Count == 0
-            && PreviewPickMarkers.Count == 0
-            && RegionCapMarkers.Count == 0
-            && RegionSolidTriangles.Count == 0
-            && MeasurementRegionTriangles.Count == 0
-            && SliderHeatmapTriangles.Count == 0) return;
-
-        _debugShader.Use();
-        _debugShader.SetMatrix4("u_view", ref view);
-        _debugShader.SetMatrix4("u_projection", ref projection);
-        _debugShader.SetFloat("u_shaded", 1f);
-        // Opaque. debug.frag gained u_alpha for the clip-plane fill; an unset
-        // uniform defaults to 0, so every caller must push it or draw invisible.
-        _debugShader.SetFloat("u_alpha", 1f);
-
-        GL.BindVertexArray(_debugVao);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
-
-        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
-        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
-        GL.Disable(EnableCap.DepthTest);
-        GL.Enable(EnableCap.CullFace);
-        GL.CullFace(CullFaceMode.Back);
-
-        // Measurement-region tint first: depth-tested, so it only shades visible skin, and everything
-        // that follows (the editor's always-on-top region solid, markers) layers over it.
-        DrawMeasurementRegions();
-
-        // Solid region surface next, so the cyan cap markers/edges layer on top of it. Lit
-        // (u_shaded=1) + depth-off makes it read as a solid object visible through the body — the
-        // same always-on-top trick the markers use, no transparency needed.
-        DrawRegionSolid();
-
-        DrawMarkerList(KeyVertexMarkers, KeyVertexMarkerColor,
-            SelectedKeyVertexMarkerIndices, KeyVertexMarkerSelectedColor);
-        DrawMarkerList(BoxResolvedMarkers, BoxResolvedMarkerColor);
-        DrawMarkerList(PreviewKeyVertexMarkers, PreviewKeyVertexMarkerColor);
-        DrawMarkerList(PreviewPickMarkers, PreviewPickMarkerColor);
-        DrawMarkerList(RegionCapMarkers, RegionCapMarkerColor);
-
-        _debugShader.SetFloat("u_shaded", 0f);
-
-        // Slider-morph heatmap last: it switches to its own unlit shader + 9-float VAO
-        // (so it must follow the debug-VAO marker lists). Depth is still off and
-        // back-face cull still on, so the patch reads as an always-on-top magnitude map.
-        DrawSliderHeatmap(ref view, ref projection);
-
-        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
-        if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
-        GL.BindVertexArray(0);
-    }
-
-    /// <summary>Uploads + draws <see cref="RegionSolidTriangles"/> as a lit magenta solid through the
-    /// debug VAO. Caller has already set u_shaded=1, bound the debug VAO/VBO, and configured depth-off
-    /// + back-face cull. Positions are scaled by ModelScale (matching the marker/line paths) via a
-    /// scratch copy so the stored mesh-local coords aren't mutated.</summary>
-    private float[]? _regionSolidScratch;
-    private void DrawRegionSolid()
-    {
-        int floats = UploadScaledPosNormal(RegionSolidTriangles, ref _regionSolidScratch);
-        if (floats == 0) return;
-        _debugShader!.SetVector3("u_color", RegionSolidColor.X, RegionSolidColor.Y, RegionSolidColor.Z);
-        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
-    }
-
-    /// <summary>Uploads + draws <see cref="MeasurementRegionTriangles"/> as a lit, translucent,
-    /// depth-tested tint. Same caller contract as <see cref="DrawRegionSolid"/> (depth off, back-face
-    /// cull, u_shaded=1, debug VAO bound); this draw alone re-enables the depth test with a small
-    /// polygon offset (the patch lies exactly on the body surface and would z-fight) and blends with
-    /// the destination alpha kept at 1, so an offscreen BGRA readback stays opaque. It relies on the
-    /// scene FBO's depth buffer still holding the body, as the wireframe overlay does. Restores
-    /// depth-off / opaque / depth-writes-on before returning.</summary>
-    private float[]? _measurementRegionScratch;
-    private void DrawMeasurementRegions()
-    {
-        int floats = UploadScaledPosNormal(MeasurementRegionTriangles, ref _measurementRegionScratch);
-        if (floats == 0) return;
-
-        _debugShader!.SetVector3("u_color", MeasurementRegionColor.X, MeasurementRegionColor.Y, MeasurementRegionColor.Z);
-        _debugShader.SetFloat("u_alpha", MeasurementRegionAlpha);
-        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
-        GL.Enable(EnableCap.Blend);
-        GL.BlendFuncSeparate(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
-            BlendingFactorSrc.Zero, BlendingFactorDest.One);
-        GL.DepthMask(false);
-        GL.Enable(EnableCap.DepthTest);
-        GL.Enable(EnableCap.PolygonOffsetFill);
-        GL.PolygonOffset(-1.0f, -2.0f);
-
-        int vertexCount = floats / 6;
-        if (MeasurementRegionColorRanges.Count == 0)
-        {
-            GL.DrawArrays(PrimitiveType.Triangles, 0, vertexCount);
-        }
-        else
-        {
-            // One draw per colored range (same uploaded buffer); ranges are clamped to what was uploaded.
-            foreach (var (first, count, color) in MeasurementRegionColorRanges)
-            {
-                if (first < 0 || first >= vertexCount) continue;
-                int n = Math.Min(count, vertexCount - first);
-                n -= n % 3; // whole triangles only
-                if (n <= 0) continue;
-                _debugShader.SetVector3("u_color", color.X, color.Y, color.Z);
-                GL.DrawArrays(PrimitiveType.Triangles, first, n);
-            }
-        }
-
-        GL.Disable(EnableCap.PolygonOffsetFill);
-        GL.Disable(EnableCap.DepthTest);
-        GL.DepthMask(true);
-        if (!blendWasEnabled) GL.Disable(EnableCap.Blend);
-        _debugShader.SetFloat("u_alpha", 1f);
-    }
-
-    /// <summary>Copies a 6-float (position + normal) triangle list into <paramref name="scratch"/> with
-    /// positions scaled by ModelScale, and uploads it to the bound debug VBO. Returns the float count,
-    /// or 0 (nothing uploaded) when the list holds less than one triangle.</summary>
-    private int UploadScaledPosNormal(List<float> src, ref float[]? scratch)
-    {
-        int floats = src.Count;
-        if (floats < 18) return 0; // need at least one triangle (3 verts * 6 floats)
-        var buf = scratch;
-        if (buf == null || buf.Length < floats) buf = scratch = new float[floats];
-        float s = ModelScale;
-        for (int i = 0; i < floats; i += 6)
-        {
-            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
-            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
-        }
-        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
-        return floats;
-    }
-
-    /// <summary>Uploads + draws <see cref="SliderHeatmapTriangles"/> as an unlit, per-vertex-colored
-    /// surface patch through the dedicated heatmap shader/VAO. Batched like <see cref="DrawRegionSolid"/>
-    /// (single BufferData + single DrawArrays), so it scales to the thousands of vertices a slider can
-    /// move. Positions (9-float stride: pos + normal + color) are scaled by ModelScale via a scratch
-    /// copy; the color triplet is passed straight through. The caller has already configured depth-off +
-    /// back-face cull; this method binds its own shader + VAO/VBO.</summary>
-    private float[]? _heatmapScratch;
-    private void DrawSliderHeatmap(ref Matrix4 view, ref Matrix4 projection)
-    {
-        if (_heatmapShader == null) return;
-        int floats = SliderHeatmapTriangles.Count;
-        if (floats < 27) return; // need at least one triangle (3 verts * 9 floats)
-
-        var src = SliderHeatmapTriangles;
-        var buf = _heatmapScratch;
-        if (buf == null || buf.Length < floats) buf = _heatmapScratch = new float[floats];
-        float s = ModelScale;
-        for (int i = 0; i < floats; i += 9)
-        {
-            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
-            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
-            buf[i + 6] = src[i + 6];     buf[i + 7] = src[i + 7];     buf[i + 8] = src[i + 8];     // color (per-vertex)
-        }
-
-        _heatmapShader.Use();
-        _heatmapShader.SetMatrix4("u_view", ref view);
-        _heatmapShader.SetMatrix4("u_projection", ref projection);
-        GL.BindVertexArray(_heatmapVao);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
-        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
-        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 9);
-    }
-
-    private void DrawMarkerList(
-        List<Vector3> markers, Vector3 color,
-        HashSet<int>? selectedIndices = null, Vector3 selectedColor = default)
-    {
-        if (markers.Count == 0) return;
-
-        var unit = GetUnitSphereMesh();
-        var scratch = _sphereScratch ??= new float[unit.Length];
-        float worldRadius = KeyVertexMarkerRadius * ModelScale;
-
-        // Set the default color once; swap to the selected color only when a marker's
-        // index lands in selectedIndices, and only emit the uniform update on transition.
-        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
-        bool currentlySelected = false;
-
-        for (int i = 0; i < markers.Count; i++)
-        {
-            bool markerSelected = selectedIndices != null && selectedIndices.Contains(i);
-            if (markerSelected != currentlySelected)
-            {
-                var c = markerSelected ? selectedColor : color;
-                _debugShader.SetVector3("u_color", c.X, c.Y, c.Z);
-                currentlySelected = markerSelected;
-            }
-
-            var worldCenter = markers[i] * ModelScale;
-            for (int v = 0; v < unit.Length; v += 6)
-            {
-                scratch[v + 0] = worldCenter.X + unit[v + 0] * worldRadius;
-                scratch[v + 1] = worldCenter.Y + unit[v + 1] * worldRadius;
-                scratch[v + 2] = worldCenter.Z + unit[v + 2] * worldRadius;
-                scratch[v + 3] = unit[v + 3];
-                scratch[v + 4] = unit[v + 4];
-                scratch[v + 5] = unit[v + 5];
-            }
-            GL.BufferData(BufferTarget.ArrayBuffer,
-                scratch.Length * sizeof(float), scratch, BufferUsageHint.DynamicDraw);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, scratch.Length / 6);
-        }
-    }
-
-    /// <summary>
-    /// Draws flat-colored line segments from <see cref="MeasurementLines"/> through
-    /// the debug VAO. Uses <c>u_shaded=0</c> so lighting doesn't tint the color, and
-    /// disables depth test so the segment is always visible through the body.
-    /// The debug VAO's layout is position(3) + normal(3) -- normals are ignored in
-    /// flat mode but must be written to keep the stride consistent.
-    /// </summary>
-    private void DrawMeasurementLines(ref Matrix4 view, ref Matrix4 projection, int viewportWidth, int viewportHeight)
-    {
-        if (_debugShader == null) return;
-        if (MeasurementLines.Count == 0 && RegionOverlayLines.Count == 0 && RegionWireLines.Count == 0) return;
-
-        _debugShader.Use();
-        _debugShader.SetMatrix4("u_view", ref view);
-        _debugShader.SetMatrix4("u_projection", ref projection);
-        _debugShader.SetFloat("u_shaded", 0f);
-        _debugShader.SetFloat("u_alpha", 1f);
-
-        GL.BindVertexArray(_debugVao);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
-
-        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
-        GL.Disable(EnableCap.DepthTest);
-
-        // Two verts per line, 6 floats per vert (pos + unused normal); the quad fallback needs
-        // six verts (two triangles) per segment.
-        var buf = new float[_wideLinesSupported ? 12 : 36];
-        var viewProj = view * projection;
-
-        // Thick channels (measurement overlay + region cap-loop contour). Thicker than the historical
-        // 2.5 so the overlay reads at typical zoom levels against busy body textures; 4.5 stays under
-        // the typical driver-clamped maximum (5–10 for aliased lines).
-        const float thickWidth = 4.5f;
-        if (_wideLinesSupported) GL.LineWidth(thickWidth);
-        DrawLineSegmentList(MeasurementLines, buf, thickWidth, ref viewProj, viewportWidth, viewportHeight);
-        DrawLineSegmentList(RegionOverlayLines, buf, thickWidth, ref viewProj, viewportWidth, viewportHeight);
-
-        // Thin channel: the Solid-mode region wireframe (dense triangle edges read as a wireframe).
-        if (RegionWireLines.Count > 0)
-        {
-            if (_wideLinesSupported) GL.LineWidth(RegionWireWidth);
-            DrawLineSegmentList(RegionWireLines, buf, RegionWireWidth, ref viewProj, viewportWidth, viewportHeight);
-        }
-
-        if (_wideLinesSupported) GL.LineWidth(1.0f);
-        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
-        GL.BindVertexArray(0);
-    }
-
-    /// <summary>Uploads + draws each segment in <paramref name="lines"/> through the bound debug
-    /// VAO/VBO. Caller sets shader, line width, and depth state and passes a reusable scratch buffer
-    /// (12 floats for GL lines, 36 for the quad fallback). Shared by the measurement-line and region
-    /// cap-loop overlay channels.
-    /// <para>When the context rejects wide lines (<see cref="_wideLinesSupported"/> false -- a
-    /// forward-compatible core context such as the offscreen renderer's), each segment is instead
-    /// expanded on the CPU into a screen-aligned quad <paramref name="widthPixels"/> wide, emitted
-    /// directly in NDC with identity view/projection. Without this the overlay silently draws at
-    /// 1 px, which vanishes in a scaled-down thumbnail.</para></summary>
-    private void DrawLineSegmentList(List<MeasurementLineSegment> lines, float[] buf, float widthPixels,
-        ref Matrix4 viewProj, int viewportWidth, int viewportHeight)
-    {
-        if (lines.Count == 0) return;
-        if (!_wideLinesSupported)
-        {
-            DrawLineSegmentListAsQuads(lines, buf, widthPixels, ref viewProj, viewportWidth, viewportHeight);
-            return;
-        }
-
-        for (int i = 0; i < lines.Count; i++)
-        {
-            var seg = lines[i];
-            var a = seg.A * ModelScale;
-            var b = seg.B * ModelScale;
-
-            buf[0] = a.X; buf[1] = a.Y; buf[2] = a.Z; buf[3] = 0f; buf[4] = 0f; buf[5] = 0f;
-            buf[6] = b.X; buf[7] = b.Y; buf[8] = b.Z; buf[9] = 0f; buf[10] = 0f; buf[11] = 0f;
-
-            _debugShader!.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
-            GL.BufferData(BufferTarget.ArrayBuffer, 12 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
-            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
-        }
-    }
-
-    /// <summary>Quad fallback for <see cref="DrawLineSegmentList"/>: projects both endpoints to NDC,
-    /// offsets them by half of <paramref name="widthPixels"/> perpendicular to the segment in pixel
-    /// space, and draws two triangles with identity view/projection (restored afterwards). Z is
-    /// pinned to 0 -- depth test is off for the overlay pass, and this keeps the quad inside the
-    /// near/far clip range. Segments with an endpoint behind the camera (w &lt;= 0) are skipped;
-    /// overlay endpoints sit on the body, so that only happens with the camera inside the mesh.</summary>
-    private void DrawLineSegmentListAsQuads(List<MeasurementLineSegment> lines, float[] buf, float widthPixels,
-        ref Matrix4 viewProj, int viewportWidth, int viewportHeight)
-    {
-        if (viewportWidth <= 0 || viewportHeight <= 0) return;
-
-        var identity = Matrix4.Identity;
-        _debugShader!.SetMatrix4("u_view", ref identity);
-        _debugShader.SetMatrix4("u_projection", ref identity);
-
-        // Quad winding follows the segment's screen direction, so either face may point at the camera.
-        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
-        GL.Disable(EnableCap.CullFace);
-
-        float halfWidth = MathF.Max(widthPixels, 1f) * 0.5f;
-        for (int i = 0; i < lines.Count; i++)
-        {
-            var seg = lines[i];
-            var ca = new Vector4(seg.A * ModelScale, 1f) * viewProj;
-            var cb = new Vector4(seg.B * ModelScale, 1f) * viewProj;
-            if (ca.W <= 1e-6f || cb.W <= 1e-6f) continue;
-
-            var na = ca.Xy / ca.W;
-            var nb = cb.Xy / cb.W;
-            // Direction in pixel space, so the perpendicular offset is a true pixel width even when
-            // the viewport isn't square.
-            var dirPx = new Vector2((nb.X - na.X) * viewportWidth, (nb.Y - na.Y) * viewportHeight);
-            float len = dirPx.Length;
-            Vector2 perpPx = len > 1e-6f
-                ? new Vector2(-dirPx.Y, dirPx.X) / len * halfWidth
-                : new Vector2(0f, halfWidth); // zero-length: a small square dot
-            var off = new Vector2(perpPx.X * 2f / viewportWidth, perpPx.Y * 2f / viewportHeight);
-            if (len <= 1e-6f)
-            {
-                var along = new Vector2(halfWidth * 2f / viewportWidth, 0f);
-                na -= along;
-                nb += along;
-            }
-
-            var p0 = na + off; var p1 = na - off; var p2 = nb + off; var p3 = nb - off;
-            int k = 0;
-            void Put(Vector2 p)
-            {
-                buf[k++] = p.X; buf[k++] = p.Y; buf[k++] = 0f;
-                buf[k++] = 0f; buf[k++] = 0f; buf[k++] = 0f;
-            }
-            Put(p0); Put(p1); Put(p2);
-            Put(p2); Put(p1); Put(p3);
-
-            _debugShader.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
-            GL.BufferData(BufferTarget.ArrayBuffer, 36 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-        }
-
-        if (cullWasEnabled) GL.Enable(EnableCap.CullFace);
     }
 
     /// <summary>
