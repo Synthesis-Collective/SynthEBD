@@ -1,4 +1,11 @@
 #version 330 core
+
+// Attribution: the face/skin tint composition (the Pegtop soft-light FaceTint blend, the
+// SkinTint / FaceGen RGB tint base colour and its colour-shift constant, and the engine-style
+// detail-map multiply) is ported to GLSL from the HLSL Lighting shader of Community Shaders
+// (doodlum and contributors, https://github.com/community-shaders/skyrim-community-shaders,
+// GPL-3.0). See the comments at each ported section and NOTICE.md.
+
 out vec4 FragColor;
 
 in vec3 v_viewSpacePos;
