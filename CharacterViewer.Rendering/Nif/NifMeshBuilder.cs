@@ -12,7 +12,7 @@ using Vector4 = System.Numerics.Vector4;
 namespace CharacterViewer.Rendering;
 
 /// <summary>
-/// Converts NIF file mesh data (via niflysharp) into HelixToolkit-compatible geometry
+/// Converts NIF file mesh data (via niflysharp) into renderer geometry (Y-up)
 /// for 3D rendering in the character viewer.
 /// </summary>
 public class NifMeshBuilder
@@ -669,7 +669,7 @@ public class NifMeshBuilder
     }
 
     /// <summary>
-    /// Loads all renderable shapes from a NIF file and converts them to HelixToolkit geometry.
+    /// Loads all renderable shapes from a NIF file and converts them to renderer geometry (Y-up).
     /// </summary>
     /// <param name="nifPath">Absolute path to the mesh NIF.</param>
     /// <param name="skeletonNif">Optional already-open skeleton NIF for CPU skinning. Caller owns the lifetime.</param>

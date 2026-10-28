@@ -52,7 +52,6 @@ public partial class VM_CharacterViewer : ViewerVm
 
     private readonly NifMeshBuilder _meshBuilder;
     private readonly BodySlideDeformer _bodySlideDeformer;
-    private readonly BsdFileParser _bsdFileParser;
     private readonly BodyTriFileParser _bodyTriFileParser;
     private readonly GameAssetResolver _assetResolver;
     private readonly ICharacterViewerLogger _logger;
@@ -744,7 +743,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // previous viewer on every preset switch).
         _meshBuilder = previewCache.MeshBuilder;
         _bodySlideDeformer = bodySlideDeformer;
-        _bsdFileParser = bsdFileParser;
+        // bsdFileParser is unused; the parameter stays until the 3.0 constructor change.
         _bodyTriFileParser = bodyTriFileParser;
         _assetResolver = assetResolver;
         _generalSettings = generalSettings;

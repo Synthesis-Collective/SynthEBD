@@ -16,7 +16,7 @@ namespace CharacterViewer.Rendering;
 ///   4. Interpolate: final = vertsHigh * (weight/100) + vertsLow * ((100-weight)/100)
 ///
 /// OSD deltas are in NIF coordinate space (Z-up). Mesh positions in the viewer
-/// are in HelixToolkit Y-up space (X stays, Y=Z_nif, Z=-Y_nif). The deltas
+/// are in the renderer's Y-up space (X stays, Y=Z_nif, Z=-Y_nif). The deltas
 /// are converted to Y-up before application.
 /// </summary>
 public class BodySlideDeformer
@@ -38,7 +38,7 @@ public class BodySlideDeformer
     /// <summary>
     /// Applies BodySlide deformations to mesh positions in-place.
     /// </summary>
-    /// <param name="positions">Vertex positions in Y-up (HelixToolkit) space. Modified in-place.</param>
+    /// <param name="positions">Vertex positions in the renderer's Y-up space. Modified in-place.</param>
     /// <param name="morphs">The neutral morph payload (slider name → Big/Small) the host has translated from its preset model.</param>
     /// <param name="weight">NPC weight (0–100) for Big/Small interpolation.</param>
     /// <param name="osdFiles">Parsed OSD files containing vertex deltas for this body type.</param>
@@ -77,7 +77,7 @@ public class BodySlideDeformer
     /// and the delta indices are authored against the sibling NIF's exact
     /// topology -- so a matching NIF should see zero out-of-range deltas.
     /// </summary>
-    /// <param name="positions">Vertex positions in Y-up (HelixToolkit) space. Modified in-place.</param>
+    /// <param name="positions">Vertex positions in the renderer's Y-up space. Modified in-place.</param>
     /// <param name="morphs">The neutral morph payload (slider name → Big/Small) the host has translated from its preset model.</param>
     /// <param name="weight">NPC weight (0–100) for Big/Small interpolation.</param>
     /// <param name="triFile">Parsed body .tri for the NIF being deformed.</param>
@@ -169,7 +169,7 @@ public class BodySlideDeformer
                 }
                 deltasInRange++;
 
-                // Convert OSD delta from NIF Z-up to HelixToolkit Y-up:
+                // Convert OSD delta from NIF Z-up to the renderer's Y-up:
                 // X stays, Y = Z_nif, Z = -Y_nif
                 Vector3 nifDelta = delta.Value;
                 Vector3 yUpDelta = new Vector3(nifDelta.X, nifDelta.Z, -nifDelta.Y);
