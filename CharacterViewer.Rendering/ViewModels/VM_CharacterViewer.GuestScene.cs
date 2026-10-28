@@ -459,7 +459,7 @@ public partial class VM_CharacterViewer
                 built, built.ShapeName, request.Morphs!, request.Weight,
                 _guestBodyTri, request.OsdFiles);
 
-            glMesh.UpdateVertexData(BuildInterleavedVertexData(
+            glMesh.UpdateVertexData(GlMeshFactory.Interleave(
                 positions, normals, built.TextureCoordinates,
                 built.Tangents, built.Bitangents, built.VertexColors));
             glMesh.CpuPositions = positions;

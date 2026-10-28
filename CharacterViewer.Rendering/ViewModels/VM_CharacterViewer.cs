@@ -5159,14 +5159,11 @@ public partial class VM_CharacterViewer : ViewerVm
         bool isWornHairSlotItem = false)
     {
         if (TextureManager == null) return;
+        var textureManager = TextureManager;
 
-        // Each LoadTexture below can extract a DDS from a BSA and decode+upload
-        // it — the finest-grained slow unit in an offscreen render. Check
-        // RenderCancellation before each group so a host cancel aborts between
-        // textures. No-op for the live preview (token defaults to None).
-        RenderCancellation.ThrowIfCancellationRequested();
-
-        // Diffuse (slot 0) — with special handling for hair tint and face tint.
+        // Slot 0 for the two NPC-specific diffuse cases; every other slot (and plain diffuse)
+        // is bound by the core NifMaterialBinder below.
+        //
         // Two tinting modes match the Skyrim engine (and NPC Portrait Creator):
         //   1. SLSF1_Greyscale_To_Palette_Color flag set:
         //      Texture is greyscale; shader: baseColor.rrr * tint_color * greyscaleToPaletteScale
@@ -5198,202 +5195,84 @@ public partial class VM_CharacterViewer : ViewerVm
         var wornHairSlotTint = isWornHairSlotItem && meshPaths.WornHairSlotTintRgb.HasValue
             ? (_faceGenHairTint ?? meshPaths.WornHairSlotTintRgb)
             : null;
-        if (built.IsHairTintShader
-            && (wornHairSlotTint.HasValue || built.HairTintColor.HasValue ||
-                _npcHairColorFromRecord.HasValue)
-            && effectiveTextures.TryGetValue(0, out string? hairDiffuse))
+
+        bool outHairTint = false, outFaceTint = false;
+        float outHairR = 0f, outHairG = 0f, outHairB = 0f;
+        string? outFaceTintPath = null;
+
+        bool BindNpcDiffuse(GlMesh mesh, NifMeshBuilder.BuiltMesh b, IReadOnlyDictionary<int, string> textures)
         {
-            var (tR, tG, tB) = wornHairSlotTint
-                               ?? built.HairTintColor
-                               ?? _npcHairColorFromRecord!.Value;
-            isHairTint = true; hairR = tR; hairG = tG; hairB = tB;
-            glMesh.DiffuseTexture = TextureManager.LoadTexture(hairDiffuse);
-            glMesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
-
-            string tintSrc = wornHairSlotTint.HasValue
-                ? "worn hair-slot tint from " +
-                  (_faceGenHairTint.HasValue ? "the FaceGen's baked hair color" : "the NPC record HCLR") +
-                  " (RaceMenu bEnableTintHairSlot emulation" +
-                  (built.HairTintColor.HasValue
-                      ? ", baked (" + built.HairTintColor.Value.R.ToString("F3")
-                        + "," + built.HairTintColor.Value.G.ToString("F3")
-                        + "," + built.HairTintColor.Value.B.ToString("F3") + ") overridden"
-                      : "") + ")"
-                : built.HairTintColor.HasValue
-                ? "baked NIF hairTintColor" + (_npcHairColorFromRecord.HasValue
-                    ? " (record HCLR=(" + _npcHairColorFromRecord.Value.R.ToString("F3")
-                        + "," + _npcHairColorFromRecord.Value.G.ToString("F3")
-                        + "," + _npcHairColorFromRecord.Value.B.ToString("F3") + ") unused)"
-                    : "")
-                : "HCLR (no baked tint)";
-
-            if (built.HasGreyscaleToPaletteFlag)
+            if (b.IsHairTintShader
+                && (wornHairSlotTint.HasValue || b.HairTintColor.HasValue ||
+                    _npcHairColorFromRecord.HasValue)
+                && textures.TryGetValue(0, out string? hairDiffuse))
             {
-                glMesh.HasGreyscaleToPalette = true;
-                glMesh.GreyscaleToPaletteScale = built.GreyscaleToPaletteScale;
-                RecordTextureSource(glMesh, "Diffuse (hair tint, greyscale-to-palette)", hairDiffuse);
-                LogVerbose("CharacterViewer: Hair tint (greyscale-to-palette): " +
-                    "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
-                    " src=" + tintSrc +
-                    " scale=" + built.GreyscaleToPaletteScale.ToString("F2") +
-                    " -> baseColor.rrr * tint * scale" +
-                    " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
+                var (tR, tG, tB) = wornHairSlotTint
+                                   ?? b.HairTintColor
+                                   ?? _npcHairColorFromRecord!.Value;
+                outHairTint = true; outHairR = tR; outHairG = tG; outHairB = tB;
+                mesh.DiffuseTexture = textureManager.LoadTexture(hairDiffuse);
+                mesh.TintColor = new System.Numerics.Vector3(tR, tG, tB);
+
+                string tintSrc = wornHairSlotTint.HasValue
+                    ? "worn hair-slot tint from " +
+                      (_faceGenHairTint.HasValue ? "the FaceGen's baked hair color" : "the NPC record HCLR") +
+                      " (RaceMenu bEnableTintHairSlot emulation" +
+                      (b.HairTintColor.HasValue
+                          ? ", baked (" + b.HairTintColor.Value.R.ToString("F3")
+                            + "," + b.HairTintColor.Value.G.ToString("F3")
+                            + "," + b.HairTintColor.Value.B.ToString("F3") + ") overridden"
+                          : "") + ")"
+                    : b.HairTintColor.HasValue
+                    ? "baked NIF hairTintColor" + (_npcHairColorFromRecord.HasValue
+                        ? " (record HCLR=(" + _npcHairColorFromRecord.Value.R.ToString("F3")
+                            + "," + _npcHairColorFromRecord.Value.G.ToString("F3")
+                            + "," + _npcHairColorFromRecord.Value.B.ToString("F3") + ") unused)"
+                        : "")
+                    : "HCLR (no baked tint)";
+
+                if (b.HasGreyscaleToPaletteFlag)
+                {
+                    mesh.HasGreyscaleToPalette = true;
+                    mesh.GreyscaleToPaletteScale = b.GreyscaleToPaletteScale;
+                    RecordTextureSource(mesh, "Diffuse (hair tint, greyscale-to-palette)", hairDiffuse);
+                    LogVerbose("CharacterViewer: Hair tint (greyscale-to-palette): " +
+                        "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
+                        " src=" + tintSrc +
+                        " scale=" + b.GreyscaleToPaletteScale.ToString("F2") +
+                        " -> baseColor.rrr * tint * scale" +
+                        " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
+                }
+                else
+                {
+                    mesh.HasTintColor = true;
+                    RecordTextureSource(mesh, "Diffuse (hair tint, RGB multiply)", hairDiffuse);
+                    LogVerbose("CharacterViewer: Hair tint (simple RGB multiply): " +
+                        "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
+                        " src=" + tintSrc +
+                        " -> baseColor.rgb *= tint" +
+                        " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
+                }
+                return true;
             }
-            else
+            if (b.IsPrimaryHeadShape && textures.TryGetValue(0, out string? headDiffuse) &&
+                meshPaths.FaceTintPath != null)
             {
-                glMesh.HasTintColor = true;
-                RecordTextureSource(glMesh, "Diffuse (hair tint, RGB multiply)", hairDiffuse);
-                LogVerbose("CharacterViewer: Hair tint (simple RGB multiply): " +
-                    "tint=(" + tR.ToString("F3") + "," + tG.ToString("F3") + "," + tB.ToString("F3") + ")" +
-                    " src=" + tintSrc +
-                    " -> baseColor.rgb *= tint" +
-                    " | diffuse=" + System.IO.Path.GetFileName(hairDiffuse));
+                outFaceTint = true;
+                outFaceTintPath = meshPaths.FaceTintPath;
+                // Load diffuse and face tint as separate textures so they can be
+                // toggled independently. The shader blends them via has_face_tint_map.
+                mesh.DiffuseTexture = textureManager.LoadTexture(headDiffuse);
+                mesh.FaceTintTexture = textureManager.LoadTexture(meshPaths.FaceTintPath);
+                mesh.HasFaceTintMap = true;
+                RecordTextureSource(mesh, "Diffuse", headDiffuse);
+                RecordTextureSource(mesh, "Face Tint", meshPaths.FaceTintPath);
+                return true;
             }
-        }
-        else if (built.IsPrimaryHeadShape && effectiveTextures.TryGetValue(0, out string? headDiffuse) &&
-                 meshPaths.FaceTintPath != null)
-        {
-            isFaceTint = true;
-            faceTintPath = meshPaths.FaceTintPath;
-            // Load diffuse and face tint as separate textures so they can be
-            // toggled independently. The shader blends them via has_face_tint_map.
-            glMesh.DiffuseTexture = TextureManager.LoadTexture(headDiffuse);
-            glMesh.FaceTintTexture = TextureManager.LoadTexture(meshPaths.FaceTintPath);
-            glMesh.HasFaceTintMap = true;
-            RecordTextureSource(glMesh, "Diffuse", headDiffuse);
-            RecordTextureSource(glMesh, "Face Tint", meshPaths.FaceTintPath);
-        }
-        else if (effectiveTextures.TryGetValue(0, out string? diffusePath))
-        {
-            glMesh.DiffuseTexture = TextureManager.LoadTexture(diffusePath);
-            RecordTextureSource(glMesh, "Diffuse", diffusePath);
-        }
-        else
-        {
-            glMesh.DiffuseTexture = TextureManager.WhiteTexture;
+            return false;
         }
 
-        // Normal map (slot 1)
-        RenderCancellation.ThrowIfCancellationRequested();
-        if (effectiveTextures.TryGetValue(1, out string? normalPath))
-        {
-            glMesh.NormalTexture = TextureManager.LoadTexture(normalPath);
-            glMesh.HasNormalMap = true;
-            glMesh.IsModelSpace = built.IsModelSpaceNormals;
-            RecordTextureSource(glMesh, "Normal Map", normalPath);
-        }
-        else
-        {
-            glMesh.NormalTexture = TextureManager.WhiteTexture;
-        }
-
-        // Skin/subsurface map (slot 2) — only meaningful for skin/face shader types.
-        // For other shader types (eye, hair, default, etc.) slot 2 has a different meaning
-        // (glow, environment, etc.) and applying it as a skin map would add incorrect red SSS tinting.
-        bool isSkinShader = built.ShaderType == 4  // BSLSP_FACE
-                         || built.ShaderType == 5; // BSLSP_SKINTINT
-        RenderCancellation.ThrowIfCancellationRequested();
-        if (isSkinShader && effectiveTextures.TryGetValue(2, out string? skinPath))
-        {
-            glMesh.SkinTexture = TextureManager.LoadTexture(skinPath);
-            glMesh.HasSkinMap = true;
-            RecordTextureSource(glMesh, "Skin/SSS", skinPath);
-        }
-        else
-        {
-            glMesh.SkinTexture = TextureManager.WhiteTexture;
-        }
-
-        // Glow map (slot 2 on NON-skin shaders, e.g. BSLSP_GLOWMAP gear like
-        // the Nightingale cowl's _emit.dds). Gated on SLSF2_Glow_Map + OwnEmit:
-        // without OwnEmit the shader's emissive term never fires (sk_default
-        // computes emittance only under hasEmit), so loading would be wasted.
-        // Typical authoring is white emissiveColor x 1.0 with the pattern in
-        // the map; a black authored emissiveColor legitimately kills the glow
-        // (e.g. the Kynreeve helmet's disabled ornament).
-        RenderCancellation.ThrowIfCancellationRequested();
-        bool glowFlagSet = (built.ShaderFlags2 & (1u << 6)) != 0   // SLSF2_Glow_Map
-                        && (built.ShaderFlags1 & (1u << 22)) != 0; // SLSF1_Own_Emit
-        if (glowFlagSet && !isSkinShader && effectiveTextures.TryGetValue(2, out string? glowPath))
-        {
-            int glowTex = TextureManager.LoadTexture(glowPath);
-            if (glowTex != TextureManager.WhiteTexture)
-            {
-                glMesh.GlowTexture = glowTex;
-                glMesh.HasGlowMap = true;
-                RecordTextureSource(glMesh, "Glow Map", glowPath);
-            }
-        }
-
-        // Specular map (slot 7). When SLSF2_Back_Lighting is set, slot 7 holds
-        // a backlight mask instead of a specular mask (NifSkope sk_msn.frag
-        // ignores the slot for specular in that case), so those shapes fall
-        // through to the normal-map-alpha specular mask in the shader.
-        RenderCancellation.ThrowIfCancellationRequested();
-        bool slot7IsBacklight = (built.ShaderFlags2 & (1u << 27)) != 0; // SLSF2_Back_Lighting
-        if (!slot7IsBacklight && effectiveTextures.TryGetValue(7, out string? specPath))
-        {
-            glMesh.SpecularTexture = TextureManager.LoadTexture(specPath);
-            glMesh.HasSpecularMap = true;
-            // SLSF1_Specular gates the whole specular term in the engine — a
-            // shape can ship an authored _s.dds with the flag clear (vanilla
-            // Keeper armor body, beggar-robe body proxies) and renders WITHOUT
-            // specular in game (AUD-3). Previously forced true here.
-            glMesh.HasSpecular = (built.ShaderFlags1 & (1u << 0)) != 0;
-            RecordTextureSource(glMesh, "Specular", specPath);
-        }
-        else
-        {
-            glMesh.SpecularTexture = TextureManager.WhiteTexture;
-            // Check shader flags for specular enable even without a map
-            glMesh.HasSpecular = (built.ShaderFlags1 & (1u << 0)) != 0;
-        }
-
-        if (!glMesh.HasFaceTintMap)
-            glMesh.FaceTintTexture = TextureManager.WhiteTexture;
-
-        // Material properties
-        glMesh.MaterialGlossiness = built.Glossiness;
-        glMesh.MaterialSpecularStrength = built.SpecularStrength;
-        glMesh.SpecularColor = built.SpecularColor;
-        glMesh.SubsurfaceRolloff = built.SubsurfaceRolloff;
-        glMesh.RimlightPower = built.RimlightPower;
-        glMesh.HasVertexColors = built.HasVertexColors;
-        glMesh.UvScale = built.UvScale;
-        glMesh.UvOffset = built.UvOffset;
-
-        // Emissive (SLSF1_OwnEmit, bit 22)
-        if ((built.ShaderFlags1 & (1u << 22)) != 0)
-        {
-            glMesh.HasEmissive = true;
-            glMesh.EmissiveColor = built.EmissiveColor;
-            glMesh.EmissiveMultiple = built.EmissiveMultiple;
-        }
-
-        // Shader type flags (bit positions per Nifskope/Bethesda spec)
-        glMesh.HasHairSoftLighting = (built.ShaderFlags1 & (1u << 18)) != 0; // SLSF1_Hair_Soft_Lighting
-        glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 25)) != 0; // SLSF2_Soft_Lighting
-        glMesh.HasRimLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Rim_Lighting
-
-        // Skin tint: apply NPC's QNAM TextureLighting color to body
-        // (ShaderType 5 = ST_SkinTint, production behavior) and to face
-        // shapes (ShaderType 4 = ST_FaceTint, debug path). For face
-        // shapes we always set the tint color but leave the actual
-        // application gated by the GlRenderer.SkinTintApplyToFace
-        // uniform — that way the host can flip the debug toggle at
-        // runtime without re-loading the scene.
-        if ((built.ShaderType == 5 || built.ShaderType == 4)
-            && meshPaths.TextureLightingColor.HasValue)
-        {
-            var (r, g, b) = meshPaths.TextureLightingColor.Value;
-            glMesh.HasTintColor = true;
-            glMesh.TintColor = new System.Numerics.Vector3(r, g, b);
-        }
-        glMesh.IsFaceShape = (built.ShaderType == 4);
-        glMesh.IsSkinShape = (built.ShaderType == 4 || built.ShaderType == 5);
-        glMesh.SkinTintAlpha = built.SkinTintAlpha;
-
-        // Eye shader (shader type 16 = ST_EyeEnvmap)
+        // Eye classification beyond the eye shader type (16, always trusted).
         //
         // Some FaceGen NIFs ship eyes authored as BSLSP_ENVMAP (1) instead
         // of BSLSP_EYE (16) and would otherwise miss the is_eye AO gate in
@@ -5417,203 +5296,35 @@ public partial class VM_CharacterViewer : ViewerVm
         // ornaments — 26 such shapes in one audited loadout) that would
         // otherwise take the eye cubemap scale and the eye AO opt-out
         // (AUD-5), so ApplyMeshOverrides passes allowEyeNameMatching: false.
-        // ShaderType 16 is always trusted.
-        if (built.ShaderType == 16
-            || (allowEyeNameMatching
-                && (meshPaths.EyeShapeNames.Contains(built.ShapeName.Trim())
-                    || built.ShapeName.Contains("Eyes", StringComparison.Ordinal))))
-        {
-            glMesh.IsEye = true;
-        }
+        Func<NifMeshBuilder.BuiltMesh, bool>? isEyeShape = allowEyeNameMatching
+            ? b => meshPaths.EyeShapeNames.Contains(b.ShapeName.Trim())
+                   || b.ShapeName.Contains("Eyes", StringComparison.Ordinal)
+            : null;
 
-        // Environment mapping (SLSF1_Environment_Mapping bit 7, or SLSF1_Eye_Environment_Mapping bit 17)
-        RenderCancellation.ThrowIfCancellationRequested();
-        bool hasEnvMap = (built.ShaderFlags1 & (1u << 7)) != 0;
-        bool hasEyeEnvMap = (built.ShaderFlags1 & (1u << 17)) != 0;
-        if ((hasEnvMap || hasEyeEnvMap) && effectiveTextures.TryGetValue(4, out string? envMapPath))
-        {
-            var (envTex, envIsCube) = TextureManager.LoadEnvMap(envMapPath);
-            if (envTex != 0)
+        NifMaterialBinder.Bind(textureManager, _assetResolver, glMesh, built, effectiveTextures,
+            new MaterialBindOptions
             {
-                glMesh.EnvMapTexture = envTex;
-                glMesh.HasEnvironmentMap = true;
-                glMesh.IsEnvMap2D = !envIsCube;
-                glMesh.EnvMapScale = built.EnvironmentMapScale;
-                glMesh.EyeCubemapScale = built.EyeCubemapScale;
-                // Engine-faithful scale selection: only the BSLSP_EYE shader
-                // type uses eyeCubemapScale; ENVMAP-typed shapes — including
-                // semantic eyes classified IsEye via head-part data — use
-                // envMapScale in-game.
-                glMesh.UseEyeCubemapScale = built.ShaderType == 16;
-                RecordTextureSource(glMesh,
-                    envIsCube ? "Environment Cubemap" : "Environment Map (2D fallback)",
-                    envMapPath);
-            }
+                // Each LoadTexture can extract a DDS from a BSA and decode+upload it — the
+                // finest-grained slow unit in an offscreen render — so the binder checks this
+                // before each group. No-op for the live preview (token defaults to None).
+                Cancellation = RenderCancellation,
+                RenderMissingTextureAsWireframe = RenderMissingTextureAsWireframe,
+                BindDiffuse = BindNpcDiffuse,
+                // NPC QNAM TextureLighting colour for the skin-tint / face-tint shader types.
+                SkinTintColor = meshPaths.TextureLightingColor,
+                IsEyeShape = isEyeShape,
+                // Experimental fallback: a face shape with the detail flag set but an empty
+                // slot 3 gets Bethesda's CK default (the texture used when no complexion /
+                // freckle / dirt / wound option is chosen), to test whether the engine
+                // substitutes a similar default at runtime.
+                EmptyFaceDetailFallbackPath = Renderer.UseBlankDetailFallback
+                    ? "textures\\actors\\character\\male\\BlankDetailmap.dds"
+                    : null,
+                LogVerbose = LogVerbose,
+            });
 
-            if (effectiveTextures.TryGetValue(5, out string? envMaskPath))
-            {
-                glMesh.EnvMaskTexture = TextureManager.LoadTexture(envMaskPath);
-                glMesh.HasEnvMask = true;
-                RecordTextureSource(glMesh, "Environment Mask", envMaskPath);
-            }
-        }
-
-        // Detail map (SLSF1_Facegen_Detail_Map, bit 10)
-        bool detailFlagSet = (built.ShaderFlags1 & (1u << 10)) != 0;
-        bool detailSlotPopulated = effectiveTextures.TryGetValue(3, out string? detailPath);
-        if (detailFlagSet && detailSlotPopulated && detailPath != null)
-        {
-            int detailTex = TextureManager.LoadTexture(detailPath);
-            if (detailTex != TextureManager.WhiteTexture)
-            {
-                glMesh.DetailTexture = detailTex;
-                glMesh.HasDetailMap = true;
-            }
-            else
-            {
-                // Slot 3 names a file that doesn't exist in the load order
-                // (e.g. female facegen NIFs baking
-                // textures\actors\character\female\blankdetailmap.dds, which
-                // vanilla only ships in the male directory). The engine treats
-                // a missing detail map as "no detail map"; binding the 1x1
-                // white fallback instead saturates the face to white under
-                // BOTH detail blend modes (engine-style ~x4 multiply and
-                // legacy overlay), so treat the slot as empty. Still recorded
-                // below so the hover tooltip surfaces the broken path.
-                detailSlotPopulated = false;
-                LogVerbose("CharacterViewer: Detail map '" + detailPath +
-                    "' not found — treating slot 3 as empty (engine behavior)");
-            }
-            RecordTextureSource(glMesh, "Detail Map", detailPath);
-        }
-        if (detailFlagSet && !detailSlotPopulated && built.ShaderType == 4 && Renderer.UseBlankDetailFallback)
-        {
-            // Experimental fallback: face shape has the detail flag set
-            // but slot 3 is empty in its NIF. Substitute Bethesda's CK
-            // default (the texture used when no complexion / freckle /
-            // dirt / wound option is chosen). Helps test whether the
-            // engine substitutes a similar default at runtime.
-            const string blankDetailPath = "textures\\actors\\character\\male\\BlankDetailmap.dds";
-            glMesh.DetailTexture = TextureManager.LoadTexture(blankDetailPath);
-            glMesh.HasDetailMap = true;
-            RecordTextureSource(glMesh, "Detail Map (BlankDetailmap fallback)", blankDetailPath);
-        }
-
-        // Track face shapes with an empty slot 3 for the optional
-        // "force multiply on empty detail" debug path in basic.frag.
-        // Set independently of whether the toggle is on; the shader-side
-        // toggle (FaceTintMultiplyOnEmptyDetail) decides whether to act
-        // on it.
-        glMesh.IsFaceWithEmptyDetailSlot = built.ShaderType == 4
-            && detailFlagSet
-            && !detailSlotPopulated;
-
-        // Double-sided (brow, eyelash, hair — thin geometry visible from both sides)
-        glMesh.IsDoubleSided = built.IsDoubleSided;
-
-        // Depth-write + material alpha. Set unconditionally (independent of the
-        // alpha-test/blend branch below) so the alpha-blend pass can decide, per
-        // shape, whether to write depth: solid blended geometry (ZBuffer_Write
-        // set, opaque material) occludes what's behind it; overlay decals and
-        // translucent materials do not. See GlRenderer Pass 2.
-        glMesh.DepthWrite = built.ZBufferWrite;
-        glMesh.IsDecal = built.IsDecal;
-        glMesh.MaterialAlpha = built.MaterialAlpha;
-
-        // Alpha test / blend
-        if (built.HasAlphaTest || built.HasAlphaBlend)
-        {
-            if (glMesh.DiffuseTexture != TextureManager.WhiteTexture)
-            {
-                // Suppress the GL discard on BSLSP_FACE shapes (ShaderType=4)
-                // that carry the NiAlphaProperty alpha-test bit.
-                //
-                // What we observed:
-                //   - Vanilla Khajiit MaleHeadKhajiit carries
-                //     NiAlphaProperty.AlphaTest=True with threshold 73 (≈0.286).
-                //   - Its diffuse texture has alpha < 1 across the entire face
-                //     (this is independently noted in the renderer's Pass-1
-                //     comment in GlRenderer.cs, which deliberately disables
-                //     SAMPLE_ALPHA_TO_COVERAGE for that reason).
-                //   - It also has SLSF1_Vertex_Alpha set with vertex-color
-                //     alpha varying from 1.0 down to ~0.325 (a low-alpha ring
-                //     around the head/body seam — 133 of 1356 vertices on
-                //     Ri'saad).
-                //   - basic.frag multiplies vertex alpha into texture alpha
-                //     before the discard test, so face fragments near the
-                //     seam produce α ≈ 0.276 (below the 0.286 threshold) and
-                //     discard. At ~750 px portrait resolution each discarded
-                //     fragment spans a perceptible pixel-sized hole.
-                //   - In vanilla in-game Skyrim, Khajiit faces render solid;
-                //     this discard pattern does not appear there.
-                //
-                // What we have NOT verified:
-                //   - The exact engine-side mechanism that produces the
-                //     solid in-game face. Plausible candidates we haven't
-                //     traced: (a) the engine ignoring the alpha-test bit on
-                //     BSLSP_FACE entirely, (b) alpha-to-coverage running on
-                //     a framebuffer configured differently from ours,
-                //     (c) BSLSP_FACE being routed through a separate draw
-                //     call that doesn't consult NiAlphaProperty,
-                //     (d) Bethesda's actual vertex-alpha values differing
-                //     from what niflysharp reads back. We haven't read
-                //     engine source or Community Shaders' replacement shader
-                //     for this specific path.
-                //   - Authorial intent for the vertex_alpha ring. The
-                //     seam-localized distribution makes a head/body seam
-                //     fade a plausible reading, but Bethesda's authoring
-                //     intent isn't documented.
-                //
-                // What this fix does:
-                //   - For ShaderType==4 face shapes only, skip writing
-                //     `built.HasAlphaTest` to `glMesh.UseAlphaTest`. The
-                //     NIF's HasAlphaBlend / AlphaThreshold / blend factors
-                //     are still propagated unchanged so any other shader
-                //     path that consults them continues to see the
-                //     NIF-authored values.
-                //
-                // The result is that face fragments along the seam render
-                // with their actual partial alpha instead of being
-                // discarded. That partial alpha then lands in the off-screen
-                // pipeline's readback bytes — see the alpha-strip step in
-                // GameWindowOffscreenRenderer.RenderInternalCore for the
-                // companion piece of this two-half fix.
-                bool suppressAlphaTestForFace = built.ShaderType == 4 && built.HasAlphaTest;
-                glMesh.UseAlphaTest = built.HasAlphaTest && !suppressAlphaTestForFace;
-                glMesh.HasAlphaBlend = built.HasAlphaBlend;
-                glMesh.AlphaThreshold = built.AlphaThreshold;
-                glMesh.SrcBlendIndex = built.SrcBlendIndex;
-                glMesh.DstBlendIndex = built.DstBlendIndex;
-            }
-            else
-            {
-                // Alpha-tested / alpha-blended shape with no resolvable diffuse.
-                // Without a usable alpha channel the discard threshold is
-                // undefined and a flat-white billboard would mislead the user.
-                // Render as wireframe placeholder by default so the shape's
-                // silhouette stays visible alongside the host's missing-texture
-                // overlay; if the host has opted out, fall back to silent
-                // culling (matches pre-2.5.6 behavior).
-                string disposition = RenderMissingTextureAsWireframe
-                    ? "WIREFRAME-FALLBACK" : "CULLED";
-                // Through LogVerbose, not Trace.WriteLine: this is the disposition of a shape whose
-                // diffuse could not be resolved, which is exactly what someone reading a RenderLogs
-                // capture is looking for. On Trace it reached a debugger and nothing else (AUD-8).
-                LogVerbose(
-                    $"CharacterViewer: {disposition} shape='{glMesh.ShapeName}' " +
-                    $"bodyPart='{glMesh.BodyPart}' " +
-                    $"alphaTest={built.HasAlphaTest} alphaBlend={built.HasAlphaBlend} " +
-                    $"hairTint={built.IsHairTintShader} " +
-                    "(diffuse fell back to WhiteTexture — texture path missing or DDS load failed)");
-                if (RenderMissingTextureAsWireframe)
-                    glMesh.RenderAsWireframeFallback = true;
-                else
-                    glMesh.IsRendering = false;
-            }
-        }
-
-        glMesh.IsHairTintShader = built.IsHairTintShader;
-        glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;
+        if (outHairTint) { isHairTint = true; hairR = outHairR; hairG = outHairG; hairB = outHairB; }
+        if (outFaceTint) { isFaceTint = true; faceTintPath = outFaceTintPath; }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -5797,21 +5508,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// entry, replaces it (used when texture overrides update a slot).
     /// </summary>
     private void RecordTextureSource(GlMesh mesh, string slotLabel, string? gamePath)
-    {
-        if (string.IsNullOrWhiteSpace(gamePath)) return;
-
-        var source = _assetResolver.ResolveAssetSource(gamePath);
-
-        for (int i = 0; i < mesh.TextureSources.Count; i++)
-        {
-            if (mesh.TextureSources[i].SlotLabel == slotLabel)
-            {
-                mesh.TextureSources[i] = (slotLabel, source);
-                return;
-            }
-        }
-        mesh.TextureSources.Add((slotLabel, source));
-    }
+        => NifMaterialBinder.RecordTextureSource(_assetResolver, mesh, slotLabel, gamePath);
 
     // ═══════════════════════════════════════════════════════════════════════
     //  MESH OVERRIDES
@@ -6866,7 +6563,7 @@ public partial class VM_CharacterViewer : ViewerVm
                     originalMesh, shapeName, morphs, NpcWeight, _cachedBodyTri, _cachedOsdFiles);
 
                 // Queue the GPU re-upload; issued together below under the owning context.
-                var vertexData = BuildInterleavedVertexData(positions, normals,
+                var vertexData = GlMeshFactory.Interleave(positions, normals,
                     originalMesh.TextureCoordinates, originalMesh.Tangents, originalMesh.Bitangents,
                     originalMesh.VertexColors);
                 pendingUploads.Add((glMesh, vertexData));
@@ -7495,94 +7192,7 @@ public partial class VM_CharacterViewer : ViewerVm
         return (positions, normals);
     }
 
-    private GlMesh CreateGlMesh(NifMeshBuilder.BuiltMesh built)
-    {
-        var vertexData = BuildInterleavedVertexData(
-            built.Positions, built.Normals, built.TextureCoordinates,
-            built.Tangents, built.Bitangents, built.VertexColors);
-
-        var glMesh = new GlMesh();
-        glMesh.Upload(vertexData, built.Indices);
-        glMesh.ShapeName = built.ShapeName;
-        glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;
-
-        // Store CPU-side geometry for ray-based hit testing
-        glMesh.CpuPositions = (Vector3[])built.Positions.Clone();
-        glMesh.CpuIndices = (int[])built.Indices.Clone();
-
-        // Persist per-vertex bone indices + weights from the SkinningInfo so the
-        // classifier's bone-transition criterion can find anatomical seams (e.g.
-        // armpit = the boundary between torso-bone-weighted and arm-bone-weighted
-        // vertices). Cloned because the BuiltMesh is shared via the NIF parse
-        // cache and BodySlide deformations re-read it. Null for unskinned shapes.
-        if (built.Skinning != null && built.Skinning.VertBoneIndices.Length > 0)
-        {
-            glMesh.CpuBoneIndices = (int[])built.Skinning.VertBoneIndices.Clone();
-            glMesh.CpuBoneWeights = (float[])built.Skinning.VertBoneWeights.Clone();
-        }
-
-        return glMesh;
-    }
-
-    /// <summary>
-    /// Builds interleaved vertex data array for the GL mesh.
-    /// Layout per vertex: position(3) + normal(3) + texcoord(2) + color(4) + tangent(3) + bitangent(3) = 18 floats
-    /// </summary>
-    private static float[] BuildInterleavedVertexData(
-        Vector3[] positions, Vector3[] normals, Vector2[] uvs,
-        Vector3[] tangents, Vector3[] bitangents, Vector4[]? vertexColors = null)
-    {
-        int vertCount = positions.Length;
-        var data = new float[vertCount * 18];
-
-        for (int i = 0; i < vertCount; i++)
-        {
-            int offset = i * 18;
-            var p = positions[i];
-            var n = i < normals.Length ? normals[i] : Vector3.UnitY;
-            var uv = i < uvs.Length ? uvs[i] : Vector2.Zero;
-            var t = i < tangents.Length ? tangents[i] : Vector3.Zero;
-            var b = i < bitangents.Length ? bitangents[i] : Vector3.Zero;
-
-            // Position
-            data[offset]     = p.X;
-            data[offset + 1] = p.Y;
-            data[offset + 2] = p.Z;
-            // Normal
-            data[offset + 3] = n.X;
-            data[offset + 4] = n.Y;
-            data[offset + 5] = n.Z;
-            // UV
-            data[offset + 6] = uv.X;
-            data[offset + 7] = uv.Y;
-            // Vertex color
-            if (vertexColors != null && i < vertexColors.Length)
-            {
-                var vc = vertexColors[i];
-                data[offset + 8]  = vc.X;
-                data[offset + 9]  = vc.Y;
-                data[offset + 10] = vc.Z;
-                data[offset + 11] = vc.W;
-            }
-            else
-            {
-                data[offset + 8]  = 1f;
-                data[offset + 9]  = 1f;
-                data[offset + 10] = 1f;
-                data[offset + 11] = 1f;
-            }
-            // Tangent
-            data[offset + 12] = t.X;
-            data[offset + 13] = t.Y;
-            data[offset + 14] = t.Z;
-            // Bitangent
-            data[offset + 15] = b.X;
-            data[offset + 16] = b.Y;
-            data[offset + 17] = b.Z;
-        }
-
-        return data;
-    }
+    private static GlMesh CreateGlMesh(NifMeshBuilder.BuiltMesh built) => GlMeshFactory.Create(built);
 
     /// <summary>
     /// Looks for a sibling .tri next to the currently-loaded body NIF and parses it
