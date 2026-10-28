@@ -264,6 +264,7 @@ public class Patcher
         _patcherIO.ClearPreviousScriptOutputs(
             _paths.OutputDataFolder,
             _environmentProvider.DataFolderPath,
+            _paths.SettingsRootPath,
             _logger);
 
         var outputMod = _environmentProvider.OutputMod;

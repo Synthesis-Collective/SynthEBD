@@ -286,9 +286,10 @@ public class PatcherIO
     /// <summary>
     /// Deletes the Scripts, Seq, SKSE, and SynthEBD subfolders under the output
     /// data folder. Skipped entirely when the output folder is the same as the
-    /// game Data folder to avoid destroying game files.
+    /// game Data folder to avoid destroying game files, and per subfolder when it
+    /// is, contains, or holds the active settings folder (see <see cref="OutputFolderGuard"/>).
     /// </summary>
-    public void ClearPreviousScriptOutputs(string outputDataFolder, string dataFolderPath, Logger logger)
+    public void ClearPreviousScriptOutputs(string outputDataFolder, string dataFolderPath, string settingsRootPath, Logger logger)
     {
         if (string.Equals(Path.GetFullPath(outputDataFolder), Path.GetFullPath(dataFolderPath), StringComparison.OrdinalIgnoreCase))
         {
@@ -296,10 +297,15 @@ public class PatcherIO
             return;
         }
 
-        string[] subfolders = { "Scripts", "Seq", "SKSE", "SynthEBD" };
-        foreach (var subfolder in subfolders)
+        foreach (var subfolder in OutputFolderGuard.ClearedSubfolders)
         {
             string path = Path.Combine(outputDataFolder, subfolder);
+            var conflict = OutputFolderGuard.GetSettingsConflict(path, settingsRootPath, null);
+            if (conflict != null || OutputFolderGuard.LooksLikeSettingsFolder(path))
+            {
+                logger.LogErrorWithStatusUpdate("Skipped deleting " + path + " because it holds SynthEBD settings. Choose an output folder that does not contain the settings folder.", ErrorType.Warning);
+                continue;
+            }
             TryDeleteDirectory(path, logger);
         }
     }

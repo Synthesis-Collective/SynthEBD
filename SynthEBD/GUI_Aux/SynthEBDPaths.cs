@@ -127,6 +127,8 @@ public class SynthEBDPaths : VM
     /// <summary>Destination folder for generated output (NIFs, scripts, etc.). Unlike the other paths
     /// this is assigned at runtime rather than derived from <c>_rootPath</c>.</summary>
     public string OutputDataFolder { get; set; }
+    /// <summary>The active settings root folder (portable folder or default root) that every settings path hangs off.</summary>
+    public string SettingsRootPath => _rootPath;
     /// <summary>Path of the JSON that records which settings source (default vs portable) is active.</summary>
     public string SettingsSourcePath => Path.Combine(_rootPath, StandaloneSourceDirName, SettingsSourceFileName);
     /// <summary>Path of the JSON that records the chosen game environment source.</summary>

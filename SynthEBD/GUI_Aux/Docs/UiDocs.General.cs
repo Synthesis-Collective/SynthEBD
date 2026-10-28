@@ -6,8 +6,8 @@ public static partial class UiDocs
     private static void RegisterGeneral()
     {
         Add("General.OutputDataFolder",
-            layperson: "The folder where SynthEBD writes everything it generates: the plugin, meshes, textures, and supporting files. Leave it empty to write directly into the game's Data folder. Use Select to pick a folder and Clear to return to the default.",
-            technical: "Sets GeneralSettings.OutputDataFolder, which feeds SynthEBDPaths.OutputDataFolder; when empty, the resolved game Data folder is used instead. All patcher outputs are rooted here: the output plugin(s), copied asset files, baked FaceGen NIFs, EBD script JSON, and SkyPatcher ini directives.",
+            layperson: "The folder where SynthEBD writes everything it generates: the plugin, meshes, textures, and supporting files. Leave it empty to write directly into the game's Data folder. Use Select to pick a folder and Clear to return to the default. It must not contain your SynthEBD settings folder: SynthEBD clears parts of the output folder before every run.",
+            technical: "Sets GeneralSettings.OutputDataFolder, which feeds SynthEBDPaths.OutputDataFolder; when empty, the resolved game Data folder is used instead. All patcher outputs are rooted here: the output plugin(s), copied asset files, baked FaceGen NIFs, EBD script JSON, and SkyPatcher ini directives. Before each run PatcherIO.ClearPreviousScriptOutputs deletes the Scripts, Seq, SKSE and SynthEBD subfolders, so OutputFolderGuard rejects a folder that is, is inside, or contains the settings root (the picker refuses it, pre-run validation fails even with validation disabled, and the cleanup skips any subfolder holding settings).",
             motivation: "Mod-manager users usually want SynthEBD's output isolated in its own mod folder (for example an empty MO2 mod) instead of dumped loose into Data, so the whole patch can be enabled, disabled, or deleted as one unit.");
 
         Add("General.Theme",
@@ -72,7 +72,7 @@ public static partial class UiDocs
 
         Add("General.PortableSettingsFolder",
             layperson: "The folder that holds your portable settings. It must be named SynthEBD. Use Search to pick it and Clear to remove it.",
-            technical: "Mirror of PatcherSettingsSource.PortableSettingsFolder. The folder picker rejects any directory not named 'SynthEBD'; when the path is set and exists, it becomes the active settings root for all settings IO.",
+            technical: "Mirror of PatcherSettingsSource.PortableSettingsFolder. The folder picker rejects any directory not named 'SynthEBD', or one that overlaps the output folder (OutputFolderGuard); when the path is set and exists, it becomes the active settings root for all settings IO.",
             motivation: "The fixed folder name keeps the portable root recognizable (typically Data\\SynthEBD) and prevents accidentally pointing the patcher's settings at an arbitrary directory.");
 
         Add("General.AppearanceMergePatcher",

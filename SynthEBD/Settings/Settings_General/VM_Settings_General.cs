@@ -153,6 +153,12 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                 {
                     if (IO_Aux.SelectFolder(environmentProvider.DataFolderPath, out var tmpFolder))
                     {
+                        var conflict = OutputFolderGuard.GetSettingsConflict(tmpFolder, _paths.SettingsRootPath, environmentProvider.DataFolderPath);
+                        if (conflict != null)
+                        {
+                            MessageWindow.DisplayNotificationOK("Output Folder Not Allowed", conflict + Environment.NewLine + Environment.NewLine + "Please choose a folder that does not contain your SynthEBD settings folder, such as a separate empty mod folder.");
+                            return;
+                        }
                         OutputDataFolder = tmpFolder;
                     }
                 }
@@ -191,6 +197,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
                     if (!string.Equals(new DirectoryInfo(selectedPath).Name, "SynthEBD", StringComparison.OrdinalIgnoreCase))
                     {
                         MessageWindow.DisplayNotificationOK("Invalid Directory", "The folder name must be \"SynthEBD\"");
+                    }
+                    else if (OutputFolderGuard.GetSettingsConflict(string.IsNullOrWhiteSpace(OutputDataFolder) ? environmentProvider.DataFolderPath : OutputDataFolder, selectedPath, environmentProvider.DataFolderPath) is { } conflict)
+                    {
+                        MessageWindow.DisplayNotificationOK("Settings Folder Not Allowed", conflict + Environment.NewLine + Environment.NewLine + "Please choose a settings folder outside the output folder, or change the output folder first.");
                     }
                     else
                     {

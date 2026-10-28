@@ -19,19 +19,41 @@ namespace SynthEBD
         private readonly Logger _logger;
         private readonly MiscValidation _miscValidation;
         private readonly AssetPackValidator _assetPackValidator;
+        private readonly SynthEBDPaths _paths;
         /// <summary>Creates the validator.</summary>
         /// <param name="environmentProvider">Supplies the Skyrim version and environment.</param>
         /// <param name="patcherState">The settings/state to validate.</param>
         /// <param name="logger">Logger for surfacing validation errors.</param>
         /// <param name="miscValidation">Per-dependency installation/data checks.</param>
         /// <param name="assetPackValidator">Validator for individual asset packs.</param>
-        public PreRunValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, MiscValidation miscValidation, AssetPackValidator assetPackValidator)
+        /// <param name="paths">Supplies the active settings root and output folder.</param>
+        public PreRunValidation(IEnvironmentStateProvider environmentProvider, PatcherState patcherState, Logger logger, MiscValidation miscValidation, AssetPackValidator assetPackValidator, SynthEBDPaths paths)
         {
             _environmentProvider = environmentProvider;
             _patcherState = patcherState;
             _logger = logger;
             _miscValidation = miscValidation;
             _assetPackValidator = assetPackValidator;
+            _paths = paths;
+        }
+
+        /// <summary>
+        /// Fails when the output folder overlaps the settings folder, since the patcher clears parts of the output
+        /// folder before every run. Not skippable via <c>bDisableValidation</c>: it protects user data.
+        /// </summary>
+        private bool ValidateOutputFolderSafety()
+        {
+            string outputFolder = !string.IsNullOrWhiteSpace(_paths.OutputDataFolder) ? _paths.OutputDataFolder
+                : !string.IsNullOrWhiteSpace(_patcherState.GeneralSettings.OutputDataFolder) ? _patcherState.GeneralSettings.OutputDataFolder
+                : _environmentProvider.DataFolderPath;
+
+            var conflict = OutputFolderGuard.GetSettingsConflict(outputFolder, _paths.SettingsRootPath, _environmentProvider.DataFolderPath);
+            if (conflict == null)
+            {
+                return true;
+            }
+            _logger.LogMessage(conflict + " Please choose a different output folder in General Settings.");
+            return false;
         }
 
         /// <summary>Validates the entire patcher configuration before a run, logging every problem found.</summary>
@@ -44,6 +66,11 @@ namespace SynthEBD
         /// </remarks>
         public bool ValidatePatcherState()
         {
+            if (!ValidateOutputFolderSafety())
+            {
+                return false;
+            }
+
             bool valid = true;
 
             if (_patcherState.GeneralSettings.bDisableValidation)
