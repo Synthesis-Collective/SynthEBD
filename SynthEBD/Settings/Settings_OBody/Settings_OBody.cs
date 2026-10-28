@@ -147,6 +147,28 @@ public class Settings_OBody
     /// </summary>
     public string LastSelectedMeasurementBodyType { get; set; } = "";
 
+    /// <summary>
+    /// Render-resolution multiplier for the Auto-Annotation image-grid windows (Show Spread, the
+    /// annotation Panel, Show Sample): 1 = 240x432 per image, 2 = 480x864, 3 = 720x1296. Shared by
+    /// all three windows and changed from any of their Resolution pickers.
+    /// </summary>
+    public int ThumbnailResolutionScale { get; set; } = 2;
+
+    /// <summary>
+    /// BodySlide Compare window skin mapping: body type -> the body type whose skin it renders with
+    /// (e.g. "CBBE" -> "CBBE 3BA", "Unified UNP" -> "BHUNP"), for bodies that share a UV layout. Keys
+    /// absent = the body type's own skin. Followed as a chain; set from the Compare panes' Skin picker.
+    /// </summary>
+    public Dictionary<string, string> CompareSkinSourceByBodyType { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// BodySlide Compare window skin mapping to a mod: body type -> the folder name of an installed mod
+    /// (MO2 mods folder / Vortex staging folder) whose textures the body renders with, for a compatible
+    /// skin that ships separately from the body. Takes precedence over
+    /// <see cref="CompareSkinSourceByBodyType"/> for the same key; setting one clears the other.
+    /// </summary>
+    public Dictionary<string, string> CompareSkinModByBodyType { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     [JsonIgnore]
     public HashSet<string> CurrentlyExistingBodySlides { get; set; } = new();
 

@@ -29,6 +29,12 @@ public class OsdFile
 {
     public required string ShapeName { get; init; }
     public required List<OsdSliderData> Sliders { get; init; }
+
+    /// <summary>True when <see cref="Sliders"/> already carry preset (canonical) slider names and
+    /// <see cref="ShapeName"/> is the exact mesh shape they target -- a host regrouped the data per
+    /// target from a BodySlide slider set. The deformer then skips its shape-prefix stripping, which
+    /// would otherwise eat a shared leading word of a small shape's sliders.</summary>
+    public bool SliderNamesAreCanonical { get; init; }
 }
 
 /// <summary>

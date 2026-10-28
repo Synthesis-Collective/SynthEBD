@@ -928,6 +928,19 @@ public partial class VM_CharacterViewer : ViewerVm
     /// as the applied scale. Null means "fall back to the NPC record".</summary>
     public float? HeightOverride { get; set; }
 
+    /// <summary>Host-chosen body type to show instead of the NPC's own: the body NIF and the matching
+    /// hands / feet / tail meshes it lists, plus where their skin comes from (see
+    /// <see cref="CharacterViewer.Rendering.BodyReplacement"/>). Applied on every subsequent
+    /// <see cref="LoadAsync"/>; null = the NPC's own meshes and skin. Sticky like
+    /// <see cref="HeightOverride"/>; a changed value defeats the same-NPC short-circuit. Replacement meshes
+    /// are BodySlide source meshes: no sibling .tri and no _0/_1 weight pair, so the body morphs through
+    /// the OSD data the host supplies -- exact there, since it was authored against that very mesh.</summary>
+    public BodyReplacement? BodyReplacement { get; set; }
+
+    /// <summary>The <see cref="BodyReplacement"/> captured by the last <see cref="LoadAsync"/>, read when
+    /// that load's shapes install (the public property may change before then).</summary>
+    private BodyReplacement? _sceneBodyReplacement;
+
     /// <summary>Viewport background color, bound to XAML.</summary>
     public MediaColor BackgroundColor { get; set; } = MediaColor.FromRgb(105, 105, 105);
 
@@ -4688,9 +4701,19 @@ public partial class VM_CharacterViewer : ViewerVm
         // attached armor) that share the NIF but ship their own diffuse/normal. Gate on
         // BSLSP shader type 5 (ST_SkinTint) so the body skin texture doesn't bleed onto
         // those shapes — engine behavior, and matches IsSkinShape elsewhere.
-        if (shape.TxstOverrides != null && shape.Built.ShaderType == 5)
+        // A body replacement re-skins every body part's skin shapes (body, hands, feet, tail) from one
+        // source, whether the part's mesh was swapped or kept, so there is no seam at the wrists/ankles.
+        var sceneReplacement = _sceneBodyReplacement;
+        bool replacementSkin = sceneReplacement != null && !sceneReplacement.UsesNpcSkin
+            && CharacterViewer.Rendering.BodyReplacement.SkinBodyParts.Contains(shape.BodyPart) && shape.Built.ShaderType == 5;
+        bool neutralSkin = false;
+        if (replacementSkin)
+            neutralSkin = !ResolveReplacementBodyTextures(shape.Built, sceneReplacement!.TextureFolder, effectiveTextures);
+        else if (shape.TxstOverrides != null && shape.Built.ShaderType == 5)
             foreach (var (slot, path) in shape.TxstOverrides)
                 effectiveTextures[slot] = path;
+        else
+            ApplyReplacementHeadTextures(shape.Built, shape.BodyPart, sceneReplacement, effectiveTextures);
 
         bool isHairTint = false;
         float hairR = 0, hairG = 0, hairB = 0;
@@ -4703,6 +4726,7 @@ public partial class VM_CharacterViewer : ViewerVm
             // "Hair" here is the worn hair-slot ARMA (slot 31) loaded from
             // HairMeshPath — FaceGen-baked hair is tagged "Head".
             isWornHairSlotItem: shape.BodyPart == "Hair");
+        if (neutralSkin) ApplyNeutralSkin(glMesh);
 
         _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
             new Dictionary<int, string>(effectiveTextures),
@@ -4899,6 +4923,20 @@ public partial class VM_CharacterViewer : ViewerVm
             paths = paths.WithEyeShapeNames(mergedEyeNames);
         }
 
+        // Host-chosen body type (BodySlide source meshes for body / hands / feet / tail, to preview a
+        // body type that isn't the installed one). Folded into the POCO for the same reason as the
+        // eye names above: everything downstream -- LoadAllMeshParts, the software fallback's
+        // SceneInputsSnapshot -- then sees one consistent set of part paths. Its skin choice is baked
+        // in at install, so any change to it on the same NPC must defeat the short-circuit below
+        // (compared against the replacement the scene was built with).
+        var replacement = string.IsNullOrWhiteSpace(BodyReplacement?.BodyNifPath) ? null : BodyReplacement;
+        bool replacementUnchanged = Equals(replacement, _sceneBodyReplacement);
+        _sceneBodyReplacement = replacement;
+        if (replacement != null)
+        {
+            paths = paths.WithBodyReplacement(replacement);
+        }
+
         if ((RenderingUnavailable || ForceRenderingUnavailableForTesting) && !IsOffscreenRenderInstance)
         {
             // No GL surface on this system (WGL_NV_DX_interop missing) — the render loop
@@ -4929,6 +4967,9 @@ public partial class VM_CharacterViewer : ViewerVm
             && identity.CacheKey == _currentLoadedIdentityKey
             && overrideHeadMeshAbsolutePath == null
             && _currentHeadMeshOverride == null
+            // Same NPC but a different body NIF or body replacement (set, changed or cleared) must rebuild.
+            && string.Equals(paths.BodyMeshPath, _cachedMeshPaths?.BodyMeshPath, StringComparison.OrdinalIgnoreCase)
+            && replacementUnchanged
             && !_forceRebuildNextLoad)
         {
             LogVerbose("CharacterViewer: LoadAsync same-identity short-circuit (" +
@@ -7005,7 +7046,9 @@ public partial class VM_CharacterViewer : ViewerVm
 
             var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
             // Head never has TxstTextures overrides (see ProcessPendingScene's
-            // bodyPart != "Head" guard) — nothing to merge in.
+            // bodyPart != "Head" guard) — nothing to merge in. A body replacement's skin
+            // still reaches the face, as on the full scene install.
+            ApplyReplacementHeadTextures(built, "Head", _sceneBodyReplacement, effectiveTextures);
 
             bool isHairTint = false;
             float hairR = 0, hairG = 0, hairB = 0;
@@ -7554,6 +7597,81 @@ public partial class VM_CharacterViewer : ViewerVm
     /// vanilla / BodySlide-built bodies ship paired `_0`/`_1` NIFs but a single
     /// shared .tri whose morph deltas are identical between weight variants.
     /// </summary>
+    /// <summary>Fills <paramref name="effectiveTextures"/> for a skin shape of the
+    /// <see cref="BodyReplacement"/> body part: each of the NIF's embedded texture paths that exists
+    /// under <paramref name="textureFolder"/> (tried as given and with a <c>textures\</c> prefix), as an
+    /// absolute path; nothing from the NPC. Returns false -- render neutral beige -- when the diffuse
+    /// (slot 0) isn't found there, since a partial set over another body's diffuse would look worse.</summary>
+    private static bool ResolveReplacementBodyTextures(NifMeshBuilder.BuiltMesh built, string? textureFolder,
+        Dictionary<int, string> effectiveTextures)
+    {
+        effectiveTextures.Clear();
+        if (string.IsNullOrWhiteSpace(textureFolder)) return false;
+
+        foreach (var (slot, path) in built.TexturePaths)
+        {
+            if (ResolveTextureUnderFolder(textureFolder, path) is { } resolved) effectiveTextures[slot] = resolved;
+        }
+
+        if (effectiveTextures.ContainsKey(0)) return true;
+        effectiveTextures.Clear();
+        return false;
+    }
+
+    /// <summary>The rule <see cref="CharacterViewer.Rendering.BodyReplacement.TextureFolder"/> lookups use: a NIF-embedded texture path,
+    /// tried under <paramref name="textureFolder"/> as given and with a <c>textures\</c> prefix (NIFs
+    /// store both forms). The absolute path when the file exists, else null. Public so a host can predict
+    /// what a replacement body will show before loading it (SynthEBD's Compare Skin picker labels).</summary>
+    public static string? ResolveTextureUnderFolder(string? textureFolder, string? nifTexturePath)
+    {
+        if (string.IsNullOrWhiteSpace(textureFolder) || string.IsNullOrWhiteSpace(nifTexturePath)) return null;
+        var rel = nifTexturePath.Replace('/', '\\').TrimStart('\\');
+        var direct = Path.Combine(textureFolder, rel);
+        if (File.Exists(direct)) return direct;
+        var prefixed = Path.Combine(textureFolder, "textures", rel);
+        return !rel.StartsWith("textures\\", StringComparison.OrdinalIgnoreCase) && File.Exists(prefixed) ? prefixed : null;
+    }
+
+    /// <summary>
+    /// Gives the head the replacement body's skin too, so the neck has no seam: for the FaceGen head's
+    /// face-tint skin shape (<c>ShaderType 4</c>), every texture slot the NIF names -- diffuse, normal,
+    /// subsurface, specular, and the detail / complexion map (blankdetailmap, age40, freckles...) -- is
+    /// re-pointed to the same path under <see cref="CharacterViewer.Rendering.BodyReplacement.TextureFolder"/>
+    /// when that file exists there, slot by slot; a slot the folder doesn't have keeps the NPC's file. Skin
+    /// mods ship their head textures as a set with the body's, and heads share one UV layout across body
+    /// mods, so they always fit. An NPC whose face uses its own texture paths (a follower or replacer's
+    /// custom head) matches nothing and keeps them. The FaceGen tint is not a NIF slot and stays the NPC's.
+    /// Never with <c>UsesNpcSkin</c> (the NPC's skin already matches) or neutral beige (no folder).
+    /// Returns true when it re-pointed any slot.
+    /// </summary>
+    internal static bool ApplyReplacementHeadTextures(NifMeshBuilder.BuiltMesh built, string? bodyPart,
+        CharacterViewer.Rendering.BodyReplacement? replacement, Dictionary<int, string> effectiveTextures)
+    {
+        if (replacement == null || replacement.UsesNpcSkin || string.IsNullOrWhiteSpace(replacement.TextureFolder)
+            || bodyPart != "Head" || built.ShaderType != 4) return false;
+
+        bool any = false;
+        foreach (var (slot, path) in effectiveTextures.ToList())
+        {
+            if (ResolveTextureUnderFolder(replacement.TextureFolder, path) is { } found)
+            {
+                effectiveTextures[slot] = found;
+                any = true;
+            }
+        }
+        return any;
+    }
+
+    /// <summary>Flat neutral skin for a replacement body with no textures of its own: the beige
+    /// diffuse, untinted (the NPC's skin tint belongs to the NPC's own textures).</summary>
+    private void ApplyNeutralSkin(GlMesh glMesh)
+    {
+        if (TextureManager == null) return;
+        glMesh.DiffuseTexture = TextureManager.NeutralSkinTexture;
+        glMesh.HasTintColor = false;
+        RecordTextureSource(glMesh, "Diffuse", "(neutral skin - replacement body has no textures of its own)");
+    }
+
     private void TryLoadSiblingBodyTri()
     {
         if (_cachedBodyTri != null) return;
@@ -7565,7 +7683,9 @@ public partial class VM_CharacterViewer : ViewerVm
             LogVerbose("CharacterViewer: No sibling .tri found for '" + _cachedBodyNifDiskPath +
                 "' -- falling back to OSD path (chopping bug possible if topology mismatches reference).");
             _cachedBodyNifDiskPath = null; // don't re-probe
-            BodyTriMissing = true;
+            // A BodyReplacement body (a BodySlide source mesh) never has a .tri, and doesn't need one:
+            // the host supplies the OSD authored against it. Only the NPC's own worn body warns.
+            BodyTriMissing = _sceneBodyReplacement == null;
             return;
         }
 

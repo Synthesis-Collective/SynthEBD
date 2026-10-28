@@ -35,6 +35,19 @@ internal sealed class SynthEbdViewerHostState
 
     private (BodySlideSetting Preset, int Weight)? _pendingBodySlide;
 
+    /// <summary>OSD files to deform the body with instead of the preset's slider-group lookup, for a
+    /// viewer showing a <see cref="VM_CharacterViewer.BodyReplacement"/> body (a BodySlide source
+    /// mesh, whose own slider set's OSDs are the exact match). Null = look up by slider group.</summary>
+    internal BodyMorphFiles? MorphOsdOverride { get; set; }
+
+    /// <summary>The OSD context for <paramref name="preset"/>: <see cref="MorphOsdOverride"/> when set,
+    /// else the registry lookup by its SliderGroup. Null when neither applies.</summary>
+    private List<OsdFile>? LoadOsdFor(BodySlideSetting? preset, BodyMorphFiles? osdOverride)
+    {
+        if (osdOverride != null) return _osdLoader.LoadFiles(osdOverride);
+        return preset?.SliderGroup != null ? _osdLoader.LoadForSliderGroup(preset.SliderGroup) : null;
+    }
+
     /// <summary>Cancels the previous <see cref="ApplyHeadPartsAsync"/> when a
     /// new one starts. Necessary because head-part assignment editors
     /// (VM_SpecificNPCAssignment / VM_ConsistencyAssignment) subscribe to each
@@ -96,11 +109,8 @@ internal sealed class SynthEbdViewerHostState
             // ApplyMorphSet auto-loads the .tri inside its own try block; we
             // can't tell ahead of time whether it'll succeed, so we always
             // load OSDs and let the deformer prefer .tri when available.
-            if (preset?.SliderGroup != null)
-            {
-                var osd = _osdLoader.LoadForSliderGroup(preset.SliderGroup);
-                _vm.SetMorphContext(osd);
-            }
+            var osd = LoadOsdFor(preset, MorphOsdOverride);
+            if (osd != null) _vm.SetMorphContext(osd);
         }
         catch (Exception ex)
         {
@@ -108,7 +118,9 @@ internal sealed class SynthEbdViewerHostState
                 + (preset?.Label ?? "?") + "': " + ExceptionLogger.GetExceptionStack(ex));
         }
 
-        _vm.ApplyMorphSet(ToMorphSet(preset), weight);
+        // A source mesh (MorphOsdOverride) isn't a BodySlide build, so BodySlide's value rules (set
+        // defaults for unlisted sliders, hidden sliders, inversion) are applied here instead.
+        _vm.ApplyMorphSet(BodySlideBuildRules.Apply(ToMorphSet(preset), MorphOsdOverride?.Sliders), weight);
     }
 
     /// <summary>True while <see cref="ApplyBodySlide"/> is parked waiting for the scene to commit.</summary>
@@ -156,17 +168,18 @@ internal sealed class SynthEbdViewerHostState
     /// <c>ProcessPendingGuestScene</c> and re-arms itself after a primary <c>ClearScene</c>,
     /// so a guest requested mid-load lands on its own once the host scene commits.</para>
     /// </summary>
-    internal Task LoadGuestNpcAsync(FormKey npcFormKey, BodySlideSetting? preset, int weight)
+    internal Task LoadGuestNpcAsync(FormKey npcFormKey, BodySlideSetting? preset, int weight,
+        BodyReplacement? bodyReplacement = null, BodyMorphFiles? osdOverride = null)
     {
         List<OsdFile>? osdFiles = null;
-        if (preset?.SliderGroup != null)
+        if (preset != null && (osdOverride != null || preset.SliderGroup != null))
         {
             try
             {
                 // Loaded unconditionally, same as ApplyBodySlide: whether the guest's body NIF
                 // has a sibling .tri isn't knowable here, and the deformer prefers .tri when
                 // one turns up.
-                osdFiles = _osdLoader.LoadForSliderGroup(preset.SliderGroup);
+                osdFiles = LoadOsdFor(preset, osdOverride);
             }
             catch (Exception ex)
             {
@@ -176,7 +189,9 @@ internal sealed class SynthEbdViewerHostState
         }
 
         var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-        return _vm.LoadGuestAsync(identity, preset != null ? ToMorphSet(preset) : null, weight, osdFiles);
+        return _vm.LoadGuestAsync(identity,
+            preset != null ? BodySlideBuildRules.Apply(ToMorphSet(preset), osdOverride?.Sliders) : null,
+            weight, osdFiles, bodyReplacement);
     }
 
     // ───────────────────────────────────────────────────────────────────

@@ -40,4 +40,29 @@ public interface ISourceResolver
     /// </param>
     /// <returns>True if a source was found; false otherwise.</returns>
     bool TryResolve(string relativeDataPath, out string absolutePath, bool verbose = false);
+
+    /// <summary>
+    /// The folder of the enabled mod that supplies <paramref name="relativeDataPath"/> to the game
+    /// (highest priority / conflict winner), or null when it can't be determined. Unlike
+    /// <see cref="TryResolve"/> this needs no <see cref="Initialize"/> and changes no resolver state,
+    /// so it is safe to call from outside the patcher -- the BodySlide Compare window uses it to find
+    /// the mod that ships a body, whose own textures sit beside it.
+    /// </summary>
+    string FindProvidingModFolder(string relativeDataPath);
+
+    /// <summary>
+    /// Folders of installed mods that are not currently deployed to the game (disabled, or not
+    /// deployed), highest priority first where the mod manager has an order; empty when unknown. Same
+    /// no-<see cref="Initialize"/> contract as <see cref="FindProvidingModFolder"/>. Lets the BodySlide
+    /// Compare window offer body types whose mods are installed but switched off -- usual for every
+    /// body but the active one, since they all write the same worn-body files.
+    /// </summary>
+    IReadOnlyList<string> GetInactiveModFolders();
+
+    /// <summary>
+    /// Every installed mod's folder, deployed or not -- active ones first, each group in the mod
+    /// manager's order where it has one. Same no-<see cref="Initialize"/> contract. The BodySlide Compare
+    /// window searches these for skin textures a body can borrow.
+    /// </summary>
+    IReadOnlyList<string> GetAllModFolders();
 }

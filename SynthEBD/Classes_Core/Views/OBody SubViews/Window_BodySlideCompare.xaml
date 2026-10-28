@@ -39,32 +39,68 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Row 0: pane letter + gender. The letter matters because the
-                             Superimpose overlay is always "B drawn inside A". -->
+                        <!-- Row 0: pane letter + body type (which also fixes the gender). The
+                             letter matters because the Superimpose overlay is always "B drawn
+                             inside A". -->
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PaneLabel}"
                                    FontWeight="Bold" FontSize="15" Margin="0,0,10,3"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource AccentBrush}"/>
-                        <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,3"
-                                  ItemsSource="{Binding Genders}"
-                                  SelectedItem="{Binding PreviewGender}"
-                                  local:DocTooltip.Key="BodySlideCompare.Gender"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
+                                  ItemsSource="{Binding BodyTypes}"
+                                  SelectedItem="{Binding SelectedBodyType}"
+                                  DisplayMemberPath="Name"
+                                  local:DocTooltip.Key="BodySlideCompare.BodyType"/>
 
-                        <!-- Row 1: preset filter -->
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Filter:" Margin="0,0,5,3"
+                        <!-- Row 1: whose skin the body type renders with (persisted per body type;
+                             for bodies sharing a UV layout). The note beside it says which body
+                             mesh and which skin are actually on screen. -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Skin:" Margin="0,0,5,3"
                                    VerticalAlignment="Center"/>
-                        <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
+                        <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,3"
+                                  ItemsSource="{Binding SkinSources}"
+                                  SelectedItem="{Binding SelectedSkinSource}"
+                                  DisplayMemberPath="Label"
+                                  local:DocTooltip.Key="BodySlideCompare.SkinSource"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding BodyMeshNote}"
+                                   Margin="8,0,0,3" VerticalAlignment="Center"
+                                   FontStyle="Italic" Opacity="0.7"/>
+
+                        <!-- Row 2: the mod whose skin the body type borrows, shown while the Skin
+                             choice is "From a mod...". Lists only installed mods (deployed or not)
+                             that contain the skin texture this body's mesh asks for. -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Mod:" Margin="0,0,5,3"
+                                   VerticalAlignment="Center"
+                                   Visibility="{Binding IsSkinModPickerVisible, Converter={StaticResource BoolToVis}}"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,3"
+                                  ItemsSource="{Binding SkinMods}"
+                                  SelectedItem="{Binding SelectedSkinMod}"
+                                  IsTextSearchEnabled="True"
+                                  MaxDropDownHeight="400"
+                                  Visibility="{Binding IsSkinModPickerVisible, Converter={StaticResource BoolToVis}}"
+                                  local:DocTooltip.Key="BodySlideCompare.SkinMod"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SkinModStatus}"
+                                   Margin="8,0,0,3" VerticalAlignment="Center"
+                                   FontStyle="Italic" Opacity="0.7"
+                                   Visibility="{Binding IsSkinModPickerVisible, Converter={StaticResource BoolToVis}}"/>
+
+                        <!-- Row 3: preset filter -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Filter:" Margin="0,0,5,3"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
                                  Text="{Binding PresetFilterText, UpdateSourceTrigger=PropertyChanged}"
                                  local:DocTooltip.Key="BodySlideCompare.PresetFilter"/>
 
-                        <!-- Row 2: the searchable preset dropdown. IsTextSearchEnabled +
+                        <!-- Row 4: the searchable preset dropdown. IsTextSearchEnabled +
                              TextSearch.TextPath lets typing jump within the (already
                              filtered) list, matching the Label by Measurements rail. -->
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Preset:" Margin="0,0,5,3"
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Preset:" Margin="0,0,5,3"
                                    VerticalAlignment="Center"/>
-                        <ComboBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
+                        <ComboBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,0,0,3"
                                   ItemsSource="{Binding FilteredPresets}"
                                   SelectedItem="{Binding SelectedPreset}"
                                   DisplayMemberPath="Label"
@@ -73,11 +109,11 @@
                                   MaxDropDownHeight="400"
                                   local:DocTooltip.Key="BodySlideCompare.Preset"/>
 
-                        <!-- Row 3: weight. Drives both the morph and, on a throttle, which
+                        <!-- Row 5: weight. Drives both the morph and, on a throttle, which
                              NPCs the picker below offers. -->
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Weight:" Margin="0,0,5,3"
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Weight:" Margin="0,0,5,3"
                                    VerticalAlignment="Center"/>
-                        <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                        <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2"
                                     Orientation="Horizontal" Margin="0,0,0,3">
                             <xctk:IntegerUpDown MinWidth="70"
                                                 Value="{Binding Weight}" Minimum="0" Maximum="100"
@@ -89,12 +125,12 @@
                                        Visibility="{Binding IsFindingNpcs, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>
 
-                        <!-- Row 4: preview NPC. CandidateFormKeys narrows the suggestion list to
+                        <!-- Row 6: preview NPC. CandidateFormKeys narrows the suggestion list to
                              NPCs at the current weight; a typed or pasted FormKey outside that
                              set is still accepted, and snaps the weight box to its NPC. -->
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="NPC:" Margin="0,0,5,0"
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="NPC:" Margin="0,0,5,0"
                                    VerticalAlignment="Center"/>
-                        <local:UC_NamedFormKeyPicker Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                        <local:UC_NamedFormKeyPicker Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2"
                                                      FormKey="{Binding PreviewNpc, Mode=TwoWay}"
                                                      LinkCache="{Binding lk}"
                                                      ScopedTypes="{Binding NPCPickerFormKeys}"

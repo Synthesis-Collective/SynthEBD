@@ -31,6 +31,16 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
     /// (<see cref="Settings_OBody.DeclinedDescriptorImports"/>), extended by this session's prompts.</summary>
     private HashSet<string> _declinedDescriptorImports = new(StringComparer.Ordinal);
 
+    /// <summary>The BodySlide Compare window's persisted skin mapping (see
+    /// <see cref="Settings_OBody.CompareSkinSourceByBodyType"/>). Edited in place by the Compare panes;
+    /// written back on save.</summary>
+    public Dictionary<string, string> CompareSkinSourceByBodyType { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The Compare window's persisted body-type -> skin mod mapping (see
+    /// <see cref="Settings_OBody.CompareSkinModByBodyType"/>); same lifecycle as
+    /// <see cref="CompareSkinSourceByBodyType"/>.</summary>
+    public Dictionary<string, string> CompareSkinModByBodyType { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Builds the descriptor / BodySlides / attribute-group / misc sub-menus, wires
     /// the Click* navigation <see cref="RelayCommand"/>s, and subscribes to the body-selection
@@ -173,6 +183,10 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
         // their definitions). Offer them before the descriptor menu loads, so accepted ones show up in
         // the Auto-Annotation menu straight away.
         _declinedDescriptorImports = new HashSet<string>(model.DeclinedDescriptorImports ?? new HashSet<string>(), StringComparer.Ordinal);
+        CompareSkinSourceByBodyType = new Dictionary<string, string>(
+            model.CompareSkinSourceByBodyType ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
+        CompareSkinModByBodyType = new Dictionary<string, string>(
+            model.CompareSkinModByBodyType ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
         foreach (var bodyType in SettingsIO_BodyTypeRules.BodyTypesWithFiles(_patcherState.BodyTypeRuleSets))
         {
             var active = SettingsIO_BodyTypeRules.ResolveActive(model, _patcherState.BodyTypeRuleSets, bodyType);
@@ -317,6 +331,8 @@ public class VM_SettingsOBody : VM, IHasAttributeGroupMenu
 
         model.CurrentlyExistingBodySlides = CurrentlyExistingBodySlides;
         model.DeclinedDescriptorImports = new HashSet<string>(_declinedDescriptorImports, StringComparer.Ordinal);
+        model.CompareSkinSourceByBodyType = new Dictionary<string, string>(CompareSkinSourceByBodyType, StringComparer.OrdinalIgnoreCase);
+        model.CompareSkinModByBodyType = new Dictionary<string, string>(CompareSkinModByBodyType, StringComparer.OrdinalIgnoreCase);
         return model;
     }
 

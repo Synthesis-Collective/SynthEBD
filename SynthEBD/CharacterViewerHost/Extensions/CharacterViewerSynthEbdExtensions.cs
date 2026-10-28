@@ -169,10 +169,20 @@ public static class CharacterViewerSynthEbdExtensions
     /// undeformed body.</para>
     /// </summary>
     public static Task LoadGuestNpcAsync(this VM_CharacterViewer viewer,
-        FormKey npcFormKey, ILinkCache linkCache, BodySlideSetting? preset, int weight)
+        FormKey npcFormKey, ILinkCache linkCache, BodySlideSetting? preset, int weight,
+        BodyReplacement? bodyReplacement = null, BodyMorphFiles? osdOverride = null)
     {
         return SynthEbdViewerHostStateRegistry.GetOrCreate(viewer)
-            .LoadGuestNpcAsync(npcFormKey, preset, weight);
+            .LoadGuestNpcAsync(npcFormKey, preset, weight, bodyReplacement, osdOverride);
+    }
+
+    /// <summary>Makes every later <see cref="ApplyBodySlide"/> on <paramref name="viewer"/> deform with
+    /// <paramref name="osdPaths"/> (a source mesh's own .osd/.bsd files) instead of the preset's
+    /// slider-group lookup; null restores the lookup. Pair with <see cref="VM_CharacterViewer.BodyReplacement"/>
+    /// set to the BodySlide source mesh those OSDs were authored against.</summary>
+    public static void SetBodyMorphOsdOverride(this VM_CharacterViewer viewer, BodyMorphFiles? osdPaths)
+    {
+        SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).MorphOsdOverride = osdPaths;
     }
 
     /// <summary>SynthEBD-facing BodyGen application. Stacks

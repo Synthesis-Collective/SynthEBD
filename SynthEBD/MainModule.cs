@@ -130,6 +130,7 @@ public class MainModule : Autofac.Module
 
         builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
         builder.RegisterType<InstalledBodyTypeDetector>().AsSelf().SingleInstance();
+        builder.RegisterType<BodyTypeSourceMeshes>().AsSelf().SingleInstance();
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
         // NifTextureLoader removed — textures now loaded by GlTextureManager via OpenGL pipeline
         builder.RegisterType<CharacterViewerLogGate>().AsSelf().SingleInstance();

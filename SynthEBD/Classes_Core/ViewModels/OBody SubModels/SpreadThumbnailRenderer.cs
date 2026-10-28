@@ -36,9 +36,39 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
     private const float CameraTargetY = 64f;
     private const float CameraDistance = 320f;
 
-    /// <summary>Render size per image; 5:9 portrait to suit a standing body. The view scales it to the cell.</summary>
-    internal const int ImageWidth = 240;
-    internal const int ImageHeight = 432;
+    /// <summary>Render size per image at <see cref="ResolutionScale"/> 1; 5:9 portrait to suit a
+    /// standing body. The view scales the image to the cell.</summary>
+    internal const int BaseImageWidth = 240;
+    internal const int BaseImageHeight = 432;
+
+    /// <summary>Allowed <see cref="ResolutionScale"/> values, offered by each window's Resolution picker.</summary>
+    internal static readonly IReadOnlyList<int> ResolutionScales = new[] { 1, 2, 3 };
+    internal const int DefaultResolutionScale = 2;
+
+    internal static int ClampResolutionScale(int scale) => Math.Clamp(scale, ResolutionScales[0], ResolutionScales[^1]);
+
+    /// <summary>Multiplier on <see cref="BaseImageWidth"/> x <see cref="BaseImageHeight"/>. Changing it
+    /// drops every cached image (and discards the one in flight), so the owner re-pumps afterwards.</summary>
+    internal int ResolutionScale
+    {
+        get => _resolutionScale;
+        set
+        {
+            int clamped = ClampResolutionScale(value);
+            if (clamped == _resolutionScale) return;
+            _resolutionScale = clamped;
+            _images.Clear();
+            _cacheGeneration++;
+        }
+    }
+    private int _resolutionScale = DefaultResolutionScale;
+
+    /// <summary>Bumped whenever the cache is invalidated, so a render that started before the
+    /// change is thrown away instead of landing at the old size.</summary>
+    private int _cacheGeneration;
+
+    internal int ImageWidth => BaseImageWidth * _resolutionScale;
+    internal int ImageHeight => BaseImageHeight * _resolutionScale;
 
     /// <summary>Overlay is the measurement-line set drawn on the image ("" = none; see
     /// <see cref="JoinOverlay"/>), so toggling Show Measurements, or switching metric with it on,
@@ -120,6 +150,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
                 if (next == null) break;
 
                 BitmapSource? image = null;
+                int generation = _cacheGeneration;
                 try
                 {
                     image = await RenderAsync(next.Value);
@@ -134,6 +165,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
                         + ExceptionLogger.GetExceptionStack(ex));
                 }
                 if (_cts.IsCancellationRequested) break;
+                if (generation != _cacheGeneration) continue; // resolution changed mid-render
                 _images[next.Value] = image;
                 _imageReady();
             }
@@ -159,6 +191,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
 
         var vm = _renderSettingsSource;
         var overlayDiag = new System.Runtime.CompilerServices.StrongBox<string?>();
+        int width = ImageWidth, height = ImageHeight;
         var request = new OffscreenRenderRequest
         {
             MeshPaths = _scene.MeshPaths,
@@ -167,9 +200,9 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
             MeshOverrides = _scene.MeshOverrides,
             Morphs = SynthEbdViewerHostState.ToMorphSet(preset),
             MorphWeight = key.Weight,
-            Width = ImageWidth,
-            Height = ImageHeight,
-            Lighting = _scene.Lighting,
+            Width = width,
+            Height = height,
+            Lighting = LightingForAzimuth(key.Azimuth),
             Colors = _scene.Colors,
             BackgroundRgb = _scene.BackgroundRgb,
             Camera = new CameraFraming.OrbitState(CameraDistance, key.Azimuth, 0f, 0f, CameraTargetY, 0f),
@@ -218,15 +251,36 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
         {
             _loggedFirstRender = true;
             _logger?.LogMessage($"{_logName}: first render took {sw.ElapsedMilliseconds} ms "
-                + $"({ImageWidth}x{ImageHeight}, {request.MissingMeshPathsOut!.Count} missing mesh(es)).");
+                + $"({width}x{height}, {request.MissingMeshPathsOut!.Count} missing mesh(es)).");
         }
 
-        int stride = ImageWidth * 4;
-        if (bgra == null || bgra.Length < stride * ImageHeight) return null;
-        var bitmap = BitmapSource.Create(ImageWidth, ImageHeight, 96, 96, PixelFormats.Bgra32, null, bgra, stride);
+        int stride = width * 4;
+        if (bgra == null || bgra.Length < stride * height) return null;
+        var bitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, bgra, stride);
         bitmap.Freeze();
         return bitmap;
     }
+
+    /// <summary>The scene's lighting layout turned with the camera: every light's azimuth is offset by
+    /// how far <paramref name="cameraAzimuth"/> sits from <see cref="FrontAzimuth"/>. Rotating camera
+    /// and lights together by the same angle is the same picture as turning the model on a turntable
+    /// under fixed studio lights, so the side and back views are lit the way the front view is rather
+    /// than showing the model's unlit far side. Image-based reflections still come from the world.</summary>
+    private CharacterViewer.Rendering.CharacterViewerLightingLayout? LightingForAzimuth(float cameraAzimuth)
+    {
+        var layout = _scene.Lighting;
+        if (layout == null) return null;
+        double offset = cameraAzimuth - FrontAzimuth;
+        if (offset == 0) return layout;
+
+        var turned = layout.Clone();
+        turned.KeyAzimuth = WrapDegrees(layout.KeyAzimuth + offset);
+        turned.FillAzimuth = WrapDegrees(layout.FillAzimuth + offset);
+        turned.RimAzimuth = WrapDegrees(layout.RimAzimuth + offset);
+        return turned;
+    }
+
+    private static double WrapDegrees(double degrees) => ((degrees % 360) + 360) % 360;
 
     /// <summary>Builds the offscreen <see cref="OffscreenRenderRequest.BeforeDraw"/> hook that draws
     /// <paramref name="measurementNames"/>' lines on the render's own deformed mesh. Key vertices

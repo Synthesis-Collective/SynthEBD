@@ -123,7 +123,8 @@ public class VM_BodyTypeProfileEditor : VM
             compareFactory,
             () => new BodySlideCompareSeed(
                 PreviewGender, PreviewWeight, PreviewNpcOverride,
-                SelectedPreset?.AssociatedModel, ExcludeHiddenAndDisabled: true),
+                SelectedPreset?.AssociatedModel, ExcludeHiddenAndDisabled: true,
+                BodyType: SelectedProfile?.BodyTypeName ?? SelectedBodyType),
             logger);
 
         // ApplyBodySlide may defer to _pendingBodySlide when the scene isn't yet rebuilt
@@ -866,6 +867,8 @@ public class VM_BodyTypeProfileEditor : VM
         // Reopen on the body type the user was last working on; fall back to the first profile when
         // nothing was saved or that body type is gone. A successful restore also suppresses
         // BeginAutoSelectProfileFromInstalledBody so the remembered choice isn't clobbered.
+        ThumbnailResolutionScale = SpreadThumbnailRenderer.ClampResolutionScale(model.ThumbnailResolutionScale);
+
         var savedBodyType = model.LastSelectedMeasurementBodyType;
         var restored = savedBodyType.IsNullOrWhitespace()
             ? null
@@ -931,7 +934,13 @@ public class VM_BodyTypeProfileEditor : VM
         }
 
         model.LastSelectedMeasurementBodyType = SelectedBodyType ?? "";
+        model.ThumbnailResolutionScale = ThumbnailResolutionScale;
     }
+
+    /// <summary>Render-resolution multiplier shared by the Show Spread / Panel / Show Sample windows
+    /// (see <see cref="Settings_OBody.ThumbnailResolutionScale"/>). Each window reads it on open and
+    /// writes it back when its Resolution picker changes.</summary>
+    internal int ThumbnailResolutionScale { get; set; } = SpreadThumbnailRenderer.DefaultResolutionScale;
 
     /// <summary>Moves the detached annotations / prefs of <paramref name="profile"/>'s body type onto it.</summary>
     private void AttachPersonalState(BodyTypeProfile profile)
@@ -4509,7 +4518,8 @@ public class VM_BodyTypeProfileEditor : VM
         var npc = gender == PreviewGender ? PreviewNpcOverride : FormKey.Null;
         BodySlideCompareLauncher.Open(
             _compareFactory,
-            () => new BodySlideCompareSeed(gender, weight, npc, ph.AssociatedModel, ExcludeHiddenAndDisabled: true),
+            () => new BodySlideCompareSeed(gender, weight, npc, ph.AssociatedModel, ExcludeHiddenAndDisabled: true,
+                BodyType: SelectedProfile?.BodyTypeName ?? SelectedBodyType),
             _logger);
     }
 

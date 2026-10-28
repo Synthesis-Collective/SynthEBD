@@ -136,6 +136,42 @@ public sealed class ResolvedNpcMeshPaths
 
     private static readonly IReadOnlySet<string> EmptyEyeShapeNames = new HashSet<string>();
 
+    /// <summary>Returns a copy with the body-part mesh paths swapped (Body / Hands / Feet / Tail) -- used by
+    /// <see cref="VM_CharacterViewer.BodyReplacement"/> to render another body type's meshes on the same
+    /// NPC. Head and hair are kept.</summary>
+    public ResolvedNpcMeshPaths WithBodyPartMeshPaths(string? body, string? hands, string? feet, string? tail) =>
+        new()
+        {
+            BodyMeshPath = body,
+            HandsMeshPath = hands,
+            FeetMeshPath = feet,
+            HeadMeshPath = HeadMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = tail,
+            Sex = Sex,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
+            EyeShapeNames = EyeShapeNames,
+            HideHeadShapeNames = HideHeadShapeNames,
+        };
+
+    /// <summary>Returns a copy with every part <paramref name="replacement"/> covers swapped: the body
+    /// always (a <see cref="BodyReplacement.PartMeshes"/> match for its path first, else
+    /// <see cref="BodyReplacement.BodyNifPath"/>); hands, feet and tail when their path is in the part map.</summary>
+    public ResolvedNpcMeshPaths WithBodyReplacement(BodyReplacement replacement) =>
+        WithBodyPartMeshPaths(
+            replacement.FindPartMesh(BodyMeshPath) ?? replacement.BodyNifPath,
+            replacement.FindPartMesh(HandsMeshPath) ?? HandsMeshPath,
+            replacement.FindPartMesh(FeetMeshPath) ?? FeetMeshPath,
+            replacement.FindPartMesh(TailMeshPath) ?? TailMeshPath);
+
     /// <summary>Returns a copy with <see cref="HeadMeshPath"/> swapped — used by
     /// the HeadParts preview flow to retarget the viewer at a temp FaceGen NIF
     /// without re-resolving the rest of the record chain.</summary>

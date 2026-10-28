@@ -50,7 +50,8 @@ public partial class VM_CharacterViewer
         MorphSet? Morphs,
         int Weight,
         List<OsdFile>? OsdFiles,
-        string CacheKey);
+        string CacheKey,
+        BodyReplacement? Replacement = null);
 
     /// <summary>The guest's GL meshes, tracked separately from <c>_meshesByBodyPart</c> so
     /// nothing in the primary scene's texture / morph / slot-occupancy bookkeeping treats
@@ -133,7 +134,7 @@ public partial class VM_CharacterViewer
     /// short-circuit, so a host may call this freely whenever its inputs change.</para>
     /// </summary>
     public async Task LoadGuestAsync(NpcIdentity identity, MorphSet? morphs, int weight,
-        List<OsdFile>? osdFiles = null)
+        List<OsdFile>? osdFiles = null, BodyReplacement? bodyReplacement = null)
     {
         if (RenderingUnavailable || ForceRenderingUnavailableForTesting)
         {
@@ -146,7 +147,11 @@ public partial class VM_CharacterViewer
         // Identity + preset + weight fully determine the overlay's geometry. Style and scope
         // are deliberately NOT in the key: both are applied post-install and must not force a
         // reload (style restyles in place, scope re-installs from the retained request).
-        string cacheKey = identity.CacheKey + "|" + (morphs?.Label ?? "") + "|" + weight;
+        // The body replacement (the guest's own body type: meshes and skin) changes the geometry
+        // and textures too, so it is part of the key.
+        if (string.IsNullOrWhiteSpace(bodyReplacement?.BodyNifPath)) bodyReplacement = null;
+        string cacheKey = identity.CacheKey + "|" + (morphs?.Label ?? "") + "|" + weight
+            + "|" + (bodyReplacement?.CacheKey ?? "");
         if (_guestRequest?.CacheKey == cacheKey && !_guestInstallPending) return;
 
         int myGen = ++_guestLoadGeneration;
@@ -158,6 +163,10 @@ public partial class VM_CharacterViewer
             {
                 _logger.LogError("CharacterViewer: could not resolve guest NPC " + identity.CacheKey);
                 return;
+            }
+            if (bodyReplacement != null)
+            {
+                meshPaths = meshPaths.WithBodyReplacement(bodyReplacement);
             }
 
             if (myGen != _guestLoadGeneration) return;
@@ -179,7 +188,8 @@ public partial class VM_CharacterViewer
             if (myGen != _guestLoadGeneration) return;
 
             var request = new GuestSceneRequest(
-                loadResults, meshPaths, morphs, Math.Clamp(weight, 0, 100), osdFiles, cacheKey);
+                loadResults, meshPaths, morphs, Math.Clamp(weight, 0, 100), osdFiles, cacheKey,
+                Replacement: bodyReplacement);
 
             _renderThread.Invoke(() =>
             {
@@ -370,10 +380,21 @@ public partial class VM_CharacterViewer
     {
         var effectiveTextures = new Dictionary<int, string>(built.TexturePaths);
         // Same shader-type-5 gate as the primary path: ARMA TXST overrides target the body
-        // part's skin, so they must not bleed onto non-skin shapes sharing the NIF.
-        if (txstOverrides != null && built.ShaderType == 5)
+        // part's skin, so they must not bleed onto non-skin shapes sharing the NIF. A replaced
+        // body's skin takes its own textures (or neutral beige) instead, as in the primary path.
+        bool neutralSkin = false;
+        if (request.Replacement is { UsesNpcSkin: false } replacement
+            && BodyReplacement.SkinBodyParts.Contains(bodyPart) && built.ShaderType == 5)
+        {
+            neutralSkin = !ResolveReplacementBodyTextures(built, replacement.TextureFolder, effectiveTextures);
+        }
+        else if (txstOverrides != null && built.ShaderType == 5)
         {
             foreach (var (slot, path) in txstOverrides) effectiveTextures[slot] = path;
+        }
+        else
+        {
+            ApplyReplacementHeadTextures(built, bodyPart, request.Replacement, effectiveTextures);
         }
 
         bool isHairTint = false;
@@ -385,6 +406,7 @@ public partial class VM_CharacterViewer
             ref isHairTint, ref hairR, ref hairG, ref hairB,
             ref isFaceTint, ref faceTintPath,
             isWornHairSlotItem: bodyPart == "Hair");
+        if (neutralSkin) ApplyNeutralSkin(glMesh);
 
         _textureApplyInfoByMesh[glMesh] = new TextureApplyInfo(
             new Dictionary<int, string>(effectiveTextures),

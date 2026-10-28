@@ -60,6 +60,37 @@ public class InstalledBodyTypeDetector
             return null;
         }
 
+        return SurveyShapeCounts(diskPath, $"{gender} default body");
+    }
+
+    /// <summary>The NIF-embedded diffuse (slot 0) of the main skin shape at <paramref name="diskPath"/> --
+    /// the largest <c>ShaderType 5</c> (skin-tint) shape -- or null when there is none or the NIF can't
+    /// be read. What the viewer's skin texture for that body hinges on.</summary>
+    public string? SurveyMainSkinDiffuse(string diskPath)
+    {
+        try
+        {
+            var survey = _previewCache.MeshBuilder.SurveyNif(diskPath);
+            if (!survey.LoadOk) return null;
+            return survey.Shapes.Where(s => s.ShaderType == 5)
+                .OrderByDescending(s => s.VertexCount)
+                .FirstOrDefault()?.BakedDiffusePath;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage($"InstalledBodyTypeDetector: failed to survey skin textures of '{diskPath}': {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Per-shape vertex counts of the NIF at <paramref name="diskPath"/> (shape name -> vertex count,
+    /// case-insensitive), or null when it can't be parsed. <paramref name="description"/> names the
+    /// mesh in log lines. Used for the installed default body above and, by the BodySlide Compare
+    /// window, for body types' BodySlide source meshes.
+    /// </summary>
+    public IReadOnlyDictionary<string, int>? SurveyShapeCounts(string diskPath, string description)
+    {
         NifMeshBuilder.NifSurveyResult survey;
         try
         {
@@ -67,13 +98,13 @@ public class InstalledBodyTypeDetector
         }
         catch (Exception ex)
         {
-            _logger.LogMessage($"InstalledBodyTypeDetector: failed to survey {gender} default body '{diskPath}': {ex.Message}");
+            _logger.LogMessage($"InstalledBodyTypeDetector: failed to survey {description} '{diskPath}': {ex.Message}");
             return null;
         }
 
         if (!survey.LoadOk)
         {
-            _logger.LogMessage($"InstalledBodyTypeDetector: could not parse {gender} default body '{diskPath}': {survey.Error}");
+            _logger.LogMessage($"InstalledBodyTypeDetector: could not parse {description} '{diskPath}': {survey.Error}");
             return null;
         }
 
@@ -89,7 +120,7 @@ public class InstalledBodyTypeDetector
         int total = 0;
         foreach (var v in counts.Values) total += v;
         string breakdown = string.Join(", ", counts.Select(kv => $"{kv.Key}={kv.Value}"));
-        _logger.LogMessage($"InstalledBodyTypeDetector: surveyed {gender} default body '{diskPath}' — {counts.Count} shape(s) [{breakdown}], {total} vertices total.");
+        _logger.LogMessage($"InstalledBodyTypeDetector: surveyed {description} '{diskPath}' — {counts.Count} shape(s) [{breakdown}], {total} vertices total.");
         return counts;
     }
 }

@@ -148,6 +148,18 @@ public class VM_AnnotationPanel : VM, IDropTarget
             .Skip(1)
             .Subscribe(_ => ApplyImagesAndPump())
             .DisposeWith(this);
+
+        // Resolution: re-render everything at the new size and remember it for the other image windows.
+        _renderer.ResolutionScale = ResolutionScale = _editor.ThumbnailResolutionScale;
+        this.WhenAnyValue(x => x.ResolutionScale)
+            .Skip(1)
+            .Subscribe(scale =>
+            {
+                _renderer.ResolutionScale = scale;
+                _editor.ThumbnailResolutionScale = _renderer.ResolutionScale;
+                ApplyImagesAndPump();
+            })
+            .DisposeWith(this);
         this.WhenAnyValue(x => x.ShowValues)
             .Skip(1)
             .Subscribe(_ => RefreshCaptions())
@@ -188,6 +200,13 @@ public class VM_AnnotationPanel : VM, IDropTarget
 
     /// <summary>When on, each cell's first image shows the back instead of the front.</summary>
     public bool ShowBack { get; set; }
+
+    /// <summary>Render-resolution multiplier from the Resolution picker (1x = 240x432 per image).
+    /// Shared with the other image-grid windows and saved with the OBody settings.</summary>
+    public int ResolutionScale { get; set; }
+
+    /// <summary>Values offered by the Resolution picker.</summary>
+    public IReadOnlyList<int> ResolutionScales => SpreadThumbnailRenderer.ResolutionScales;
 
     /// <summary>When on, each image also draws the metric's measurement lines.</summary>
     public bool ShowMeasurements { get; set; }
@@ -298,8 +317,8 @@ public class VM_AnnotationPanel : VM, IDropTarget
     public int CellsPerPage { get; set; } = AnnotationPanelLayout.DefaultPageSize;
 
     /// <summary>Cell zoom, changed with Ctrl + mouse wheel. Window-only, not persisted. Renders are
-    /// <see cref="SpreadThumbnailRenderer.ImageWidth"/> x <see cref="SpreadThumbnailRenderer.ImageHeight"/>,
-    /// so images upscale (soften) above roughly 1.7.</summary>
+    /// <see cref="SpreadThumbnailRenderer.BaseImageWidth"/> x <see cref="SpreadThumbnailRenderer.BaseImageHeight"/>
+    /// times <see cref="ResolutionScale"/>, so images upscale (soften) above roughly 1.7 x that scale.</summary>
     public double CellScale { get; private set; } = 1.0;
 
     internal const double MinCellScale = 0.5;

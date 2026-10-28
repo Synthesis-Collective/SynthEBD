@@ -71,138 +71,7 @@ public class MO2SourceResolver : ISourceResolver
 
         ResolverLog("Initialize() called");
 
-        var mo2Settings = _patcherState.ModManagerSettings?.MO2Settings;
-        if (mo2Settings == null || string.IsNullOrEmpty(mo2Settings.ExecutablePath))
-        {
-            _logger.LogMessage("MO2SourceResolver: MO2 path not configured. Resolver unavailable.");
-            return;
-        }
-
-        ResolverLog("MO2 path (LinuxMode=" + mo2Settings.LinuxMode + "): " + mo2Settings.ExecutablePath);
-
-        if (!File.Exists(mo2Settings.ExecutablePath))
-        {
-            _logger.LogMessage("MO2SourceResolver: MO2 path not found at: " + mo2Settings.ExecutablePath);
-            return;
-        }
-
-        // In Linux mode the configured path points directly at ModOrganizer.ini (the Linux MO2
-        // port has no executable); otherwise the ini sits next to ModOrganizer.exe.
-        string iniPath = mo2Settings.LinuxMode
-            ? mo2Settings.ExecutablePath
-            : Path.Combine(Path.GetDirectoryName(mo2Settings.ExecutablePath), "ModOrganizer.ini");
-        string mo2Dir = Path.GetDirectoryName(iniPath);
-        ResolverLog("INI path: " + iniPath + " exists=" + File.Exists(iniPath));
-        if (!File.Exists(iniPath))
-        {
-            _logger.LogMessage("MO2SourceResolver: ModOrganizer.ini not found at: " + iniPath);
-            return;
-        }
-
-        // Read the INI once — we need multiple values from it.
-        string[] iniLines;
-        try
-        {
-            iniLines = File.ReadAllLines(iniPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogMessage("MO2SourceResolver: Failed to read ModOrganizer.ini: " + ex.Message);
-            return;
-        }
-
-        // Resolve the mods directory.
-        string modsDir = GetIniFolder(iniLines, "mod_directory", "mods", mo2Dir);
-        ResolverLog("Mods directory (from INI): " + (modsDir ?? "(null)") +
-                     " exists=" + (!string.IsNullOrEmpty(modsDir) && Directory.Exists(modsDir)));
-        if (string.IsNullOrEmpty(modsDir) || !Directory.Exists(modsDir))
-        {
-            // Fall back to what the user configured in SynthEBD settings.
-            if (!string.IsNullOrEmpty(mo2Settings.ModFolderPath) && Directory.Exists(mo2Settings.ModFolderPath))
-            {
-                modsDir = mo2Settings.ModFolderPath;
-                ResolverLog("Mods directory (SynthEBD fallback): " + modsDir);
-            }
-            else
-            {
-                _logger.LogMessage("MO2SourceResolver: MO2 mods directory not found. Resolver unavailable.");
-                return;
-            }
-        }
-
-        // Resolve the profiles directory and selected profile name.
-        string profilesDir = GetIniFolder(iniLines, "profiles_directory", "profiles", mo2Dir);
-        string profileName = GetSelectedProfile(iniLines);
-
-        ResolverLog("Profiles directory: " + (profilesDir ?? "(null)"));
-        ResolverLog("Selected profile: " + (profileName ?? "(null)"));
-
-        if (string.IsNullOrEmpty(profileName))
-        {
-            _logger.LogMessage("MO2SourceResolver: Could not determine selected MO2 profile. Resolver unavailable.");
-            return;
-        }
-
-        string modlistPath = Path.Combine(profilesDir, profileName, "modlist.txt");
-        ResolverLog("modlist.txt path: " + modlistPath + " exists=" + File.Exists(modlistPath));
-        if (!File.Exists(modlistPath))
-        {
-            _logger.LogMessage("MO2SourceResolver: modlist.txt not found at: " + modlistPath);
-            return;
-        }
-
-        // Parse modlist.txt: each line is +ModName (enabled) or -ModName (disabled).
-        // Lines starting with # are comments. Listed from highest to lowest priority.
-        // The MO2 "Overwrite" folder is excluded — it either won't contain the
-        // file we need, or it contains the conflict winner which is our own
-        // previous output.
-        var modFolders = new List<string>();
-
-        try
-        {
-            var lines = File.ReadAllLines(modlistPath);
-
-            // Determine the SynthEBD output folder name so we can exclude it.
-            string outputFolderName = GetOutputModFolderName();
-            ResolverLog("Output folder name to exclude: " + (outputFolderName ?? "(null)"));
-            ResolverLog("modlist.txt has " + lines.Length + " lines");
-
-            foreach (var line in lines)
-            {
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
-                    continue;
-
-                // Only include enabled mods (prefixed with + or *).
-                if (!line.StartsWith("+") && !line.StartsWith("*"))
-                    continue;
-
-                string modName = line.TrimStart('+', '-', '*');
-
-                // Skip separators (MO2 visual separators end with _separator).
-                if (modName.EndsWith("_separator", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                // Exclude the SynthEBD output folder.
-                if (!string.IsNullOrEmpty(outputFolderName) &&
-                    modName.Equals(outputFolderName, StringComparison.OrdinalIgnoreCase))
-                {
-                    ResolverLog("Excluding SynthEBD output folder: " + modName);
-                    continue;
-                }
-
-                string fullPath = Path.Combine(modsDir, modName);
-                if (Directory.Exists(fullPath))
-                {
-                    modFolders.Add(fullPath);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogMessage("MO2SourceResolver: Failed to parse modlist.txt: " + ex.Message);
-            return;
-        }
-
+        if (!TryReadModFolders(out var modFolders, out _, out var profileName)) return;
         _modFoldersByPriority = modFolders;
 
         if (LogSourceResolverDebug)
@@ -242,6 +111,184 @@ public class MO2SourceResolver : ISourceResolver
                            " mod folders (profile: " + profileName + "). " +
                            "FaceGen cache: " + _fileCache.Count + " files from " +
                            scannedFolders + " folders with facegeom data.");
+    }
+
+    /// <summary>
+    /// Enabled mod folders of the selected MO2 profile, highest priority first (Overwrite and the
+    /// SynthEBD output mod excluded), or null when MO2 isn't configured or its profile can't be read.
+    /// Reads ModOrganizer.ini and modlist.txt fresh on each call and touches none of this resolver's
+    /// FaceGen state, so callers outside the patcher (the BodySlide Compare window, finding which
+    /// mod ships a body) can use it without initializing or disturbing the resolver.
+    /// </summary>
+    public IReadOnlyList<string> GetEnabledModFoldersByPriority()
+        => TryReadModFolders(out var modFolders, out _, out _) ? modFolders : null;
+
+    /// <summary>Disabled mod folders of the selected profile (modlist.txt "-" lines), highest priority
+    /// first; null when MO2 isn't configured or its profile can't be read.</summary>
+    public IReadOnlyList<string> GetInactiveModFoldersByPriority()
+        => TryReadModFolders(out _, out var disabled, out _) ? disabled : null;
+
+    /// <summary>The selected profile's disabled mods (see <see cref="GetInactiveModFoldersByPriority"/>).</summary>
+    public IReadOnlyList<string> GetInactiveModFolders()
+        => GetInactiveModFoldersByPriority() ?? Array.Empty<string>();
+
+    /// <summary>The selected profile's enabled mods, then its disabled ones, each highest priority first.</summary>
+    public IReadOnlyList<string> GetAllModFolders()
+        => TryReadModFolders(out var enabled, out var disabled, out _) ? enabled.Concat(disabled).ToList() : Array.Empty<string>();
+
+    /// <summary>The highest-priority enabled mod folder containing <paramref name="relativeDataPath"/>.</summary>
+    public string FindProvidingModFolder(string relativeDataPath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeDataPath)) return null;
+        string normalized = relativeDataPath.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+        return GetEnabledModFoldersByPriority()?
+            .FirstOrDefault(folder => File.Exists(Path.Combine(folder, normalized)));
+    }
+
+    /// <summary>The mod-list half of <see cref="Initialize"/>: locates ModOrganizer.ini, the mods and
+    /// profiles directories and the selected profile, and parses its modlist.txt into enabled and
+    /// disabled mod folders (both highest priority first; separators and the SynthEBD output mod left out).</summary>
+    private bool TryReadModFolders(out List<string> modFolders, out List<string> disabledModFolders, out string profileName)
+    {
+        modFolders = null;
+        disabledModFolders = null;
+        profileName = null;
+
+        var mo2Settings = _patcherState.ModManagerSettings?.MO2Settings;
+        if (mo2Settings == null || string.IsNullOrEmpty(mo2Settings.ExecutablePath))
+        {
+            _logger.LogMessage("MO2SourceResolver: MO2 path not configured. Resolver unavailable.");
+            return false;
+        }
+
+        ResolverLog("MO2 path (LinuxMode=" + mo2Settings.LinuxMode + "): " + mo2Settings.ExecutablePath);
+
+        if (!File.Exists(mo2Settings.ExecutablePath))
+        {
+            _logger.LogMessage("MO2SourceResolver: MO2 path not found at: " + mo2Settings.ExecutablePath);
+            return false;
+        }
+
+        // In Linux mode the configured path points directly at ModOrganizer.ini (the Linux MO2
+        // port has no executable); otherwise the ini sits next to ModOrganizer.exe.
+        string iniPath = mo2Settings.LinuxMode
+            ? mo2Settings.ExecutablePath
+            : Path.Combine(Path.GetDirectoryName(mo2Settings.ExecutablePath), "ModOrganizer.ini");
+        string mo2Dir = Path.GetDirectoryName(iniPath);
+        ResolverLog("INI path: " + iniPath + " exists=" + File.Exists(iniPath));
+        if (!File.Exists(iniPath))
+        {
+            _logger.LogMessage("MO2SourceResolver: ModOrganizer.ini not found at: " + iniPath);
+            return false;
+        }
+
+        // Read the INI once — we need multiple values from it.
+        string[] iniLines;
+        try
+        {
+            iniLines = File.ReadAllLines(iniPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage("MO2SourceResolver: Failed to read ModOrganizer.ini: " + ex.Message);
+            return false;
+        }
+
+        // Resolve the mods directory.
+        string modsDir = GetIniFolder(iniLines, "mod_directory", "mods", mo2Dir);
+        ResolverLog("Mods directory (from INI): " + (modsDir ?? "(null)") +
+                     " exists=" + (!string.IsNullOrEmpty(modsDir) && Directory.Exists(modsDir)));
+        if (string.IsNullOrEmpty(modsDir) || !Directory.Exists(modsDir))
+        {
+            // Fall back to what the user configured in SynthEBD settings.
+            if (!string.IsNullOrEmpty(mo2Settings.ModFolderPath) && Directory.Exists(mo2Settings.ModFolderPath))
+            {
+                modsDir = mo2Settings.ModFolderPath;
+                ResolverLog("Mods directory (SynthEBD fallback): " + modsDir);
+            }
+            else
+            {
+                _logger.LogMessage("MO2SourceResolver: MO2 mods directory not found. Resolver unavailable.");
+                return false;
+            }
+        }
+
+        // Resolve the profiles directory and selected profile name.
+        string profilesDir = GetIniFolder(iniLines, "profiles_directory", "profiles", mo2Dir);
+        profileName = GetSelectedProfile(iniLines);
+
+        ResolverLog("Profiles directory: " + (profilesDir ?? "(null)"));
+        ResolverLog("Selected profile: " + (profileName ?? "(null)"));
+
+        if (string.IsNullOrEmpty(profileName))
+        {
+            _logger.LogMessage("MO2SourceResolver: Could not determine selected MO2 profile. Resolver unavailable.");
+            return false;
+        }
+
+        string modlistPath = Path.Combine(profilesDir, profileName, "modlist.txt");
+        ResolverLog("modlist.txt path: " + modlistPath + " exists=" + File.Exists(modlistPath));
+        if (!File.Exists(modlistPath))
+        {
+            _logger.LogMessage("MO2SourceResolver: modlist.txt not found at: " + modlistPath);
+            return false;
+        }
+
+        // Parse modlist.txt: each line is +ModName (enabled) or -ModName (disabled).
+        // Lines starting with # are comments. Listed from highest to lowest priority.
+        // The MO2 "Overwrite" folder is excluded — it either won't contain the
+        // file we need, or it contains the conflict winner which is our own
+        // previous output.
+        modFolders = new List<string>();
+        disabledModFolders = new List<string>();
+
+        try
+        {
+            var lines = File.ReadAllLines(modlistPath);
+
+            // Determine the SynthEBD output folder name so we can exclude it.
+            string outputFolderName = GetOutputModFolderName();
+            ResolverLog("Output folder name to exclude: " + (outputFolderName ?? "(null)"));
+            ResolverLog("modlist.txt has " + lines.Length + " lines");
+
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
+                    continue;
+
+                // Enabled mods are prefixed with + or *, disabled ones with -.
+                bool enabled = line.StartsWith("+") || line.StartsWith("*");
+                if (!enabled && !line.StartsWith("-"))
+                    continue;
+
+                string modName = line.TrimStart('+', '-', '*');
+
+                // Skip separators (MO2 visual separators end with _separator).
+                if (modName.EndsWith("_separator", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Exclude the SynthEBD output folder.
+                if (!string.IsNullOrEmpty(outputFolderName) &&
+                    modName.Equals(outputFolderName, StringComparison.OrdinalIgnoreCase))
+                {
+                    ResolverLog("Excluding SynthEBD output folder: " + modName);
+                    continue;
+                }
+
+                string fullPath = Path.Combine(modsDir, modName);
+                if (Directory.Exists(fullPath))
+                {
+                    (enabled ? modFolders : disabledModFolders).Add(fullPath);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogMessage("MO2SourceResolver: Failed to parse modlist.txt: " + ex.Message);
+            return false;
+        }
+
+        return true;
     }
 
     public bool TryResolve(string relativeDataPath, out string absolutePath, bool verbose = false)

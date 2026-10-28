@@ -74,6 +74,11 @@ public class GlTextureManager : IDisposable
     /// <summary>A 1x1 white texture used as a fallback when no texture is available.</summary>
     public int WhiteTexture { get; private set; }
 
+    /// <summary>A 1x1 neutral beige skin diffuse, for a replacement body whose own textures can't be
+    /// found (see <see cref="BodyReplacement.TextureFolder"/>): the NPC's skin textures are
+    /// UV-mapped to a different body, so drawing them would scramble the skin.</summary>
+    public int NeutralSkinTexture { get; private set; }
+
     public GlTextureManager(CharacterPreviewCache previewCache, ICharacterViewerLogger logger,
         ResidentTextureCache? resident = null, CharacterViewerLogGate? logGate = null)
     {
@@ -103,6 +108,15 @@ public class GlTextureManager : IDisposable
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
         _allTextures.Add(WhiteTexture);
+
+        NeutralSkinTexture = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, NeutralSkinTexture);
+        byte[] beige = { 168, 192, 222, 255 }; // BGRA of sRGB (222, 192, 168)
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8,
+            1, 1, 0, PixelFormat.Bgra, PixelType.UnsignedByte, beige);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+        _allTextures.Add(NeutralSkinTexture);
     }
 
     /// <summary>
@@ -555,12 +569,12 @@ public class GlTextureManager : IDisposable
     {
         foreach (int tex in _allTextures)
         {
-            if (tex != WhiteTexture)
+            if (tex != WhiteTexture && tex != NeutralSkinTexture)
                 GL.DeleteTexture(tex);
         }
         _textureCache.Clear();
         _uploadDiagnostics.Clear();
-        _allTextures.RemoveAll(t => t != WhiteTexture);
+        _allTextures.RemoveAll(t => t != WhiteTexture && t != NeutralSkinTexture);
     }
 
     public void Dispose()
@@ -585,5 +599,6 @@ public class GlTextureManager : IDisposable
         _textureCache.Clear();
         _allTextures.Clear();
         WhiteTexture = 0;
+        NeutralSkinTexture = 0;
     }
 }

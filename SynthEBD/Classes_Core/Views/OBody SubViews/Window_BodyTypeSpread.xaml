@@ -123,6 +123,12 @@
             <CheckBox Content="Back view" IsChecked="{Binding ShowBack}"
                       VerticalAlignment="Center" Margin="0,0,14,0"
                       local:DocTooltip.Key="BodyTypeSpread.ShowBack"/>
+            <TextBlock Text="Resolution:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <ComboBox Width="56" VerticalAlignment="Center" Margin="0,0,14,0"
+                      ItemsSource="{Binding ResolutionScales}"
+                      SelectedItem="{Binding ResolutionScale}"
+                      ItemStringFormat="{}{0}x"
+                      local:DocTooltip.Key="BodyTypeSpread.Resolution"/>
             <CheckBox Content="Ignore manual annotations" IsChecked="{Binding IgnoreManualAnnotations}"
                       VerticalAlignment="Center" Margin="0,0,14,0"
                       local:DocTooltip.Key="BodyTypeSpread.IgnoreManualAnnotations"/>

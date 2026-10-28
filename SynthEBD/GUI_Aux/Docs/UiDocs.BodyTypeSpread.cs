@@ -30,6 +30,11 @@ public static partial class UiDocs
             technical: "Switches each cell's first image between orbit azimuth 180 (front) and 0 (back). Images are cached per preset, weight and angle, so switching back is instant once rendered.",
             motivation: "Some shape traits - the glutes, the back, the shoulder blades - are only visible from behind.");
 
+        Add("BodyTypeSpread.Resolution",
+            layperson: "How sharp each image is rendered. 1x is the old size; 2x (the default) stays crisp when you zoom the cells in; 3x is sharper still but takes longer to fill the window. The choice is remembered and shared by Show Spread, the Panel and Show Sample.",
+            technical: "SpreadThumbnailRenderer.ResolutionScale multiplies the 240x432 base render size (2x = 480x864, 3x = 720x1296). Changing it clears the window's image cache and discards the render in flight, then re-renders the current view first. Persisted as Settings_OBody.ThumbnailResolutionScale.",
+            motivation: "Small shape differences are easier to judge in a sharper image, especially with cells zoomed in, but larger renders cost time, so it is your call.");
+
         Add("BodyTypeSpread.IgnoreManualAnnotations",
             layperson: "On (the default): each row shows presets purely by whether the rules put them there, ignoring any label you or a library assigned by hand. Off: rows also include hand-labeled presets, and a preset whose hand label disagrees with the rules is shown in orange (hover it to see both).",
             technical: "On: row membership is re-derived per slice with the preset's stored Manual / Library annotations left out of the classifier seed (VM_BodyTypeProfile.DeriveRuleOnlyDescriptors), so an annotation neither adds a value, nor suppresses the Category default, nor feeds aggregator (DescriptorRef) rules; Slider-condition rules still count. Off: membership is the Match Presets set (classifier output plus seeds). A slice is contradicted when an annotation names a value in this Category that the rules-only derivation doesn't produce. Row order is kept across the toggle.",

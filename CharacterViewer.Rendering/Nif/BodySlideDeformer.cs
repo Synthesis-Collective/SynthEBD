@@ -408,12 +408,20 @@ public class BodySlideDeformer
     {
         var map = new Dictionary<string, Dictionary<ushort, Vector3>>(StringComparer.OrdinalIgnoreCase);
 
+        // An OSD whose shape name equals the mesh shape exactly wins over substring matches: in a
+        // multi-shape body "3BA" is a substring of "3BA_Vagina", and applying the torso's deltas to
+        // the smaller shape would push unrelated vertex indices. Substring matching (file-stem OSD
+        // names such as "CBBE 3BA Ref" against shape "3BA") stays the fallback when nothing is exact.
+        bool anyExact = shapeName != null
+            && osdFiles.Any(o => string.Equals(o.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase));
+
         foreach (var osd in osdFiles)
         {
             // If a shape name filter is specified, check if this OSD file's shape matches
-            if (shapeName != null &&
-                !osd.ShapeName.Contains(shapeName, StringComparison.OrdinalIgnoreCase) &&
-                !shapeName.Contains(osd.ShapeName, StringComparison.OrdinalIgnoreCase))
+            if (shapeName != null && (anyExact
+                    ? !string.Equals(osd.ShapeName, shapeName, StringComparison.OrdinalIgnoreCase)
+                    : !osd.ShapeName.Contains(shapeName, StringComparison.OrdinalIgnoreCase) &&
+                      !shapeName.Contains(osd.ShapeName, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -423,7 +431,7 @@ public class BodySlideDeformer
             {
                 if (!string.IsNullOrWhiteSpace(s?.Name)) rawNames.Add(s.Name);
             }
-            string lcp = ComputeLongestCommonPrefix(rawNames);
+            string lcp = osd.SliderNamesAreCanonical ? "" : ComputeLongestCommonPrefix(rawNames);
             int minLen = int.MaxValue;
             foreach (var n in rawNames) if (n.Length < minLen) minLen = n.Length;
             if (lcp.Length >= minLen) lcp = "";
