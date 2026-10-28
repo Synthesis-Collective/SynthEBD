@@ -69,13 +69,11 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     private volatile bool _disposed;
 
-    // VM dependencies — passed to each per-request VM instance.
+    // What each render draws comes from the scene builder; the renderer owns the
+    // context, thread, framebuffers, asset scopes and texture residency.
+    private readonly IOffscreenSceneBuilder _sceneBuilder;
     private readonly CharacterPreviewCache _previewCache;
-    private readonly BodySlideDeformer _bodySlideDeformer;
-    private readonly BsdFileParser _bsdParser;
-    private readonly BodyTriFileParser _triParser;
     private readonly GameAssetResolver _assets;
-    private readonly ICharacterViewerSettings _settings;
     private readonly CharacterViewerLogGate _logGate;
     private readonly ICharacterViewerLogger _logger;
 
@@ -108,21 +106,15 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         Action? Maintenance = null);
 
     internal GameWindowOffscreenRenderer(
+        IOffscreenSceneBuilder sceneBuilder,
         CharacterPreviewCache previewCache,
-        BodySlideDeformer bodySlideDeformer,
-        BsdFileParser bsdParser,
-        BodyTriFileParser triParser,
         GameAssetResolver assets,
-        ICharacterViewerSettings settings,
         CharacterViewerLogGate logGate,
         ICharacterViewerLogger logger)
     {
+        _sceneBuilder = sceneBuilder;
         _previewCache = previewCache;
-        _bodySlideDeformer = bodySlideDeformer;
-        _bsdParser = bsdParser;
-        _triParser = triParser;
         _assets = assets;
-        _settings = settings;
         _logGate = logGate;
         _logger = logger;
 
@@ -211,7 +203,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     public Task PrewarmAsync(OffscreenRenderRequest request)
     {
-        if (_disposed || request?.MeshPaths == null) return Task.CompletedTask;
+        if (_disposed || request == null) return Task.CompletedTask;
 
         var ct = request.Cancellation;
         // Run the GL-free parse + decode on the thread pool so it overlaps the GL
@@ -237,26 +229,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                 // never re-resolve these paths (see _dataFolderFallbackHits).
                 using var fallbackSink = PushDataFolderFallbackSinkIfRequested(request);
 
-                var paths = request.MeshPaths;
-                if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
-                    paths = paths.WithHeadMeshPath(request.OverrideHeadMeshAbsolutePath);
-
-                // Snapshot this worker thread's load/build split across the prewarm
-                // parse so it lands in the per-render CSV (the render thread, after a
-                // full prewarm, parses nothing — its ParseMs is ~0). ThreadStatic +
-                // synchronous PrewarmNpc means these deltas are exactly this NPC's
-                // offloaded parse cost. Accumulate (+=) so a render-thread re-parse of
-                // an evicted part adds on top rather than clobbering.
-                double loadMsStart = _previewCache.MeshBuilder.ThreadLoadMs;
-                double buildMsStart = _previewCache.MeshBuilder.ThreadBuildMs;
-                double decodeMsStart = _previewCache.ThreadDecodeMs;
-                _previewCache.PrewarmNpc(paths, request.MeshOverrides, ct);
-                if (request.TimingsOut is { } pt)
-                {
-                    pt.LoadMs += _previewCache.MeshBuilder.ThreadLoadMs - loadMsStart;
-                    pt.BuildShapesMs += _previewCache.MeshBuilder.ThreadBuildMs - buildMsStart;
-                    pt.PrewarmDecodeMs += _previewCache.ThreadDecodeMs - decodeMsStart;
-                }
+                _sceneBuilder.Prewarm(request, ct);
                 if (request.PrewarmFallbackPathsOut != null &&
                     _dataFolderFallbackHits.TryGetValue(request, out var prewarmHits) && !prewarmHits.IsEmpty)
                 {
@@ -426,31 +399,14 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // the prewarm didn't cover (evicted parts, override paths) land in
         // the same set and are copied out once below.
         using var fallbackSink = PushDataFolderFallbackSinkIfRequested(request);
-        var vm = new VM_CharacterViewer(
-            _bodySlideDeformer, _bsdParser, _triParser, _assets,
-            _settings, _previewCache, _logGate, _logger
-            /* renderThread defaults to InlineRenderThreadMarshaller */);
+        IOffscreenScene? scene = null;
         try
         {
-            // This VM owns a real offscreen GL context and must BUILD the scene — opt it out of
-            // the test-only ForceRenderingUnavailableForTesting capture-and-skip path in LoadAsync.
-            vm.IsOffscreenRenderInstance = true;
-            vm.AdditionalScopes = request.AdditionalScopes;
-            vm.AdditionalDataFolders = request.AdditionalDataFolders;
-            vm.VanillaLooseOverridesBsa = request.VanillaLooseOverridesBsa;
-            vm.VanillaLooseOverridesModLoose = request.VanillaLooseOverridesModLoose;
-            vm.AllowLoadOrderFallback = request.AllowLoadOrderFallback;
-            // Granular cancellation for the install/texture path — lets a host
-            // cancel abort partway through a heavy shape's texture loads rather
-            // than only at the coarser phase boundaries in LoadAndRender.
-            vm.RenderCancellation = request.Cancellation;
-            // Share uploaded textures across renders (vanilla + mod-shared) so
-            // the GL-upload floor — the dominant steady-state cost per the
-            // profiler — is paid once instead of per NPC.
-            vm.ResidentTextureCache = _residentTextures;
             // Protect this render's textures from mid-render eviction.
             _residentTextures?.BeginRenderPass();
-            LoadAndRender(vm, request);
+            scene = _sceneBuilder.Build(
+                new OffscreenSceneContext(request.Width, request.Height, _residentTextures), request);
+            DrawScene(scene, request);
             long tDrawDone = Stopwatch.GetTimestamp();
 
             // Copy the deduped data-folder-fallback hits (prewarm + render
@@ -551,7 +507,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         }
         finally
         {
-            vm.Dispose();
+            scene?.Dispose();
             // The using on `scopes` above pops the resolver state. Removed the
             // per-render ClearExtractedFiles call — it raced with concurrent
             // interactive previews (whose loads share the same extraction
@@ -614,286 +570,40 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         });
     }
 
-    private void LoadAndRender(VM_CharacterViewer vm, OffscreenRenderRequest request)
+    /// <summary>Draws a built scene into the multisampled FBO with the request's
+    /// background and records the draw time.</summary>
+    private void DrawScene(IOffscreenScene scene, OffscreenRenderRequest request)
     {
-        var timings = request.TimingsOut;
-        long tStart = Stopwatch.GetTimestamp();
+        long tDrawStart = Stopwatch.GetTimestamp();
 
-        // Initialize the VM against the offscreen GL context. Shaders ship
-        // beside this assembly via ModuleResourceLocator.
-        vm.InitializeGl(ModuleResourceLocator.ShaderDirectory);
-
-        // Push lighting from the request before the scene loads so
-        // GlRenderer's lighting state is current by the time we render.
-        if (request.Lighting != null) vm.SelectedLightingLayout = request.Lighting;
-        if (request.Colors != null) vm.SelectedLightingColorScheme = request.Colors;
-
-        // ApplyMaterial reads RenderMissingTextureAsWireframe per-shape
-        // during the load, so push the request's value before LoadAsync.
-        vm.RenderMissingTextureAsWireframe = request.RenderMissingTextureAsWireframe;
-        // Tone-mapping is read at draw time by GlRenderer, so this push
-        // could happen later, but keeping all request->VM forwards in one
-        // place reduces the chance of one being missed for a future feature.
-        vm.EnableToneMapping = request.EnableToneMapping;
-        vm.EnableShadows = request.EnableShadows;
-        vm.ExcludeHairShadowCaster = request.ExcludeHairShadowCaster;
-        vm.SoftenShadowEdges = request.SoftenShadowEdges;
-        vm.ShadowPcfRadius = request.ShadowPcfRadius;
-        vm.TightShadowFrustum = request.TightShadowFrustum;
-        vm.ShadowFrustumRadius = request.ShadowFrustumRadius;
-        vm.EnableAmbientOcclusion = request.EnableAmbientOcclusion;
-        vm.SsaoRadius = request.SsaoRadius;
-        vm.SsaoBias = request.SsaoBias;
-        vm.SsaoIntensity = request.SsaoIntensity;
-        vm.SsaoThickness = request.SsaoThickness;
-        vm.SsaoHairGap = request.SsaoHairGap;
-        vm.EnableEyeCatchlight = request.EnableEyeCatchlight;
-        vm.SubsurfaceStrength = request.SubsurfaceStrength;
-        vm.SkinSaturationBoost = request.SkinSaturationBoost;
-        vm.VignetteRadius = request.VignetteRadius;
-        vm.VignetteIntensity = request.VignetteIntensity;
-        vm.Exposure = request.Exposure;
-        vm.TonemapHairRelief = request.TonemapHairRelief;
-        vm.HairAlbedoCompensate = request.HairAlbedoCompensate;
-        vm.DaylightBoost = request.DaylightBoost;
-        vm.DaylightBoostIntensity = request.DaylightBoostIntensity;
-        vm.EnableBloom = request.EnableBloom;
-        vm.BloomIntensity = request.BloomIntensity;
-
-        long tSetupDone = Stopwatch.GetTimestamp();
-
-        // Build runs inline on THIS (render) thread for the offscreen path, so the
-        // resolver's + mesh builder's per-thread counters attribute the build's own
-        // resolve and parse cost here. Snapshot the deltas to split `build` into
-        // resolve (uncacheable scope walk) vs parse (cache miss) vs the clone/morph
-        // remainder. Captured before LoadAsync; the install-phase resolves/parses
-        // after tBuildDone are excluded.
-        double resolveMsStart = _assets.ThreadResolveMs;
-        double parseMsStart = _previewCache.MeshBuilder.ThreadParseMs;
-        double loadMsStart = _previewCache.MeshBuilder.ThreadLoadMs;
-        double buildShapesMsStart = _previewCache.MeshBuilder.ThreadBuildMs;
-
-        // Synchronously load + drain. The marshaller is inline so LoadAsync's
-        // scene-queue handoff runs on this thread; ProcessPendingSceneToCompletion
-        // then flushes the install queue against the bound FBO.
-        var identity = new NpcIdentity("offscreen", "offscreen");
-        vm.LoadAsync(identity, request.MeshPaths, request.OverrideHeadMeshAbsolutePath,
-            request.Cancellation).GetAwaiter().GetResult();
-        request.Cancellation.ThrowIfCancellationRequested();
-        long tBuildDone = Stopwatch.GetTimestamp();
-        // Decode is a subset of install; snapshot this thread's cumulative decode
-        // counter across the install span to split decode from GL upload. Uses the
-        // per-thread (not process-wide) counter so concurrent prewarm-worker decode
-        // doesn't get charged to this render's decodeMs.
-        double decodeMsStart = _previewCache.ThreadDecodeMs;
-        vm.ProcessPendingSceneToCompletion(ct: request.Cancellation);
-
-        // Surface any unresolved mesh game-paths so the host can flag an
-        // incomplete render. Populated during LoadAllMeshParts.
-        if (request.MissingMeshPathsOut != null && vm.MissingMeshPaths.Count > 0)
-        {
-            request.MissingMeshPathsOut.AddRange(vm.MissingMeshPaths);
-        }
-
-        // Same for textures the NIFs referenced but the texture manager
-        // couldn't decode. The shapes are rendered as wireframe in the
-        // missing-texture color (see GlRenderer.MissingTextureWireframeColor)
-        // and the host pairs the list with a "missing texture" tile overlay.
-        if (request.MissingTexturePathsOut != null && vm.MissingTexturePaths.Count > 0)
-        {
-            request.MissingTexturePathsOut.AddRange(vm.MissingTexturePaths);
-        }
-
-        // Optional post-load adjustments. Texture overrides and morphs are
-        // queued internally if the scene wasn't ready; after
-        // ProcessPendingSceneToCompletion above the scene IS ready, so
-        // these apply immediately.
-        if (request.TextureOverrides != null)
-        {
-            vm.ApplyTextureOverrides(request.TextureOverrides);
-        }
-        // Auxiliary mesh overrides (SynthEBD subgroup mesh, NPC2 outfit/headgear).
-        // The scene is ready post-drain, so this loads/skins/textures/hides the
-        // extra shapes inline against the bound FBO — they'll be in the next
-        // Render() pass. Slot occupancy hides the base body under body armor and
-        // hair under headgear, exactly as in the live preview.
-        if (request.MeshOverrides != null)
-        {
-            // Base NPC textures were copied to MissingTexturePathsOut above, before
-            // any override ran. Snapshot the missing set now so anything the attire
-            // build newly misses can be attributed to the outfit/headgear rather
-            // than the base NPC (see MissingOutfitTexturePathsOut).
-            var baseMissingTextures = request.MissingOutfitTexturePathsOut != null
-                ? new HashSet<string>(vm.MissingTexturePaths, StringComparer.OrdinalIgnoreCase)
-                : null;
-
-            vm.ApplyMeshOverrides(request.MeshOverrides, request.Cancellation);
-            if (request.MeshOverrideWarningsOut != null && vm.MeshOverrideWarnings.Count > 0)
-            {
-                request.MeshOverrideWarningsOut.AddRange(vm.MeshOverrideWarnings);
-            }
-            if (request.MeshOverrideWarningDetailsOut != null && vm.MeshOverrideWarningDetails.Count > 0)
-            {
-                request.MeshOverrideWarningDetailsOut.AddRange(vm.MeshOverrideWarningDetails);
-            }
-            if (baseMissingTextures != null)
-            {
-                foreach (var texPath in vm.MissingTexturePaths)
-                {
-                    if (!baseMissingTextures.Contains(texPath))
-                        request.MissingOutfitTexturePathsOut!.Add(texPath);
-                }
-            }
-        }
-        if (request.Morphs != null)
-        {
-            vm.ApplyMorphSet(request.Morphs, request.MorphWeight);
-        }
-        // Host scene hook: runs against the fully built, deformed scene so an overlay
-        // computed from vertex positions (e.g. measurement lines) matches this render.
-        // A throwing hook costs the overlay, not the frame.
-        if (request.BeforeDraw != null)
-        {
-            try
-            {
-                request.BeforeDraw(vm);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("OffscreenRenderer: BeforeDraw hook threw", ex);
-            }
-        }
-
-        long tInstallDone = Stopwatch.GetTimestamp();
-
-        // Re-bind the multisampled draw FBO (VM's GL calls may have unbound
-        // it) and clear before we render the new scene. MSAA on this FBO is
+        // Re-bind the multisampled draw FBO (the scene build's GL calls may have
+        // unbound it) and clear before we render the new scene. MSAA on this FBO is
         // implicit from the multisampled attachments; the explicit Multisample
         // enable is defensive — some drivers leave it disabled by default.
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _msaaFbo);
         GL.Enable(EnableCap.Multisample);
         GL.Viewport(0, 0, request.Width, request.Height);
-        // Push the request's background into vm.BackgroundColor so the VM's
-        // WhenAnyValue subscription forwards it to Renderer.ClearColor. The
-        // Render() body resets GL.ClearColor from its own field on every
-        // frame, so setting GL.ClearColor here directly would be stomped.
-        vm.BackgroundColor = System.Windows.Media.Color.FromRgb(
-            request.BackgroundRgb.R, request.BackgroundRgb.G, request.BackgroundRgb.B);
+        // The renderer's Render() resets GL.ClearColor from its own ClearColor on
+        // every frame, so the request's background goes there; setting
+        // GL.ClearColor alone would be stomped.
         float r = request.BackgroundRgb.R / 255f;
         float g = request.BackgroundRgb.G / 255f;
         float b = request.BackgroundRgb.B / 255f;
+        scene.Renderer.ClearColor = new Vector3(r, g, b);
         GL.ClearColor(r, g, b, 1f);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-        ConfigureCamera(vm, request);
 
         // Last chance to bail before the draw + readback + encode. Past this
         // point the work is a single GL pass we don't interrupt.
         request.Cancellation.ThrowIfCancellationRequested();
-        vm.Renderer.Render(vm.Camera, request.Width, request.Height);
+        scene.Renderer.Render(scene.Camera, request.Width, request.Height);
 
-        if (timings != null)
-        {
-            timings.SetupMs = MsBetween(tStart, tSetupDone);
-            timings.BuildMs = MsBetween(tSetupDone, tBuildDone);
-            timings.ResolveMs = _assets.ThreadResolveMs - resolveMsStart;
-            timings.ParseMs = _previewCache.MeshBuilder.ThreadParseMs - parseMsStart;
-            // += so a render-thread re-parse adds onto the prewarm worker's split
-            // (captured in PrewarmAsync) rather than overwriting it.
-            timings.LoadMs += _previewCache.MeshBuilder.ThreadLoadMs - loadMsStart;
-            timings.BuildShapesMs += _previewCache.MeshBuilder.ThreadBuildMs - buildShapesMsStart;
-            timings.InstallMs = MsBetween(tBuildDone, tInstallDone);
-            timings.DecodeMs = _previewCache.ThreadDecodeMs - decodeMsStart;
-            timings.DrawMs = MsBetween(tInstallDone, Stopwatch.GetTimestamp());
-        }
+        if (request.TimingsOut is { } timings)
+            timings.DrawMs = MsBetween(tDrawStart, Stopwatch.GetTimestamp());
     }
 
     private static double MsBetween(long startTimestamp, long endTimestamp)
         => (endTimestamp - startTimestamp) * 1000.0 / Stopwatch.Frequency;
-
-    /// <summary>Sets the VM camera's orbit parameters from the request's
-    /// <see cref="CameraFraming"/>. Portrait mode auto-frames the head using
-    /// the loaded scene's NPC base height; Fixed mode applies the explicit
-    /// values directly. Both modes leave the renderer in a state where
-    /// <c>vm.Renderer.Render(vm.Camera, w, h)</c> produces the framed image.</summary>
-    private void ConfigureCamera(VM_CharacterViewer vm, OffscreenRenderRequest request)
-    {
-        var camera = vm.Camera;
-
-        switch (request.Camera)
-        {
-            case CameraFraming.Portrait portrait:
-            {
-                // Frame the head: target it, pull back enough that the head
-                // height (≈22 units in NIF coords for a normal-scale NPC)
-                // fills the requested portion of the framebuffer. The
-                // OrbitCamera defaults (Az=180 facing the camera, El=15)
-                // are reasonable for a portrait; we just dial Distance and
-                // Target to match the request.
-                float headWorldY = 120f * vm.NpcBaseHeight;   // NIF "NPC Head" Z position
-                camera.Target = new Vector3(0f, headWorldY, 0f);
-                // Heuristic: distance ~= head height / tan(half_fov) divided by
-                // the framing band. Headband = HeadTopOffset - HeadBottomOffset
-                // (1.0 = full frame). With OrbitCamera's default ~50° vertical
-                // FOV, distance scales inversely with the framing band.
-                float band = MathF.Max(0.05f, portrait.HeadTopOffset - portrait.HeadBottomOffset);
-                float headHeight = 22f * vm.NpcBaseHeight;
-                camera.Distance = MathF.Max(camera.MinDistance, headHeight / band * 1.6f);
-                camera.Azimuth = 180f;
-                camera.Elevation = 0f;
-                break;
-            }
-            case CameraFraming.Fixed fixedCam:
-            {
-                // OrbitCamera doesn't directly expose eye position; the closest
-                // approximation is to set Target to the head and convert
-                // (X, Y, Z) into a delta from the target. Yaw/Pitch derive
-                // from that delta. Roll is unsupported by OrbitCamera and is
-                // ignored. FOV is camera-internal and currently fixed; if NPC2
-                // needs custom FOV we can extend OrbitCamera later.
-                float headWorldY = 120f * vm.NpcBaseHeight;
-                camera.Target = new Vector3(0f, headWorldY, 0f);
-                var dx = fixedCam.X;
-                var dy = fixedCam.Y - headWorldY;
-                var dz = fixedCam.Z;
-                camera.Distance = MathF.Max(camera.MinDistance,
-                    MathF.Sqrt(dx * dx + dy * dy + dz * dz));
-                camera.Azimuth = MathF.Atan2(dx, dz) * (180f / MathF.PI);
-                camera.Elevation = MathF.Atan2(dy,
-                    MathF.Sqrt(dx * dx + dz * dz)) * (180f / MathF.PI);
-                break;
-            }
-            case CameraFraming.MeshAware meshAware:
-            {
-                // Prefer the request's DiagnosticLog when set — hosts using
-                // AsyncLocal flow-scoped capture (like NPC2's per-mugshot
-                // _Mugshot.txt files) MUST snapshot their writer there
-                // because this branch executes on the renderer's dedicated
-                // render thread, which does not inherit the host's logical
-                // call context. Fall back to _logger gated on _logGate.Verbose
-                // for hosts that route framing diagnostics through their
-                // shared verbose-log channel.
-                Action<string>? log = request.DiagnosticLog
-                    ?? ((_logGate != null && _logGate.Verbose && _logger != null)
-                        ? (Action<string>)(msg => _logger.LogMessage(msg))
-                        : null);
-                MeshAwareCameraFitter.ApplyTo(vm, meshAware, request.Width, request.Height, log: log);
-                break;
-            }
-            case CameraFraming.OrbitState orbit:
-            {
-                // Lossless orbit-state placement — the host has already
-                // computed the camera state (typically via interactive
-                // UI: drag-to-orbit, scroll-to-zoom, middle-drag to pan)
-                // and wants the saved PNG to match the preview exactly.
-                camera.Distance = MathF.Max(camera.MinDistance, orbit.Distance);
-                camera.Azimuth = orbit.Azimuth;
-                camera.Elevation = orbit.Elevation;
-                camera.Target = new Vector3(orbit.TargetX, orbit.TargetY, orbit.TargetZ);
-                break;
-            }
-        }
-    }
 
     /// <summary>Lazily creates / resizes the multisampled draw FBO and the
     /// single-sample resolve FBO. Called inside the render lock; both are

@@ -36,7 +36,19 @@ public static class OffscreenRendererFactory
         ICharacterViewerSettings settings,
         CharacterViewerLogGate logGate,
         ICharacterViewerLogger logger)
-        => new GameWindowOffscreenRenderer(
-            previewCache, bodySlideDeformer, bsdParser, triParser,
-            assets, settings, logGate, logger);
+        => Create(
+            new NpcSceneBuilder(previewCache, bodySlideDeformer, bsdParser, triParser,
+                assets, settings, logGate, logger),
+            previewCache, assets, logGate, logger);
+
+    /// <summary>Creates the default offscreen renderer around a host-supplied
+    /// <see cref="IOffscreenSceneBuilder"/>, which decides what each render draws.
+    /// Same threading and lifetime rules as the overload above.</summary>
+    public static IOffscreenRenderer Create(
+        IOffscreenSceneBuilder sceneBuilder,
+        CharacterPreviewCache previewCache,
+        GameAssetResolver assets,
+        CharacterViewerLogGate logGate,
+        ICharacterViewerLogger logger)
+        => new GameWindowOffscreenRenderer(sceneBuilder, previewCache, assets, logGate, logger);
 }
