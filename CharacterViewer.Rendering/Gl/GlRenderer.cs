@@ -419,6 +419,14 @@ public class GlRenderer : IDisposable
     /// </summary>
     public List<IRenderOverlay> Overlays { get; } = new();
 
+    /// <summary>
+    /// Sphere (pre-ModelScale centre and radius) the directional shadow map must cover. Null (the
+    /// default) keeps the character framing: centred at Y=85 with radius 300, or
+    /// <see cref="ShadowFrustumRadius"/> when <see cref="TightShadowFrustum"/> is on. Set it for
+    /// scenes of another size, such as a whole cell.
+    /// </summary>
+    public (Vector3 Center, float Radius)? ShadowBounds { get; set; }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  OVERLAY PRIMITIVES
     //
@@ -1280,6 +1288,7 @@ public class GlRenderer : IDisposable
         ref var model = ref modelMat;
 
         _shader.SetMatrix4("u_model", ref model);
+        _frameModel = model;
         _shader.SetMatrix4("u_view", ref view);
         _shader.SetMatrix4("u_projection", ref projection);
         // Inverse projection reconstructs view-space depth from the prepass
@@ -1783,12 +1792,15 @@ public class GlRenderer : IDisposable
 
         // Place the light "eye" along the surface-to-light direction far
         // enough that the whole scene fits inside the orthographic
-        // frustum. Center on a Skyrim-NPC chest height (Y=85 pre-scale)
-        // scaled by ModelScale.
-        var sceneCenter = new Vector3(0f, 85f * ModelScale, 0f);
+        // frustum. Center on ShadowBounds when the host set it; otherwise on a
+        // character's chest height (Y=85 pre-scale). Both scale by ModelScale.
+        var sceneCenter = ShadowBounds is { } bounds
+            ? bounds.Center * ModelScale
+            : new Vector3(0f, 85f * ModelScale, 0f);
         // Strategy C: tighten the frustum to shrink the world-units-per-NDC
         // depth range so the bias warps the cast-shadow edge less.
-        float radius = (TightShadowFrustum ? ShadowFrustumRadius : 300f) * ModelScale;
+        float radius = (ShadowBounds is { } boundsR ? boundsR.Radius
+            : TightShadowFrustum ? ShadowFrustumRadius : 300f) * ModelScale;
         var lightEye = sceneCenter + lightDir * radius * 1.5f;
 
         // Up vector: world up unless the light is shining straight down.
@@ -1853,6 +1865,7 @@ public class GlRenderer : IDisposable
                 GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
             }
 
+            ApplyMeshModel(_shadowShader!, mesh, model);
             GL.BindVertexArray(mesh.Vao);
             GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
                 DrawElementsType.UnsignedInt, 0);
@@ -2299,6 +2312,7 @@ public class GlRenderer : IDisposable
                 GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
             }
 
+            ApplyMeshModel(_depthOnlyShader!, mesh, model);
             GL.BindVertexArray(mesh.Vao);
             GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
                 DrawElementsType.UnsignedInt, 0);
@@ -2472,6 +2486,7 @@ public class GlRenderer : IDisposable
                 curR = wantR; curG = wantG; curB = wantB;
             }
 
+            ApplyMeshModel(_wireframeShader!, mesh, model);
             GL.BindVertexArray(mesh.Vao);
             GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
                 DrawElementsType.UnsignedInt, 0);
@@ -2729,14 +2744,39 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>
+    /// Sets u_model for one mesh: its <see cref="GlMesh.ModelTransform"/> composed with the pass's
+    /// shared model matrix, or the shared matrix again after a placed mesh. Meshes without a
+    /// placement cost nothing.
+    /// </summary>
+    private void ApplyMeshModel(GlShaderProgram shader, GlMesh mesh, Matrix4 shared)
+    {
+        if (mesh.ModelTransform is { } placement)
+        {
+            var m = placement * shared;
+            shader.SetMatrix4("u_model", ref m);
+            _modelOverriddenOn = shader;
+        }
+        else if (ReferenceEquals(_modelOverriddenOn, shader))
+        {
+            shader.SetMatrix4("u_model", ref shared);
+            _modelOverriddenOn = null;
+        }
+    }
+    // Non-owning marker of which program currently holds a per-mesh u_model (not a GL handle
+    // this renderer owns, hence object rather than GlShaderProgram).
+    private object? _modelOverriddenOn;
+    private Matrix4 _frameModel = Matrix4.Identity;
+
+    /// <summary>
     /// World-space squared distance from the camera eye to a mesh's model-local
-    /// centroid (transformed by the shared u_model matrix). Used to sort the
+    /// centroid (transformed by its placement and the shared u_model matrix). Used to sort the
     /// alpha-blend pass back-to-front. Squared distance is enough for ordering.
     /// </summary>
     private static float CameraDistanceSq(GlMesh mesh, Matrix4 model, Vector3 camPos)
     {
         var lc = mesh.LocalCenter; // System.Numerics.Vector3 (model-local)
-        var world = Vector3.TransformPosition(new Vector3(lc.X, lc.Y, lc.Z), model);
+        var effective = mesh.ModelTransform is { } placement ? placement * model : model;
+        var world = Vector3.TransformPosition(new Vector3(lc.X, lc.Y, lc.Z), effective);
         return (world - camPos).LengthSquared;
     }
 
@@ -2867,6 +2907,7 @@ public class GlRenderer : IDisposable
             GL.Enable(EnableCap.CullFace);
 
         // Draw
+        ApplyMeshModel(_shader!, mesh, _frameModel);
         GL.BindVertexArray(mesh.Vao);
         GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
             DrawElementsType.UnsignedInt, 0);

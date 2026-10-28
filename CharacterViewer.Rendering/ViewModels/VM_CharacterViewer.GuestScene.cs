@@ -391,8 +391,8 @@ public partial class VM_CharacterViewer
                 // Guest meshes take no part in slot occupancy: they are a comparison overlay,
                 // not gear worn by the primary NPC, so they must neither hide the primary
                 // model's shapes nor be hidden by them.
-                glMesh.BipedSlots = 0;
-                glMesh.HidesSlots = 0;
+                glMesh.Npc().BipedSlots = 0;
+                glMesh.Npc().HidesSlots = 0;
 
                 // The mask is passed explicitly because the mesh only joins _guestMeshes
                 // below; it keeps the lock off the Tint Color the Translucent style draws with.

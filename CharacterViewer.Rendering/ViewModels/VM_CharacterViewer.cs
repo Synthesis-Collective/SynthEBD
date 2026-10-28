@@ -4742,7 +4742,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // it. Derived per-shape (not just from the body-part group) so a hood
         // hides only the baked-in hair sub-shape of a FaceGen head, not the
         // face. Base shapes stay at draw priority 0 and never hide anything.
-        glMesh.BipedSlots = BipedSlotsForBaseShape(shape.Built, shape.BodyPart);
+        glMesh.Npc().BipedSlots = BipedSlotsForBaseShape(shape.Built, shape.BodyPart);
         glMesh.ShowWireframe = ShowWireframe;
         ApplyTextureVisibilityLock(glMesh, install.LockTally);
         Renderer.AddMesh(glMesh);
@@ -6115,10 +6115,10 @@ public partial class VM_CharacterViewer : ViewerVm
             }
 
             glMesh.BodyPart = ov.Key;          // so slot-N texture overrides route here
-            glMesh.OverrideKey = ov.Key;       // so a re-apply can tear this down
-            glMesh.BipedSlots = ov.BipedSlots;
-            glMesh.HidesSlots = ov.EffectiveHidesSlots;
-            glMesh.SlotDrawPriority = SlotDrawPriorityForKind(ov.Kind);
+            glMesh.Npc().OverrideKey = ov.Key;       // so a re-apply can tear this down
+            glMesh.Npc().BipedSlots = ov.BipedSlots;
+            glMesh.Npc().HidesSlots = ov.EffectiveHidesSlots;
+            glMesh.Npc().SlotDrawPriority = SlotDrawPriorityForKind(ov.Kind);
             glMesh.ShowWireframe = ShowWireframe;
             ApplyTextureVisibilityLock(glMesh, lockTally);
             Renderer.AddMesh(glMesh);
@@ -6346,11 +6346,11 @@ public partial class VM_CharacterViewer : ViewerVm
     }
 
     /// <summary>Removes every shape a prior <see cref="ApplyMeshOverrides"/>
-    /// synthesized (those carry a non-null <see cref="GlMesh.OverrideKey"/>),
+    /// synthesized (those carry a non-null <see cref="NpcMeshInfo.OverrideKey"/>),
     /// disposing GL resources and dropping their cached texture-apply info.</summary>
     private void RemoveAppliedMeshOverrides()
     {
-        var existing = Renderer.Meshes.Where(m => m.OverrideKey != null).ToList();
+        var existing = Renderer.Meshes.Where(m => m.Npc().OverrideKey != null).ToList();
         foreach (var m in existing)
         {
             Renderer.RemoveMesh(m);
@@ -6361,7 +6361,7 @@ public partial class VM_CharacterViewer : ViewerVm
 
     /// <summary>Recomputes per-shape slot-occupancy visibility across the whole
     /// scene: a shape is hidden when some strictly-higher-priority shape
-    /// <see cref="GlMesh.HidesSlots"/> one of its <see cref="GlMesh.BipedSlots"/>.
+    /// <see cref="NpcMeshInfo.HidesSlots"/> one of its <see cref="NpcMeshInfo.BipedSlots"/>.
     /// Body armor (priority 1) hides the base body (priority 0); headgear
     /// (priority 2) hides hair (priority 0). Only the slot-hiding flag is
     /// touched — missing-texture culling (<see cref="GlMesh.IsRendering"/>) is
@@ -6369,18 +6369,18 @@ public partial class VM_CharacterViewer : ViewerVm
     private void ResolveSlotVisibility()
     {
         var meshes = Renderer.Meshes;
-        foreach (var m in meshes) m.HiddenBySlotOccupancy = false;
+        foreach (var m in meshes) m.IsHiddenByHost = false;
 
         foreach (var occluder in meshes)
         {
-            if (occluder.HidesSlots == 0) continue;
+            if (occluder.Npc().HidesSlots == 0) continue;
             foreach (var m in meshes)
             {
                 if (ReferenceEquals(m, occluder)) continue;
-                if (m.SlotDrawPriority < occluder.SlotDrawPriority
-                    && (m.BipedSlots & occluder.HidesSlots) != 0)
+                if (m.Npc().SlotDrawPriority < occluder.Npc().SlotDrawPriority
+                    && (m.Npc().BipedSlots & occluder.Npc().HidesSlots) != 0)
                 {
-                    m.HiddenBySlotOccupancy = true;
+                    m.IsHiddenByHost = true;
                 }
             }
         }
@@ -6765,7 +6765,7 @@ public partial class VM_CharacterViewer : ViewerVm
                 isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
 
             glMesh.BodyPart = "Head";
-            glMesh.BipedSlots = BipedSlotsForBaseShape(built, "Head");
+            glMesh.Npc().BipedSlots = BipedSlotsForBaseShape(built, "Head");
             glMesh.ShowWireframe = ShowWireframe;
             ApplyTextureVisibilityLock(glMesh, lockTally);
             Renderer.AddMesh(glMesh);
