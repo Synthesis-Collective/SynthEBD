@@ -26,7 +26,7 @@ namespace SynthEBD.BodyShapeViewer;
 /// <see cref="VM_CharacterViewer.HostData"/>, so the viewer's views bind to it as
 /// <c>{Binding HostData.X}</c>. SynthEBD's DI attaches it to every viewer it creates (MainModule);
 /// <see cref="For"/> attaches lazily for viewers created elsewhere (the offscreen renderer's
-/// per-request viewers, reached from <see cref="Rendering.Offscreen.OffscreenRenderRequest.BeforeDraw"/>).</para>
+/// per-request viewers, reached from <see cref="Rendering.Offscreen.NpcRenderRequest.BeforeDraw"/>).</para>
 /// </summary>
 public sealed class BodyShapeViewerExtension : VM
 {

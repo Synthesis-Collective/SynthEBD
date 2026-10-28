@@ -4,7 +4,7 @@ namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// How the in-RAM decode caches (decoded DDS pixels, parsed NIF geometry) size their byte budget. Selected
-/// by the host via <see cref="ICharacterViewerSettings.CacheMode"/>. The <see cref="DescriptionAttribute"/>
+/// by the host via <see cref="IRenderSettings.CacheMode"/>. The <see cref="DescriptionAttribute"/>
 /// text is what a host UI shows in a mode dropdown.
 /// </summary>
 public enum RenderCacheMode
@@ -14,7 +14,7 @@ public enum RenderCacheMode
     [Description("% Free RAM")]
     PercentFreeRam = 0,
 
-    /// <summary>Each cache targets a fraction of a fixed pool (<see cref="ICharacterViewerSettings.FixedCacheBudgetBytes"/>)
+    /// <summary>Each cache targets a fraction of a fixed pool (<see cref="IRenderSettings.FixedCacheBudgetBytes"/>)
     /// instead of live free RAM — a predictable, machine-independent ceiling.</summary>
     [Description("Fixed RAM")]
     FixedRam = 1,

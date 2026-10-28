@@ -63,7 +63,7 @@ public sealed class FallbackPreviewController
     private object? _prewarmedPaths;   // reference-identity of the last prewarmed MeshPaths
 
     // Render loop: single render in flight, latest wins.
-    private OffscreenRenderRequest? _pending;
+    private NpcRenderRequest? _pending;
     /// <summary>The morph <see cref="_pending"/> applies (from its BeforeDraw hook), for the diagnostics.</summary>
     private (MorphSet Morphs, int Weight)? _pendingMorph;
     private CancellationTokenSource? _pendingCts;
@@ -256,7 +256,7 @@ public sealed class FallbackPreviewController
         }
     }
 
-    private OffscreenRenderRequest BuildRequest(SceneInputsSnapshot snap, int width, int height, bool lowRes, CancellationToken ct)
+    private NpcRenderRequest BuildRequest(SceneInputsSnapshot snap, int width, int height, bool lowRes, CancellationToken ct)
     {
         int rw = Math.Clamp(lowRes ? width / 2 : width, 1, MaxRenderDimension);
         int rh = Math.Clamp(lowRes ? height / 2 : height, 1, MaxRenderDimension);
@@ -273,7 +273,7 @@ public sealed class FallbackPreviewController
             TargetY: cam.Target.Y,
             TargetZ: cam.Target.Z);
 
-        return new OffscreenRenderRequest
+        return new NpcRenderRequest
         {
             MeshPaths = snap.MeshPaths,
             OverrideHeadMeshAbsolutePath = snap.OverrideHeadMeshAbsolutePath,

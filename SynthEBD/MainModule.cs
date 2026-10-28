@@ -150,7 +150,7 @@ public class MainModule : Autofac.Module
                 e.Context.Resolve<ICharacterViewerLogger>(),
                 e.Context.Resolve<CharacterViewerLogGate>()));
         // Lazy attachment for viewers built outside the container (the offscreen renderer's
-        // per-request viewers, reached from OffscreenRenderRequest.BeforeDraw).
+        // per-request viewers, reached from NpcRenderRequest.BeforeDraw).
         builder.RegisterBuildCallback(c => BodyShapeViewerExtension.Configure(
             () => c.Resolve<BodySlideDeformer>(),
             () => c.Resolve<BodyTriFileParser>(),

@@ -25,7 +25,7 @@ public class NifMeshBuilder
     private readonly GameAssetResolver? _assetResolver;
 
     public NifMeshBuilder(ICharacterViewerLogger logger, CharacterViewerLogGate logGate,
-        GameAssetResolver? assetResolver = null, ICharacterViewerSettings? settings = null)
+        GameAssetResolver? assetResolver = null, IRenderSettings? settings = null)
     {
         _logger = logger;
         _logGate = logGate;
@@ -34,7 +34,7 @@ public class NifMeshBuilder
     }
 
     // Read live each repoll so a host-side cache-mode change takes effect within a few renders.
-    private readonly ICharacterViewerSettings? _settings;
+    private readonly IRenderSettings? _settings;
     private RenderCacheMode CacheMode => _settings?.CacheMode ?? RenderCacheMode.PercentFreeRam;
     private long FixedPoolBytes => _settings?.FixedCacheBudgetBytes ?? 0;
     private double FreeRamPercent => _settings?.FreeRamCachePercent ?? SystemMemoryBudget.BaselineFreeRamPercent;

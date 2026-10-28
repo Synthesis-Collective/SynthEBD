@@ -42,7 +42,7 @@ namespace CharacterViewer.Rendering.Offscreen;
 /// <see cref="ResolvedNpcMeshPaths"/>, drained to completion via
 /// <see cref="VM_CharacterViewer.ProcessPendingSceneToCompletion"/>, then
 /// rendered into the FBO. The VM is disposed before the next render so
-/// GL state can't leak between requests. The <see cref="CharacterPreviewCache"/>
+/// GL state can't leak between requests. The <see cref="AssetCache"/>
 /// (the only shared cross-request state worth keeping) lives at the host
 /// level and amortizes NIF parses + DDS decodes across calls.</para>
 /// </summary>
@@ -72,7 +72,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     // What each render draws comes from the scene builder; the renderer owns the
     // context, thread, framebuffers, asset scopes and texture residency.
     private readonly IOffscreenSceneBuilder _sceneBuilder;
-    private readonly CharacterPreviewCache _previewCache;
+    private readonly AssetCache _assetCache;
     private readonly GameAssetResolver _assets;
     private readonly CharacterViewerLogGate _logGate;
     private readonly ICharacterViewerLogger _logger;
@@ -107,13 +107,13 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
     internal GameWindowOffscreenRenderer(
         IOffscreenSceneBuilder sceneBuilder,
-        CharacterPreviewCache previewCache,
+        AssetCache assetCache,
         GameAssetResolver assets,
         CharacterViewerLogGate logGate,
         ICharacterViewerLogger logger)
     {
         _sceneBuilder = sceneBuilder;
-        _previewCache = previewCache;
+        _assetCache = assetCache;
         _assets = assets;
         _logGate = logGate;
         _logger = logger;
@@ -189,7 +189,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             _renderQueue.Add(new RenderJob(null!, false, tcs, Maintenance: () =>
             {
                 _residentTextures?.Clear();
-                _previewCache.Clear();
+                // Builder caches first (the NPC builder's resolved mesh paths), then the
+                // shared asset cache: the order the combined preview-cache clear used.
+                _sceneBuilder.InvalidateCaches();
+                _assetCache.Clear();
                 // The env may resolve assets differently now (game path / load order
                 // changed), so drop the scope-aware resolve cache too.
                 _assets.ClearResolveCache();

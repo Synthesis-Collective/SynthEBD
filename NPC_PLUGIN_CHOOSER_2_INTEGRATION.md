@@ -374,12 +374,12 @@ public async Task GenerateMugshotAsync(FormKey npc, string outputPath)
 }
 ```
 
-### `BuildRequest` — translating settings into an `OffscreenRenderRequest`
+### `BuildRequest` — translating settings into an `NpcRenderRequest`
 
 ```csharp
-private OffscreenRenderRequest BuildRequest(ResolvedNpcMeshPaths paths, InternalMugshotSettings cfg)
+private NpcRenderRequest BuildRequest(ResolvedNpcMeshPaths paths, InternalMugshotSettings cfg)
 {
-    return new OffscreenRenderRequest
+    return new NpcRenderRequest
     {
         MeshPaths = paths,
         Width = cfg.OutputWidth,

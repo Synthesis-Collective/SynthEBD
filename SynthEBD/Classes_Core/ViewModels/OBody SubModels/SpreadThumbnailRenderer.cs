@@ -192,7 +192,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
         var vm = _renderSettingsSource;
         var overlayDiag = new System.Runtime.CompilerServices.StrongBox<string?>();
         int width = ImageWidth, height = ImageHeight;
-        var request = new OffscreenRenderRequest
+        var request = new NpcRenderRequest
         {
             MeshPaths = _scene.MeshPaths,
             OverrideHeadMeshAbsolutePath = _scene.OverrideHeadMeshAbsolutePath,
@@ -283,7 +283,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
 
     private static double WrapDegrees(double degrees) => ((degrees % 360) + 360) % 360;
 
-    /// <summary>Builds the offscreen <see cref="OffscreenRenderRequest.BeforeDraw"/> hook that draws
+    /// <summary>Builds the offscreen <see cref="NpcRenderRequest.BeforeDraw"/> hook that draws
     /// <paramref name="measurementNames"/>' lines on the render's own deformed mesh. Key vertices
     /// resolve through <see cref="MeasurementMath.TryResolveKeyVertex"/> -- the same resolution the
     /// scan used for this preset -- rather than the live preview's cached indices, which belong to a

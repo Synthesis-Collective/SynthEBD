@@ -31,7 +31,7 @@ internal static class SystemMemoryBudget
     public const double BaselineFreeRamFraction = 0.85;
 
     /// <summary>The baseline collective share expressed as a percent (85). The default of
-    /// <see cref="ICharacterViewerSettings.FreeRamCachePercent"/>, and the value at which each cache gets
+    /// <see cref="IRenderSettings.FreeRamCachePercent"/>, and the value at which each cache gets
     /// exactly its defined fraction.</summary>
     public const double BaselineFreeRamPercent = BaselineFreeRamFraction * 100.0;
 

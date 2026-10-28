@@ -6,7 +6,7 @@ namespace CharacterViewer.Rendering;
 
 /// <summary>
 /// Manages OpenGL texture loading from game assets. DDS decoding and asset-path
-/// resolution are delegated to <see cref="CharacterPreviewCache"/> so the pixel
+/// resolution are delegated to <see cref="AssetCache"/> so the pixel
 /// payload is shared across viewer instances; this class is responsible for
 /// per-context GL texture handles, face/hair tint blending, and caching of
 /// uploaded handles within a single viewer's GL context.
@@ -30,7 +30,7 @@ public class GlTextureManager : IDisposable
         if ((_logGate?.Verbose ?? false) || Environment.GetEnvironmentVariable("CVR_DDS_DIAGNOSTICS") == "1")
             _logger.LogMessage("[DdsUpload] " + System.Text.Json.JsonSerializer.Serialize(item));
     }
-    private readonly CharacterPreviewCache _previewCache;
+    private readonly AssetCache _previewCache;
     private readonly ICharacterViewerLogger _logger;
     // Gate for the verbose per-texture resolution trace (game path -> disk path ->
     // resident-hit/upload/missing + GL handle). Off by default; the host's
@@ -54,6 +54,21 @@ public class GlTextureManager : IDisposable
     // Handles OWNED BY THIS VM (deleted on Dispose/ClearCache). Resident-cache
     // handles are deliberately NOT added here — the resident cache owns them.
     private readonly List<int> _allTextures = new();
+
+    /// <summary>Telemetry: game paths (and env-cube keys) this manager has a handle cached for.</summary>
+    public int CachedTextureCount => _textureCache.Count;
+    /// <summary>Telemetry: GL textures this manager owns (resident-cache handles excluded).</summary>
+    public int OwnedTextureCount => _allTextures.Count;
+    /// <summary>Telemetry: read-only view of the game paths (and env-cube keys) with a cached handle.</summary>
+    public IReadOnlyCollection<string> CachedTexturePaths => _textureCache.Keys;
+    /// <summary>Telemetry: read-only view of the GL textures this manager owns (the white and neutral-skin
+    /// fallbacks included; resident-cache handles excluded).</summary>
+    public IReadOnlyList<int> OwnedTextureHandles => _allTextures.AsReadOnly();
+
+    /// <summary>Telemetry: the handle cached for <paramref name="relativeGamePath"/>, without loading
+    /// anything. False when nothing is cached for it.</summary>
+    public bool TryPeekCachedTexture(string relativeGamePath, out int handle) =>
+        _textureCache.TryGetValue(relativeGamePath, out handle);
 
     // Game-paths that LoadTexture was asked for but couldn't decode (resolver
     // returned no on-disk file, or the DDS load itself failed). Cleared by
@@ -79,7 +94,7 @@ public class GlTextureManager : IDisposable
     /// UV-mapped to a different body, so drawing them would scramble the skin.</summary>
     public int NeutralSkinTexture { get; private set; }
 
-    public GlTextureManager(CharacterPreviewCache previewCache, ICharacterViewerLogger logger,
+    public GlTextureManager(AssetCache previewCache, ICharacterViewerLogger logger,
         ResidentTextureCache? resident = null, CharacterViewerLogGate? logGate = null)
     {
         _previewCache = previewCache;
@@ -202,7 +217,7 @@ public class GlTextureManager : IDisposable
         }
         var decodeTimer = System.Diagnostics.Stopwatch.StartNew();
         DdsPixels? pixels;
-        using (CharacterPreviewCache.DecodeReason("upload-decoded"))
+        using (AssetCache.DecodeReason("upload-decoded"))
             pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {
@@ -236,7 +251,7 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public int LoadTextureWithFaceTint(string diffusePath, string faceTintPath)
     {
-        using var decodeReason = CharacterPreviewCache.DecodeReason("face-tint-blend");
+        using var decodeReason = AssetCache.DecodeReason("face-tint-blend");
         var diffuseSource = _previewCache.GetOrLoadDdsPixels(diffusePath);
         if (diffuseSource == null) return WhiteTexture;
 
@@ -291,7 +306,7 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public int LoadTextureWithHairTint(string diffusePath, float tintR, float tintG, float tintB)
     {
-        using var decodeReason = CharacterPreviewCache.DecodeReason("hair-tint");
+        using var decodeReason = AssetCache.DecodeReason("hair-tint");
         var source = _previewCache.GetOrLoadDdsPixels(diffusePath);
         if (source == null)
         {
@@ -367,7 +382,7 @@ public class GlTextureManager : IDisposable
         // Not a cubemap (or not a readable DDS): fall through to the legacy
         // 2D sphere-map path so mod-shipped panoramic envmaps still render.
         DdsPixels? pixels;
-        using (CharacterPreviewCache.DecodeReason("envmap-2d"))
+        using (AssetCache.DecodeReason("envmap-2d"))
             pixels = _previewCache.GetOrLoadDdsPixels(relativeGamePath);
         if (pixels == null)
         {

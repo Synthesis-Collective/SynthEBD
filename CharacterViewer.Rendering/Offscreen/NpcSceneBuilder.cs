@@ -9,7 +9,7 @@ namespace CharacterViewer.Rendering.Offscreen;
 /// <summary>
 /// The NPC <see cref="IOffscreenSceneBuilder"/>: builds a <see cref="VM_CharacterViewer"/> per
 /// render from the request's mesh paths, applies texture and mesh overrides and the host's
-/// <see cref="OffscreenRenderRequest.BeforeDraw"/> hook (where a host deforms the body shapes), and frames the camera from the request's
+/// <see cref="NpcRenderRequest.BeforeDraw"/> hook (where a host deforms the body shapes), and frames the camera from the request's
 /// <see cref="CameraFraming"/>.
 /// </summary>
 public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
@@ -34,9 +34,12 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
         _logger = logger;
     }
 
-    public void Prewarm(OffscreenRenderRequest request, CancellationToken cancellation)
+    /// <summary>Drops the resolved NPC mesh paths; the renderer clears the shared asset cache itself.</summary>
+    public void InvalidateCaches() => _previewCache.ClearMeshPaths();
+
+    public void Prewarm(OffscreenRenderRequest baseRequest, CancellationToken cancellation)
     {
-        if (request.MeshPaths == null) return;
+        if (baseRequest is not NpcRenderRequest request || request.MeshPaths == null) return;
 
         var paths = request.MeshPaths;
         if (!string.IsNullOrWhiteSpace(request.OverrideHeadMeshAbsolutePath))
@@ -60,8 +63,10 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
         }
     }
 
-    public IOffscreenScene Build(OffscreenSceneContext context, OffscreenRenderRequest request)
+    public IOffscreenScene Build(OffscreenSceneContext context, OffscreenRenderRequest baseRequest)
     {
+        if (baseRequest is not NpcRenderRequest request)
+            throw new ArgumentException("NpcSceneBuilder renders NpcRenderRequest requests.", nameof(baseRequest));
         var vm = new VM_CharacterViewer(
             _assets, _settings, _previewCache, _logGate, _logger
             /* renderThread defaults to InlineRenderThreadMarshaller */);
@@ -101,7 +106,7 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
         public void Dispose() => vm.Dispose();
     }
 
-    private void Load(VM_CharacterViewer vm, OffscreenRenderRequest request)
+    private void Load(VM_CharacterViewer vm, NpcRenderRequest request)
     {
         var timings = request.TimingsOut;
         long tStart = Stopwatch.GetTimestamp();
@@ -273,7 +278,7 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
     /// the loaded scene's NPC base height; Fixed mode applies the explicit
     /// values directly. Both modes leave the renderer in a state where
     /// <c>vm.Renderer.Render(vm.Camera, w, h)</c> produces the framed image.</summary>
-    private void ConfigureCamera(VM_CharacterViewer vm, OffscreenRenderRequest request, OffscreenSceneContext context)
+    private void ConfigureCamera(VM_CharacterViewer vm, NpcRenderRequest request, OffscreenSceneContext context)
     {
         var camera = vm.Camera;
 

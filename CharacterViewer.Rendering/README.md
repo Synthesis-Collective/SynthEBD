@@ -13,9 +13,9 @@ so the renderer can pull the data it needs:
 - `INpcMeshDataSource` — resolves an NPC to its mesh/texture paths.
 - `IBsaArchiveProvider` — enumerates/extracts files from BSA archives.
 - `IDataFolderProvider` — supplies the game Data folder + a cache token.
-- `ICharacterViewerLogger`, `ICharacterViewerSettings` — logging and settings.
+- `ICharacterViewerLogger`, `ICharacterViewerSettings` (which extends the core `IRenderSettings`) — logging and settings.
 
-Requests are described with Mutagen-free POCOs (`OffscreenRenderRequest`,
+Requests are described with Mutagen-free POCOs (`NpcRenderRequest` on top of `OffscreenRenderRequest`,
 `ResolvedNpcMeshPaths`, `TextureOverride`, `MeshOverride`, …). Body shapes can be
 deformed on the CPU through a host-supplied `IShapeDeformer`.
 

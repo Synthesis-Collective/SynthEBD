@@ -308,6 +308,9 @@ public class GlMesh : IDisposable
     private const int STRIDE = 18; // floats per vertex
     private bool _disposed;
 
+    /// <summary>True once <see cref="Dispose"/> has released this mesh's GL objects.</summary>
+    public bool IsDisposed => _disposed;
+
     /// <summary>
     /// Creates the VAO/VBO/EBO from interleaved vertex data and indices.
     /// </summary>

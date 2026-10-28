@@ -2429,7 +2429,7 @@ public partial class VM_CharacterViewer : ViewerVm
     {
         if (IsGlInitialized) return;
 
-        TextureManager = new GlTextureManager(_previewCache, _logger, ResidentTextureCache, _logGate);
+        TextureManager = new GlTextureManager(_previewCache.Assets, _logger, ResidentTextureCache, _logGate);
         TextureManager.Initialize();
         Renderer.Initialize(shaderDirectory);
 

@@ -225,17 +225,19 @@ public class GameAssetResolver
         IDataFolderProvider dataFolder,
         IBsaArchiveProvider bsaProvider,
         CharacterViewerLogGate logGate,
-        ICharacterViewerLogger logger)
+        ICharacterViewerLogger logger,
+        string? extractionDirectory = null)
     {
         _dataFolder = dataFolder;
         _bsaProvider = bsaProvider;
         _logGate = logGate;
         _logger = logger;
 
-        // Exe-relative so the cache is visible next to the running EXE
-        // rather than buried under %TEMP%. Per-BSA SHA token under here keeps
-        // files reusable across sessions (see GetBsaPathToken).
-        _extractionDir = Path.Combine(AppContext.BaseDirectory, "CharacterViewerCache");
+        // Default: exe-relative so the cache is visible next to the running EXE
+        // rather than buried under %TEMP%. A host with its own scratch area passes
+        // extractionDirectory. Per-BSA SHA token under here keeps files reusable
+        // across sessions (see GetBsaPathToken).
+        _extractionDir = extractionDirectory ?? Path.Combine(AppContext.BaseDirectory, "CharacterViewerCache");
     }
 
     private void LogVerbose(string message)
@@ -585,13 +587,22 @@ public class GameAssetResolver
         }
     }
 
-    /// <summary>True for paths under the FaceGen tree (FaceGeom NIFs and
-    /// FaceTint DDS). These are NPC-keyed (FormID-named) and a vanilla
+    /// <summary>The default <see cref="IsScopeLockedPath"/>: true for paths under the FaceGen tree
+    /// (FaceGeom NIFs and FaceTint DDS). These are NPC-keyed (FormID-named) and a vanilla
     /// loose copy must NEVER preempt a mod's actual face override.</summary>
-    private static bool IsFaceGenPath(string normalizedPath)
+    public static bool DefaultIsScopeLockedPath(string normalizedPath)
     {
         return normalizedPath.IndexOf("FaceGenData", StringComparison.OrdinalIgnoreCase) >= 0;
     }
+
+    /// <summary>
+    /// Decides, for a normalized game-relative path, whether it is <b>scope-locked</b>: exempt from every
+    /// rule that lets the vanilla data folder preempt a mod scope (both vanilla-loose toggles, the
+    /// engine-order data-folder tiers, and scope demotion). Default <see cref="DefaultIsScopeLockedPath"/>
+    /// (the FaceGen tree). Must be pure and cheap; it runs on every uncached scoped resolve. Set once at
+    /// construction: the resolve cache does not key on it.
+    /// </summary>
+    public Func<string, bool> IsScopeLockedPath { get; init; } = DefaultIsScopeLockedPath;
 
     /// <summary>
     /// Resolves a game-relative path to a full disk path.
@@ -847,7 +858,7 @@ public class GameAssetResolver
         bool toggleVanillaOverridesBsa, bool toggleVanillaOverridesModLoose,
         bool toggleLoadOrderFallback)
     {
-        bool isFaceGen = IsFaceGenPath(normalized);
+        bool isFaceGen = IsScopeLockedPath(normalized); // the FaceGen tree by default
 
         // Toggle 2 fast-path: vanilla loose preempts mod-folder loose for
         // non-FaceGen assets. Lets the user's installed body / skin /

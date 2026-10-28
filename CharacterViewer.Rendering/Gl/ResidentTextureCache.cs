@@ -85,6 +85,33 @@ public sealed class ResidentTextureCache : IDisposable
     public long CurrentBytes => _currentBytes;
     public int Count => _map.Count;
 
+    // Read-only telemetry, for hosts that measure the cache. None of these touch GL or the LRU order.
+
+    /// <summary>Bytes held in the protected (re-hit) segment; the rest of <see cref="CurrentBytes"/> is probation.</summary>
+    public long ProtectedBytes => _protectedBytes;
+    /// <summary>Render passes begun so far (<see cref="BeginRenderPass"/>); entries used this pass are never evicted.</summary>
+    public long Epoch => _epoch;
+    /// <summary>Upper bound for the dynamic budget, lowered by <see cref="ReduceBudgetAfterOom"/>.</summary>
+    public long OomCeilingBytes => _oomCeilingBytes;
+    /// <summary>The host-pinned budget passed to the constructor, or null when the budget tracks VRAM.</summary>
+    public long? OverrideBudgetBytes => _overrideBudgetBytes;
+    /// <summary>True when the driver reports free VRAM, so the budget can track it.</summary>
+    public bool VramQueryAvailable => _vramQueryAvailable;
+    /// <summary>Total VRAM in bytes as reported by the driver; 0 when unknown.</summary>
+    public long TotalVramBytes => _totalVramBytes;
+    /// <summary>Render passes since the budget was last re-polled (re-polled every 16 passes).</summary>
+    public int RendersSinceRepoll => _rendersSinceRepoll;
+
+    /// <summary>The GL handle resident for <paramref name="diskPath"/>, without marking it used (unlike
+    /// <see cref="TryGet"/>). False when the path isn't resident.</summary>
+    public bool TryPeek(string? diskPath, out int handle)
+    {
+        handle = 0;
+        if (string.IsNullOrEmpty(diskPath) || !_map.TryGetValue(diskPath, out var entry)) return false;
+        handle = entry.Handle;
+        return true;
+    }
+
     /// <param name="overrideBudgetBytes">Host pin; null = auto-size and track VRAM.</param>
     /// <param name="logGate">Optional gate for the verbose per-hit/add/evict trace.</param>
     public ResidentTextureCache(ICharacterViewerLogger? logger, long? overrideBudgetBytes = null,

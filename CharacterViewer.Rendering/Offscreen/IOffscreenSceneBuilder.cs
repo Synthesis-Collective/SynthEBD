@@ -22,6 +22,13 @@ public interface IOffscreenSceneBuilder
     /// thread-pool worker with the request's asset scopes already pushed; failures are swallowed.
     /// </summary>
     void Prewarm(OffscreenRenderRequest request, CancellationToken cancellation) { }
+
+    /// <summary>
+    /// Optional: drop the builder's own CPU-side caches. Called on the render thread by
+    /// <see cref="IOffscreenRenderer.InvalidateCaches"/>, after the resident GL textures are cleared
+    /// and before the renderer clears its <see cref="AssetCache"/> and the resolver's resolve cache.
+    /// </summary>
+    void InvalidateCaches() { }
 }
 
 /// <summary>A built offscreen scene: the renderer that draws it and the camera to draw from.</summary>
