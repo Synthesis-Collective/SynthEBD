@@ -8,8 +8,7 @@ namespace SkyRender;
 /// works in disk paths only — no Mutagen archive types leak into the viewer
 /// subsystem — so other host apps can implement it against their own BSA stack.
 ///
-/// A host adapts <see cref="BSAHandler"/> behind this interface
-///.
+/// A host adapts its own BSA reader behind this interface.
 /// </summary>
 public interface IBsaArchiveProvider
 {
@@ -32,8 +31,7 @@ public interface IBsaArchiveProvider
     /// receives the absolute path of the BSA.
     ///
     /// <para>Used by <see cref="GameAssetResolver"/> to implement
-    /// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/> /
-    /// <see cref="VM_CharacterViewer.AdditionalScopes"/> — strict
+    /// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/> — strict
     /// per-folder-per-mod BSA scoping so the active mod's archives win
     /// over vanilla even when both ship the same relative path (e.g.
     /// override FaceGen NIFs at <c>meshes\…\FaceGenData\FaceGeom\Skyrim.esm\…nif</c>).</para>

@@ -27,14 +27,25 @@ public class GlTextureManager : IDisposable
             bytes, readMs, uploadMs, _previewCache.TotalDecodeCalls, _previewCache.TotalDecodedBytes,
             fileReadMs, parseMs, decodeLookupMs);
         _uploadDiagnostics.Add(item);
-        if ((_logGate?.Verbose ?? false) || Environment.GetEnvironmentVariable("CVR_DDS_DIAGNOSTICS") == "1")
+        if ((_logGate?.Verbose ?? false) || DdsDiagnosticsEnabled())
             _logger.LogMessage("[DdsUpload] " + System.Text.Json.JsonSerializer.Serialize(item));
     }
+
+    /// <summary>Environment variable that, set to "1", logs every DDS upload and the loaded assembly.</summary>
+    public const string DdsDiagnosticsEnvironmentVariable = "SKYRENDER_DDS_DIAGNOSTICS";
+
+    /// <summary>Former name of <see cref="DdsDiagnosticsEnvironmentVariable"/>, still honoured
+    /// when the new variable is unset.</summary>
+    public const string LegacyDdsDiagnosticsEnvironmentVariable = "CVR_DDS_DIAGNOSTICS";
+
+    private static bool DdsDiagnosticsEnabled() =>
+        (Environment.GetEnvironmentVariable(DdsDiagnosticsEnvironmentVariable)
+            ?? Environment.GetEnvironmentVariable(LegacyDdsDiagnosticsEnvironmentVariable)) == "1";
     private readonly AssetCache _previewCache;
     private readonly IRenderLogger _logger;
     // Gate for the verbose per-texture resolution trace (game path -> disk path ->
     // resident-hit/upload/missing + GL handle). Off by default; the host's
-    // "Verbose Log" toggle / force-regen _Mugshot.txt flips it on so a poisoned
+    // verbose-log toggle flips it on so a poisoned
     // re-render's texture provenance can be diffed against a post-restart render.
     private readonly RenderLogGate? _logGate;
 
@@ -44,14 +55,14 @@ public class GlTextureManager : IDisposable
     }
     // Optional render-context-owned cache shared across renders (offscreen path).
     // When present, uploaded textures are owned by it (keyed on resolved disk
-    // path) and survive between renders rather than being deleted with this VM.
-    // Null for the live preview, which keeps strictly per-VM texture ownership.
+    // path) and survive between renders rather than being deleted with this manager.
+    // Null for the live preview, which keeps strictly per-manager texture ownership.
     private readonly ResidentTextureCache? _resident;
-    // Per-VM game-path -> handle map. Dedupes repeated requests within a single
+    // Per-manager game-path -> handle map. Dedupes repeated requests within a single
     // render and, when a resident cache is in play, caches the resolved resident
     // handle so re-lookups this render skip the disk-path resolve.
     private readonly Dictionary<string, int> _textureCache = new(StringComparer.OrdinalIgnoreCase);
-    // Handles OWNED BY THIS VM (deleted on Dispose/ClearCache). Resident-cache
+    // Handles OWNED BY THIS MANAGER (deleted on Dispose/ClearCache). Resident-cache
     // handles are deliberately NOT added here — the resident cache owns them.
     private readonly List<int> _allTextures = new();
 
@@ -72,8 +83,7 @@ public class GlTextureManager : IDisposable
 
     // Game-paths that LoadTexture was asked for but couldn't decode (resolver
     // returned no on-disk file, or the DDS load itself failed). Cleared by
-    // the host (VM_CharacterViewer) at the start of each scene load and
-    // surfaced after load via VM_CharacterViewer.MissingTexturePaths so
+    // the host at the start of each scene load and surfaced afterwards, so
     // hosts can flag the affected shapes (rendered as wireframe instead of
     // a flat-white billboard) and list the unresolved texture paths in a
     // tooltip. Path comparison is case-insensitive (Skyrim assets routinely
@@ -82,16 +92,15 @@ public class GlTextureManager : IDisposable
     public IReadOnlyCollection<string> MissingTexturePaths => _missingTexturePaths;
 
     /// <summary>Resets the per-load missing-texture diagnostics.
-    /// Called by <see cref="VM_CharacterViewer.LoadAsync"/> alongside
-    /// <see cref="VM_CharacterViewer.MissingMeshPaths"/>.</summary>
+    /// Call at the start of each scene load.</summary>
     public void ClearMissingTexturePaths() => _missingTexturePaths.Clear();
 
     /// <summary>A 1x1 white texture used as a fallback when no texture is available.</summary>
     public int WhiteTexture { get; private set; }
 
-    /// <summary>A 1x1 neutral beige skin diffuse, for a replacement body whose own textures can't be
-    /// found (see <see cref="BodyReplacement.TextureFolder"/>): the NPC's skin textures are
-    /// UV-mapped to a different body, so drawing them would scramble the skin.</summary>
+    /// <summary>A 1x1 neutral beige skin diffuse, for a substituted mesh whose own textures can't
+    /// be found: the NPC's skin textures are UV-mapped to a different mesh, so drawing them would
+    /// scramble the skin.</summary>
     public int NeutralSkinTexture { get; private set; }
 
     public GlTextureManager(AssetCache previewCache, IRenderLogger logger,
@@ -108,7 +117,7 @@ public class GlTextureManager : IDisposable
     /// </summary>
     public void Initialize()
     {
-        if (Environment.GetEnvironmentVariable("CVR_DDS_DIAGNOSTICS") == "1")
+        if (DdsDiagnosticsEnabled())
         {
             string assembly = typeof(GlTextureManager).Assembly.Location;
             string hash = string.IsNullOrEmpty(assembly) ? "bundled" :
@@ -602,8 +611,8 @@ public class GlTextureManager : IDisposable
 
     /// <summary>
     /// Drops all texture-handle references without issuing any GL calls. Mirrors
-    /// <see cref="GlRenderer.ForgetResourcesFromDeadContext"/>: when the owning UC is
-    /// recreated during navigation, the GL context that minted these texture IDs is
+    /// <see cref="GlRenderer.ForgetResourcesFromDeadContext"/>: when the owning control is
+    /// recreated, the GL context that minted these texture IDs is
     /// destroyed, so <see cref="GL.DeleteTexture(int)"/> on them in the new context is
     /// invalid. The textures themselves are reclaimed with the old context; next
     /// <see cref="Initialize"/> re-uploads into the new context.

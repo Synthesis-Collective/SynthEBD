@@ -16,7 +16,7 @@ public enum ClipPlaneMode
     /// <summary>No clipping; the whole model draws.</summary>
     None = 0,
     /// <summary>Discard everything BETWEEN the camera and the plane, so the plane
-    /// becomes the nearest visible surface (cut away the chest to look into the torso).</summary>
+    /// becomes the nearest visible surface (cut away the near side to look inside the model).</summary>
     Front = 1,
     /// <summary>Discard everything BEYOND the plane, keeping only what sits between
     /// the camera and it (isolate the near surface from the far side of the body).</summary>
@@ -80,7 +80,7 @@ public class GlRenderer : IDisposable
     private const int SsaoKernelSize = 16;
     private const int SsaoNoiseSize = 4;
 
-    // Bloom post-process (off by default; gated on EnableBloom + tone-mapping).
+    // Bloom post-process (on by default; gated on EnableBloom + tone-mapping).
     // _bloomSceneTex receives the resolved scene color (MSAA-blit from the
     // bound draw FBO); A/B are full-res Rgba8 ping-pong targets for the
     // bright-pass + separable Gaussian. Reuses _ssaoFullscreenVao + the
@@ -103,9 +103,9 @@ public class GlRenderer : IDisposable
     // primitive parallel to the solid triangles, but with a per-vertex color
     // attribute (location 2) so each vertex carries its own colour. Uses its own VAO (9-float stride:
     // pos.xyz + normal.xyz + color.rgb) and an unlit shader. See DrawOverlayVertexColorTriangles.
-    private GlShaderProgram? _heatmapShader;
-    private int _heatmapVao;
-    private int _heatmapVbo;
+    private GlShaderProgram? _vertexColorShader;
+    private int _vertexColorVao;
+    private int _vertexColorVbo;
 
     private readonly List<GlMesh> _meshes = new();
 
@@ -129,7 +129,7 @@ public class GlRenderer : IDisposable
     /// <summary>Color used for shapes flagged as
     /// <see cref="GlMesh.RenderAsWireframeFallback"/> (alpha shapes whose
     /// diffuse couldn't be decoded). Default green — distinct from the
-    /// teal morph-tool-classifier wireframe color so the two overlays
+    /// default overlay WireframeColor so the two overlays
     /// don't blur together when both are active on the same scene.</summary>
     public Vector3 MissingTextureWireframeColor { get; set; } = new Vector3(0.0f, 1.0f, 0.0f);
 
@@ -154,8 +154,8 @@ public class GlRenderer : IDisposable
 
     // --- Hair-shadow troubleshooting toggles (A/B/C) ---
     // Three independent mitigations for the "brow ridge" artifact bangs cast
-    // onto the forehead. Diagnostic knobs surfaced in the Shader
-    // Troubleshooting UI so the winning approach can be picked by eye; all
+    // onto the forehead. Diagnostic knobs a host can expose to compare
+    // approaches, so the winning one can be picked by eye; all
     // default OFF (current behavior). Read each frame.
 
     /// <summary>Strategy A: when true, hair (IsHairTintShader) shapes are
@@ -218,7 +218,7 @@ public class GlRenderer : IDisposable
 
     /// <summary>Max view-space gap (world units) between a hair/beard fragment
     /// and the opaque surface behind it for the screen-space AO to still apply
-    /// to the hair (2.5.20+). The SSAO depth prepass excludes alpha-tested and
+    /// to the hair. The SSAO depth prepass excludes alpha-tested and
     /// alpha-blended geometry, so the AO texel under a hair fragment always
     /// belongs to whatever opaque surface sits behind the strands (face, neck,
     /// collar). When that surface is close (hairline on the scalp, beard on
@@ -228,7 +228,7 @@ public class GlRenderer : IDisposable
     /// to unoccluded. Fade is smooth from the gap value to 2x the gap.</summary>
     public float SsaoHairGap { get; set; } = 0.8f;
 
-    /// <summary>Eye catch-light toggle (2.5.13+). When true, basic.frag
+    /// <summary>Eye catch-light toggle. When true, basic.frag
     /// adds a tight high-glossiness specular spot from the key light
     /// for shapes flagged <see cref="GlMesh.IsEye"/>.</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
@@ -284,10 +284,10 @@ public class GlRenderer : IDisposable
     /// on. 0 = no visible glow; higher = stronger. Read each frame.</summary>
     public float BloomIntensity { get; set; } = 0.7f;
 
-    /// <summary>SSS strength multiplier (2.5.14+). 0 disables the
+    /// <summary>SSS strength multiplier. 0 disables the
     /// corrected SSS pipeline (matches pre-2.5.14 visual when paired
     /// with the v5 stamped hash). 1.0 = honest SSS at source rolloff
-    /// values. Higher = more pronounced warm-flesh look.</summary>
+    /// values. Higher = warmer, more pronounced skin look.</summary>
     public float SubsurfaceStrength { get; set; } = 0f;
 
     /// <summary>Skin-only saturation multiplier applied post-tint,
@@ -297,7 +297,7 @@ public class GlRenderer : IDisposable
     /// race-distinguishing skin character toward neutral.</summary>
     public float SkinSaturationBoost { get; set; } = 1.0f;
 
-    /// <summary>Vignette inner radius in NDC units (2.5.15+). The
+    /// <summary>Vignette inner radius in NDC units. The
     /// circular zone of distance &lt;= radius from screen center is
     /// unaffected; falloff smoothsteps from this radius out to the
     /// corner (sqrt(2)). Lower = vignette closes in toward center;
@@ -306,13 +306,13 @@ public class GlRenderer : IDisposable
     /// untouched when tone-mapping is off.</summary>
     public float VignetteRadius { get; set; } = 0.7f;
 
-    /// <summary>Vignette darkening strength (2.5.15+). 0 = off (no
+    /// <summary>Vignette darkening strength. 0 = off (no
     /// vignette darkening anywhere); 1.0 = corners go to black. The
     /// pre-2.5.15 hardcoded behavior is approximately reproduced by
     /// Radius=0.7, Intensity=0.3.</summary>
     public float VignetteIntensity { get; set; } = 0f;
 
-    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// <summary>Tone-map exposure multiplier. 1.0 = neutral
     /// (legacy hardcoded look); &gt;1 brightens, &lt;1 darkens. Scales the
     /// linear color into the ACES curve. Folded under the tone-mapping
     /// path in basic.frag, so it only takes effect when tone-mapping is
@@ -322,10 +322,9 @@ public class GlRenderer : IDisposable
     // ── Skin-tint debug toggles (interactive, runtime-flippable) ─────
     // Promoted from shader-side const to renderer property so the
     // operator can be flipped at runtime without re-loading the scene
-    // or recompiling the shader. The user changes the operator from the
-    // CharacterViewerRenderPanel and we push it as a uniform every
-    // application so the user can flip operators at runtime and
-    // visually compare against in-game / NifSkope.
+    // or recompiling the shader. Hosts can change the operator at runtime;
+    // we push it as a uniform every frame so operators can be flipped and
+    // visually compared against in-game / NifSkope.
     /// <summary>When true, ShaderType==4 face shapes also receive the
     /// QNAM tint (currently only ShaderType==5 body shapes do). Useful
     /// for testing the "engine applies QNAM to both face and body"
@@ -401,8 +400,8 @@ public class GlRenderer : IDisposable
     /// substituted at load time, exercising the detail-map blend with
     /// the standard Bethesda CK fallback (mid-grey). Tests whether the
     /// engine substitutes a default detail texture when slot 3 is empty.
-    /// Changing this toggle fires <see cref="VM_CharacterViewer.ReloadRequested"/>
-    /// because texture binding is decided at scene-build time.</summary>
+    /// Changing this toggle requires a scene reload, because texture binding
+    /// is decided at scene-build time.</summary>
     public bool UseBlankDetailFallback { get; set; } = false;
 
     /// <summary>Whether this context honors glLineWidth &gt; 1 (probed once in <see cref="Initialize"/>).
@@ -578,13 +577,13 @@ public class GlRenderer : IDisposable
     /// own shader bound, so draw it after the pass's debug-shader primitives.</summary>
     public void DrawOverlayVertexColorTriangles(List<float> triangles, in OverlayContext ctx)
     {
-        if (_heatmapShader == null) return;
+        if (_vertexColorShader == null) return;
         int floats = triangles.Count;
         if (floats < 27) return; // need at least one triangle (3 verts * 9 floats)
 
         var src = triangles;
-        var buf = _heatmapScratch;
-        if (buf == null || buf.Length < floats) buf = _heatmapScratch = new float[floats];
+        var buf = _vertexColorScratch;
+        if (buf == null || buf.Length < floats) buf = _vertexColorScratch = new float[floats];
         float s = ModelScale;
         for (int i = 0; i < floats; i += 9)
         {
@@ -595,15 +594,15 @@ public class GlRenderer : IDisposable
 
         var view = ctx.View;
         var projection = ctx.Projection;
-        _heatmapShader.Use();
-        _heatmapShader.SetMatrix4("u_view", ref view);
-        _heatmapShader.SetMatrix4("u_projection", ref projection);
-        GL.BindVertexArray(_heatmapVao);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
+        _vertexColorShader.Use();
+        _vertexColorShader.SetMatrix4("u_view", ref view);
+        _vertexColorShader.SetMatrix4("u_projection", ref projection);
+        GL.BindVertexArray(_vertexColorVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _vertexColorVbo);
         GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
         GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 9);
     }
-    private float[]? _heatmapScratch;
+    private float[]? _vertexColorScratch;
 
     /// <summary>Draws a sphere of <paramref name="radius"/> (pre-ModelScale) at each position.
     /// Surface pass only. Markers whose index is in <paramref name="selectedIndices"/> draw in
@@ -864,8 +863,7 @@ public class GlRenderer : IDisposable
     /// identity value <c>(0,0,0,1)</c> is a constant +1 for every vertex, i.e. clip
     /// nothing, and is what <see cref="ClipEnabled"/>=false leaves in the uniform.
     ///
-    /// <para>Composed by the view model (<c>VM_CharacterViewer.PushClipPlaneToRenderer</c>),
-    /// not here: the axis is chosen once when the user arms Clip F / Clip B and then
+    /// <para>Composed by the host, not here: the axis is chosen once when the user arms Clip F / Clip B and then
     /// stays locked while the camera orbits, which is a UI decision the renderer has no
     /// business re-deriving per frame.</para>
     /// </summary>
@@ -876,8 +874,8 @@ public class GlRenderer : IDisposable
     /// <c>GL_CLIP_DISTANCE0</c> around the four geometry passes (main, wireframe
     /// overlay, SSAO depth prepass, shadow depth) and nothing else.
     ///
-    /// <para>Overlay gizmos — vertex-pick markers, measurement lines, region
-    /// wireframes, light arrows — are deliberately never clipped, so a pick you made
+    /// <para>Overlay gizmos — host overlay markers, lines and light arrows —
+    /// are deliberately never clipped, so a pick you made
     /// on a now-hidden surface stays visible. They already draw with depth-test off
     /// for the same reason.</para>
     /// </summary>
@@ -910,7 +908,7 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>Disables GL_CLIP_DISTANCE0 after a geometry pass, so the overlay and
-    /// full-screen post-process shaders (debug.vert, heatmap.vert, fullscreen.vert)
+    /// full-screen post-process shaders (debug.vert, vertexcolor_unlit.vert, fullscreen.vert)
     /// — none of which write gl_ClipDistance — are never reached with it on.</summary>
     private void EndClipPass()
     {
@@ -1017,8 +1015,8 @@ public class GlRenderer : IDisposable
 
         // Vertex-colour overlay shader — reads position + normal + per-vertex color
         // (locations 0/1/2) from the dedicated VAO and paints each vertex by its
-        // color unlit (see DrawOverlayVertexColorTriangles / heatmap.frag).
-        _heatmapShader = GlShaderProgram.Load(shaderDirectory, "heatmap.vert", "heatmap.frag");
+        // color unlit (see DrawOverlayVertexColorTriangles / vertexcolor_unlit.frag).
+        _vertexColorShader = GlShaderProgram.Load(shaderDirectory, "vertexcolor_unlit.vert", "vertexcolor_unlit.frag");
 
         // Wireframe shader — reads position (location 0) from the standard mesh
         // VAO and draws a flat-colored edge overlay on top of the solid mesh.
@@ -1102,19 +1100,19 @@ public class GlRenderer : IDisposable
         _wideLinesSupported = GL.GetError() != ErrorCode.InvalidValue;
         GL.LineWidth(1.0f);
 
-        // Heatmap VAO: position(3) + normal(3) + color(3) = 9 floats per vertex.
+        // Vertex-colour VAO: position(3) + normal(3) + color(3) = 9 floats per vertex.
         // The normal is carried for layout parity with the debug VAO/emit path even
-        // though heatmap.frag is unlit, so a later lit variant needs no re-plumbing.
-        _heatmapVao = GL.GenVertexArray();
-        _heatmapVbo = GL.GenBuffer();
-        GL.BindVertexArray(_heatmapVao);
-        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
-        int heatmapStride = 9 * sizeof(float);
-        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, heatmapStride, 0);
+        // though vertexcolor_unlit.frag is unlit, so a later lit variant needs no re-plumbing.
+        _vertexColorVao = GL.GenVertexArray();
+        _vertexColorVbo = GL.GenBuffer();
+        GL.BindVertexArray(_vertexColorVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _vertexColorVbo);
+        int vertexColorStride = 9 * sizeof(float);
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, vertexColorStride, 0);
         GL.EnableVertexAttribArray(0);
-        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, heatmapStride, 3 * sizeof(float));
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, vertexColorStride, 3 * sizeof(float));
         GL.EnableVertexAttribArray(1);
-        GL.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, heatmapStride, 6 * sizeof(float));
+        GL.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, vertexColorStride, 6 * sizeof(float));
         GL.EnableVertexAttribArray(2);
         GL.BindVertexArray(0);
 
@@ -1245,7 +1243,7 @@ public class GlRenderer : IDisposable
         _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
         _shader.SetFloat("u_skinSaturationBoost", SkinSaturationBoost);
         // u_screenSize is consumed by both the SSAO sample lookup AND
-        // the tone-mapping vignette (2.5.15+), so push it on every
+        // the tone-mapping vignette, so push it on every
         // frame regardless of which toggles are on.
         _shader.SetVector2("u_screenSize",
             (float)viewportWidth, (float)viewportHeight);
@@ -1414,7 +1412,7 @@ public class GlRenderer : IDisposable
         // Per-mesh src/dst blend factors honored from NiAlphaProperty.
         // The vast majority of alpha-blended actor shapes use SRC_ALPHA /
         // INV_SRC_ALPHA (standard "over" transparency), but some authored
-        // overlays -- notably the UBE-style wet-eye outer cornea -- ship
+        // overlays -- notably the replacer-style wet-eye outer cornea -- ship
         // with SRC_ALPHA / ONE (additive), so a near-black diffuse adds
         // nothing to the iris underneath while bright catchlight pixels
         // add brightness. Honoring per-mesh factors removes the need for
@@ -1454,10 +1452,10 @@ public class GlRenderer : IDisposable
         // again with depth test GREATER and no depth writes, so only their fragments that
         // lie BEHIND the depth already written (the opaque primary model) survive -- painted
         // in that flat tint, blended over the model. Back faces stay culled, so it is the
-        // mesh's own near surface that shows, not its far side. The guest overlay's
-        // Inside/Outside style uses this to show where the guest body is inside (smaller
-        // than) the primary one; HiddenSurfaceDepthBias (pulled toward the camera) is its
-        // match tolerance, keeping coincident surfaces from speckling.
+        // mesh's own near surface that shows, not its far side.
+        // A host can use this to show where one mesh lies inside another;
+        // HiddenSurfaceDepthBias (pulled toward the camera) is its match tolerance,
+        // keeping coincident surfaces from speckling.
         bool anyHiddenTint = false;
         foreach (var mesh in _meshes)
         {
@@ -1490,7 +1488,7 @@ public class GlRenderer : IDisposable
         // gl_ClipDistance[0]; DrawWireframeOverlay re-arms it for itself.
         EndClipPass();
 
-        // Bloom post-process (off by default; needs tone-mapping for a
+        // Bloom post-process (on by default; needs tone-mapping for a
         // meaningful glow). Runs on the fully composited character scene but
         // BEFORE the gizmo / marker / light-arrow overlays, so those stay
         // crisp. RenderBloom restores the bound FBO + depth/blend/sRGB state
@@ -1532,8 +1530,8 @@ public class GlRenderer : IDisposable
     /// the plane and sized from the camera's distance and vertical FOV, so it always
     /// spans the viewport without the renderer needing scene bounds. The fill is
     /// depth-tested so it composites against the model like a pane of glass, but never
-    /// writes depth (it would otherwise z-reject the marker and measurement-line
-    /// gizmos drawn after it); the border and grid draw with depth test off so the
+    /// writes depth (it would otherwise z-reject the overlay gizmos drawn after
+    /// it); the border and grid draw with depth test off so the
     /// plane stays locatable even when the model is in front of it.</para>
     /// </summary>
     private void DrawClipPlaneVisual(OrbitCamera camera, ref Matrix4 view, ref Matrix4 projection)
@@ -1939,10 +1937,6 @@ public class GlRenderer : IDisposable
             TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
     }
 
-    /// <summary>Lazily creates / resizes the depth+normal prepass FBO and
-    /// the SSAO output FBO at the current viewport size. Same lifecycle
-    /// as the host's MSAA FBO: re-allocated when the viewport size
-    /// changes, otherwise reused across renders.</summary>
     /// <summary>Deletes the viewport-sized SSAO / depth-prepass FBOs and their
     /// attachments (the resources EnsureSsaoFbos reallocates on a size change),
     /// resetting each handle to -1. Does NOT touch _ssaoNoiseTex, which is created
@@ -2043,7 +2037,7 @@ public class GlRenderer : IDisposable
         // the offscreen MSAA FBO). Capture it so we can read from / restore it.
         // Captured BEFORE EnsureBloomFbos: (re)creating the bloom FBOs leaves the
         // last one bound, and capturing after that "restored" to a bloom FBO, so the
-        // composite and every overlay draw after it (measurement lines, markers)
+        // composite and every overlay draw after it (overlay lines, markers)
         // landed off-screen. The live viewer only hit that on its first frame / a
         // resize; the offscreen renderer builds a fresh GlRenderer per render, so
         // every bloom-enabled offscreen image lost both its bloom and its overlay.
@@ -2122,6 +2116,10 @@ public class GlRenderer : IDisposable
         GL.Enable(EnableCap.FramebufferSrgb);
     }
 
+    /// <summary>Lazily creates / resizes the depth+normal prepass FBO, the
+    /// SSAO output FBO and the SSAO blur FBO at the current viewport size.
+    /// Same lifecycle as the host's MSAA FBO: re-allocated when the viewport
+    /// size changes, otherwise reused across renders.</summary>
     private void EnsureSsaoFbos(int width, int height)
     {
         if (_ssaoFboSize == (width, height) && _ssaoFbo != -1) return;
@@ -2182,10 +2180,10 @@ public class GlRenderer : IDisposable
                 "SSAO depth-prepass FBO incomplete: " + prepassStatus);
         }
 
-        // SSAO output FBO: single-channel R8 texture. basic.frag samples
-        // it with linear filtering so the inherent noisiness of the
-        // hemisphere kernel gets smoothed slightly without an explicit
-        // blur pass.
+        // SSAO output FBO: single-channel R8 texture holding the raw,
+        // noisy hemisphere-kernel result. The separate blur pass
+        // (BlurSsao) smooths it into _ssaoBlurTex, which is what
+        // basic.frag samples.
         _ssaoTex = GL.GenTexture();
         GL.BindTexture(TextureTarget.Texture2D, _ssaoTex);
         GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8,
@@ -2416,7 +2414,7 @@ public class GlRenderer : IDisposable
 
     /// <summary>
     /// Draws edges for every mesh with <see cref="GlMesh.ShowWireframe"/> set
-    /// (morph-tool classifier overlay), and for every mesh with
+    /// (host-selected overlay), and for every mesh with
     /// <see cref="GlMesh.RenderAsWireframeFallback"/> set (missing-texture
     /// placeholder — these aren't drawn by the solid passes at all). Uses
     /// polygon-mode Line with a negative polygon offset so explicit overlay
@@ -2449,8 +2447,8 @@ public class GlRenderer : IDisposable
         GL.LineWidth(1.0f);
 
         // Three color sources, in precedence order: the mesh's own
-        // WireframeColorOverride (guest overlay), else the missing-texture color
-        // for fallback shapes, else the classifier overlay color. Tracked as
+        // WireframeColorOverride, else the missing-texture color for fallback
+        // shapes, else the default overlay colour. Tracked as
         // loose floats rather than a Vector3 because GlMesh works in
         // System.Numerics while this file works in OpenTK.Mathematics — the same
         // reason every other per-mesh color reaches the shader component-wise.
@@ -3052,7 +3050,7 @@ public class GlRenderer : IDisposable
     }
 
     /// <summary>
-    /// Updates lighting from the VM's slider values.
+    /// Sets the ambient light intensity.
     /// </summary>
     public void SetAmbientIntensity(float intensity01)
     {
@@ -3121,7 +3119,7 @@ public class GlRenderer : IDisposable
             ClearMeshes();
             _shader?.Dispose();
             _debugShader?.Dispose();
-            _heatmapShader?.Dispose();
+            _vertexColorShader?.Dispose();
             _wireframeShader?.Dispose();
 
             // The shadow + SSAO shader programs, the default cubemap, the SSAO
@@ -3141,8 +3139,8 @@ public class GlRenderer : IDisposable
 
             if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
             if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
-            if (_heatmapVbo != 0) GL.DeleteBuffer(_heatmapVbo);
-            if (_heatmapVao != 0) GL.DeleteVertexArray(_heatmapVao);
+            if (_vertexColorVbo != 0) GL.DeleteBuffer(_vertexColorVbo);
+            if (_vertexColorVao != 0) GL.DeleteVertexArray(_vertexColorVao);
             if (_ssaoFullscreenVao != -1) GL.DeleteVertexArray(_ssaoFullscreenVao);
             if (_defaultBlackCubemap != -1) GL.DeleteTexture(_defaultBlackCubemap);
 
@@ -3163,7 +3161,7 @@ public class GlRenderer : IDisposable
 
     /// <summary>
     /// Drops all GL-resource references without issuing any GL calls. Used when the
-    /// owning the host's viewer control is unloaded/recreated: GLWpfControl 4.x creates a new
+    /// host's viewer control is unloaded/recreated: GLWpfControl 4.x creates a new
     /// GL context per control instance, so the shader-program ID, VAO, VBOs, and mesh
     /// buffers stored here belong to the old (now-destroyed) context. Calling
     /// <see cref="GL.DeleteBuffer(int)"/> etc. on those IDs in the new context either
@@ -3175,7 +3173,7 @@ public class GlRenderer : IDisposable
         _meshes.Clear();
         _shader = null;
         _debugShader = null;
-        _heatmapShader = null;
+        _vertexColorShader = null;
         _wireframeShader = null;
         _shadowShader = null;
         _shadowFbo = -1;
@@ -3203,8 +3201,8 @@ public class GlRenderer : IDisposable
         _bloomFboSize = (0, 0);
         _debugVao = 0;
         _debugVbo = 0;
-        _heatmapVao = 0;
-        _heatmapVbo = 0;
+        _vertexColorVao = 0;
+        _vertexColorVbo = 0;
         // Created once in Initialize() and deleted in Dispose(). It was missing here, so after a
         // context death the field kept a stale texture name: a later Dispose would then issue
         // GL.DeleteTexture on it in the NEW context, destroying whatever texture had been handed

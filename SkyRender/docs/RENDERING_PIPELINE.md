@@ -50,7 +50,8 @@ A reference for how SkyRender (and its character tier, SkyRender.Character) pars
 The default is authored-mip compressed uploads with a final-mip limit of 4
 (`DdsMipPolicy.DefaultMaximumFinalMipDimension`). `decoded` opts out to decoded
 BGRA pixels uploaded as RGBA8 with generated mips. Set
-`CVR_DDS_MAX_FINAL_MIP_DIMENSION` before constructing `AssetCache` (or the `CharacterPreviewCache` that composes one),
+`SKYRENDER_DDS_MAX_FINAL_MIP_DIMENSION` (the former `CVR_DDS_MAX_FINAL_MIP_DIMENSION` is still
+honoured as a fallback) before constructing `AssetCache` (or the `CharacterPreviewCache` that composes one),
 or initialize its nullable `DdsMaximumFinalMipDimension` property (an
 initializer overrides the environment). This bounds both dimensions of the
 **last supplied mip**, not level-zero resolution:
@@ -69,8 +70,7 @@ changing it. The former experimental `CVR_DDS_UPLOAD` switch has been removed.
 
 The compressed route **changes minification**: it uses the original DDS mip
 chain. It is not an equality-preserving performance switch, so evidence renders
-compared against decoded captures must opt out with `decoded` (a host's
-viewprobe pins it at process start for that reason). GPU-generated compressed
+compared against decoded captures must opt out with `decoded`. GPU-generated compressed
 mips also recompress filtered values and are not equivalent to the RGBA8 chain.
 
 Why it became the default (2026-10-25): the September validation measured one
@@ -78,7 +78,7 @@ light NPC whose CPU decode was ~7% of render time and found no end-to-end gain.
 On a host's real modded mugshot workload decode was ~55% of render slot time, and
 this route halved busy time (79 tiles: 50.2 s -> 24.8 s; per-NPC 1.7-2.6x)
 with a median per-image mean absolute difference of 0.6/255, concentrated on
-alpha-tested hair edges. The viewprobe scene was also faster (34.4 -> 30.3 s)
+alpha-tested hair edges. A single-scene benchmark was also faster (34.4 -> 30.3 s)
 with private bytes 8.3 -> 3.6 GB.
 
 | DDS | Authored route |
@@ -128,17 +128,12 @@ split file open/read (`ReadMs`) from header validation/allocation (`ParseMs`).
 `DecodeLookupMs` measures the decoded cache lookup and any synchronous decode;
 Pfim's existing decode timer includes its own file I/O and format parsing, which
 are not separately instrumented. Null stage fields mean unavailable, not zero.
-`CVR_DDS_DIAGNOSTICS=1` writes these and the loaded assembly path/SHA256 to the
-host logger. Hosts may still filter messages; viewprobe needs `VP_CV_VERBOSE=1`.
+`SKYRENDER_DDS_DIAGNOSTICS=1` (or the legacy `CVR_DDS_DIAGNOSTICS=1`) writes these and the loaded assembly path/SHA256 to the
+host logger. Hosts may still filter messages.
 Cache counters
 `TotalDecodeCalls`, `TotalDecodedBytes`, `CachedDecodedBytes`, and existing decode
 timers report real decoded work (including CPU consumers), not inferred savings.
-Submission time is not GPU completion time. `CharacterViewer.TextureProbe` uses
-`GL.Finish` for completed workload timings, exercises actual shader samples and
-keeps fresh, warm decoded-cache and resident GPU reuse observations separate.
-
-See the probe instructions for
-fixtures, measurement boundaries and the retained local validation report.
+Submission time is not GPU completion time.
 
 ## Pipeline overview
 
@@ -187,7 +182,7 @@ All NIF reads go through [Nif/NifMeshBuilder.cs](../src/SkyRender/Nif/NifMeshBui
 
 ### Geometry
 
-Per shape ([NifMeshBuilder.cs:589 BuildShape](../src/SkyRender/Nif/NifMeshBuilder.cs#L589)):
+Per shape (`BuildShape` in [NifMeshBuilder.cs](../src/SkyRender/Nif/NifMeshBuilder.cs)):
 
 | Data | Source | Notes |
 |---|---|---|
@@ -199,11 +194,11 @@ Per shape ([NifMeshBuilder.cs:589 BuildShape](../src/SkyRender/Nif/NifMeshBuilde
 | Bitangents | `nif.GetBitangentsForShape(shape)` | Same fallback |
 | Vertex colors | per-vertex via the shape's geometry data | Only when SLSF2_Vertex_Colors is set on the BSLSP **and** the shape actually carries vertex-color data |
 
-Coordinate space conversion: the renderer uses Y-up world space with the character facing −Z. NIFs are Z-up, so positions go through `(x, z, −y)` and normals/tangents through the same swizzle plus a re-normalization in [BuildShape](../src/SkyRender/Nif/NifMeshBuilder.cs#L589).
+Coordinate space conversion: the renderer uses Y-up world space with the character facing −Z. NIFs are Z-up, so positions go through `(x, z, −y)` and normals/tangents through the same swizzle plus a re-normalization in [BuildShape](../src/SkyRender/Nif/NifMeshBuilder.cs).
 
 ### BSLightingShaderProperty fields
 
-Read at [NifMeshBuilder.cs:809-902](../src/SkyRender/Nif/NifMeshBuilder.cs#L809) when the shape's `ShaderPropertyRef` resolves to a `BSLightingShaderProperty`. Each field is read in a `try/catch` so version-specific fields not present on older NIFs simply default rather than throwing. See [Appendix B](#appendix-b--bslightingshaderproperty-field-inventory) for the full read/ignore table.
+Read in `BuildShape` ([NifMeshBuilder.cs](../src/SkyRender/Nif/NifMeshBuilder.cs)) when the shape's `ShaderPropertyRef` resolves to a `BSLightingShaderProperty`. Each field is read in a `try/catch` so version-specific fields not present on older NIFs simply default rather than throwing. See [Appendix B](#appendix-b--bslightingshaderproperty-field-inventory) for the full read/ignore table.
 
 The fields actually consumed downstream are:
 
@@ -222,7 +217,7 @@ Fields explicitly ignored (read but not used, or not read at all) include `softl
 
 ### BSShaderTextureSet slots
 
-Read via `nif.GetTexturePathByIndex(shape, slot)` for slots 0–8 ([NifMeshBuilder.cs:782-787](../src/SkyRender/Nif/NifMeshBuilder.cs#L782)).
+Read via `nif.GetTexturePathByIndex(shape, slot)` for slots 0–8 (`BuildShape` in [NifMeshBuilder.cs](../src/SkyRender/Nif/NifMeshBuilder.cs)).
 
 | Slot | Conventional meaning | Used by renderer |
 |---|---|---|
@@ -238,17 +233,17 @@ Read via `nif.GetTexturePathByIndex(shape, slot)` for slots 0–8 ([NifMeshBuild
 
 ARMA TXST records can override slots at render time via `ResolvedNpcMeshPaths.TxstTextures[bodyPart][slot]` — applied in `VM_CharacterViewer.ApplyTexturesToGlMesh` on top of the NIF-baked path before the texture is loaded.
 
-**TXST overrides apply to skin shapes only** (`BSLSP shaderType == 5` / `ST_SkinTint`). Body / Hands / Feet NIFs can ship non-skin shapes that share the same NIF — vanilla `FemaleBody_1.nif` carries a `FemaleUnderwear` clothing shape alongside the body, hands NIFs sometimes carry fingernail accessories, etc. Those shapes share the body-slot dismember partition (32 / 33 / 37) but use a default-shader path with their own NIF-baked diffuse and normal. The ARMA TXST diffuse for the body part is *skin* (`FemaleBody_1.dds`); applying it indiscriminately to every shape in the NIF clobbers that clothing shape with skin detail it shouldn't have. Gating on shader type 5 lets multi-shape skin NIFs (some body replacers split the torso into more than one skin shape) still receive the override on every skin shape, while leaving non-skin attachments alone. Applied in two places: the install-time fold into `effectiveTextures` ([VM_CharacterViewer.cs:2758](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs#L2758)) and the post-load `ApplyTextureOverrides` target filter ([VM_CharacterViewer.cs:3334](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs#L3334), via `GlMesh.IsSkinShape`).
+**TXST overrides apply to skin shapes only** (`BSLSP shaderType == 5` / `ST_SkinTint`). Body / Hands / Feet NIFs can ship non-skin shapes that share the same NIF — vanilla body NIFs carry a separate clothing shape alongside the skin, hands NIFs sometimes carry fingernail accessories, etc. Those shapes share the body-slot dismember partition (32 / 33 / 37) but use a default-shader path with their own NIF-baked diffuse and normal. The ARMA TXST diffuse for the body part is *skin* (`FemaleBody_1.dds`); applying it indiscriminately to every shape in the NIF clobbers that clothing shape with skin detail it shouldn't have. Gating on shader type 5 lets multi-shape skin NIFs (some body meshes split the torso into more than one skin shape) still receive the override on every skin shape, while leaving non-skin attachments alone. Applied in two places: the install-time fold into `effectiveTextures` (`InstallOneShapeTextures` in [VM_CharacterViewer.cs](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs)) and the post-load `ApplyTextureOverrides` target filter (`ApplyTextureOverrides` in [VM_CharacterViewer.cs](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs), via `GlMesh.IsSkinShape`).
 
 ### NiAlphaProperty
 
-Per shape that has an `AlphaPropertyRef` ([NifMeshBuilder.cs:962-991](../src/SkyRender/Nif/NifMeshBuilder.cs#L962)):
+Per shape that has an `AlphaPropertyRef` (`BuildShape` in [NifMeshBuilder.cs](../src/SkyRender/Nif/NifMeshBuilder.cs)):
 
 - `flags & 0x0200` → `HasAlphaTest` — gates the `discard` in the fragment shader.
 - `flags & 0x0001` → `HasAlphaBlend` — host enables `GL_BLEND` and disables depth write for the shape.
 - `threshold / 255.0f` → `AlphaThreshold` — drives the `discard` cutoff.
 
-`SrcBlend` (bits 1-4) and `DstBlend` (bits 5-8) enums in the alpha-property flags are honored per-mesh. NifMeshBuilder extracts the indices, BuiltMesh / GlMesh carry them through to the renderer, and Pass 2 calls `glBlendFunc` per-mesh via a Bethesda-enum → OpenTK `BlendingFactor` mapping in [GlRenderer.cs](../src/SkyRender/Gl/GlRenderer.cs). The vast majority of actor alpha-blended shapes use `SRC_ALPHA / INV_SRC_ALPHA` (standard "over" transparency); the notable exception is the UBE-style wet-eye outer cornea, which ships `SRC_ALPHA / ONE` (additive) so a near-black cornea adds nothing to the iris underneath while bright catchlight pixels add brightness. Honoring the per-mesh factors is what removes the need for any special-case shader logic to render the cornea correctly.
+`SrcBlend` (bits 1-4) and `DstBlend` (bits 5-8) enums in the alpha-property flags are honored per-mesh. NifMeshBuilder extracts the indices, BuiltMesh / GlMesh carry them through to the renderer, and Pass 2 calls `glBlendFunc` per-mesh via a Bethesda-enum → OpenTK `BlendingFactor` mapping in [GlRenderer.cs](../src/SkyRender/Gl/GlRenderer.cs). The vast majority of actor alpha-blended shapes use `SRC_ALPHA / INV_SRC_ALPHA` (standard "over" transparency); the notable exception is the replacer-style wet-eye outer cornea, which ships `SRC_ALPHA / ONE` (additive) so a near-black cornea adds nothing to the iris underneath while bright catchlight pixels add brightness. Honoring the per-mesh factors is what removes the need for any special-case shader logic to render the cornea correctly.
 
 #### `HasAlphaTest` is suppressed for `ShaderType == 4` face shapes
 
@@ -262,7 +257,7 @@ Suppressing the discard at `ShaderType == 4` produces output that empirically ma
 
 ### Skinning
 
-CPU-side, in [TryApplyCpuSkinning](../src/SkyRender/Nif/NifMeshBuilder.cs#L1380). For each bone the shape weights to:
+CPU-side, in [TryApplyCpuSkinning](../src/SkyRender/Nif/NifMeshBuilder.cs). For each bone the shape weights to:
 
 1. Read the bone name list (`nif.GetShapeBoneList`).
 2. Get the inverse bind-pose transform from the **shape NIF** (`nif.GetShapeBoneTransform(shape, i, ...)`).
@@ -288,7 +283,7 @@ Offscreen renders have no deformation field: A host applies one from `NpcRenderR
 
 `SceneCleared` (from `ClearScene`) and `GlContextReset` tell a host when per-scene data it derived (e.g. files next to the body NIF) must be dropped. `SkinningInfo.BoneTransforms` and `CachedSkinTransform` are public so a host can reproduce the deform-then-skin result without the viewer (`SkinOffset` skins an offset once).
 
-What a deformation does (for example slider morphs read from a sibling `.tri` or other per-body data, with any editing tools built on top) is entirely the host's.
+What a deformation does (for example per-body morph data, with any editing tools built on top) is entirely the host's.
 
 ### Parse cost & performance
 
@@ -296,7 +291,7 @@ Parsing the per-NPC NIFs is the dominant CPU cost of generating a mugshot, so th
 
 - **Parse cache** ([NifMeshBuilder.cs](../src/SkyRender/Nif/NifMeshBuilder.cs) `BuildFromFile`): keyed on `(nifPath, nifMTime, skeletonPath, skelMTime, bipedBodyPart)`, holds cloned `BuiltMesh` snapshots. Shared body parts (`Body`/`Hands`/`Feet`/`Hair`/`Tail`) are LRU-**protected**; the per-NPC FaceGen head and null-part attire/outfit meshes are evicted first (they're one-shot). Measured hit rate ≈ 81% on a ~94-NPC mod.
 - **Prewarm offload** ([GameWindowOffscreenRenderer.cs](../src/SkyRender/Offscreen/GameWindowOffscreenRenderer.cs) `PrewarmAsync` → `NpcSceneBuilder.Prewarm` → `CharacterPreviewCache.PrewarmNpc`): the GL-free parse + DDS decode run on a thread-pool worker ahead of the single GL render thread, so by the time a tile renders it hits warm caches and the render thread pays only GL upload + draw + readback. After a full prewarm the render thread's own `parseMs` is ≈ 0; the parse cost lives on the workers.
-- **Interactive prewarm** ([VM_CharacterViewer.cs](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs) `PrewarmIdentityAsync` -> `CharacterPreviewCache.PrewarmNpc`): the same offload, reached from the live viewer instead of the offscreen batch path, for hosts that know which NPC they will show next while the user is still looking at the current one. It resolves mesh paths and runs the GL-free parse + decode on the thread pool and **does not touch the committed scene** - no `StatusText`, no `IsLoading`, no cancellation of an in-flight load - so it can cost time but never changes what is rendered. It no-ops when the identity is already the loaded one, swallows its own failures (a miss just loads lazily as before), and takes a caller-owned `CancellationToken` because a stale prediction competing for I/O with the load the user actually asked for is worse than no prefetch. A host reaches it through its own wrapper around `PrewarmIdentityAsync`; its first consumer is the Label-then-Suggest annotation queue, which warms the next queued slice's preview NPC. Because `LoadAsync` short-circuits on an unchanged identity, this only does real work when the next slice crosses a weight or gender boundary.
+- **Interactive prewarm** ([VM_CharacterViewer.cs](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs) `PrewarmIdentityAsync` -> `CharacterPreviewCache.PrewarmNpc`): the same offload, reached from the live viewer instead of the offscreen batch path, for hosts that know which NPC they will show next while the user is still looking at the current one. It resolves mesh paths and runs the GL-free parse + decode on the thread pool and **does not touch the committed scene** - no `StatusText`, no `IsLoading`, no cancellation of an in-flight load - so it can cost time but never changes what is rendered. It no-ops when the identity is already the loaded one, swallows its own failures (a miss just loads lazily as before), and takes a caller-owned `CancellationToken` because a stale prediction competing for I/O with the load the user actually asked for is worse than no prefetch.
 
 **Where the parse cost goes** (measured, prewarm-worker, ~94-NPC mod; per cache-missed part):
 
@@ -319,7 +314,7 @@ The only lever that removes this is a native bulk-copy helper (`memcpy` from the
 - **`FixedRam`** — the ratio is applied to a user-set fixed pool (`FixedCacheBudgetBytes`) instead of live free RAM, capped at each cache's ratio share of total physical RAM so an oversized pool can't exceed the machine.
 - **`Disabled`** — budget 0; caches retain nothing (a render still holds the pixels it fetched, so this is safe, just non-reusing).
 
-A host surfaces all three via General Settings (`CacheMode` / `CacheFreeRamPercent` / `CacheFixedBudgetGB`, bridged by `the host's adapter`). The 75 : 9 : 1 ratio was validated against a host's `CacheRatioMeasurementDiagnostic` (50 diverse NPCs, prewarm path); revisit if the mesh count cap or texture resolutions change materially.
+A host can expose these three settings to its users. The 75 : 9 : 1 ratio was validated against a 50-NPC prewarm measurement (diverse NPCs, prewarm path); revisit if the mesh count cap or texture resolutions change materially.
 
 ### Caches, settings and host seams
 
@@ -362,7 +357,7 @@ Head / Hair / Tail body parts are intentionally exempt. The reasoning is empiric
 
 #### Survey findings (shape filtering)
 
-A diagnostic batch run (`MeshSurveyRunner` in a host's host code) walked one NPC per enabled appearance mod with a non-empty mod folder — 250 NPCs / 2,943 shapes total — and emitted per-shape metadata to CSV. Notable observations:
+A diagnostic batch run walked one NPC per enabled appearance mod with a non-empty mod folder — 250 NPCs / 2,943 shapes total — and emitted per-shape metadata to CSV. Notable observations:
 
 | Body part | Distinct partition lists observed |
 |---|---|
@@ -370,21 +365,16 @@ A diagnostic batch run (`MeshSurveyRunner` in a host's host code) walked one NPC
 | `Hands` | `[33]` (233×), `[33;33]` (16×) |
 | `Feet` | `[37]` (249×) |
 
-Every Body shape carries partition 32. Every Hands shape carries 33. Every Feet shape carries 37. **The biped-slot filter dropped zero shapes across the corpus** — no false positives in adult NPCs.
+Every Body shape carries partition 32. Every Hands shape carries 33. Every Feet shape carries 37. **The biped-slot filter dropped zero shapes across the corpus** — no false positives across the sampled NPCs.
 
 For Head shapes the partition picture is much messier:
 
-- **58 face accessories carry partition `[32]`** (the body slot) despite being mouth, brows, eyes, lashes, or eyeshadow inside the FaceGen NIF — `FemaleMouthHumanoidDefault`, `KWA_FemaleBrows`, `KWA_FemaleEyesHuman`, `0EyeShadow`, etc. Either an authoring copy-paste or a Bethesda-tools default; either way, partition values do not predict shape role here.
+- **58 face accessories carry partition `[32]`** (the body slot) despite being mouth, brows, eyes, lashes, or eyeshadow inside the FaceGen NIF — `FemaleMouthHumanoidDefault` and a number of custom face-accessory shapes. Either an authoring copy-paste or a Bethesda-tools default; either way, partition values do not predict shape role here.
 - 5 Hair NIF shapes carry `[32]`. 2 Tail NIF shapes carry `[32]`. 1 Tail shape carries `[37]`.
 
 These are the empirical reason Head / Hair / Tail are exempt from the biped-slot filter — adding them would cull legitimate face accessories.
 
-For primary-head election, all 252 parseable FaceGen NIFs elected exactly one primary head, and none elected outside a `BSFaceGenNiNodeSkinned`-bearing NIF. Four primary-head shapes have names that do not contain "head":
-
-- `DK_Thogra_Face` (Orc follower)
-- `0FoamimiHPHMaleHumanCore` (Glenmoril overhaul)
-- `MiraiHPHFace`
-- `_000SamathaF1Face`
+For primary-head election, all 252 parseable FaceGen NIFs elected exactly one primary head, and none elected outside a `BSFaceGenNiNodeSkinned`-bearing NIF. Four primary-head shapes, all custom follower/overhaul head shapes, have names that do not contain "head".
 
 All four carry partition 230 and were elected via the partition-based path. A name-based detection ("shape name contains 'head'") would have missed all four — confirming partition-based detection is more robust than naming heuristics.
 
@@ -410,22 +400,22 @@ The "ignore" bucket is large because most SLSF1/SLSF2 bits exist for engine path
 
 The host can mutate a loaded scene through two **neutral, replace-on-reapply** channels on `VM_CharacterViewer`. Both queue while a load/rebuild is in flight and drain in `ProcessPendingScene` once the scene commits (so a host can fire them right after `LoadAsync` returns without awaiting the GL install).
 
-**`ApplyTextureOverrides(IEnumerable<TextureOverride>)`** — retargets texture slots (0/1/2/3/7) on existing skin shapes. Each `TextureOverride(bodyPart, slot, gameRelativePath)` routes to `Renderer.Meshes.Where(m => m.BodyPart == bodyPart && m.IsSkinShape)` (Head routes only to the primary head shape). The host determines `bodyPart`/`slot` by resolving its config destination path against the actual record — see "Host-side destination resolution" below — not by string-matching; `slot` comes from the terminal texture-set property (`ParseTextureSlot`). Slot 3 (facegen detail — a config routing to `HeadTexture.Height.GivenPath`) replaces the head's complexion/dirt detail map; if the override file doesn't resolve, the mesh's current slot-3 state is kept rather than binding the white fallback (same rationale as the [missing detail-map demotion](#detail-map-face)).
+**`ApplyTextureOverrides(IEnumerable<TextureOverride>)`** — retargets texture slots (0/1/2/3/7) on existing skin shapes. Each `TextureOverride(bodyPart, slot, gameRelativePath)` routes to `Renderer.Meshes.Where(m => m.BodyPart == bodyPart && m.IsSkinShape)` (Head routes only to the primary head shape). The host determines `bodyPart`/`slot` from its own record data. Slot 3 (facegen detail) replaces the head's complexion/dirt detail map; if the override file doesn't resolve, the mesh's current slot-3 state is kept rather than binding the white fallback (same rationale as the [missing detail-map demotion](#detail-map-face)).
 
-*Per-shape (worn-armor `AlternateTextures`).* A `TextureOverride` may carry an optional `ShapeName`. When set, it targets **only** the shape whose NIF geometry node name equals it — `Renderer.Meshes.Where(m => m.BodyPart == bodyPart && m.ShapeName == ShapeName)` — ignoring the skin-shape gate (an alternate texture can retexture a non-skin sub-shape). This is the **base-body** counterpart to the mesh-override `ShapeTextures` channel below: a worn-armor `AlternateTextures` (MODS) entry retextures one named sub-shape of a body NIF that a replacer split into several distinctly-named shapes, and the base body is rendered directly, not as a mesh override, so it needs this path rather than `MeshOverride.ShapeTextures`. Shape-named overrides are applied **after** the flat body-wide ones (stable `OrderBy` on `ShapeName` emptiness) so the more specific per-shape texture wins on its shape when a config carries both for the same slot. **Index vs. Name:** the alternate texture's `Index` field is *not* the NIF shape enumeration order (a `[Index == 1]` entry named `BodyShapeB` can be the third geometry in the file), so the host must resolve the entry's `Name` — the target 3D object name — from the record template (a host does this in `SubgroupTextureMapper` via `RecordPathParser.GetObjectAtPath`, walking the `AlternateTextures[…]` destination against the pack's record-template NPC) and pass that here; matching by geometry index alone would texture the wrong shape. The mesh-override channel's `MeshOverride.AlternateTextures` handles the same two-field problem from the other side: it carries **both** the entry's 3D Name and 3D Index, matches by name first, and only entries whose name matches *no* shape of the mesh fall back to index matching (`AlternateTextureMatching`) — because morph-tool/Outfit Studio rebuilds **rename** shapes while keeping their order (name goes stale, index stays good; the engine keys on the index, so the variant renders in game but was lost here — the “black skirt” bug), while block-sorting tools desync the index but keep names good. Renamers keep order and re-sorters keep names, so name-first + dangling-only index fallback covers both.
+*Per-shape (worn-armor `AlternateTextures`).* A `TextureOverride` may carry an optional `ShapeName`. When set, it targets **only** the shape whose NIF geometry node name equals it — `Renderer.Meshes.Where(m => m.BodyPart == bodyPart && m.ShapeName == ShapeName)` — ignoring the skin-shape gate (an alternate texture can retexture a non-skin sub-shape). This is the **base-body** counterpart to the mesh-override `ShapeTextures` channel below: a worn-armor `AlternateTextures` (MODS) entry retextures one named sub-shape of a body NIF that a replacer split into several distinctly-named shapes, and the base body is rendered directly, not as a mesh override, so it needs this path rather than `MeshOverride.ShapeTextures`. Shape-named overrides are applied **after** the flat body-wide ones (stable `OrderBy` on `ShapeName` emptiness) so the more specific per-shape texture wins on its shape when a config carries both for the same slot. **Index vs. Name:** the alternate texture's `Index` field is *not* the NIF shape enumeration order (a `[Index == 1]` entry named `BodyShapeB` can be the third geometry in the file), so the host must resolve the entry's `Name` — the target 3D object name — from the record template and pass that here; matching by geometry index alone would texture the wrong shape. The mesh-override channel's `MeshOverride.AlternateTextures` handles the same two-field problem from the other side: it carries **both** the entry's 3D Name and 3D Index, matches by name first, and only entries whose name matches *no* shape of the mesh fall back to index matching (`AlternateTextureMatching`) — because mesh-editor rebuilds **rename** shapes while keeping their order (name goes stale, index stays good; the engine keys on the index, so the variant renders in game but was lost here — the “black skirt” bug), while block-sorting tools desync the index but keep names good. Renamers keep order and re-sorters keep names, so name-first + dangling-only index fallback covers both.
 
-**`ApplyMeshOverrides(IEnumerable<MeshOverride>)`** — *synthesizes* extra renderable shapes from `.nif` files the base NPC doesn't carry. The first consumer is an auxiliary armature on a non-base biped slot (e.g. slot 52, `(BipedObjectFlag)4194304`) that some mods add to the actor **at runtime by script** — it is never in the static `WornArmor` the resolver walks, so its mesh lives only in the selected asset-pack subgroup's `WorldModel.<gender>.File`. The same channel later serves a host's "Include Default Outfit" / "Include headgear".
+**`ApplyMeshOverrides(IEnumerable<MeshOverride>)`** — *synthesizes* extra renderable shapes from `.nif` files the base NPC doesn't carry. The first consumer is an auxiliary armature on a non-base biped slot (e.g. slot 52, `(BipedObjectFlag)4194304`) that some mods add to the actor **at runtime by script** — it is never in the static `WornArmor` the resolver walks, so its mesh lives only in a host-supplied model path. The same channel serves outfit and headgear previews.
 
 Per override (`MeshOverride`: `Key`, `MeshPath`, `BipedSlots`, `HidesSlots`, `Kind`, `Textures`) the channel:
 
 1. resolves `MeshPath` via `GameAssetResolver` (an auxiliary armature's NIFs are typically dependency-mod assets under `Data\meshes\…`, resolved like any other mesh — not under the config prefix);
 2. CPU-skins it to the **current scene's skeleton** (`_cachedMeshPaths.SkeletonPath`) using the same `NifMeshBuilder.BuildFromFile` path as the base meshes — skinning and skin-tint are already generic (bone weights from the NIF, tint from the NIF shader type), so no per-slot logic is needed;
-3. applies the bundled `Textures` (else the NIF's own `BSShaderTextureSet`), then folds any per-shape `AlternateTextures` (MODS) entries on top of their target shape — matched by 3D Name with a 3D-Index fallback for renamed/rebuilt meshes (see the *Per-shape* note above and `AlternateTextureMatching`); entries that bind to no shape by either key are logged, not silently dropped — a host auxiliary subgroup ships mesh + its slot's `SkinTexture.*` together, so the texture set travels *with* the mesh rather than through the texture-only channel;
+3. applies the bundled `Textures` (else the NIF's own `BSShaderTextureSet`), then folds any per-shape `AlternateTextures` (MODS) entries on top of their target shape — matched by 3D Name with a 3D-Index fallback for renamed/rebuilt meshes (see the *Per-shape* note above and `AlternateTextureMatching`); entries that bind to no shape by either key are logged, not silently dropped — an override ships its mesh and texture set together, so the texture set travels *with* the mesh rather than through the texture-only channel;
 4. tints by `Kind` default — `Skin` lets the shader decide (an auxiliary skin mesh tints with the body QNAM like any slot-32 skin shape); `Armor`/`Headgear` never take the skin QNAM tint;
 5. weight-morphs it — the override NIF is the `_1` (weight-100) variant, so its `_0` companion is loaded and `Positions`/normals are lerped at `t = NpcWeight/100` (the same `BlendWeightMorph` the base body gets). Without this the auxiliary mesh, authored to fit a weight-100 body, floats low/forward on a lower-weight NPC;
 6. registers the shape under `Key` (also used as `GlMesh.BodyPart`, so a slot's `SkinTexture.*` routed by `ApplyTextureOverrides` lands on it) with its biped slots.
 
-**Armor skin inheritance.** An armor NIF commonly bakes its own bare-skin shapes — the exposed shoulders/arms/midriff of a sleeveless cuirass, the wrists of gauntlets — as `ShaderType 5` (`ST_SkinTint`) geometry that ships a **placeholder** body diffuse (typically `MaleBody_1.dds`). When applying an `Armor`/`Headgear` override, the channel replaces that placeholder on those skin shapes with the **actor's race skin** — the same TXST the base body already resolved, reused from `_cachedMeshPaths.TxstTextures` (the `Body` set for body/forearm/calf/feet skin, the `Hands` set for hand-slot pieces). The `ShaderType == 5` gate keeps this off the armor's metal/leather shapes; a `SkinTexture` the ArmorAddon supplies itself (`MeshOverride.Textures`, from `NAM0`) takes precedence per slot. Without this, a race with a distinct body texture (e.g. Snow Elf → `MaleBodySnowElf.dds`) shows default-tan arms under armor while its face and bare body stay pale. Implemented in `VM_CharacterViewer.ApplyMeshOverrides`, mirroring the existing per-shape rule that already preserves the QNAM **skin tint** for these same baked-in armor skin shapes (revealing armors like the light Hide cuirass) — this extends that handling from tint to **texture**.
+**Armor skin inheritance.** An armor NIF commonly bakes its own bare-skin shapes — the bare arms of a sleeveless cuirass, the wrists of gauntlets — as `ShaderType 5` (`ST_SkinTint`) geometry that ships a **placeholder** body diffuse (typically `MaleBody_1.dds`). When applying an `Armor`/`Headgear` override, the channel replaces that placeholder on those skin shapes with the **actor's race skin** — the same TXST the base body already resolved, reused from `_cachedMeshPaths.TxstTextures` (the `Body` set for body/forearm/calf/feet skin, the `Hands` set for hand-slot pieces). The `ShaderType == 5` gate keeps this off the armor's metal/leather shapes; a `SkinTexture` the ArmorAddon supplies itself (`MeshOverride.Textures`, from `NAM0`) takes precedence per slot. Without this, a race with a distinct body texture (e.g. Snow Elf → `MaleBodySnowElf.dds`) shows default-tan arms under armor while its face and bare body stay pale. Implemented in `VM_CharacterViewer.ApplyMeshOverrides`, mirroring the existing per-shape rule that already preserves the QNAM **skin tint** for these same baked-in armor skin shapes (armors with exposed skin such as the Hide cuirass) — this extends that handling from tint to **texture**.
 
 > **Caveat — observed, not documented.** This rule (*an armor's skin partition is textured with the actor's race skin unless the ArmorAddon overrides it via `NAM0`*) is the **observed** in-engine result, not behavior taken from authoritative Bethesda / Creation Kit documentation. It was confirmed empirically with **Knight-Paladin Gelebor** in the Ancient Falmer cuirass: the cuirass ArmorAddon's `NAM0` skin texture is empty and the cuirass NIF references `MaleBody_1.dds`, yet in-game his arms render as pale as his face — so the only possible source for that texture is the `SnowElfRace` skin. This **contradicts a fair amount of online modding "lore"** which states that armor uses its own baked skin texture. There may be tertiary / advanced engine behavior — per-armor skin-texture swap lists (`NAM2`/`NAM3`), skin-tone interactions, race-specific armatures — that we do **not** model here, for lack of concrete documentation. If a future asset contradicts the observed rule, this is the place to revisit.
 
@@ -436,21 +426,19 @@ Per override (`MeshOverride`: `Key`, `MeshPath`, `BipedSlots`, `HidesSlots`, `Ki
 **Bone resolution → skip, or warn-but-render.** CPU-skinning resolves each weighted bone's world transform from the skeleton NIF or, failing that, the **mesh's own NIF** — actor body/armor NIFs embed copies of the bones they're weighted to, which is how the base body renders auxiliary-armature weights even on a skeleton that lacks those bones (in the field: a test body skinned 26 bones, 24 from the skeleton + 2 from the body NIF, when the skeleton mod that adds the auxiliary bones was absent; the auxiliary armature's own NIF likewise embeds the full bone chain it is weighted to). `TryApplyCpuSkinning` classifies each weighted bone and surfaces two signals:
 
 - **`BuiltMesh.UnresolvedSkinBones`** — bone present in *neither* source; it keeps a zero transform and would collapse its vertices to the origin. `ApplyMeshOverrides` **skips** any shape that has one — no crash, no bind-pose collapse.
-- **`BuiltMesh.BonesAbsentFromSkeleton`** — bone present in the mesh NIF but absent from the skeleton, so it rendered via the mesh-NIF fallback. The shape still renders, but on a frame the base meshes (which DO get those bones from the skeleton) don't share, so it can be **misaligned**. This is exactly how a missing/incompatible skeleton mod manifests (an auxiliary mesh that sits slightly off the body). `ApplyMeshOverrides` renders it but adds a skeleton-compatibility warning — **except for SMP/HDT physics bones**: when the NIF links a physics XML (`NiStringExtraData "HDT Skinned Mesh Physics Object"`, surfaced as `BuiltMesh.PhysicsXmlPaths`), bones that config references (checked against the resolved XML's attribute values) legitimately exist *only* in the mesh NIF — no skeleton ships them, the physics engine animates them at runtime, and the bind-pose fallback render is exactly the authored rest pose — so they are excluded from the warning (`VM_CharacterViewer.FilterPhysicsDrivenBones`). Without this, every SMP-skirted outfit tripped a false "install XPMSSE" warning that a host persisted into the mugshot's missing-asset metadata, re-staling the tile every session. Bones the physics config does not name (e.g. genuine XPMSSE-only bones on a vanilla skeleton) still warn; an unresolvable/unreadable XML leaves all bones warned (conservative).
+- **`BuiltMesh.BonesAbsentFromSkeleton`** — bone present in the mesh NIF but absent from the skeleton, so it rendered via the mesh-NIF fallback. The shape still renders, but on a frame the base meshes (which DO get those bones from the skeleton) don't share, so it can be **misaligned**. This is exactly how a missing/incompatible skeleton mod manifests (an auxiliary mesh that sits slightly off the body). `ApplyMeshOverrides` renders it but adds a skeleton-compatibility warning — **except for SMP/HDT physics bones**: when the NIF links a physics XML (`NiStringExtraData "HDT Skinned Mesh Physics Object"`, surfaced as `BuiltMesh.PhysicsXmlPaths`), bones that config references (checked against the resolved XML's attribute values) legitimately exist *only* in the mesh NIF — no skeleton ships them, the physics engine animates them at runtime, and the bind-pose fallback render is exactly the authored rest pose — so they are excluded from the warning (`VM_CharacterViewer.FilterPhysicsDrivenBones`). Without this, every SMP-skirted outfit tripped a false "install XPMSSE" warning. Bones the physics config does not name (e.g. genuine XPMSSE-only bones on a vanilla skeleton) still warn; an unresolvable/unreadable XML leaves all bones warned (conservative).
 
-Both, plus unresolved override NIFs, are surfaced on `VM_CharacterViewer.MeshOverrideWarnings`, which a host shows as a render-preview warning line (analogous to a host's mugshot missing-asset icon) — e.g. "the loaded skeleton is missing bone(s) […]; install the skeleton these meshes require (XPMSSE / XP32 Maximum Skeleton)." The normal load path ignores both signals — its behavior is unchanged.
+Both, plus unresolved override NIFs, are surfaced on `VM_CharacterViewer.MeshOverrideWarnings`, which a host shows as a render-preview warning line — e.g. "the loaded skeleton is missing bone(s) […]; install the skeleton these meshes require (XPMSSE / XP32 Maximum Skeleton)." The normal load path ignores both signals — its behavior is unchanged.
 
 **Offscreen parity.** The same channel is available to the headless mugshot path: `NpcRenderRequest.MeshOverrides` (an `IEnumerable<MeshOverride>?`) is applied after texture overrides and before the framing/render, via the same `VM_CharacterViewer.ApplyMeshOverrides` on the per-render VM — so a saved PNG shows the auxiliary/outfit/headgear shapes (and the slot-hiding) identically to the live preview. The post-apply `MeshOverrideWarnings` are copied into the optional `OffscreenRenderRequest.MeshOverrideWarningsOut` list (parallel to `MissingMeshPathsOut` / `MissingTexturePathsOut`) so the host can flag an incomplete offscreen render the same way it flags one in the preview. Null `MeshOverrides` leaves the offscreen path byte-identical to before.
 
-**Body replacement (`BodyReplacement`).** Unlike the two channels above this is a *load-time* input, not a post-load mutation: `VM_CharacterViewer.BodyReplacement` (record `BodyReplacement(BodyNifPath, PartMeshes, TextureFolder, UsesNpcSkin)`) names a body type to show instead of the NPC's own. `LoadAsync` swaps it into the resolved paths (`ResolvedNpcMeshPaths.WithBodyReplacement`) before anything captures them, so `LoadAllMeshParts`, `_cachedMeshPaths` and the software fallback's `SceneInputsSnapshot` all see one set of part paths, and captures it as `_sceneBodyReplacement` for that load's install. The body is always swapped; hands, feet and tail are swapped when their resolved path's `BodyReplacement.PartKey` -- lower-case, no `data\`/`meshes\` prefix, no extension or `_0`/`_1` suffix, so `Actors\Character\Character Assets\FemaleHands_1.nif` becomes `actors\character\character assets\femalehands` -- is in `PartMeshes` (a body key there also wins over `BodyNifPath`). The host fills `PartMeshes` from the body type's morph-tool slider sets, whose `OutputPath\OutputFile` is exactly such a key, so the wrists and ankles join the new body instead of keeping the NPC's old hands and feet (a host: `BodyTypeSourceMeshes.CollectPartMeshes`). Head and hair stay the NPC's own. The swapped NIFs load as the ordinary `"Body"` / `"Hands"` / `"Feet"` / `"Tail"` parts, skinned to the NPC's skeleton; only the body is morphed (`_cachedBodyMeshes`). The record compares by value, `PartMeshes` contents included (`CacheKey`), and a changed or cleared replacement counts as a different scene in the same-NPC short-circuit.
+**Body replacement (`BodyReplacement`).** Unlike the two channels above this is a *load-time* input, not a post-load mutation: `VM_CharacterViewer.BodyReplacement` (record `BodyReplacement(BodyNifPath, PartMeshes, TextureFolder, UsesNpcSkin)`) names a body type to show instead of the NPC's own. `LoadAsync` swaps it into the resolved paths (`ResolvedNpcMeshPaths.WithBodyReplacement`) before anything captures them, so `LoadAllMeshParts`, `_cachedMeshPaths` and the software fallback's `SceneInputsSnapshot` all see one set of part paths, and captures it as `_sceneBodyReplacement` for that load's install. The body is always swapped; hands, feet and tail are swapped when their resolved path's `BodyReplacement.PartKey` -- lower-case, no `data\`/`meshes\` prefix, no extension or `_0`/`_1` suffix, so `Actors\Character\Character Assets\FemaleHands_1.nif` becomes `actors\character\character assets\femalehands` -- is in `PartMeshes` (a body key there also wins over `BodyNifPath`). The host fills `PartMeshes` with the replacement body's part meshes, so the wrists and ankles join the new body instead of keeping the NPC's old hands and feet. Head and hair stay the NPC's own. The swapped NIFs load as the ordinary `"Body"` / `"Hands"` / `"Feet"` / `"Tail"` parts, skinned to the NPC's skeleton; only the body is morphed (`_cachedBodyMeshes`). The record compares by value, `PartMeshes` contents included (`CacheKey`), and a changed or cleared replacement counts as a different scene in the same-NPC short-circuit.
 
-A replacement body usually has no `_0`/`_1` pair (the weight blend is then skipped) and whatever per-body data a host deformer needs is the host's to supply; a host's use of it (e.g. a morph tool's source meshes and their slider data) is the host's concern. `SceneBodyReplacement` reports the replacement the installed scene was built with.
+A replacement body usually has no `_0`/`_1` pair (the weight blend is then skipped) and whatever per-body data a host deformer needs is the host's to supply. `SceneBodyReplacement` reports the replacement the installed scene was built with.
 
-*Textures.* With a replacement, every body part's skin shapes (`ShaderType == 5` in `BodyReplacement.SkinBodyParts`: Body, Hands, Feet, Tail) take their skin from one source, whether that part's mesh was swapped or kept, so no seam opens at the wrists or ankles. The NPC's skin TXST is not applied to them: it is UV-mapped to the NPC's own body and scrambles on a different one. Instead `ResolveReplacementBodyTextures` looks up each shape's NIF-embedded texture paths under `TextureFolder` (a data-folder-like root, tried as given and with a `textures\` prefix by the public `VM_CharacterViewer.ResolveTextureUnderFolder`; a host passes the mod folder that ships the body or the skin mod the user picked, since in the merged data folder those vanilla-style paths resolve to the *installed* body's textures). A shape whose diffuse isn't found there -- or with no folder -- renders untextured in flat beige (`GlTextureManager.NeutralSkinTexture`, sRGB 222/192/168) with the NPC's QNAM skin tint off (`ApplyNeutralSkin`); a partial set is not mixed with another body's diffuse. Non-skin shapes keep their own textures as usual. The face follows too, so the neck has no seam: for the FaceGen head's face-tint skin shape (`ShaderType 4`), `ApplyReplacementHeadTextures` reads every texture slot the head NIF names -- diffuse, normal, subsurface, specular and the detail / complexion map (slot 3: `blankdetailmap.dds`, or an `age40` / `age50` / freckles complexion) -- and re-points each one whose path exists under `TextureFolder`, slot by slot; a slot the folder lacks keeps the NPC's file. Skin mods ship `femalehead.dds` / `_msn` / `_sk` / `_s` and their complexion maps as a set with the body's, and the head shares one UV layout across body mods. An NPC whose face uses its own texture paths (a follower or replacer's custom head) matches nothing and keeps them, so a seam can remain for such NPCs. The FaceGen tint is not a NIF slot and stays the NPC's. The same helper runs on the scene install, the head-only rebuild after a head-part change, and the guest overlay; neither `UsesNpcSkin` nor neutral beige touches the face. **Exception -- `UsesNpcSkin`:** every body part keeps the NPC's own TXST and QNAM tint exactly like the worn body, and `TextureFolder` is ignored -- for a replacement sharing the NPC's body's UV layout (CBBE on a game with CBBE 3BA installed; a host's Compare window sets it when its skin mapping resolves to the installed body type).
+*Textures.* With a replacement, every body part's skin shapes (`ShaderType == 5` in `BodyReplacement.SkinBodyParts`: Body, Hands, Feet, Tail) take their skin from one source, whether that part's mesh was swapped or kept, so no seam opens at the wrists or ankles. The NPC's skin TXST is not applied to them: it is UV-mapped to the NPC's own body and scrambles on a different one. Instead `ResolveReplacementBodyTextures` looks up each shape's NIF-embedded texture paths under `TextureFolder` (a data-folder-like root, tried as given and with a `textures\` prefix by the public `VM_CharacterViewer.ResolveTextureUnderFolder`; a host passes the mod folder that ships the body or the skin mod the user picked, since in the merged data folder those vanilla-style paths resolve to the *installed* body's textures). A shape whose diffuse isn't found there -- or with no folder -- renders untextured in flat beige (`GlTextureManager.NeutralSkinTexture`, sRGB 222/192/168) with the NPC's QNAM skin tint off (`ApplyNeutralSkin`); a partial set is not mixed with another body's diffuse. Non-skin shapes keep their own textures as usual. The face follows too, so the neck has no seam: for the FaceGen head's face-tint skin shape (`ShaderType 4`), `ApplyReplacementHeadTextures` reads every texture slot the head NIF names -- diffuse, normal, subsurface, specular and the detail / complexion map (slot 3: `blankdetailmap.dds`, or an `age40` / `age50` / freckles complexion) -- and re-points each one whose path exists under `TextureFolder`, slot by slot; a slot the folder lacks keeps the NPC's file. Skin mods ship `femalehead.dds` / `_msn` / `_sk` / `_s` and their complexion maps as a set with the body's, and the head shares one UV layout across body mods. An NPC whose face uses its own texture paths (a follower or replacer's custom head) matches nothing and keeps them, so a seam can remain for such NPCs. The FaceGen tint is not a NIF slot and stays the NPC's. The same helper runs on the scene install, the head-only rebuild after a head-part change, and the guest overlay; neither `UsesNpcSkin` nor neutral beige touches the face. **Exception -- `UsesNpcSkin`:** every body part keeps the NPC's own TXST and QNAM tint exactly like the worn body, and `TextureFolder` is ignored -- for a replacement sharing the NPC's body's UV layout (for example a variant of the installed body type).
 
-`LoadGuestAsync` takes the same `BodyReplacement` as an optional argument (part of its cache key, carried on `GuestSceneRequest`) and applies the same part swap and texture rule, so a superimposed guest shows its own body type. A host's consumer is the morph-tool Compare window's per-pane Body Type and Skin pickers.
-
-**Host-side destination resolution (a host).** How a host decides which `TextureOverride` / `MeshOverride` a selected subgroup produces is *not* the renderer's concern, but it's what makes the two channels above able to display **any** asset a config references. Rather than string-matching a fixed set of known destination shapes, `SubgroupTextureMapper` resolves each config destination path the way the patcher does — walking it against the pack's record-template NPC (falling back to the preview NPC) via `RecordPathParser` — and reads the target from the *actual resolved record*: the body part / biped slots come from the resolved `ArmorAddon`'s `BodyTemplate.FirstPersonFlags` (so a multi-slot armature emits one override per occupied base slot, and an auxiliary slot becomes a `Slot{n}` mesh override), the texture slot from the terminal `TextureSet` property, and a worn-armor `AlternateTextures` entry's target shape from its `Name`. A destination that doesn't resolve is skipped and logged — never mis-applied. This means a non-standard armature, a custom slot, or an armature selected by a condition that never names its slot all render correctly, where the previous substring heuristic silently dropped them.
+`LoadGuestAsync` takes the same `BodyReplacement` as an optional argument (part of its cache key, carried on `GuestSceneRequest`) and applies the same part swap and texture rule, so a superimposed guest shows its own body type.
 
 ---
 
@@ -485,7 +473,7 @@ A cutaway: one world-space plane hides either the half of the model in front of 
 
 **Hardware clipping, not `discard`.** The cut is `gl_ClipDistance[0]`, written by **four** vertex shaders — [basic.vert](../src/SkyRender/Shaders/basic.vert), [wireframe.vert](../src/SkyRender/Shaders/wireframe.vert), [depth_only.vert](../src/SkyRender/Shaders/depth_only.vert), [shadow_depth.vert](../src/SkyRender/Shaders/shadow_depth.vert) — with `GL_CLIP_DISTANCE0` scoped around each of the four geometry passes by `BeginClipPass` / `EndClipPass`. A fragment `discard` in `basic.frag` would have been a one-line change but is *wrong here*: the SSAO depth/normal prepass and the shadow depth pass are separate renders of the same geometry, so clipped-away geometry would keep casting shadow onto — and keep ambient-occluding — the surfaces the user just uncovered. `shadow_depth.vert` clips in **world** space even though its `gl_Position` is in the light's clip space, precisely so both passes drop the same triangles.
 
-> **The scoping is load-bearing, not defensive.** While `GL_CLIP_DISTANCE0` is enabled, a vertex shader that leaves `gl_ClipDistance[0]` *unwritten* yields an **undefined** clip result — not an unclipped one. `debug.vert`, `heatmap.vert` and `fullscreen.vert` never write it, so the enable must be cleared before the bloom/SSAO full-screen quads and before the overlay pass. Every `BeginClipPass` scope is verified to contain no early `return`.
+> **The scoping is load-bearing, not defensive.** While `GL_CLIP_DISTANCE0` is enabled, a vertex shader that leaves `gl_ClipDistance[0]` *unwritten* yields an **undefined** clip result — not an unclipped one. `debug.vert`, `vertexcolor_unlit.vert` and `fullscreen.vert` never write it, so the enable must be cleared before the bloom/SSAO full-screen quads and before the overlay pass. Every `BeginClipPass` scope is verified to contain no early `return`.
 
 **Overlays are never clipped.** Vertex-pick markers, measurement lines, region wireframes and light arrows keep drawing on the hidden side, for the same reason they already draw with depth test off: a pick you made on a surface you have since cut away must stay visible.
 
@@ -501,7 +489,7 @@ The viewer's right-click menu switches texture slots on and off per shape. Each 
 
 > **Diffuse off writes alpha 1.0.** An alpha-tested shape (hair cards, brows, lashes) therefore draws as solid grey sheets in the main pass, while `depth_only.frag` / `shadow_depth.frag` still cut out from the diffuse alpha regardless of the toggle — so their shadows and ambient occlusion keep the cut-out shape.
 
-**The lock.** The flags live on each mesh, so any load that builds new meshes brings every slot back on — and the host annotation queue does that on every weight change, since each weight slot has its own preview NPC. "Lock Texture Visibility" keeps the choice at the viewer level: `VM_CharacterViewer.SetTextureVisibilityLocked(true)` snapshots the scene into a `TextureVisibilityLock`, and every mesh created afterwards gets the remembered choice. It is **session-only** (never persisted: an invisible, restored "textures off" would mislead), and additive: off by default, and a host never calls it.
+**The lock.** The flags live on each mesh, so any load that builds new meshes brings every slot back on — and a host that steps through NPCs does that on every load. "Lock Texture Visibility" keeps the choice at the viewer level: `VM_CharacterViewer.SetTextureVisibilityLocked(true)` snapshots the scene into a `TextureVisibilityLock`, and every mesh created afterwards gets the remembered choice. It is **session-only** (never persisted: an invisible, restored "textures off" would mislead), and additive: off by default, and a host never calls it.
 
 - **Keys**, resolved per slot, most specific first: the **shape** (`BodyPart` + trimmed `ShapeName`, case-insensitive), then its **group** (`BodyPart` + kind — skin / eye / hair / other, from `IsSkinShape` / `IsEye` / `IsHairTintShader`), then a **fallback** for groups never seen, set only by "Hide All Textures" or by engaging on a fully hidden scene. The kind exists because a FaceGen head's face, eyes, hair and brows are all `BodyPart == "Head"`: a per-part rule would strip the next NPC's hair because this NPC's face was hidden. On engage, a shape remembers its whole state (on and off) but its group learns only what is off — on is every new mesh's default, and recording it would let one untouched shape cancel a hidden sibling.
 - **Where it applies:** just before each `Renderer.AddMesh` — `InstallOneShapeTextures` (the sliced scene install), `ApplyOneMeshOverride`, `InstallReplacedHead`, `InstallGuestScene` — once textures, `BodyPart` and the shader flags are set. Deliberately *not* one sweep at `SceneCommitted`: the install is sliced across render ticks, so early shapes would draw textured for a few frames, and a sweep over meshes already on screen could override choices made on them. `ApplyTextureOverrides` re-applies to just the slots an override made present (a normal/skin/detail/specular map the NIF lacked).
@@ -513,7 +501,7 @@ The viewer's right-click menu switches texture slots on and off per shape. Each 
 
 ### Stage 1: base color & alpha test
 
-[basic.frag:246-261](../src/SkyRender/Shaders/basic.frag#L246).
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`use_alpha_test`).
 
 ```
 baseColor = texture(diffuse, TexCoords);
@@ -527,7 +515,7 @@ if use_alpha_test && baseColor.a < alpha_threshold: discard;
 
 ### Stage 1b: tint operations
 
-[basic.frag:263-289](../src/SkyRender/Shaders/basic.frag#L263). Three mutually-exclusive paths plus a fourth that runs in addition:
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`has_greyscale_to_palette`). Three mutually-exclusive paths plus a fourth that runs in addition:
 
 ```
 if has_greyscale_to_palette:     // hair, BSLSP_HAIRTINT shader type
@@ -549,7 +537,7 @@ Only on shapes with `bslspShaderType == BSLSP_HAIRTINT`. The diffuse texture is 
 
 **Exception — worn hair-slot items.** The baked-wins rule describes the ENGINE, and the engine never tints worn armor. RaceMenu's skee64 does: `bEnableTintHairSlot`, "automatically tinting worn items in the hair slot where they have the Hair Tint Shader". Wig meshes are routinely authored with a near-black placeholder tint on that assumption — High Poly NPC Overhaul's KS Hairdos wigs bake `(0.133, 0.133, 0.133)`, which is why that mod is famously black-haired until RaceMenu is installed. So for shapes that come from a worn hair-slot item (biped 31 — `HairMeshPath`, or a `MeshOverrideKind.Hair` override) a host-supplied `ResolvedNpcMeshPaths.WornHairSlotTintRgb` wins over the baked value. Null (the host's opt-out, correct for a load order without RaceMenu) restores baked-wins. FaceGen/head-part hair is unaffected — it isn't a worn item, and skee64 never touches it.
 
-**Alternative**: simple RGB multiply (`baseColor.rgb *= tint_color`). Used when SLSF1_Greyscale_To_PaletteColor is **not** set but the shape is still a hair-tint shader. The choice happens host-side in [VM_CharacterViewer.cs:2902-2929](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs#L2902).
+**Alternative**: simple RGB multiply (`baseColor.rgb *= tint_color`). Used when SLSF1_Greyscale_To_PaletteColor is **not** set but the shape is still a hair-tint shader. The choice happens host-side in `ApplyTexturesToGlMesh` ([VM_CharacterViewer.cs](../src/SkyRender.Character/ViewModels/VM_CharacterViewer.cs)).
 
 #### Skin tint (body)
 
@@ -581,28 +569,26 @@ Op 6, FaceTint mode 4, and the engine-style detail-map blend are verified byte-f
 
 - **Tint formula** — `Lighting.hlsl: GetFacegenRGBTintBaseColor` is `K · (b² + 2tb(1-b))` with `K = (1.01171875, 0.99609375, 1.01171875)`. Op 6 implements this identically.
 
-- **Tint source** — `Actor::UpdateSkinColor` reads `npc->bodyTintColor` (the QNAM byte triple at offset 246 on TESNPC), divides each byte by 255, and calls `UpdateBodyTint(NiColor)`, which traverses the scene graph and writes the float color straight into `BSLightingShaderMaterialFacegenTint::tintColor` — the source of the HLSL `TintColor` uniform. The host's QNAM passthrough at `NpcMeshResolver.cs:349-356` does the same byte/255 conversion. Source matches engine byte-for-byte.
+- **Tint source** — `Actor::UpdateSkinColor` reads `npc->bodyTintColor` (the QNAM byte triple at offset 246 on TESNPC), divides each byte by 255, and calls `UpdateBodyTint(NiColor)`, which traverses the scene graph and writes the float color straight into `BSLightingShaderMaterialFacegenTint::tintColor` — the source of the HLSL `TintColor` uniform. A host should pass the QNAM bytes divided by 255 (`ResolvedNpcMeshPaths.TextureLightingColor`), the same conversion, so the source matches the engine byte-for-byte.
 
 - **Color space** — `Color::Diffuse` (in CS's `Color.hlsli`) is identity in non-PBR mode and `linear → gamma` in PBR mode. The PBR branch existing only to deliver gamma values to the rest of the pipeline means the vanilla (non-PBR) pipeline operates on gamma-encoded values throughout — texture samplers do not auto-decode, lighting math runs in gamma space, ACES tonemap + framebuffer-srgb encoding at the end. The renderer matches: `PixelInternalFormat.Rgba8` upload (no auto-decode) with `GL_FRAMEBUFFER_SRGB` at output. Confirmed by inverting this experimentally — uploading diffuses as `PixelInternalFormat.Srgb8Alpha8` for sampler-side auto-decode produced uniform red-shift across all NPCs because the downstream lighting + tonemap stack was tuned for gamma-space inputs. Reverted; gamma-space upload is engine-correct.
 
 #### Detail map (face)
 
-[basic.frag:271-274](../src/SkyRender/Shaders/basic.frag#L271). When SLSF1_Facegen_Detail_Map is set and slot 3 has a texture, `overlayBlend(baseColor, detailSample)` adds detail (skin pores, stubble) on top of the diffuse before the FaceTint pass.
-
-**Missing detail-map file → slot treated as empty.** If slot 3 names a file that doesn't resolve anywhere in the load order, the mesh gets `HasDetailMap=false` instead of the 1×1 white fallback texture (`ApplyTexturesToGlMesh`). The engine ignores a missing detail map; binding white instead saturates the face under *both* blend modes (legacy overlay with a white top layer → white; engine-style → ×~4 multiply). Real-world trigger: female facegen NIFs baking `textures\actors\character\female\blankdetailmap.dds`, which vanilla only ships in the `male` directory. The broken path is still recorded as a texture source so the hover tooltip shows it as "(not found)", and (for face shapes) the slot then qualifies for the BlankDetailmap debug fallback below.
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`has_detail_map`). When SLSF1_Facegen_Detail_Map is set and slot 3 has a texture, `overlayBlend(baseColor, detailSample)` adds detail (skin pores, stubble) on top of the diffuse before the FaceTint pass.
 
 **Missing detail-map file → slot treated as empty.** If slot 3 names a file that doesn't resolve anywhere in the load order, the mesh gets `HasDetailMap=false` instead of the 1×1 white fallback texture (`ApplyTexturesToGlMesh`). The engine ignores a missing detail map; binding white instead saturates the face under *both* blend modes (legacy overlay with a white top layer → white; engine-style → ×~4 multiply). Real-world trigger: female facegen NIFs baking `textures\actors\character\female\blankdetailmap.dds`, which vanilla only ships in the `male` directory. The broken path is still recorded as a texture source so the hover tooltip shows it as "(not found)", and (for face shapes) the slot then qualifies for the BlankDetailmap debug fallback below.
 
 #### FaceTint (face)
 
-[basic.frag:280-289](../src/SkyRender/Shaders/basic.frag#L280). The interesting one. Two blend modes are gated on `is_model_space` (the SLSF1_Model_Space_Normals flag):
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`has_face_tint_map`). The interesting one. Two blend modes are gated on `is_model_space` (the SLSF1_Model_Space_Normals flag):
 
-- **MSN faces → overlay blend.** Matches NifSkope's `sk_msn.frag`. Vanilla FaceGen always bakes MSN, and so do common replacers (UNP, CBBE, 3BA, BHUNP, HIMBO).
-- **Non-MSN faces → multiply blend.** Matches the apparent in-game behavior for tangent-space face replacers like UBE. NifSkope's `sk_default.frag` (the non-MSN counterpart) has no FaceTint code at all; multiply is the closest practical fit that still preserves per-pixel features (freckles, lipstick) which a "no-op" path would lose.
+- **MSN faces → overlay blend.** Matches NifSkope's `sk_msn.frag`. Vanilla FaceGen always bakes MSN, and so do the common body replacers.
+- **Non-MSN faces → multiply blend.** Matches the apparent in-game behavior for tangent-space face replacers that ship tangent-space faces. NifSkope's `sk_default.frag` (the non-MSN counterpart) has no FaceTint code at all; multiply is the closest practical fit that still preserves per-pixel features (freckles, lipstick) which a "no-op" path would lose.
 
-This is the only place the renderer makes a decision based on MSN beyond the normal-map sampling itself. See the [FaceTint commit history](#) for the full empirical derivation; the short version is that overlay's `2·base·tint` branch (taken for `base < 0.5`, which describes most skin diffuses) brightens the face by 2× when the FaceTint texture's mean RGB > 0.5 — which is essentially every FaceTint. For MSN faces this matches the engine; for non-MSN faces the engine doesn't apply FaceTint at all, leaving overlay 2× off.
+This is the only place the renderer makes a decision based on MSN beyond the normal-map sampling itself. The short version of the empirical derivation is that overlay's `2·base·tint` branch (taken for `base < 0.5`, which describes most skin diffuses) brightens the face by 2× when the FaceTint texture's mean RGB > 0.5 — which is essentially every FaceTint. For MSN faces this matches the engine; for non-MSN faces the engine doesn't apply FaceTint at all, leaving overlay 2× off.
 
-`FACE_TINT_MODE` const at the top of [basic.frag](../src/SkyRender/Shaders/basic.frag#L70) forces overlay (`1`) or multiply (`2`) for cross-checking.
+`FACE_TINT_MODE` const at the top of [basic.frag](../src/SkyRender/Shaders/basic.frag) forces overlay (`1`) or multiply (`2`) for cross-checking.
 
 ##### FaceTint runtime mode + Pegtop + multiply-on-empty
 
@@ -638,7 +624,7 @@ The constant `3.984375` is roughly `4 - 1/64`; the `(1/255, 0, 1/255)` offset pr
 
 The `u_detailMapEngineStyle` uniform selects between the legacy overlay path and the engine-style multiply path; both are gated on the same `has_detail_map && u_enableDetail` test, so toggling doesn't change which shapes participate, only how they composite. Pairs with `FaceTintMode==4` (Pegtop) and `SkinTintOperator==6` (Pegtop with engine constant) to reproduce the engine's full face composition pipeline.
 
-**Defaults: Pegtop face/body + engine-style detail.** As of the same commit that flipped these defaults, new VMs ship with `SkinTintOperator = 6`, `FaceTintMode = 4`, and `UseEngineStyleDetailMap = true` — the engine-faithful trio. Validated against vanilla Addvar, Nordic Faces, Aia, Angeline, Bjartur, and UBE Lydia (all match in-game / NifSkope) plus Frodnar (matches the engine's own minor seam). Brynjolf still requires `SkinTintApplyToFace` to be enabled — open question, tracked under follow-up investigation. Hosts that want the legacy multiply behavior can flip the operators back from the render-panel.
+**Defaults: Pegtop face/body + engine-style detail.** As of the same commit that flipped these defaults, new VMs ship with `SkinTintOperator = 6`, `FaceTintMode = 4`, and `UseEngineStyleDetailMap = true` — the engine-faithful trio. Validated against vanilla Addvar, Nordic Faces, Aia, Angeline, Bjartur, and a replacer-provided Lydia (all match in-game / NifSkope) plus Frodnar (matches the engine's own minor seam). Brynjolf still requires `SkinTintApplyToFace` to be enabled — open question, tracked under follow-up investigation. Hosts that want the legacy multiply behavior can flip the operators back from the render-panel.
 
 ##### BlankDetailmap fallback (debug)
 
@@ -646,7 +632,7 @@ A separate experimental host-side toggle (`UseBlankDetailFallback`) substitutes 
 
 ### Stage 1c: skin saturation boost
 
-[basic.frag:456-467](../src/SkyRender/Shaders/basic.frag#L456). Optional, host-tunable chroma adjustment applied AFTER all Stage-1b tint stages (skin tint, detail, FaceTint) and BEFORE Stage 2 normal calculation. Gated on the per-mesh `is_skin` uniform (true for shader types 4 and 5 — face plus body, hands, feet) and a non-1.0 `u_skinSaturationBoost`:
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`u_skinSaturationBoost`). Optional, host-tunable chroma adjustment applied AFTER all Stage-1b tint stages (skin tint, detail, FaceTint) and BEFORE Stage 2 normal calculation. Gated on the per-mesh `is_skin` uniform (true for shader types 4 and 5 — face plus body, hands, feet) and a non-1.0 `u_skinSaturationBoost`:
 
 ```glsl
 if (is_skin && u_skinSaturationBoost != 1.0) {
@@ -663,7 +649,7 @@ Practical context: at high SSS strength (the host's old default of 2.0, since ch
 
 ### Stage 2: normal calculation
 
-[basic.frag:291-323](../src/SkyRender/Shaders/basic.frag#L291). Three paths:
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`is_model_space`). Three paths:
 
 ```
 if has_normal_map:
@@ -685,7 +671,7 @@ else:
 
 ### Stage 3: dynamic lighting
 
-[basic.frag:325-472](../src/SkyRender/Shaders/basic.frag#L325). The largest stage. Up to `MAX_LIGHTS = 5` lights are accumulated in a single loop:
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`MAX_LIGHTS`). The largest stage. Up to `MAX_LIGHTS = 5` lights are accumulated in a single loop:
 
 ```
 for each light:
@@ -705,7 +691,7 @@ Lambert (`max(NdotL, 0)`), upgraded to a "wrap" lighting term (`NdotL * 0.5 + 0.
 
 #### Shadows
 
-`sampleShadowPCF` ([basic.frag:175-210](../src/SkyRender/Shaders/basic.frag#L175)). 3×3 PCF kernel on top of GPU `sampler2DShadow` bilinear PCF (= 36 effective samples). Slope-scale bias to avoid acne at grazing angles. **Only the key light (index 1)** casts shadows — fill and rim lights are arranged to bounce or wrap, so shadowing them produces double-darkening in occluded regions.
+`sampleShadowPCF` ([basic.frag](../src/SkyRender/Shaders/basic.frag)). 3×3 PCF kernel on top of GPU `sampler2DShadow` bilinear PCF (= 36 effective samples). Slope-scale bias to avoid acne at grazing angles. **Only the key light (index 1)** casts shadows — fill and rim lights are arranged to bounce or wrap, so shadowing them produces double-darkening in occluded regions.
 
 **Alternative**: cascaded shadow maps (CSM). Rejected because the character is at a known fixed distance from the camera (orbit), so a single ortho shadow map covering ~2× character bounds is plenty. CSM is overkill for a portrait viewer.
 
@@ -729,7 +715,7 @@ When SLSF2_Rim_Lighting is set: `pow(1 - VdotN, rimlightPower) * lightColor * ba
 
 #### Subsurface scattering
 
-[basic.frag:607-654](../src/SkyRender/Shaders/basic.frag#L607). Two terms:
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`subsurfaceRolloff`). Two terms:
 
 - **Forward scatter (wrap-extension delta)**: `max(wrap - lambert, 0)` where `wrap = (NdotL + R) / (1 + R)`, `lambert = max(NdotL, 0)`, and R = `subsurfaceRolloff` (BSLSP's `lightingEffect1` per the Bethesda spec). At R=0 the wrap collapses onto Lambert and the delta is zero everywhere. At R>0 the delta is zero on the fully-lit hemisphere (`wrap == lambert`), positive only at/past the terminator, and peaks at NdotL = 0 with magnitude `R/(1+R)`. This is the warm bleed past the standard terminator that physical SSS produces.
 - **Back scatter / transmission**: `pow(max(-NdotL, 0), 3)` — bright where the light is *behind* the surface relative to the viewer. Tightened by the `pow 3` so only thin backlit edges glow (ears, nostrils, lip rims).
@@ -738,7 +724,7 @@ The SSS color is `mix(vec3(1.0, 0.35, 0.25), baseColor.rgb, 0.4)` — 60% warm f
 
 **Why the forward term is a delta, not the full wrap.** An earlier formulation used `forward = sss_color * wrap` directly, which is large (≈1) on the fully-lit side. That added a fixed-hue warm contribution on top of the standard diffuse, visibly desaturating skin away from its surface tone — Imperials read pale, Redguards Mediterranean, green Orcs olive/yellow. The delta formulation removes that artifact: lit pixels get zero SSS contribution and keep their surface hue exactly, while the terminator and shadow-side contributions (where physical SSS actually does warm light) are preserved. Conceptually this is what pre-integrated SSS via a curvature LUT ([Penner 2011](https://advances.realtimerendering.com/s2011/Penner%20-%20Pre-Integrated%20Skin%20Rendering%20%28Siggraph%202011%20Advances%29.pptx)) produces on average — only the terminator transition gets warmth.
 
-The mask comes from slot 2 (`_sk.dds` for vanilla; the `.r` channel). Vanilla bodies ship with a 4×4 black `_sk.dds` (`mean RGB = (0,0,0)` per the diagnostic dumper), which effectively disables SSS — the engine's same observation made via the empty-mask convention. UBE follows the same convention.
+The mask comes from slot 2 (`_sk.dds` for vanilla; the `.r` channel). Vanilla bodies ship with a 4×4 black `_sk.dds` (`mean RGB = (0,0,0)` per the diagnostic dumper), which effectively disables SSS — the engine's same observation made via the empty-mask convention. The body replacers checked so far follow the same convention.
 
 `u_subsurfaceStrength` is a host-side global multiplier (0 disables, 1 is honest source-value SSS, >1 boosts). With the delta formulation the lit side is hue-stable at any strength, so the multiplier can sit at 1.0 by default without skin-tone drift; higher values just deepen the terminator bleed.
 
@@ -752,7 +738,7 @@ When `is_eye` (BSLSP_EYE shader type, ID 16) and the light is the key light: a t
 
 ### Stage 4: environment mapping
 
-[basic.frag:668-697](../src/SkyRender/Shaders/basic.frag#L668). When SLSF1_Environment_Mapping or SLSF1_Eye_Environment_Mapping is set and slot 4 has a texture:
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`texture_envmap`). When SLSF1_Environment_Mapping or SLSF1_Eye_Environment_Mapping is set and slot 4 has a texture:
 
 ```glsl
 viewDirWorld = normalize(u_cameraPos - v_worldPos);
@@ -797,7 +783,7 @@ We do **not** support glow maps (slot 2 modulating emission) currently. This aff
 
 ### Stage 6: tone-map, fresnel, vignette
 
-[basic.frag:495-543](../src/SkyRender/Shaders/basic.frag#L495). All folded under `u_enableToneMapping` so the legacy linear pipeline stays bit-for-bit reproducible when the toggle is off.
+[basic.frag](../src/SkyRender/Shaders/basic.frag) (`u_enableToneMapping`). All folded under `u_enableToneMapping` so the legacy linear pipeline stays bit-for-bit reproducible when the toggle is off.
 
 #### Fresnel contour darkening
 
@@ -828,7 +814,7 @@ ACES filmic compresses HDR highlights, adds a soft toe in shadows, and produces 
 
 The fragment shader writes `FragColor = vec4(finalColor, baseColor.a)` — output alpha is just the surface's own alpha, no special-casing.
 
-Earlier versions of this shader had a luma-driven workaround (`outAlpha = min(baseColor.a, lit_luma)` for any ST_EYE shape) to make UBE's separate wet-eye outer cornea fade where dim, since hard-coded `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` blending would otherwise paint a solid black void over the iris underneath. That workaround was replaced once the renderer started honoring per-mesh `SrcBlend / DstBlend` from `NiAlphaProperty` (see [Part 1 NiAlphaProperty](#nialphaproperty)) — UBE's wet-eye is authored as additive blend (`SRC_ALPHA / ONE`), which produces the engine-correct "black cornea adds nothing, catchlight adds brightness" behaviour natively. No shader logic needed.
+Earlier versions of this shader had a luma-driven workaround (`outAlpha = min(baseColor.a, lit_luma)` for any ST_EYE shape) to make a separate wet-eye outer cornea (shipped by some face replacers) fade where dim, since hard-coded `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` blending would otherwise paint a solid black void over the iris underneath. That workaround was replaced once the renderer started honoring per-mesh `SrcBlend / DstBlend` from `NiAlphaProperty` (see [Part 1 NiAlphaProperty](#nialphaproperty)) — such a wet-eye shape is authored as additive blend (`SRC_ALPHA / ONE`), which produces the engine-correct "black cornea adds nothing, catchlight adds brightness" behaviour natively. No shader logic needed.
 
 #### Off-screen readback forces output alpha to 1.0
 
@@ -843,7 +829,7 @@ Earlier versions of this shader had a luma-driven workaround (`outAlpha = min(ba
 
 **Live preview empirically displays opaque** for the same scene. The exact mechanism producing the opaque display hasn't been traced — candidates include GLWpfControl explicitly normalizing alpha during its present step, WPF's `D3DImage` compositor ignoring source alpha at composition time, or the underlying D3D9 surface format not surfacing a usable alpha channel to WPF. The verified empirical outcome is: per-fragment α values from the shader reach the off-screen pipeline's readback bytes but never surface in the on-screen pathway.
 
-**Off-screen mugshot** ends in `glReadPixels` + PNG encode. PNG keeps the alpha channel. PNG viewers — including the WPF Image controls a host's gallery uses to render mugshot tiles — honor PNG alpha and composite the image over their panel background. Khajiit faces with α ≈ 0.5 alpha-blend with a host's gray gallery panel at 50% mix, producing the "head darker than body" / "skin swallows the illumination" effect that looks like dimmed shading but is actually alpha bleed-through to the UI panel underneath. This was caught by opening the PNG in IrfanView with transparency-aware display: the whole Khajiit face read as a transparency checkerboard, and human reference NPCs showed transparency around the hair silhouettes (a long-known artifact users had been compensating for with a black background in the gallery preview panel).
+**Off-screen mugshot** ends in `glReadPixels` + PNG encode. PNG keeps the alpha channel. Alpha-aware image viewers, including WPF Image controls, honor PNG alpha and composite the image over their panel background. Khajiit faces with α ≈ 0.5 alpha-blend with a host's gray gallery panel at 50% mix, producing the "head darker than body" / "skin swallows the illumination" effect that looks like dimmed shading but is actually alpha bleed-through to the UI panel underneath. This was caught by opening the PNG in IrfanView with transparency-aware display: the whole Khajiit face read as a transparency checkerboard, and human reference NPCs showed transparency around the hair silhouettes (a long-known artifact users had been compensating for with a black background in the gallery preview panel).
 
 The fix is a one-loop CPU pass forcing alpha=255 on every pixel. It works because:
 
@@ -864,7 +850,7 @@ In both cases the PNG's RGB was always correct; the dimming was happening at dis
 
 #### History: where this bug was hiding
 
-For a long time the only visible symptom was transparency around hair-card silhouettes — fine cutout edges with alpha < 1 from MSAA sample coverage. The a host gallery worked around it with a black background panel that masked the hair transparency. The fact that **all** Khajiit faces stored partial alpha across the *entire* face surface was hidden behind a separate symptom: `MaleHeadKhajiit`'s `NiAlphaProperty.AlphaTest=True, threshold=73` caused the shader's `discard` to drop partial-alpha fragments at the head/body seam (where vertex alpha was low enough to drag `tex_α × vert_α` below 0.286), leaving a salt-and-pepper of *fully opaque cleared-background grey* pixels through the face. The face looked "head darker than body" but had alpha=1.0 in the PNG — gallery panels didn't blend through.
+For a long time the only visible symptom was transparency around hair-card silhouettes — fine cutout edges with alpha < 1 from MSAA sample coverage. Hosts worked around it with a black background panel that masked the hair transparency. The fact that **all** Khajiit faces stored partial alpha across the *entire* face surface was hidden behind a separate symptom: `MaleHeadKhajiit`'s `NiAlphaProperty.AlphaTest=True, threshold=73` caused the shader's `discard` to drop partial-alpha fragments at the head/body seam (where vertex alpha was low enough to drag `tex_α × vert_α` below 0.286), leaving a salt-and-pepper of *fully opaque cleared-background grey* pixels through the face. The face looked "head darker than body" but had alpha=1.0 in the PNG — gallery panels didn't blend through.
 
 Suppressing the alpha-test discard on `ShaderType==4` face shapes (see [Part 1 NiAlphaProperty](#nialphaproperty), specifically the face-shape suppression rationale) made all face fragments render. Their `tex_α × vert_α` then became the per-pixel framebuffer alpha and surfaced in the PNG. That's when the alpha-strip step was needed — the alpha-test suppression and the alpha-strip are two halves of the same fix.
 
@@ -894,7 +880,7 @@ Hosts read the installed geometry back through accessors on `VM_CharacterViewer`
 
 Most overlay geometry is drawn through one shared VAO/VBO (`_debugVao` / `_debugVbo`, vertex layout = `position(3) + normal(3)` = 6 floats) and one shader pair ([Shaders/debug.vert](../src/SkyRender/Shaders/debug.vert) + [debug.frag](../src/SkyRender/Shaders/debug.frag)). The fragment shader is trivial: a single `u_color` uniform with a `u_shaded` switch — `u_shaded=0` outputs the flat color (lines), `u_shaded=1` applies a two-sided fake-sun lambert so filled/3D geometry (marker spheres, the region solid) reads as shaded shape even at one color.
 
-The one exception is the **vertex-colour triangle** primitive (`DrawOverlayVertexColorTriangles`), which needs a *per-vertex* color (a `u_color` uniform can't express a gradient), so it has its own VAO/VBO (`_heatmapVao` / `_heatmapVbo`, layout = `position(3) + normal(3) + color(3)` = 9 floats) and shader pair ([Shaders/heatmap.vert](../src/SkyRender/Shaders/heatmap.vert) + [heatmap.frag](../src/SkyRender/Shaders/heatmap.frag)). `heatmap.frag` is **unlit** — it outputs the interpolated per-vertex color directly, because that color *is* the datum (e.g. a magnitude); applying the debug pass's fake-sun shade would falsify the magnitudes. The normal is still carried in the layout for parity (and so a future lit variant needs no re-plumbing) but is unused by the fragment shader.
+The one exception is the **vertex-colour triangle** primitive (`DrawOverlayVertexColorTriangles`), which needs a *per-vertex* color (a `u_color` uniform can't express a gradient), so it has its own VAO/VBO (`_vertexColorVao` / `_vertexColorVbo`, layout = `position(3) + normal(3) + color(3)` = 9 floats) and shader pair ([Shaders/vertexcolor_unlit.vert](../src/SkyRender/Shaders/vertexcolor_unlit.vert) + [vertexcolor_unlit.frag](../src/SkyRender/Shaders/vertexcolor_unlit.frag)). `vertexcolor_unlit.frag` is **unlit** — it outputs the interpolated per-vertex color directly, because that color *is* the datum (e.g. a magnitude); applying the debug pass's fake-sun shade would falsify the magnitudes. The normal is still carried in the layout for parity (and so a future lit variant needs no re-plumbing) but is unused by the fragment shader.
 
 Shared state for the whole pass: **depth test off**; markers + solid additionally enable **back-face cull** and `u_shaded=1`; lines use `u_shaded=0` and a per-channel `GL.LineWidth`. Buffers are uploaded per-draw with `BufferUsageHint.DynamicDraw` (the overlay changes every frame the user edits, so there's no value in static buffers).
 
@@ -948,11 +934,11 @@ Both reference applications ship shader source under `res/shaders/`. NifSkope sp
 | Fresnel silhouette darkening | ✓ | ✗ | ✗ |
 | Vignette | ✓ | ✗ | ✗ |
 
-The shorter both reference shaders are reflects their narrower scope: NifSkope previews one mesh at a time without portrait-style finishing; Outfit Studio is an editor where the renderer's job is to show the silhouette of garments while you slide morph-tool weights, not to produce a final-render-quality image.
+The shorter both reference shaders are reflects their narrower scope: NifSkope previews one mesh at a time without portrait-style finishing; Outfit Studio is an editor where the renderer's job is to show the silhouette of garments while you edit them, not to produce a final-render-quality image.
 
 ### Where we differ deliberately
 
-- **FaceTint blend on non-MSN faces.** NifSkope's `sk_default.frag` has zero FaceTint code; Outfit Studio doesn't apply FaceTint at all. Neither tool has the multi-mesh seam problem because (a) NifSkope only renders one shape so there's no neck to compare, (b) Outfit Studio doesn't tint anything. We need *something* on non-MSN faces to preserve per-pixel features (freckles, lipstick) and not produce a brightness skew vs the body. Multiply is the closest practical fit. See [`FACE_TINT_MODE` comment in basic.frag](../src/SkyRender/Shaders/basic.frag#L49).
+- **FaceTint blend on non-MSN faces.** NifSkope's `sk_default.frag` has zero FaceTint code; Outfit Studio doesn't apply FaceTint at all. Neither tool has the multi-mesh seam problem because (a) NifSkope only renders one shape so there's no neck to compare, (b) Outfit Studio doesn't tint anything. We need *something* on non-MSN faces to preserve per-pixel features (freckles, lipstick) and not produce a brightness skew vs the body. Multiply is the closest practical fit. See [`FACE_TINT_MODE` comment in basic.frag](../src/SkyRender/Shaders/basic.frag).
 
 - **Subsurface scattering for skin.** Neither reference applies SSS. Without it, faces look like plastic mannequins under directional lighting. Our wrap term `(NdotL + R) / (1 + R)` is engine-faithful — `R` is the BSLSP `subsurfaceRolloff` field, which the Bethesda docs document as the wrap-lighting parameter and `lightingEffect1` in the binary schema. The forward-scatter contribution we *add* is the **delta over Lambert** (`max(wrap - lambert, 0)`), not the wrap directly, so the lit hemisphere gets zero SSS and only the terminator/shadow side is warm-tinted. The rest of the SSS formulation is our own and was empirically tuned, not derived from observed engine behavior:
 
@@ -998,7 +984,7 @@ Two paths escape that discipline and are the reason a **context-pinning marshall
 
 | Escape hatch | What it does | Why it can't simply be deferred |
 | --- | --- | --- |
-| `VM_CharacterViewer.ApplyShapeDeformer` | `GlMesh.UpdateVertexData` — re-uploads deformed vertices after a host deformation (a host: a morph-tool preset/weight change) | Callers apply a deformation and immediately read back `CpuPositions` to measure/classify; deferring to the next frame would race those readers |
+| `VM_CharacterViewer.ApplyShapeDeformer` | `GlMesh.UpdateVertexData` — re-uploads deformed vertices after a host deformation | Callers apply a deformation and immediately read back `CpuPositions` to measure/classify; deferring to the next frame would race those readers |
 | `VM_CharacterViewer.Dispose` | deletes shaders, VAOs, VBOs, textures | The control stops rendering the moment its window closes, so a queued teardown would never drain — it would leak the whole scene |
 
 ### The contract
@@ -1010,13 +996,13 @@ Two paths escape that discipline and are the reason a **context-pinning marshall
 
 `ApplyShapeDeformer` batches its uploads into a single marshalled block rather than marshalling per shape, so a deformation costs one `MakeCurrent`, not one per body part.
 
-**a host reaches three concurrent viewers** whenever the morph-tool **Compare** window is open: the embedded host viewer plus the window's two panes. Before that feature the app was single-viewer and the hazard was latent.
+A host with a side-by-side comparison view can run three viewers at once.
 
 > **When adding a new GL call to `VM_CharacterViewer`:** if it can run outside `ProcessPendingScene` / `Renderer.Render`, it must go through `_renderThread.Invoke`. Anything else is a correctness bug that only reproduces with two viewers on screen.
 
 ### Guest overlay scene ("superimpose")
 
-`VM_CharacterViewer.GuestScene.cs` installs a **complete second scene** alongside the primary one, at the same origin, so two differently deformed models can be compared directly. A host's Compare window uses it to draw pane B's model inside pane A.
+`VM_CharacterViewer.GuestScene.cs` installs a **complete second scene** alongside the primary one, at the same origin, so two differently deformed models can be compared directly. For example, a comparison view can draw one pane's model inside another.
 
 The guest is loaded **by the host VM**, not transplanted from the other viewer. That follows directly from the context rule above: the other pane's `GlMesh` handles name objects in *its* context and are meaningless here. So the guest runs the same pipeline as the primary scene — this VM's `LoadAllMeshParts`, `CreateGlMesh`, `ApplyTexturesToGlMesh`, this VM's `GlTextureManager`, this VM's context — and is installed into a separate `_guestMeshes` list that the primary scene's bookkeeping (`_meshesByBodyPart`, `_cachedBodyMeshes`, `_builtMeshesByBodyPart`) never sees.
 
@@ -1050,7 +1036,7 @@ Four points that are easy to get wrong:
 
 *Why `InsideOutside`.* A translucent guest over an opaque primary shows where the guest pokes **out**, but where it falls **inside** the primary model the depth test simply drops it; making both translucent doesn't fix that, because two blended layers give the same colour whichever is in front. `InsideOutside` puts the depth order in the colour: the translucent pass paints guest surface in front of the primary model (orange), and **Pass 3, the hidden-surface pass** (`GlRenderer`, after the blend pass) redraws every mesh with a `HiddenSurfaceTint` with `DepthFunc(Greater)`, depth writes off and that flat tint, so only guest surface lying **behind** the primary model's survives (blue). Back faces stay culled, so it is the guest's near surface in both passes, not its far side.
 
-*Match tolerance (`GlMesh.DepthBias`).* Unchanged regions of the two bodies coincide exactly and would z-fight between the two tints. `basic.vert` therefore slides each vertex along its view ray by `u_depthBias` world units (`pos_viewSpace.xyz += normalize(pos_viewSpace.xyz) * u_depthBias`) -- screen position unchanged, depth only, and in world units rather than depth-buffer units, so the tolerance doesn't depend on camera distance or depth precision. The translucent pass is pushed back by the tolerance and the hidden pass pulled forward by it, so guest surface within +/- tolerance of the primary model's paints in neither: untinted means "same here". The a host Compare window exposes the tolerance (default 0.25 units). Known limit: it is an x-ray, so guest surface hidden by *another* part of the primary model (a thigh behind the primary's hand) also paints blue.
+*Match tolerance (`GlMesh.DepthBias`).* Unchanged regions of the two bodies coincide exactly and would z-fight between the two tints. `basic.vert` therefore slides each vertex along its view ray by `u_depthBias` world units (`pos_viewSpace.xyz += normalize(pos_viewSpace.xyz) * u_depthBias`) -- screen position unchanged, depth only, and in world units rather than depth-buffer units, so the tolerance doesn't depend on camera distance or depth precision. The translucent pass is pushed back by the tolerance and the hidden pass pulled forward by it, so guest surface within +/- tolerance of the primary model's paints in neither: untinted means "same here". A host can expose the tolerance (default 0.25 units). Known limit: it is an x-ray, so guest surface hidden by *another* part of the primary model (a leg behind the primary's hand) also paints blue.
 
 `WireframeColorOverride` exists specifically so the guest can borrow the missing-texture fallback's *draw behavior* without inheriting its *color* — that green means "this shape's diffuse failed to decode", and a guest drawn in it would read as a texture error.
 
@@ -1078,7 +1064,7 @@ Bit layout per [NifSkope `glproperty.h` lines 450–517](https://github.com/nift
 | 6 | Use_Falloff | ✗ | `BSEffectShaderProperty`-specific; never set on `BSLightingShaderProperty` actor shapes. |
 | 7 | Environment_Mapping | ✓ | Enables slot 4 spherical env-map sampling. |
 | 8 | Recieve_Shadows | ✗ | We unconditionally sample the shadow map in the lighting loop when `EnableShadows` is true. Honoring this per-shape would require a uniform and a branch but never visibly improves portrait output — actor meshes universally set this flag. |
-| 9 | Cast_Shadows | ✗ | We don't read this flag. The shadow pre-pass uses heuristic culls instead ([GlRenderer.cs:888-897](../src/SkyRender/Gl/GlRenderer.cs#L888)): skip pure alpha-blend shapes (their shadow would be a soft amorphous blob), skip eyes (always self-shadowing). The flag is universally set on actor shapes; the heuristic is a stricter filter that produces cleaner shadows than honoring the flag literally would. |
+| 9 | Cast_Shadows | ✗ | We don't read this flag. The shadow pre-pass uses heuristic culls instead (`RenderShadowDepthPass` in [GlRenderer.cs](../src/SkyRender/Gl/GlRenderer.cs)): skip pure alpha-blend shapes (their shadow would be a soft amorphous blob), skip eyes (always self-shadowing). The flag is universally set on actor shapes; the heuristic is a stricter filter that produces cleaner shadows than honoring the flag literally would. |
 | 10 | Facegen_Detail_Map | ✓ | Enables slot 3 overlay (detail map on faces). |
 | 11 | Parallax | ✗ | We don't sample slot 3 as a height map for view-dependent UV displacement. Adding parallax requires a per-pixel raymarch in the fragment shader; non-trivial and rarely set on actor skin/face meshes. Visible regression in theory for parallax-mapped armor; not for actor body/face. |
 | 12 | Model_Space_Normals | ✓ | Selects MSN normal-map path *and* FaceTint blend mode (overlay vs multiply). |
@@ -1106,7 +1092,7 @@ Bit layout per [NifSkope `glproperty.h` lines 450–517](https://github.com/nift
 
 | Bit | Name | Used | Why we don't use this (or how we honor it indirectly) |
 |---|---|---|---|
-| 0 | ZBuffer_Write | ~ | We honor this functionally via `NiAlphaProperty.HasAlphaBlend`: alpha-blended shapes get `GL.DepthMask(false)` for their pass ([GlRenderer.cs:548-560](../src/SkyRender/Gl/GlRenderer.cs#L548)), opaque shapes get `GL.DepthMask(true)`. Bethesda pairs the two signals 1:1 — every alpha-blended actor shape has this flag *unset* in the BSLSP and the alpha-blend bit *set* in the AlphaProperty. We use the AlphaProperty signal because it's also what tells us to enable `GL_BLEND`, so the two decisions are co-located. |
+| 0 | ZBuffer_Write | ~ | We honor this functionally via `NiAlphaProperty.HasAlphaBlend`: alpha-blended shapes get `GL.DepthMask(false)` for their pass (the main pass in `GlRenderer.Render`, [GlRenderer.cs](../src/SkyRender/Gl/GlRenderer.cs)), opaque shapes get `GL.DepthMask(true)`. Bethesda pairs the two signals 1:1 — every alpha-blended actor shape has this flag *unset* in the BSLSP and the alpha-blend bit *set* in the AlphaProperty. We use the AlphaProperty signal because it's also what tells us to enable `GL_BLEND`, so the two decisions are co-located. |
 | 1 | LOD_Landscape | ✗ | LOD landscape shape; never set on actors. |
 | 2 | LOD_Objects | ✗ | LOD object shape; never set on actor body parts. |
 | 3 | No_Fade | ✗ | Disables LOD distance fade. We don't do LOD fade in the portrait viewer (camera distance is ~fixed). |
@@ -1168,7 +1154,7 @@ What we read from the shape's BSLSP, where it goes, and what we ignore.
 | `refractionStrength` | ✗ | (unused) | We don't do refraction |
 | `skinTintColor` | ✗ | (unused) | NIF stores `(1,1,1)` — the engine doesn't use this for body tinting at runtime; it pulls QNAM from the NPC record. We follow the engine. |
 | `skinTintAlpha` | ✗ | (unused) | Same |
-| `hairTintColor` | ✓ | `tint_color` uniform (when ShaderType==HAIRTINT) | Baked value wins (engine-verified); `INpcGetter.HairColor` is the fallback when no baked tint. Worn hair-slot items instead take `WornHairSlotTintRgb` when supplied (RaceMenu `bEnableTintHairSlot` emulation) |
+| `hairTintColor` | ✓ | `tint_color` uniform (when ShaderType==HAIRTINT) | Baked value wins (engine-verified); `ResolvedNpcMeshPaths.HairColorRgb` is the fallback when no baked tint. Worn hair-slot items instead take `WornHairSlotTintRgb` when supplied (RaceMenu `bEnableTintHairSlot` emulation) |
 | `parallaxInnerLayerThickness` | ✗ | (unused) | Parallax not supported |
 | `parallaxRefractionScale` | ✗ | (unused) | |
 | `parallaxInnerLayerTextureScale` | ✗ | (unused) | |

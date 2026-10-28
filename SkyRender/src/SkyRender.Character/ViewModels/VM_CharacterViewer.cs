@@ -9,7 +9,7 @@ using System.Reactive.Disposables;
 // ReactiveUI 23 / System.Reactive moved the DisposeWith(CompositeDisposable) extension from
 // System.Reactive.Disposables.DisposableMixins to System.Reactive.Disposables.Fluent. This VM
 // disposes into a CompositeDisposable (_disposables) and has no Noggog IDisposableDropoff overload
-// in scope, so it needs the new namespace. (a host's VMs bind DisposeWith via Noggog instead.)
+// in scope, so it needs the new namespace.
 using System.Reactive.Disposables.Fluent;
 using System.Reactive.Linq;
 using System.Threading;
@@ -45,9 +45,8 @@ public enum ViewerMode
 public partial class VM_CharacterViewer : ViewerVm
 {
     /// <summary>Composite for reactive subscriptions added via
-    /// <see cref="System.Reactive.Disposables.DisposableMixins.DisposeWith{T}"/>.
-    /// Disposed in <see cref="Dispose"/>. Replaces the previous
-    /// <c>a host.VM</c> base-class IDisposableDropoff plumbing.</summary>
+    /// <c>DisposeWith</c> (System.Reactive.Disposables.Fluent).
+    /// Disposed in <see cref="Dispose"/>.</summary>
     private readonly CompositeDisposable _disposables = new();
 
     private readonly NifMeshBuilder _meshBuilder;
@@ -168,8 +167,8 @@ public partial class VM_CharacterViewer : ViewerVm
     private bool _sceneRebuildPending;
 
     /// <summary>Pending texture overrides (neutral form) to apply after scene
-    /// setup. The host-coupled <see cref="ApplyTextureOverrides(IEnumerable{FilePathReplacement})"/>
-    /// converts to <see cref="TextureOverride"/> before queueing.</summary>
+    /// setup. Hosts convert their own override type to <see cref="TextureOverride"/>
+    /// before calling <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.</summary>
     private List<TextureOverride>? _pendingTextureOverrides;
 
     /// <summary>Pending shape deformation to apply after scene setup: an
@@ -211,7 +210,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>NpcIdentity.CacheKey of the NPC whose scene is currently installed
     /// in the renderer. Captured at the end of ProcessPendingScene; cleared by
     /// ClearScene. Used by LoadAsync to short-circuit reloads of the same NPC
-    /// when narrow editors (morph-tool preset change, AssetPack subgroup flip)
+    /// when narrow editors (e.g. a preset or texture-variant change)
     /// call LoadAsync defensively even though only a narrow downstream update
     /// is needed. Empty string when no NPC is loaded.</summary>
     private string _currentLoadedIdentityKey = "";
@@ -248,7 +247,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// (and cleared) on the render thread when the scene is installed.</summary>
     private System.Diagnostics.Stopwatch? _pendingLoadStopwatch;
 
-    /// <summary>Pending head-only rebuild (P2). Set by RebuildHeadOnlyAsync after the
+    /// <summary>Pending head-only rebuild. Set by RebuildHeadOnlyAsync after the
     /// new head NIF is parsed off-thread; drained by ProcessPendingScene where the
     /// GL context is current. Replaces the current Head shape(s) in place, leaving
     /// Body/Hands/Feet and their texture/morph state untouched.</summary>
@@ -289,7 +288,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <para><b>Why a host would replace it:</b> GL object names are
     /// per-context, and two freshly-created contexts hand out the SAME low
     /// integers for the same allocation sequence. A host that keeps more than
-    /// one viewer alive at a time (a host's 3D-preview popups — each GLWpfControl
+    /// one viewer alive at a time (e.g. several 3D-preview popups — each GLWpfControl
     /// mints its own private context) therefore needs every GL call this VM
     /// makes outside the render callback to land in ITS context, not whichever
     /// sibling rendered most recently. A marshaller that makes the owning
@@ -310,9 +309,9 @@ public partial class VM_CharacterViewer : ViewerVm
 
     // ═══════════════════════════════════════════════════════════════════════
     //  PUBLIC HOST-EXTENSION SURFACE
-    //  These members exist for host-side (and future a host-side) extension
-    //  methods that wrap the neutral viewer with their own host-coupled
-    //  workflows. The VM itself doesn't reference a host types.
+    //  These members exist for host-side extension methods that wrap the
+    //  neutral viewer with their own host-coupled workflows. The VM itself
+    //  doesn't reference host types.
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>Fired at the end of <see cref="ProcessPendingScene"/> after
@@ -324,7 +323,7 @@ public partial class VM_CharacterViewer : ViewerVm
 
     /// <summary>Fired after a <see cref="ApplyMeshOverrides"/> set has actually
     /// been installed into the scene. Hosts that derive UI state from the apply
-    /// result (a host mirrors <see cref="MeshOverrideWarningDetails"/> onto its
+    /// result (e.g. mirroring <see cref="MeshOverrideWarningDetails"/> onto an
     /// attire warning badge) must refresh here rather than on return from
     /// ApplyMeshOverrides: for interactive hosts that call is a queue, and the
     /// GL work runs one render tick later. Unlike <see cref="SceneCommitted"/>
@@ -370,7 +369,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>The installed scene's body shapes as loaded, keyed by shape name: the base
     /// meshes <see cref="ApplyShapeDeformer"/> re-derives every deformation from (bind pose,
     /// _0/_1 weight endpoints, skinning). Empty before the scene commits. Read-only by
-    /// contract: A host that mutates these arrays corrupts every later deformation.</summary>
+    /// contract: a host that mutates these arrays corrupts every later deformation.</summary>
     public IReadOnlyDictionary<string, NifMeshBuilder.BuiltMesh> BodyBaseMeshes => _cachedBodyMeshes;
 
     /// <summary>True when <see cref="ApplyShapeDeformer"/> would deform immediately: the body
@@ -384,7 +383,7 @@ public partial class VM_CharacterViewer : ViewerVm
     public BodyReplacement? SceneBodyReplacement => _sceneBodyReplacement;
 
     /// <summary>Opaque host object attached to this viewer. The library never reads it; it lets
-    /// A host keep per-viewer state beside the viewer and lets the host's views bind to it
+    /// a host keep per-viewer state beside the viewer and lets the host's views bind to it
     /// (<c>{Binding HostData.Property}</c>). Raises <see cref="System.ComponentModel.INotifyPropertyChanged.PropertyChanged"/>
     /// when replaced.</summary>
     public object? HostData { get; set; }
@@ -437,7 +436,7 @@ public partial class VM_CharacterViewer : ViewerVm
     ///   be misaligned until a compatible skeleton mod is installed.</item>
     /// </list>
     /// Hosts surface these as a missing-asset / incompatible-skeleton warning
-    /// (a host's render-preview warning line, a host's mugshot icon). Each entry
+    /// (e.g. a render-preview warning line or a mugshot icon). Each entry
     /// is "&lt;Key&gt;: &lt;reason&gt;" so the UI can name what's wrong.
     /// Recomputed on every apply (and drained queue), so it reflects the current
     /// scene once <see cref="SceneCommitted"/> has fired.</summary>
@@ -445,7 +444,7 @@ public partial class VM_CharacterViewer : ViewerVm
 
     /// <summary>Structured view of <see cref="MeshOverrideWarnings"/> — the same
     /// entries with a <see cref="MeshOverrideWarningKind"/> so hosts can route
-    /// each warning (e.g. A host's excludes <see cref="MeshOverrideWarningKind.StalePhysicsConfig"/>
+    /// each warning (e.g. a host may exclude <see cref="MeshOverrideWarningKind.StalePhysicsConfig"/>
     /// from its persisted missing-asset list so it never re-stales a mugshot).</summary>
     public IReadOnlyList<MeshOverrideWarning> MeshOverrideWarningDetails => _meshOverrideWarnings;
     private readonly List<MeshOverrideWarning> _meshOverrideWarnings = new();
@@ -464,7 +463,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// reclassified — toggle the setting then re-load.</para></summary>
     public bool RenderMissingTextureAsWireframe { get; set; } = true;
 
-    /// <summary>Portrait-quality tone-mapping toggle (2.5.9+). When true,
+    /// <summary>Portrait-quality tone-mapping toggle. When true,
     /// <see cref="GlRenderer"/> applies an ACES filmic tone-mapper plus
     /// sRGB framebuffer encoding plus a mild saturation boost at the end
     /// of the fragment shader. Hosts mutate before
@@ -473,7 +472,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// render without requiring a reload.</summary>
     public bool EnableToneMapping { get; set; } = false;
 
-    /// <summary>Shadow-map toggle (2.5.10+). When true,
+    /// <summary>Shadow-map toggle. When true,
     /// <see cref="GlRenderer"/> runs an extra depth-only pass from the
     /// key light's POV and samples the resulting shadow map with PCF
     /// in <c>basic.frag</c>. Off: legacy occlusion-free lighting.</summary>
@@ -506,26 +505,26 @@ public partial class VM_CharacterViewer : ViewerVm
     /// Mirrors to <see cref="GlRenderer.ShadowFrustumRadius"/>.</summary>
     public float ShadowFrustumRadius { get; set; } = 100f;
 
-    /// <summary>Screen-space ambient occlusion toggle (2.5.11+). When
+    /// <summary>Screen-space ambient occlusion toggle. When
     /// true, <see cref="GlRenderer"/> runs a depth pre-pass + SSAO
     /// post-process before the main passes and samples the AO texture
     /// in <c>basic.frag</c> to darken crevices.</summary>
     public bool EnableAmbientOcclusion { get; set; } = false;
 
-    /// <summary>SSAO radius in world units (2.5.12+).</summary>
+    /// <summary>SSAO radius in world units.</summary>
     public float SsaoRadius { get; set; } = 4.0f;
-    /// <summary>SSAO depth-comparison bias in world units (2.5.12+).</summary>
+    /// <summary>SSAO depth-comparison bias in world units.</summary>
     public float SsaoBias { get; set; } = 0.05f;
-    /// <summary>SSAO power-curve exponent (2.5.12+).</summary>
+    /// <summary>SSAO power-curve exponent.</summary>
     public float SsaoIntensity { get; set; } = 1.5f;
     /// <summary>SSAO occluder-thickness rejection distance in view-space
-    /// units (2.5.20+). See <see cref="GlRenderer.SsaoThickness"/>.</summary>
+    /// units. See <see cref="GlRenderer.SsaoThickness"/>.</summary>
     public float SsaoThickness { get; set; } = 1.5f;
     /// <summary>Max hair-to-background gap for hair to receive screen AO
-    /// (2.5.20+). See <see cref="GlRenderer.SsaoHairGap"/>.</summary>
+    /// See <see cref="GlRenderer.SsaoHairGap"/>.</summary>
     public float SsaoHairGap { get; set; } = 0.8f;
 
-    /// <summary>Eye catch-light toggle (2.5.13+).</summary>
+    /// <summary>Eye catch-light toggle.</summary>
     public bool EnableEyeCatchlight { get; set; } = false;
 
     /// <summary>Achromatic (dielectric) skin specular toggle. When true
@@ -575,9 +574,9 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <see cref="GlRenderer.BloomIntensity"/>.</summary>
     public float BloomIntensity { get; set; } = 0.7f;
 
-    /// <summary>Subsurface scattering strength multiplier (2.5.14+). 0
+    /// <summary>Subsurface scattering strength multiplier. 0
     /// disables SSS contribution from the corrected pipeline; 1.0 is
-    /// honest source-value SSS; higher boosts the warm-flesh look.</summary>
+    /// honest source-value SSS; higher boosts the warm skin look.</summary>
     public float SubsurfaceStrength { get; set; } = 0f;
 
     /// <summary>Skin-only saturation multiplier applied post-tint,
@@ -589,17 +588,17 @@ public partial class VM_CharacterViewer : ViewerVm
     /// and brows are excluded.</summary>
     public float SkinSaturationBoost { get; set; } = 1.0f;
 
-    /// <summary>Vignette inner radius in NDC units (2.5.15+). The
+    /// <summary>Vignette inner radius in NDC units. The
     /// circular zone within this distance of screen center is
     /// unaffected; falloff smoothsteps from here out to the corner.
     /// Folded under <see cref="EnableToneMapping"/> in basic.frag.</summary>
     public float VignetteRadius { get; set; } = 0.7f;
 
-    /// <summary>Vignette darkening strength (2.5.15+). 0 = off,
+    /// <summary>Vignette darkening strength. 0 = off,
     /// 1.0 = corners to black.</summary>
     public float VignetteIntensity { get; set; } = 0f;
 
-    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// <summary>Tone-map exposure multiplier. 1.0 = neutral
     /// (the legacy look); &gt;1 brightens, &lt;1 darkens. Scales the linear
     /// color into the ACES curve. Folded under <see cref="EnableToneMapping"/>
     /// in basic.frag, so it only takes effect when tone-mapping is on.</summary>
@@ -618,7 +617,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// matches the engine's GetFacegenRGBTintBaseColor per Community
     /// Shaders' Lighting.hlsl replacement shader and reproduces the engine's
     /// face/body skin-tone composition across the test NPC set
-    /// (vanilla Addvar, Nordic Faces, Aia, Angeline, Bjartur, UBE Lydia).</summary>
+    /// (vanilla Addvar, Nordic Faces, Aia, Angeline, Bjartur, a replacer-provided Lydia).</summary>
     public int SkinTintOperator { get; set; } = 6;
 
     /// <summary>Strength used by SkinTintOperator==4 (lerp).</summary>
@@ -659,7 +658,7 @@ public partial class VM_CharacterViewer : ViewerVm
 
     /// <summary>Whether the head-only rebuild fast path is callable: scene
     /// committed, mesh paths cached, and the GL texture manager initialized.
-    /// A host's ApplyHeadPartsAsync reads this to decide between full
+    /// Hosts read this to decide between full
     /// reload vs. <see cref="RebuildHeadOnlyAsync"/>.</summary>
     public bool CanRebuildHeadOnly =>
         IsSceneReady && _cachedMeshPaths != null && TextureManager != null;
@@ -754,8 +753,8 @@ public partial class VM_CharacterViewer : ViewerVm
         _logGate = logGate;
         _previewCache = previewCache;
         // Mesh parser is shared via the preview cache so its parsed-NIF LRU
-        // survives across viewer instances (the morph-tool menu disposes the
-        // previous viewer on every preset switch).
+        // survives across viewer instances (a host may dispose and recreate
+        // viewers frequently).
         _meshBuilder = previewCache.MeshBuilder;
         _assetResolver = assetResolver;
         _generalSettings = generalSettings;
@@ -765,16 +764,16 @@ public partial class VM_CharacterViewer : ViewerVm
         // Forward the renderer's one-shot GL-state dump (FRAMEBUFFER_SRGB,
         // viewport, color-attachment encoding, ...) to the same logger pipeline
         // the rest of the VM uses. The renderer itself has no logger reference,
-        // so we wire its DiagnosticLog delegate to _logger here. NpcChooserViewerLoggerAdapter's
+        // so we wire its DiagnosticLog delegate to _logger here. A host logger adapter's
         // AsyncLocal sink routes the resulting line into the active capture file
         // (mugshot or live-preview), matching how Built shape / [Skinning] / etc.
         // already reach the same file from NifMeshBuilder and friends.
         Renderer.DiagnosticLog = msg => _logger.LogMessage(msg);
 
-        // Verbose-log state lives in Settings_General as the single source of truth.
+        // Verbose-log state lives in the host's ICharacterViewerSettings as the single source of truth.
         // Every live VM_CharacterViewer instance reactively syncs its local VerboseLog
         // property (for the toolbar checkbox) and the shared _logGate (which helpers
-        // GameAssetResolver / NpcMeshResolver / NifMeshBuilder / CharacterPreviewCache
+        // GameAssetResolver / NifMeshBuilder / CharacterPreviewCache
         // and host-side helpers consult) from the settings value.
         //
         // Previously each viewer read settings once at ctor and owned a stale local
@@ -833,9 +832,8 @@ public partial class VM_CharacterViewer : ViewerVm
     public bool IsLoading { get; set; }
 
     /// <summary>Host-settable busy flag for work that happens OUTSIDE the viewer's own
-    /// load pipeline but should still show the viewport busy overlay — e.g. A host's
-    /// "Select from Config File" rolling a distribution-valid combination on a background
-    /// thread before calling LoadAsync. The host sets it true before its work and false
+    /// load pipeline but should still show the viewport busy overlay — e.g. a host choosing
+    /// what to show on a background thread before calling LoadAsync. The host sets it true before its work and false
     /// when done (typically in a finally); <see cref="IsLoading"/> takes over coverage for
     /// the load→scene-commit window, so OR-ing the two keeps the overlay up continuously.</summary>
     public bool IsHostBusy { get; set; }
@@ -859,8 +857,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// acts as the fallback when no per-assignment override is set.</summary>
     public float NpcBaseHeight { get; set; } = 1.0f;
 
-    /// <summary>Per-assignment Height override (Consistency / Specific NPC
-    /// Assignment Height field). When non-null, replaces <see cref="NpcBaseHeight"/>
+    /// <summary>Host-supplied Height override. When non-null, replaces <see cref="NpcBaseHeight"/>
     /// as the applied scale. Null means "fall back to the NPC record".</summary>
     public float? HeightOverride { get; set; }
 
@@ -869,8 +866,8 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <see cref="SkyRender.Character.BodyReplacement"/>). Applied on every subsequent
     /// <see cref="LoadAsync"/>; null = the NPC's own meshes and skin. Sticky like
     /// <see cref="HeightOverride"/>; a changed value defeats the same-NPC short-circuit. Replacement meshes
-    /// are morph-tool source meshes: no sibling .tri and no _0/_1 weight pair, so the body morphs through
-    /// the OSD data the host supplies -- exact there, since it was authored against that very mesh.</summary>
+    /// have no sibling .tri or _0/_1 pair; any deformation comes from the host's
+    /// <see cref="IShapeDeformer"/>.</summary>
     public BodyReplacement? BodyReplacement { get; set; }
 
     /// <summary>The <see cref="BodyReplacement"/> captured by the last <see cref="LoadAsync"/>, read when
@@ -963,7 +960,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>
     /// Gates the viewer's informational log output. Errors (<c>LogError</c>) are never gated --
     /// only the noisy per-frame / per-load diagnostics flowing through <see cref="LogVerbose"/>.
-    /// Off by default so selecting a preset doesn't bury the classifier's diagnostic log in
+    /// Off by default so selecting a preset doesn't bury the host's own log in
     /// viewer chatter. Toggle from the viewer toolbar when debugging mesh/NPC/lighting issues.
     /// </summary>
     public bool VerboseLog { get; set; } = false;
@@ -1009,7 +1006,7 @@ public partial class VM_CharacterViewer : ViewerVm
     public bool RenderingUnavailable { get; private set; }
 
     /// <summary>
-    /// Test-only global override (hidden Ctrl+Alt+Shift+G shortcut). When true, EVERY viewer VM
+    /// Test-only global override (set by a host test hook). When true, EVERY viewer VM
     /// behaves as if <see cref="RenderingUnavailable"/> — its loads capture inputs for the
     /// software fallback instead of building a GL scene it can never commit. It is <b>static</b>
     /// on purpose: the editor re-creates the viewer VM when the shortcut fires (a running
@@ -1035,10 +1032,10 @@ public partial class VM_CharacterViewer : ViewerVm
     /// when <c>GLWpfControl.Start()</c> throws: latches <see cref="RenderingUnavailable"/>,
     /// updates <see cref="StatusText"/>, and logs the cause through the always-on message channel
     /// (NOT gated by <see cref="VerboseLog"/>, unlike <see cref="LogViewerDiagnostic"/>) so the
-    /// reason is visible in a normal log. Deliberately NOT the error channel: in a host an
-    /// error log yanks the UI to the status-log page, but this state is non-fatal, already
+    /// reason is visible in a normal log. Deliberately NOT the error channel: a host may
+    /// surface error logs prominently, but this state is non-fatal, already
     /// surfaced in-place by the viewer's own overlay/status text, and re-latched on every fresh
-    /// viewer VM (e.g. per-preset VMs as the fallback preview follows preset switches).
+    /// viewer VM (e.g. per-scene VMs as the fallback preview follows scene changes).
     /// Idempotent — only the first call per VM logs.
     /// </summary>
     public void NotifyRenderingUnavailable(string reason)
@@ -1167,7 +1164,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // toolbar controls open in their saved state. The dedicated write-back
         // block further down (Skip(1)) then persists any user edit across sessions.
         // Shader-troubleshooting debug operators are deliberately session-scoped
-        // (not persisted) — matching a host.
+        // (not persisted).
         RenderMissingTextureAsWireframe = _generalSettings.CharacterViewerRenderMissingTextureAsWireframe;
         EnableToneMapping = _generalSettings.CharacterViewerEnableToneMapping;
         EnableShadows = _generalSettings.CharacterViewerEnableShadows;
@@ -1757,7 +1754,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <para>Emits via <see cref="_logger"/> directly (NOT through
     /// <see cref="LogVerbose"/>) so it's not gated by the VM's
     /// <see cref="VerboseLog"/> property, which defaults false and is
-    /// independent of a host's per-capture <c>LogRenderLogic</c> toggle.
+    /// independent of a host's per-capture logging toggle.
     /// The logger adapter's thread-local sink routes the lines to the active
     /// capture file when a capture session is open; outside a capture they
     /// land in Debug output only. Cost is six lines per scene load, which
@@ -1808,11 +1805,11 @@ public partial class VM_CharacterViewer : ViewerVm
     /// only become observable after the scene-install queue drains in
     /// ProcessPendingScene. Calling this immediately after
     /// <see cref="SceneCommitted"/> guarantees the meshes are populated.
-    /// Emits via <see cref="_logger.LogMessage"/> directly so the AsyncLocal
+    /// Emits via <c>_logger.LogMessage</c> directly so the AsyncLocal
     /// sink routes the lines to the active capture file.
     /// <para>Only the offscreen mugshot pathway reliably catches these
     /// lines, because the live-preview host scopes its
-    /// <c>RenderLogCapture</c> to the span of <c>await Viewer.LoadAsync(...)</c>
+    /// log capture to the span of <c>await Viewer.LoadAsync(...)</c>
     /// and the render tick that drains the scene fires after LoadAsync
     /// returns. The mugshot's offscreen pathway holds its capture open
     /// across the whole render request and drains the scene synchronously
@@ -2016,9 +2013,8 @@ public partial class VM_CharacterViewer : ViewerVm
     //  TEXTURE VISIBILITY LOCK
     //
     //  The right-click menu's per-slot texture toggles live on each GlMesh, so
-    //  they are lost whenever a load builds new meshes — which the host
-    //  annotation queue does on every weight change, since each weight has its
-    //  own preview NPC. The lock remembers the choices at the viewer level and
+    //  they are lost whenever a load builds new meshes — which happens whenever
+    //  a host reloads, e.g. on every weight change. The lock remembers the choices at the viewer level and
     //  re-applies them to every mesh created afterwards. Session-only by
     //  design: an invisible, persisted "textures off" would mislead later.
     // ═══════════════════════════════════════════════════════════════════════
@@ -2038,7 +2034,7 @@ public partial class VM_CharacterViewer : ViewerVm
     public bool IsTextureVisibilityLocked { get; private set; }
 
     /// <summary>True while the lock is on AND remembers at least one slot as hidden. Drives the
-    /// viewport's "Textures hidden (locked)" badge: judging runs over long sessions, and it must
+    /// viewport's "Textures hidden (locked)" badge: review sessions can run long, and it must
     /// stay obvious that every NPC loaded is being drawn with textures off.</summary>
     public bool TexturesHiddenByLock { get; private set; }
 
@@ -2435,7 +2431,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // field values to the renderer now that it's initialized.
         PushAllLightsToRenderer();
         Renderer.ShowKeyLightVisualization = ShowLightControls;
-        // Same reason as the lights: a the host's viewer control recreated by WPF navigation
+        // Same reason as the lights: a host viewer control recreated by WPF navigation
         // brings a fresh GL context but keeps this VM's clip state, so re-push it rather
         // than relying on the renderer's defaults still matching.
         PushClipPlaneToRenderer();
@@ -2446,7 +2442,7 @@ public partial class VM_CharacterViewer : ViewerVm
     }
 
     /// <summary>
-    /// Drops all GL-bound state when the owning the host's viewer control is recreated during
+    /// Drops all GL-bound state when the owning host viewer control is recreated during
     /// WPF navigation. GLWpfControl 4.x creates a new GL context per control instance,
     /// so shader programs, VAOs, VBOs, and texture IDs minted by a previous UC's context
     /// are invalid in the new one — leaving them in place produces 10 "rendered" meshes
@@ -2489,15 +2485,15 @@ public partial class VM_CharacterViewer : ViewerVm
 
         IsGlInitialized = false;
 
-        // Host VMs (editor, annotator, etc.) subscribe to re-issue their last preview
+        // Host VMs subscribe to re-issue their last preview
         // request so the user sees their previously-loaded character without having to
         // re-click a preset. Raised after state is reset so handlers see a clean VM.
         GlContextReset?.Invoke();
     }
 
     /// <summary>Fires after <see cref="HandleGlContextLoss"/> finishes resetting VM state.
-    /// Host VMs subscribe to re-trigger their last preview (e.g.
-    /// their preview refresh) so the viewer isn't
+    /// Host VMs subscribe to re-trigger their last preview
+    /// so the viewer isn't
     /// grey until the user re-clicks a preset. Called on the UI thread from the GL
     /// render callback, so handlers can safely touch WPF-bound properties.</summary>
     public event Action? GlContextReset;
@@ -2553,7 +2549,7 @@ public partial class VM_CharacterViewer : ViewerVm
             _currentSceneVanillaLooseOverridesModLoose,
             _currentSceneAllowLoadOrderFallback);
 
-        // Head-only rebuild (P2) is independent of full-scene setup and runs
+        // Head-only rebuild is independent of full-scene setup and runs
         // without touching Body/Hands/Feet. Drain it here so the render callback
         // owns all GL-side scene mutations.
         if (_pendingHeadReplace != null && IsGlInitialized)
@@ -2594,7 +2590,7 @@ public partial class VM_CharacterViewer : ViewerVm
 
             // Body parts install in a fixed visual order so the progressive reveal
             // looks coherent (body and accessories first, head/hair last) regardless
-            // of the order NpcMeshResolver returned them in.
+            // of the order the mesh data source returned them in.
             var queue = new Queue<PendingShape>();
             foreach (var (bodyPart, meshSource, meshes) in loadResults
                          .OrderBy(r => InstallOrderRank(r.BodyPart)))
@@ -2784,9 +2780,6 @@ public partial class VM_CharacterViewer : ViewerVm
         => LogVerbose("CharacterViewer: Skipping shape '" + built.ShapeName +
             "' (fully-transparent diffuse with no alpha property - invisible physics/collision proxy)");
 
-    /// <summary>Uploads one shape's GL mesh + textures and registers it in the
-    /// per-body-part dictionaries. Mirrors the inner loop body the single-frame
-    /// install used; called once per shape from the sliced install loop.</summary>
     /// <summary>Reads <see cref="_faceGenHairTint"/> off the built head shapes.
     /// Head-group only: a worn wig's own shapes carry the placeholder tint this
     /// exists to replace, and body/hands/feet are never HairTint. Neutral white
@@ -2804,6 +2797,9 @@ public partial class VM_CharacterViewer : ViewerVm
         return null;
     }
 
+    /// <summary>Uploads one shape's GL mesh + textures and registers it in the
+    /// per-body-part dictionaries. Mirrors the inner loop body the single-frame
+    /// install used; called once per shape from the sliced install loop.</summary>
     private void InstallOneShape(SceneInstallState install, PendingShape shape)
     {
         // Cheap pre-shape bail: avoids creating a GL mesh we'd only tear down.
@@ -2817,11 +2813,11 @@ public partial class VM_CharacterViewer : ViewerVm
         // NIF's own resolve (before this method) still reported, so a genuine
         // out-of-scope mesh keeps its dependency line. A conditional using:
         // null (no-op) for in-scope NIFs, whose out-of-scope textures must
-        // keep reporting (the Modpocalypse-KS case). MUST precede the
+        // keep reporting (e.g. a mod whose textures sit outside its scope). MUST precede the
         // collision-proxy check below — IsFullyTransparent resolves + decodes
         // the shape's slot-0 diffuse, which for a fallback body NIF's extra
         // shapes is exactly the baseline-internal texture this bracket exists
-        // to keep out of the badge (femalebody_etc_v2_1.dds leaked this way).
+        // to keep out of the badge (a baseline body texture leaked this way).
         using var __fallbackReportMute = shape.MeshSource?.ViaDataFolderFallback == true
             ? _assetResolver.PushDataFolderFallbackReportSuppression()
             : null;
@@ -2836,7 +2832,7 @@ public partial class VM_CharacterViewer : ViewerVm
             return;
         }
 
-        // Host-designated head-shape hide (e.g. A host's antler Remove): the patch
+        // Host-designated head-shape hide (e.g. a host removing a head part): the patch
         // strips this baked head-part shape from the FaceGen NIF, so the preview
         // must not draw it either. Base-scene head shapes only — attire overrides
         // install through a different path and are never filtered here.
@@ -2966,19 +2962,11 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>Marks the next <see cref="LoadAsync"/> to force a full rebuild
     /// even for the same NPC identity (bypassing the same-identity short-circuit).
     /// For a host that drives its OWN reload after changing a mesh-upload-time
-    /// input — e.g. A host designating an antler head part to hide
+    /// input — e.g. a host designating a head part to hide
     /// via <see cref="ResolvedNpcMeshPaths.HideHeadShapeNames"/>, which is applied
     /// at install time — so the same-NPC reload actually re-installs the head.</summary>
     public void ForceRebuildNextLoad() => _forceRebuildNextLoad = true;
 
-    /// <summary>
-    /// Neutral cache-driven load entry. Resolves <paramref name="identity"/>
-    /// to a <see cref="ResolvedNpcMeshPaths"/> through the preview cache
-    /// (whose <see cref="INpcMeshDataSource"/> adapter does the host-specific
-    /// resolution — Mutagen for a host, a host's own scheme for a host), then
-    /// hands off to <see cref="LoadAsync"/>. A host (and any
-    /// other host) calls this directly with their own <see cref="NpcIdentity"/>.
-    /// </summary>
     /// <summary>
     /// Resolves <paramref name="identity"/>'s mesh paths and parses / decodes its assets into the
     /// shared <see cref="CharacterPreviewCache"/> <b>without touching the current scene</b>, so a
@@ -2994,9 +2982,8 @@ public partial class VM_CharacterViewer : ViewerVm
     /// cancel when the prediction it prefetched for stops being the likely next load -- otherwise
     /// a stale prewarm competes for I/O with the load the user actually asked for.</para>
     ///
-    /// <para>Added for a host's Label-then-Suggest annotation queue, which knows the next slice
-    /// it will serve while the user is still judging the current one. It is a general host
-    /// facility, not specific to that caller.</para>
+    /// <para>Useful when a host can predict the next NPC it will show while the user is still
+    /// looking at the current one.</para>
     /// </summary>
     /// <param name="identity">NPC to warm. Same identity shape <see cref="LoadByIdentityAsync"/>
     /// takes, so the cache keys line up.</param>
@@ -3030,6 +3017,14 @@ public partial class VM_CharacterViewer : ViewerVm
         }
     }
 
+    /// <summary>
+    /// Neutral cache-driven load entry. Resolves <paramref name="identity"/>
+    /// to a <see cref="ResolvedNpcMeshPaths"/> through the preview cache
+    /// (whose <see cref="INpcMeshDataSource"/> adapter does the host-specific
+    /// resolution, e.g. through Mutagen), then hands off to
+    /// <see cref="LoadAsync"/>. Hosts call this directly with their own
+    /// <see cref="NpcIdentity"/>.
+    /// </summary>
     public async Task LoadByIdentityAsync(NpcIdentity identity, string? overrideHeadMeshAbsolutePath = null,
         IReadOnlySet<string>? overrideEyeShapeNames = null)
     {
@@ -3062,12 +3057,12 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>
     /// Neutral rendering-tier entry point. Loads <paramref name="paths"/> into
     /// the GL scene with the given <paramref name="identity"/> as the cache /
-    /// short-circuit key. The host (the hosts) is responsible for
+    /// short-circuit key. The host is responsible for
     /// producing <see cref="ResolvedNpcMeshPaths"/> beforehand — this method
     /// has no knowledge of Mutagen, FormKeys, or any host-specific NPC model.
     ///
-    /// Same-identity short-circuit: narrow editors (morph-tool preset change,
-    /// AssetPack subgroup flip) call this defensively before their narrow
+    /// Same-identity short-circuit: narrow editors (e.g. a preset or
+    /// texture-variant change) call this defensively before their narrow
     /// update method. When the identity hasn't changed and no head override
     /// is involved, the rebuild is pure waste (full NIF re-parse, CPU
     /// re-skinning, DDS re-decode) and is skipped at this top-level guard.
@@ -3095,7 +3090,7 @@ public partial class VM_CharacterViewer : ViewerVm
             paths = paths.WithEyeShapeNames(mergedEyeNames);
         }
 
-        // Host-chosen body type (morph-tool source meshes for body / hands / feet / tail, to preview a
+        // Host-chosen body type (alternate body / hands / feet / tail meshes, to preview a
         // body type that isn't the installed one). Folded into the POCO for the same reason as the
         // eye names above: everything downstream -- LoadAllMeshParts, the software fallback's
         // SceneInputsSnapshot -- then sees one consistent set of part paths. Its skin choice is baked
@@ -3178,7 +3173,7 @@ public partial class VM_CharacterViewer : ViewerVm
         //       every install tick because the WPF render callback that
         //       fires it is on a different ExecutionContext that does NOT
         //       inherit this method's AsyncLocal value.
-        // AdditionalScopes (1.2.0+) wins over AdditionalDataFolders (1.1.0)
+        // AdditionalScopes wins over AdditionalDataFolders
         // when both are provided.
         var additionalScopes = AdditionalScopes;
         var additionalFolders = AdditionalDataFolders;
@@ -3263,7 +3258,7 @@ public partial class VM_CharacterViewer : ViewerVm
             // One-shot diagnostic dump of every render-state value that affects
             // final pixel brightness. Emitted here (before LoadAsync returns)
             // rather than from ProcessPendingScene's post-SceneCommitted hook,
-            // because the live-preview host scopes its RenderLogCapture to the
+            // because the live-preview host scopes its log capture to the
             // span of `await Viewer.LoadAsync(...)` — by the time the render
             // thread actually drains _pendingScene and fires SceneCommitted, the
             // preview's capture file is already closed and the snapshot would
@@ -3285,8 +3280,8 @@ public partial class VM_CharacterViewer : ViewerVm
         catch (Exception ex)
         {
             // Many exceptions (NullReferenceException, IndexOutOfRangeException, …) have an
-            // unhelpful or empty Message. Log the full chained exception so the Status Log
-            // actually reveals the failure instead of silently switching tabs.
+            // unhelpful or empty Message. Log the full chained exception so the log
+            // shows the full failure.
             StatusText = $"Error: {ex.Message}";
             _logger.LogError("CharacterViewer: Failed to load NPC " + identity.CacheKey + Environment.NewLine
                 + ex.ToString());
@@ -3466,9 +3461,8 @@ public partial class VM_CharacterViewer : ViewerVm
         //      (singular) and is only caught by route 1.
         // Attire overrides never contain real eyeballs, but DO contain
         // decorative shapes literally named "Eyes"/"Eyes01" (helmet
-        // ornaments — 26 such shapes in one audited loadout) that would
-        // otherwise take the eye cubemap scale and the eye AO opt-out
-        // (AUD-5), so ApplyMeshOverrides passes allowEyeNameMatching: false.
+        // ornaments) that would otherwise take the eye cubemap scale and
+        // the eye AO opt-out, so ApplyMeshOverrides passes allowEyeNameMatching: false.
         Func<NifMeshBuilder.BuiltMesh, bool>? isEyeShape = allowEyeNameMatching
             ? b => meshPaths.EyeShapeNames.Contains(b.ShapeName.Trim())
                    || b.ShapeName.Contains("Eyes", StringComparison.Ordinal)
@@ -3506,10 +3500,8 @@ public partial class VM_CharacterViewer : ViewerVm
 
     /// <summary>
     /// Neutral texture-override entry. Each <see cref="TextureOverride"/>
-    /// names its target body part + slot explicitly, so the host doesn't
-    /// have to encode that into a destination path the way a host's
-    /// <see cref="FilePathReplacement"/> does. A host (and
-    /// any future host) calls this directly.
+    /// names its target body part + slot explicitly, so hosts needn't
+    /// encode it into a destination path. Hosts call this directly.
     /// </summary>
     public void ApplyTextureOverrides(IEnumerable<TextureOverride> overrides)
     {
@@ -3521,7 +3513,7 @@ public partial class VM_CharacterViewer : ViewerVm
         RaiseSceneInputsChanged();
 
         // Queue when the scene is empty, the texture manager isn't ready, OR a
-        // rebuild is in-flight. The rebuild check is what catches the subgroup
+        // rebuild is in-flight. The rebuild check is what catches the texture
         // re-selection case: between LoadAsync queueing _pendingScene and the
         // render callback running ClearScene()+rebuild, _meshesByBodyPart still
         // holds the previous meshes and without this flag we'd apply overrides
@@ -3689,10 +3681,10 @@ public partial class VM_CharacterViewer : ViewerVm
     //  A neutral channel that SYNTHESIZES extra renderable shapes from .nif
     //  files the base NPC doesn't carry. The first consumer is an auxiliary
     //  armature on a non-base biped slot (e.g. slot 52) that some mods add to
-    //  the actor at runtime by script: its mesh lives only in the selected
-    //  asset-pack subgroup's WorldModel, so the resolver that walks the static
-    //  WornArmor never sees it. The same channel later serves a host's "Include
-    //  Default Outfit" / "headgear".
+    //  the actor at runtime by script: its mesh lives only in the host-selected
+    //  armature's WorldModel, so the resolver that walks the static
+    //  WornArmor never sees it. The same channel later serves outfit and
+    //  headgear previews.
     //
     //  Mirrors ApplyTextureOverrides: replace-on-reapply, queue while a rebuild
     //  is in flight, drain on scene commit. Each override loads its NIF,
@@ -3711,7 +3703,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <paramref name="shapeNames"/> (case-insensitive) with a bright emissive
     /// glow, restoring the original emissive as the highlight moves or clears
     /// (pass null/empty to clear). Covers <c>BodyPart == "Head"</c> (FaceGen
-    /// head parts — the "Set Antler Head Parts" selector) and
+    /// head parts — a host's head-part selector) and
     /// <c>BodyPart == "Hair"</c> (the worn-armor hair-slot ARMA channel — the
     /// host's skin-carried-wig selector). Other meshes and attire overrides are
     /// never touched. Takes effect on the next frame (the viewport draws
@@ -3760,9 +3752,9 @@ public partial class VM_CharacterViewer : ViewerVm
     /// Neutral mesh-override entry. Each <see cref="MeshOverride"/> names a
     /// game-relative <c>.nif</c>, the biped slot(s) it occupies, and an optional
     /// bundled texture set. Replace semantics: this call supersedes the previous
-    /// override set (so selecting a different subgroup / toggling a feature
+    /// override set (so selecting a different variant / toggling a feature
     /// re-applies cleanly), exactly like <see cref="ApplyTextureOverrides(IEnumerable{TextureOverride})"/>.
-    /// A host (and any future host) calls this directly.
+    /// Hosts call this directly.
     ///
     /// <para><b>Deferred for interactive hosts.</b> Installing an override set
     /// is GL work — it deletes the previous set's VAOs/VBOs/textures and uploads
@@ -3778,7 +3770,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <paramref name="ct"/> remains meaningful there.</para>
     ///
     /// <para>Before the deferral this ran inline on the caller's thread. With
-    /// two a host preview popups open — private context each, both rendering from
+    /// two host preview popups open — private context each, both rendering from
     /// the WPF UI thread — an attire toggle in one window deleted the OTHER
     /// window's meshes and textures by ID collision, because the context current
     /// on that thread belonged to whichever popup rendered most recently.</para>
@@ -3944,7 +3936,7 @@ public partial class VM_CharacterViewer : ViewerVm
         }
 
         // Outfit asset-resolution documentation: the exact disk file loaded (the
-        // VFS/morph-tool answer to "which copy of this NIF am I rendering") and
+        // VFS answer to "which copy of this NIF am I rendering") and
         // the shape inventory as built — [file-block ordinal]'3D name' — the same
         // two identity fields the record's AlternateTextures entries carry, so a
         // capture log can be compared 1:1 against the CK Model Data table / xEdit
@@ -4098,10 +4090,10 @@ public partial class VM_CharacterViewer : ViewerVm
 
             // Bundled textures (the selection's slot-N SkinTexture.* / ARMA TXST)
             // override the NIF's own embedded set; null leaves the NIF's own.
-            // SKIN-SHAPE GATE (AUD-1): an ARMA's SkinTexture (NAM0) is the
+            // SKIN-SHAPE GATE: an ARMA's SkinTexture (NAM0) is the
             // engine's per-addon SKIN swap — it replaces the texture set of the
             // addon's skin-shader shapes only (exposed hands/arms on beast-race
-            // gauntlets, revealing armor midriffs). Merging it onto every shape
+            // gauntlets, armor with exposed skin areas). Merging it onto every shape
             // repainted armor material with skin textures (vanilla beast
             // gauntlets, Forsworn Briarheart). Mirrors the base-scene path,
             // which applies TXST skin overrides only to ShaderType-5 shapes.
@@ -4115,10 +4107,9 @@ public partial class VM_CharacterViewer : ViewerVm
             // at one shape of this NIF, matched by 3D Name first with a 3D-index
             // fallback for entries whose name matches no shape — the engine keys
             // on the index, so a mesh whose shapes a rebuild renamed
-            // (morph-tool/Outfit Studio output) still shows its variant in game
+            // (mesh-editing tool output) still shows its variant in game
             // and the CK; without the fallback it rendered untextured/black here
-            // (first seen as the "black skirt" on morph-tool-built Obi's
-            // Nocturnal Noir). Full rules + rationale: AlternateTextureMatching.
+            // (first seen on a rebuilt third-party armor mesh). Full rules + rationale: AlternateTextureMatching.
             // More specific than the mesh-wide flat Textures above, so it is
             // folded on top (wins per slot for this shape; later entries win
             // within the list).
@@ -4136,7 +4127,7 @@ public partial class VM_CharacterViewer : ViewerVm
                         "' AlternateTextures entry [3D index " + spec.ShapeIndex + ", name '" +
                         spec.ShapeName + "'] applied to shape '" + b.ShapeName +
                         "' by 3D-INDEX fallback — no shape bears the record's name " +
-                        "(mesh likely rebuilt/renamed, e.g. morph-tool output)");
+                        "(mesh likely rebuilt/renamed by a mesh-editing tool)");
                 }
                 foreach (var spec in skippedAmbiguous)
                 {
@@ -4175,7 +4166,7 @@ public partial class VM_CharacterViewer : ViewerVm
             }
 
             // Armor skin inheritance. An armor NIF's bare-skin shapes (ShaderType 5,
-            // ST_SkinTint -- the exposed shoulders/arms/midriff baked into a cuirass,
+            // ST_SkinTint -- exposed skin areas baked into a cuirass,
             // textured below with the QNAM skin tint) ship a PLACEHOLDER body diffuse
             // (typically MaleBody_1.dds). The engine paints the ACTOR's race skin onto
             // them -- the same skin the base body uses -- UNLESS the ArmorAddon carries
@@ -4260,15 +4251,14 @@ public partial class VM_CharacterViewer : ViewerVm
             // Kind defaults: Skin lets the shader decide tint, so the auxiliary
             // mesh picks up the body QNAM skin tint like any slot-32 skin shape.
             // Armor / Headgear shapes drop the skin QNAM tint — BUT only the
-            // ones that are NOT genuine skin shapes. Revealing armors (e.g. the
-            // light Hide cuirass) bake real body-skin shapes into the armor NIF
-            // for the exposed midriff / shoulders: ShaderType 5 (ST_SkinTint,
-            // SLSF1_FaceGen_RGB_Tint), textured with the body skin (FemaleBody).
-            // The engine applies the NPC's skin tone to those exactly as it does
-            // the slot-32 body, keyed purely on the shader type — it has no
-            // notion of "armor vs skin." Stripping their tint here left the
-            // revealed skin at the untextured default (pink/beige) so it clashed
-            // with a tinted face/hands (e.g. a green Orc's torso). Preserve the
+            // ones that are NOT genuine skin shapes. Some armors bake
+            // skin-shader shapes into the armor NIF for exposed areas:
+            // ShaderType 5 (ST_SkinTint, SLSF1_FaceGen_RGB_Tint), textured with
+            // the body skin. The engine applies the NPC's skin tone to those
+            // exactly as it does the slot-32 body, keyed purely on the shader
+            // type — it has no notion of "armor vs skin." Stripping their tint
+            // here left that skin at the untextured default (pink/beige) so it
+            // clashed with a tinted face/hands (e.g. an Orc's arms). Preserve the
             // tint for ShaderType 4/5 skin shapes; only non-skin armor material
             // (leather/metal, ShaderType 0/1/etc.) loses it. Note non-skin
             // shapes never had HasTintColor set in the first place, so this is a
@@ -4484,7 +4474,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// NiStringExtraData into a Data-relative path for the asset resolver.
     /// Handles forward slashes, a leading "…\data\" prefix, and a bare
     /// filename (resolved into the referencing mesh's own Data-relative
-    /// folder). Mirrors a host's <c>AssetHandler.TryNormalizePhysicsXmlPath</c>.</summary>
+    /// folder).</summary>
     private static bool TryNormalizePhysicsXmlPath(string rawValue, string meshGamePath, out string xmlRelPath)
     {
         xmlRelPath = string.Empty;
@@ -4745,18 +4735,11 @@ public partial class VM_CharacterViewer : ViewerVm
     }
 
     /// <summary>
-    /// Parses <paramref name="headNifPath"/> off-thread and queues the result for
-    /// installation on the render thread via <see cref="ProcessPendingScene"/>.
-    /// The install step removes current Head shape(s), creates new GlMesh(es),
-    /// applies textures using the cached <see cref="_cachedMeshPaths"/> (face tint),
-    /// and preserves all Body/Hands/Feet state untouched.
-    /// </summary>
-    /// <summary>
     /// Parses <paramref name="headNifPath"/> off-thread and queues the result
     /// for installation on the render thread via <see cref="ProcessPendingScene"/>.
     /// The install step removes current Head shape(s), creates new GlMesh(es),
-    /// and re-applies head textures from the cached mesh paths. Used by
-    /// A host's ApplyHeadPartsAsync extension as the fast path when the
+    /// and re-applies head textures from the cached mesh paths, leaving all
+    /// Body/Hands/Feet state untouched. Used by hosts as the fast path when the
     /// same NPC is already loaded — see <see cref="CanRebuildHeadOnly"/>.
     /// </summary>
     public async Task RebuildHeadOnlyAsync(string headNifPath, CancellationToken ct,
@@ -4926,7 +4909,7 @@ public partial class VM_CharacterViewer : ViewerVm
         // ClearMeshes disposes EVERY mesh in the renderer, guest-overlay shapes included.
         // Tell the guest scene its meshes are gone so it drops the dangling references and
         // re-arms its install — the overlay is meant to survive the host swapping its own
-        // preset/NPC, and that swap goes through here.
+        // NPC, and that swap goes through here.
         NotifyGuestMeshesDestroyed();
         // Drop the per-VM GL texture cache with the scene. It is keyed on
         // game-RELATIVE paths, and a long-lived live-preview VM can load
@@ -4972,10 +4955,9 @@ public partial class VM_CharacterViewer : ViewerVm
     /// the process: with two live viewers the names collide, and deleting under
     /// a sibling's context destroys the sibling's shaders / VAOs / textures
     /// instead of ours. A host with concurrent viewers must therefore install a
-    /// context-pinning marshaller (a host does); hosts with one viewer keep the
+    /// context-pinning marshaller; hosts with one viewer keep the
     /// plain dispatch marshaller and are unaffected. We wrap in try/catch so a
-    /// stray driver throw doesn't propagate out of the dispose chain and bring
-    /// down the settings load.
+    /// stray driver throw doesn't propagate out of the host's dispose chain.
     /// </summary>
     public override void Dispose()
     {
@@ -5133,8 +5115,8 @@ public partial class VM_CharacterViewer : ViewerVm
                 // BindPosePositions in place). ApplyShapeDeformer then redoes the _0/_1 lerp
                 // from those snapshots at the current NpcWeight on every call, so
                 // changing weight through it produces the engine-equivalent base
-                // mesh — not the load-time-frozen blend that strands the scan's high-weight
-                // iterations on a low-weight base. The snapshots travel with the BuiltMesh
+                // mesh — not the load-time-frozen blend, which would leave later weight
+                // changes on the load-time base. The snapshots travel with the BuiltMesh
                 // through the install pipeline (so ClearScene mid-install can't lose them),
                 // and BindPosePositions itself keeps the original load-time blend behavior
                 // so the head/body neck still aligns when nothing else has been applied.
@@ -5178,8 +5160,7 @@ public partial class VM_CharacterViewer : ViewerVm
                                 m1.Weight1BindPosePositions = (System.Numerics.Vector3[])m1.BindPosePositions.Clone();
                                 // Cheap divergence sniff so we can confirm the snapshots
                                 // contain different data when the NIF actually has a _0/_1
-                                // pair (a body that ships _0 == _1 would explain the scan
-                                // matching old behavior even with snapshots wired in).
+                                // pair.
                                 var w0p = m0.BindPosePositions;
                                 var w1p = m1.BindPosePositions;
                                 int n = w0p.Length;
@@ -5244,9 +5225,6 @@ public partial class VM_CharacterViewer : ViewerVm
     }
 
     /// <summary>
-    /// Creates a GlMesh from a BuiltMesh, uploading interleaved vertex data and indices.
-    /// </summary>
-    /// <summary>
     /// Pure geometry step of a shape deformation: takes one shape's bind-pose data and returns
     /// freshly allocated deformed positions + normals. Does no GL work and touches no VM
     /// state, so both the primary scene (<see cref="ApplyShapeDeformer"/>) and the guest overlay
@@ -5305,6 +5283,9 @@ public partial class VM_CharacterViewer : ViewerVm
         return (positions, normals);
     }
 
+    /// <summary>
+    /// Creates a GlMesh from a BuiltMesh, uploading interleaved vertex data and indices.
+    /// </summary>
     private static GlMesh CreateGlMesh(NifMeshBuilder.BuiltMesh built) => GlMeshFactory.Create(built);
 
     /// <summary>Fills <paramref name="effectiveTextures"/> for a skin shape of the
@@ -5331,7 +5312,7 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>The rule <see cref="SkyRender.Character.BodyReplacement.TextureFolder"/> lookups use: a NIF-embedded texture path,
     /// tried under <paramref name="textureFolder"/> as given and with a <c>textures\</c> prefix (NIFs
     /// store both forms). The absolute path when the file exists, else null. Public so a host can predict
-    /// what a replacement body will show before loading it (a host's Compare Skin picker labels).</summary>
+    /// what a replacement body will show before loading it (e.g. picker labels).</summary>
     public static string? ResolveTextureUnderFolder(string? textureFolder, string? nifTexturePath)
     {
         if (string.IsNullOrWhiteSpace(textureFolder) || string.IsNullOrWhiteSpace(nifTexturePath)) return null;
@@ -5383,7 +5364,7 @@ public partial class VM_CharacterViewer : ViewerVm
     }
 
     // Derives the weight-0 counterpart path for a NIF path that ends in "_1.nif".
-    // Returns null if the input doesn't follow the standard morph-tool weight-pair naming.
+    // Returns null if the input doesn't follow the engine's _0/_1 weight-pair naming.
     private static string? TryGetWeightZeroPath(string gamePath)
     {
         if (string.IsNullOrWhiteSpace(gamePath)) return null;
@@ -5452,6 +5433,14 @@ public partial class VM_CharacterViewer : ViewerVm
         }
     }
 
+    /// <summary>
+    /// Maps a texture/mesh destination path to a body-part routing key, or null when it names
+    /// none. Destination paths are the library's generic record-path format: a dotted path into
+    /// the NPC's records, where <c>HeadTexture...</c> targets the head, and
+    /// <c>...SkinTexture...</c> / <c>...WorldModel...</c> on an armor addon target the biped slot
+    /// named in the path, either as <c>BipedObjectFlag.Body</c> / <c>.Hands</c> / <c>.Feet</c> or
+    /// numerically as <c>(BipedObjectFlag)N</c> (see <see cref="BipedFlagToBodyPart"/>).
+    /// </summary>
     public static string? ParseBodyPart(string destination)
     {
         if (destination.StartsWith("HeadTexture", StringComparison.OrdinalIgnoreCase))
@@ -5482,8 +5471,8 @@ public partial class VM_CharacterViewer : ViewerVm
         return null;
     }
 
-    /// <summary>Maps a single BipedObjectFlag bit (the asset-pack
-    /// <c>(BipedObjectFlag)N</c> encoding, i.e. <c>1 &lt;&lt; (slot-30)</c>) to a
+    /// <summary>Maps a single BipedObjectFlag bit (the BipedObjectFlag bit
+    /// encoding <c>(BipedObjectFlag)N</c>, i.e. <c>1 &lt;&lt; (slot-30)</c>) to a
     /// body-part routing key. Named base parts keep their existing labels so
     /// their textures route to base shapes; everything else (an auxiliary
     /// armature on slot 52, modded slots) becomes a generic "Slot{n}". Returns
@@ -5509,6 +5498,12 @@ public partial class VM_CharacterViewer : ViewerVm
         return null;
     }
 
+    /// <summary>
+    /// Maps a destination path (the generic record-path format described on
+    /// <see cref="ParseBodyPart"/>) to a NIF texture-set slot by its final texture-set field:
+    /// <c>Diffuse</c> = 0, <c>NormalOrGloss</c> = 1, <c>GlowOrDetailMap</c> = 2, <c>Height</c> = 3,
+    /// <c>BacklightMaskOrSpecular</c> = 7. Null when no known field is named.
+    /// </summary>
     public static int? ParseTextureSlot(string destination)
     {
         if (destination.Contains("BacklightMaskOrSpecular", StringComparison.OrdinalIgnoreCase)) return 7;

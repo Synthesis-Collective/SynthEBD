@@ -38,8 +38,8 @@
         the new values to GlRenderer on the next frame, so changes apply
         immediately without a manual reload.
 
-        Hosts that persist these values (e.g. A host's settings
-        JSON) subscribe to property changes on VM_CharacterViewer and write
+        Hosts that persist these values (e.g. in a settings JSON
+        file) subscribe to property changes on VM_CharacterViewer and write
         through to their own settings model.
     -->
     <StackPanel Orientation="Vertical">
@@ -74,7 +74,7 @@
                                    Value="{Binding SubsurfaceStrength}" VerticalAlignment="Center"
                                    Foreground="White"
                                    FormatString="0.00"
-                                   ToolTip="Subsurface scattering strength multiplier. 0 disables SSS; 1.0 is honest SSS at the source NIF rolloff values; 1.5-2.0 boosts toward the more pronounced warm-flesh look in professional portrait reference."/>
+                                   ToolTip="Subsurface scattering strength multiplier. 0 disables SSS; 1.0 is honest SSS at the source NIF rolloff values; 1.5-2.0 boosts toward the more pronounced warm skin look in professional portrait reference."/>
 
                 <TextBlock Text="Skin Sat:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="15,0,4,0"
@@ -101,7 +101,7 @@
                                    Value="{Binding VignetteIntensity}" VerticalAlignment="Center"
                                    Foreground="White"
                                    FormatString="0.00"
-                                   ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black. Approximates the pre-2.5.15 hardcoded vignette at ~0.3."/>
+                                   ToolTip="Vignette darkening strength. 0 = off, 1 = corners to black. Approximates the older fixed vignette at ~0.3."/>
 
                 <TextBlock Text="Exposure:" Foreground="#FFAAAAAA" FontSize="11"
                            VerticalAlignment="Center" Margin="15,0,4,0"

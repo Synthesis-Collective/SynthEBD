@@ -7,7 +7,7 @@ namespace SkyRender;
 
 /// <summary>
 /// Resolves shader source that ships with this assembly. The shaders are both
-/// (a) copied next to the assembly (so local / <see cref="ProjectReference"/>
+/// (a) copied next to the assembly (so local / <c>ProjectReference</c>
 /// builds can hot-edit a <c>.frag</c> in the bin folder and re-run without a
 /// rebuild) and (b) embedded into the assembly (so NuGet-package consumers — for
 /// whom copied content does NOT flow through a PackageReference — and single-file

@@ -5,7 +5,7 @@ namespace SkyRender;
 
 /// <summary>
 /// Proves from compressed block data alone that a DDS has at least one texel whose alpha is
-/// non-zero, which settles <see cref="CharacterPreviewCache.IsFullyTransparent"/> as false
+/// non-zero, which settles <see cref="AssetCache.IsFullyTransparent"/> as false
 /// without decoding the image. One-sided by design: true is a proof, false only means "not
 /// proven here", and the caller falls back to the full decode — so the verdict can never differ
 /// from the decode-based one. Ordinary opaque diffuse is proven by its first block.

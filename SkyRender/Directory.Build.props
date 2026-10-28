@@ -10,20 +10,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <Deterministic>true</Deterministic>
+    <!-- Map this repo's absolute paths to /_/ in every compiled path (PDB location, source
+         paths), so a CI build embeds no local folder names. The WPF project's markup pass does
+         not pick up ContinuousIntegrationBuild's mapping on its own. -->
+    <PathMap Condition="'$(ContinuousIntegrationBuild)' == 'true'">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)'))=/_/</PathMap>
   </PropertyGroup>
 
   <!-- NuGet packaging metadata. Produced with `dotnet pack -c Release`; not packed on every build. -->
   <PropertyGroup>
-    <Authors>Synthesis Collective</Authors>
+    <Authors>Piranha91, Synthesis Collective</Authors>
     <Company>Synthesis Collective</Company>
     <Copyright>Copyright (C) Synthesis Collective</Copyright>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>skyrim;nif;opengl;renderer;offscreen</PackageTags>
-    <!-- set at extraction -->
-    <PackageProjectUrl>https://github.com/OWNER/SkyRender</PackageProjectUrl>
-    <!-- set at extraction -->
-    <RepositoryUrl>https://github.com/OWNER/SkyRender</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Synthesis-Collective/SkyRender</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Synthesis-Collective/SkyRender</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

@@ -322,7 +322,7 @@ internal static partial class NifDiagnosticDumper
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  Section 4 — Per-block details (filled in by Phase 5 partial)
+    //  Section 4 — Per-block details (see NifDiagnosticDumper.Blocks.cs)
     // ════════════════════════════════════════════════════════════════════
 
     private static void DumpAllBlockDetails(StringBuilder sb, NiHeader header, HashSet<string> texturePaths, IRenderLogger logger)

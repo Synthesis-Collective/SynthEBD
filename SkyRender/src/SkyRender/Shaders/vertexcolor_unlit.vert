@@ -1,8 +1,8 @@
 #version 330 core
 
-// Slider-morph heatmap pass. Clones debug.vert but carries a per-vertex color
-// (location 2) so the fragment shader can paint each vertex by its morph
-// magnitude instead of a single u_color uniform. Pure ASCII (see the shader
+// Per-vertex colour overlay pass. Clones debug.vert but carries a per-vertex
+// color (location 2) so the fragment shader can paint each vertex by its own
+// colour instead of a single u_color uniform. Pure ASCII (see the shader
 // ASCII-only rule in RENDERING_PIPELINE.md).
 
 layout (location = 0) in vec3 aPos;

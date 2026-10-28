@@ -16,6 +16,7 @@
        final-mip limit initializer) instead of making them public API. -->
   <ItemGroup>
     <InternalsVisibleTo Include="SkyRender.Character" />
+    <InternalsVisibleTo Include="SkyRender.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,8 +25,6 @@
     <PackageReference Include="OpenTK" Version="4.8.2" />
     <PackageReference Include="niflysharp" Version="1.3.0" />
     <PackageReference Include="Pfim" Version="0.11.4" />
-    <!-- ImageSharp encodes the offscreen renderer's RGBA8 framebuffer to PNG. -->
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
   </ItemGroup>
 
   <!-- Shaders ship two ways: embedded into the assembly (so NuGet-package

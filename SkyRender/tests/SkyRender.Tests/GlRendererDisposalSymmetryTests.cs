@@ -11,8 +11,8 @@ using Xunit.Abstractions;
 namespace SkyRender.Tests;
 
 /// <summary>
-/// Guards the GL-resource teardown contract in <see cref="GlRenderer"/> — the leak fixed in commit
-/// 253d42a9 ("Fix per-render GL resource leak in GlRenderer.Dispose"), where Dispose deleted only 5 of
+/// Guards the GL-resource teardown contract in <see cref="GlRenderer"/> — a per-render GL resource leak
+/// fixed in GlRenderer.Dispose, where Dispose deleted only 5 of
 /// the GL objects Initialize/EnsureShadowFbo/EnsureSsaoFbos create. A fresh GlRenderer is built and
 /// disposed for every offscreen mugshot, so each render orphaned driver-side memory — unmanaged and
 /// invisible to the GC, which is why it showed up as a monotonic *native* climb during batch mugshot
@@ -20,7 +20,7 @@ namespace SkyRender.Tests;
 ///
 /// <para>That fix left the invariant stated only as a comment in Dispose ("Keep this symmetric with the
 /// resource set enumerated in ForgetResourcesFromDeadContext()"). Since then the renderer has gained the
-/// slider-morph heatmap VAO/VBO and the bloom program + three ping-pong FBOs, and each time the author
+/// vertex-colour overlay VAO/VBO and the bloom program + three ping-pong FBOs, and each time the author
 /// remembered to extend both teardown paths — by discipline, with nothing enforcing it. These tests turn
 /// the comment into an assertion: every GL handle field must be (a) reset by
 /// ForgetResourcesFromDeadContext and (b) named in the Dispose teardown region. Add an FBO, texture, VAO
@@ -129,7 +129,7 @@ public class GlRendererDisposalSymmetryTests
         missing.Should().BeEmpty(
             "every GL handle must be deleted in Dispose (directly or via DestroySsaoFbos/DestroyBloomFbos). " +
             "A handle created per render and never deleted leaks unmanaged driver memory the GC cannot see — " +
-            "the regression fixed in 253d42a9. Missing: " + string.Join(", ", missing));
+            "the per-render leak regression. Missing: " + string.Join(", ", missing));
     }
 
     /// <summary>

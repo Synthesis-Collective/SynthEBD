@@ -4,8 +4,7 @@ namespace SkyRender;
 
 /// <summary>
 /// One entry in the priority-ordered asset-resolution chain set on
-/// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/> /
-/// <see cref="VM_CharacterViewer.AdditionalScopes"/>. A scope binds a
+/// <see cref="Offscreen.OffscreenRenderRequest.AdditionalScopes"/>. A scope binds a
 /// data folder to a set of plugin filenames (e.g. <c>"MyMod.esp"</c>);
 /// the resolver consults the folder for loose files and any BSAs
 /// physically located in that folder owned by one of the listed plugins.
@@ -20,8 +19,7 @@ namespace SkyRender;
 /// <para><see cref="ModKeyFileNames"/> are deliberately strings rather
 /// than a Mutagen <c>ModKey</c> type so the rendering library doesn't
 /// take a Mutagen dependency. The host parses them back as needed
-/// (e.g. A host's <c>NpcChooserBsaProviderAdapter</c> uses
-/// <c>ModKey.TryFromNameAndExtension</c>).</para>
+/// (e.g. via Mutagen's <c>ModKey.TryFromNameAndExtension</c>).</para>
 /// </summary>
 public sealed record RenderScope(
     string FolderPath,
@@ -35,7 +33,7 @@ public sealed record RenderScope(
     /// the strict two-phase walk ignores it.
     ///
     /// <para>Hosts use this for a mod whose assets will NOT be copied into
-    /// the generated output (a host's per-mod "Copy Assets" unchecked): at
+    /// the generated output (e.g. when the host will not copy that mod's assets): at
     /// runtime the game sees only the data folder, so the preview should
     /// prefer the data folder too. The scope stays in the chain as a
     /// fallback so browsing a mod that isn't currently enabled still shows

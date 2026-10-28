@@ -34,7 +34,7 @@ uniform vec2 u_uvOffset;
 // written below is non-negative. The renderer pushes (0,0,0,1) whenever clipping
 // is off, which yields a constant +1 and keeps every vertex, so this line is inert
 // unless GL_CLIP_DISTANCE0 is also enabled around the draw. See
-// GlRenderer.ClipPlaneMode / RENDERING_PIPELINE.md.
+// GlRenderer.ClipPlane / ClipPlaneMode / RENDERING_PIPELINE.md.
 uniform vec4 u_clipPlane;
 
 // Eye-space depth bias in world units (GlMesh.DepthBias): the vertex slides along its

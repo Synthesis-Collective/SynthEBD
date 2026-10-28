@@ -115,7 +115,7 @@ public partial class VM_CharacterViewer
     }
 
     /// <summary>Flat tint applied to the guest in Translucent and Wireframe styles. A warm
-    /// orange chosen to sit clear of the teal classifier wireframe, the green
+    /// orange chosen to sit clear of the teal debug wireframe, the green
     /// missing-texture wireframe, and the skin tones underneath it.</summary>
     public System.Numerics.Vector3 GuestTintColor { get; set; } = new(1.0f, 0.45f, 0.12f);
 
@@ -276,7 +276,7 @@ public partial class VM_CharacterViewer
     /// guest's meshes too — installing a guest while a primary load is in flight would just
     /// build meshes that are about to be destroyed. <see cref="NotifyGuestMeshesDestroyed"/>
     /// re-arms the install so the overlay comes back on its own once the primary scene
-    /// commits, which is what makes changing the host pane's own preset non-destructive to
+    /// commits, which is what makes changing the host pane's own scene non-destructive to
     /// the overlay.</para>
     /// </summary>
     private void ProcessPendingGuestScene()

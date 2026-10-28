@@ -17,12 +17,12 @@ namespace SkyRender.Offscreen;
 public sealed class RenderTimings
 {
     /// <summary>GL/VM setup before the scene loads — InitializeGl (shader
-    /// compile) plus request→VM property forwarding. Per-render today because
-    /// the VM is rebuilt each render; a non-trivial value flags shader compile
+    /// compile) plus request forwarding. Per-render because each scene is
+    /// rebuilt each render; a non-trivial value flags shader compile
     /// as a candidate to hoist.</summary>
     public double SetupMs { get; set; }
 
-    /// <summary>LoadAsync: NIF resolve/extract + parse + CPU skinning of every
+    /// <summary>Scene build: NIF resolve/extract + parse + CPU skinning of every
     /// body part. The unique, uncached head NIF dominates this for high-poly mods.</summary>
     public double BuildMs { get; set; }
 
@@ -51,8 +51,8 @@ public sealed class RenderTimings
     /// interop / GC cost rather than the native file parse.</summary>
     public double BuildShapesMs { get; set; }
 
-    /// <summary>ProcessPendingSceneToCompletion + mesh/texture/morph overrides:
-    /// texture decode-on-miss and the GL upload of textures and vertex buffers.
+    /// <summary>Scene install: texture decode-on-miss and the GL upload of
+    /// textures and vertex buffers.
     /// High value here is what would make pinning shared GL resources pay off.</summary>
     public double InstallMs { get; set; }
 
@@ -71,7 +71,7 @@ public sealed class RenderTimings
     /// high value means prewarm, not the GL thread, bounds throughput.</summary>
     public double PrewarmDecodeMs { get; set; }
 
-    /// <summary>CPU time issuing the draw pass (vm.Renderer.Render). Typically
+    /// <summary>CPU time issuing the draw pass (scene.Renderer.Render). Typically
     /// small; see the class remark about GL asynchrony.</summary>
     public double DrawMs { get; set; }
 

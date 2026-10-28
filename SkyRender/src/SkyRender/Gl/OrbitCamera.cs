@@ -14,10 +14,9 @@ public class OrbitCamera
     /// <see cref="Elevation"/>, <see cref="Distance"/>, <see cref="Target"/>,
     /// <see cref="FieldOfView"/>) actually changes value.
     ///
-    /// <para>Exists for the morph-tool Compare window's "Lock camera" mode, which mirrors one
-    /// pane's view onto the other. Raising from the setters rather than from the mouse
-    /// handlers means programmatic reframes — <c>MeshAwareCameraFitter.ApplyTo</c> after an
-    /// NPC load, the FOV spinner — propagate too, which is what a locked pair should do.</para>
+    /// <para>Lets a host keep two cameras in sync (e.g. side-by-side panes). Raising from the
+    /// setters rather than from the mouse handlers means programmatic reframes (camera
+    /// fitting, FOV changes) propagate too, which is what a locked pair should do.</para>
     ///
     /// <para>Mirror the change with <see cref="CopyViewFrom"/>, never by assigning the
     /// properties directly: it suppresses the event on the receiving camera, without which

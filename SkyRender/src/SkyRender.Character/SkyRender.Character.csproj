@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 5.0.0 -> 5.1.2 to stay coherent with the WPF hosts' Mutagen.Bethesda.WPF 0.54.0 floor. -->
+    <!-- 5.0.0 -> 5.1.2 to stay coherent with common WPF host dependencies. -->
     <PackageReference Include="Extended.Wpf.Toolkit" Version="5.1.2" />
     <PackageReference Include="OpenTK.GLWpfControl" Version="4.3.3" />
     <!-- One ReactiveUI major with the WPF hosts (a shared assembly can't straddle a ReactiveUI

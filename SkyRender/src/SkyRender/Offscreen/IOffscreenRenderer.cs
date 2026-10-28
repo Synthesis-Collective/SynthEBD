@@ -5,9 +5,8 @@ namespace SkyRender.Offscreen;
 
 /// <summary>
 /// Renders an <see cref="OffscreenRenderRequest"/> to a PNG (or raw BGRA32
-/// pixel buffer) without putting anything on screen. A host
-/// uses this in place of its C++ NPC Portrait Creator subprocess to
-/// produce mugshots in-process.
+/// pixel buffer) without putting anything on screen. Useful for producing
+/// NPC portraits in-process.
 ///
 /// Implementations are expected to own their own GL context (a hidden
 /// <c>OpenTK.Windowing.Desktop.GameWindow</c> in the default

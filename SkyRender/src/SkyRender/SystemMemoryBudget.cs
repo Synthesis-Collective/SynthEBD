@@ -19,7 +19,7 @@ namespace SkyRender;
 internal static class SystemMemoryBudget
 {
     // Always leave at least this much physical RAM for the OS and the rest of the
-    // app (Mutagen load order, the WPF UI, plugin/link caches during patching).
+    // app (the rest of the host process).
     private const long MinHeadroomBytes = 2L * 1024 * 1024 * 1024; // 2 GB
     private const double HeadroomFraction = 0.20;                  // ...or 20% of RAM
 

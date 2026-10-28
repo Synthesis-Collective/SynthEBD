@@ -9,8 +9,8 @@ namespace SkyRender.Character.Offscreen;
 ///
 ///   * <see cref="Portrait"/> — quick auto-frame of the head using the NPC's
 ///     base height (no mesh introspection). Cheap, simple, ignores hair.
-///   * <see cref="Fixed"/> — explicit camera placement. A host's existing
-///     "Fixed" Portrait Creator mode maps directly here.
+///   * <see cref="Fixed"/> — explicit camera placement. A fixed-camera
+///     portrait mode maps directly here.
 ///   * <see cref="MeshAware"/> — frame around a bounding box computed from
 ///     selected loaded shapes, with optional vertex filters and padding.
 ///     This is the framing mode that mirrors NPC Portrait Creator's

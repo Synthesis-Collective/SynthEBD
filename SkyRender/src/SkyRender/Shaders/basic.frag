@@ -53,8 +53,8 @@ const bool DEBUG_VIZ_MSN_NORMAL = false;
 // code at all, and sk_msn.frag (used for MSN faces) which applies
 // FaceTint as a Photoshop overlay then doubles the albedo. The
 // in-game engine almost certainly mirrors this split, since vanilla
-// FaceGen always bakes Model_Space_Normals while body/face replacers
-// like UBE deliberately ship tangent-space (non-MSN) faces.
+// FaceGen always bakes Model_Space_Normals while many replacer faces
+// ship tangent-space (non-MSN).
 //
 // Mode 0 (default): auto -- MSN gets overlay, non-MSN gets multiply.
 // Mode 1: always overlay.
@@ -126,8 +126,8 @@ uniform bool is_face_shape;
 // True for BSLSP_FACE (4) or BSLSP_SKINTINT (5) shapes -- i.e. the
 // "skin shapes" (face + body + hands + feet). Hair / eyes / brows are
 // excluded. Gates the host-tunable u_skinSaturationBoost which
-// compensates for downstream desaturation that washes Imperials pale,
-// Redguards Mediterranean, and Orcs olive. Set per-mesh by the host.
+// compensates for downstream desaturation that washes distinctive race
+// skin tones toward neutral. Set per-mesh by the host.
 uniform bool is_skin;
 uniform float skin_tint_alpha;
 uniform bool is_face_empty_detail;
@@ -400,8 +400,8 @@ void main()
     // TEMP DEBUG: short-circuit to visualize the MSN-sampled normal (post
     // G-flip, post current swizzle) as color, treated as if it were already
     // in Y-up world space (valid since u_model is identity). For MSN meshes
-    // this should produce the same colors as DEBUG_VIZ_WORLD_NORMAL IF the
-    // current swizzle on line 178 is correct. If colors are rotated 90deg
+    // this should produce the same colors as DEBUG_VIZ_WORLD_NORMAL if the
+    // MSN swizzle in section 2 is correct. If colors are rotated 90deg
     // (e.g. chest green instead of yellow), the swizzle is wrong and the
     // MSN texture is stored in Y-up, not NIF Z-up. Non-MSN meshes fall
     // back to the vertex normal so the viewport stays visually coherent.
@@ -540,11 +540,7 @@ void main()
     }
 
     // Face tint blend (RGB only - alpha is unused; verified mean=255 across
-    // both vanilla and UBE FaceTints). The blend choice is gated on the
-    // SLSF1_Model_Space_Normals flag, mirroring NifSkope's sk_msn vs
-    // sk_default split. See FACE_TINT_MODE const at file top.
-    // Face tint blend (RGB only - alpha is unused; verified mean=255 across
-    // both vanilla and UBE FaceTints). The blend choice is gated on
+    // both vanilla and replacer FaceTints). The blend choice is gated on
     // u_faceTintMode (and may be overridden per-mesh by the
     // multiply-on-empty-slot-3 toggle).
     if (has_face_tint_map && u_enableFaceTint) {
@@ -644,11 +640,10 @@ void main()
     // occluded by nearby geometry.
     //
     // Eye shapes (is_eye, BSLSP shader type 16) opt OUT of receiving AO:
-    // eyeballs sit a tiny delta-Z behind the lash cards in the depth prepass
-    // (lashes set HasAlphaBlend+HasAlphaTest both, so they pass the
-    // prepass gate at GlRenderer.cs RenderDepthPrepass and write depth
-    // wherever their alpha-test passes - see Nif/NifMeshBuilder.cs flag
-    // parsing). That depth step is small but sharp, and SSAO amplifies
+    // eyeballs sit a tiny delta-Z behind the lash cards. The depth prepass
+    // (GlRenderer.cs RenderDepthPrepass) now skips every alpha-test and
+    // alpha-blend mesh, lashes included, but an eyeball's AO texel still
+    // sits on the sharp depth step at the lid edge, and SSAO amplifies
     // it into a visible horizontal darkening across the eyeball that
     // scales with u_intensity. The eyeball is also a wet glossy sphere
     // that physically wouldn't benefit from diffuse AO anyway, so
@@ -710,7 +705,7 @@ void main()
             // Directional
             // Daylight boost: a noon-sun gain + slight warm tint on the
             // directional lights only (ambient is left alone), so blonde
-            // hair reads blonde without hand-tuning the Key arrow. Off by
+            // hair reads blonde without hand-tuning the Key arrow. On by
             // default -- this scales the lit terms, not the ambient fill.
             if (u_daylightBoost) {
                 lightColor *= u_daylightBoostIntensity * vec3(1.0, 0.97, 0.90);
@@ -782,7 +777,7 @@ void main()
             // passing through thin areas - ears, nostril rims, lip
             // edges - and emerging on the shadow side). The combined
             // result is added to finalColor OUTSIDE the *baseColor.rgb
-            // multiply so the warm-flesh hue isn't double-tinted away;
+            // multiply so the warm skin hue isn't double-tinted away;
             // sss_color carries its own already-skin-tinted color.
             //
             // u_subsurfaceStrength is a global multiplier letting users
@@ -795,7 +790,7 @@ void main()
             if (has_skin_map && u_enableSkin && u_subsurfaceStrength > 0.0) {
                 float sss_mask = texture(texture_skin, TexCoords).r;
 
-                // Warm flesh tint, biased toward surface color. Only
+                // Warm skin tint, biased toward surface color. Only
                 // applied to the terminator/back-scatter delta below,
                 // never to the fully-lit hemisphere -- so non-warm
                 // skin (orcs, dark-skinned NPCs) keep their hue.
@@ -815,7 +810,7 @@ void main()
                     // washing out. We reuse the plumbed subsurfaceRolloff
                     // (~0.3) as a proxy for the material soft-lighting value
                     // (~0.4) -- a minor, intentional deviation. sss_color
-                    // keeps our warm-flesh bias (a deliberate deviation
+                    // keeps our warm skin bias (a deliberate deviation
                     // from NifSkope's raw mask color, since our mask is a
                     // single channel).
                     float e1 = clamp(subsurfaceRolloff, 0.0, 1.0);
@@ -861,7 +856,7 @@ void main()
                 // specMask stays 1.0 across the whole shape. Added achromatically
                 // on top, summed over every directional light, that lobe blows
                 // the hair out to a luminescent halo (e.g. vanilla Aela), and on
-                // hair with a real lobe (e.g. Bijin) it reads metallic.
+                // hair with a real lobe (e.g. some modded hair) it reads metallic.
                 // Multiplying it through the dark hair albedo (legacy path)
                 // keeps it a dim fiber sheen -- the engine-faithful look. Blonde
                 // brightness is instead recovered by the daylight / bloom /
@@ -873,7 +868,7 @@ void main()
                 // dims and skin-tints the highlight. Kept for A/B.
                 finalColor += ((diffuse + backlight + rimlight) * ao + specular) * baseColor.rgb;
             }
-            // SSS is added separately so its warm-flesh tint isn't
+            // SSS is added separately so its warm skin tint isn't
             // double-multiplied by the surface color - sss_color already
             // mixes baseColor in at the right ratio. AO still modulates
             // the SSS contribution since deep crevices block scattering.
@@ -978,7 +973,7 @@ void main()
         // grazing-angle reflections + microfacet shadowing. Folded
         // under the tone-mapping toggle since both are "finishing"
         // touches that ship together.
-        // Hair relief (off by default): hair strands graze the view at the
+        // Hair relief (on by default): hair strands graze the view at the
         // silhouette, so the fresnel contour darkening lands right on the
         // wispy edges and reads as a darker, browner outline. When relieving
         // hair, skip it for hair pixels (skin/everything else untouched).
@@ -1020,12 +1015,12 @@ void main()
     }
 
     // Alpha output is just the surface's own alpha. Earlier versions of this
-    // shader had a luma-based hack to make the wet-eye outer cornea (UBE-
+    // shader had a luma-based hack to make the wet-eye outer cornea (replacer-
     // style separate alpha-blended overlay shape with a near-black diffuse)
     // fade where dim, since hard-coded GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA
     // blending would otherwise paint a solid black void over the iris. The
     // hack was replaced (commit history) with per-mesh blend factors read
-    // from NiAlphaProperty.SrcBlend/DstBlend -- UBE's wet-eye is authored
+    // from NiAlphaProperty.SrcBlend/DstBlend -- a replacer's wet-eye is authored
     // with additive blend (SRC_ALPHA, ONE), which produces the engine-
     // correct "black cornea adds nothing, bright catchlight adds brightness"
     // behavior natively. No special-case shader logic needed.

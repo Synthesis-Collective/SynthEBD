@@ -168,16 +168,16 @@ public class DdsAlphaProbeTests
             if (Proves(file)) Assert.False(PfimFullyTransparent(new MemoryStream(file)));
     }
 
-    /// <summary>Opt-in corpus check: set CVR_ALPHA_PROBE_FILES to a text file of DDS paths
+    /// <summary>Opt-in corpus check: set SKYRENDER_ALPHA_PROBE_FILES to a text file of DDS paths
     /// (one per line). Fails if the probe ever proves a texture the decode calls fully
     /// transparent; prints how many were proven vs left to the decode.</summary>
     [Fact]
     public void Proofs_AgreeWithPfimDecode_OnCorpus()
     {
-        string? list = Environment.GetEnvironmentVariable("CVR_ALPHA_PROBE_FILES");
+        string? list = Environment.GetEnvironmentVariable("SKYRENDER_ALPHA_PROBE_FILES");
         if (string.IsNullOrWhiteSpace(list) || !File.Exists(list))
         {
-            _out.WriteLine("SKIPPED: set CVR_ALPHA_PROBE_FILES to a list of DDS paths.");
+            _out.WriteLine("SKIPPED: set SKYRENDER_ALPHA_PROBE_FILES to a list of DDS paths.");
             return;
         }
         int proven = 0, unproven = 0, transparent = 0;

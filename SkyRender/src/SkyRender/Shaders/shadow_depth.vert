@@ -16,8 +16,7 @@ uniform mat4 u_lightViewProj;
 // Section-clip plane, world space, (normal.xyz, -distance). Clipped in WORLD
 // space even though gl_Position here is in the LIGHT's clip space, so the shadow
 // pass drops exactly the geometry the camera pass drops. Without this, clipping
-// the chest away would still leave the chest's shadow cast across the ribcage
-// the user just uncovered.
+// away the near side would still leave its shadow on the newly exposed surface.
 uniform vec4 u_clipPlane;
 
 void main()

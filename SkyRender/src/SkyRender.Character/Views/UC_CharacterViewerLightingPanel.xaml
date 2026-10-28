@@ -15,7 +15,7 @@
         <cvrv:IntEqualsToVisibilityConverter x:Key="IntEqVis"/>
 
         <!-- Implicit dark style for the per-light intensity spinners, mirroring the
-             UC_CharacterViewerRenderPanel pattern. The app themes ship implicit Xceed
+             UC_CharacterViewerRenderPanel pattern. Host application themes may ship implicit Xceed
              spinner styles that follow the active (possibly light) palette; this nearer
              style shadows them so the viewport HUD stays dark on every theme. -->
         <Style TargetType="{x:Type xctk:IntegerUpDown}">

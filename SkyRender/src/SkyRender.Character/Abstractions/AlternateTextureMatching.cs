@@ -13,7 +13,7 @@ namespace SkyRender.Character;
 /// <see cref="AlternateTextureSpec"/>): the 3D Name and the 3D Index. Neither
 /// alone is reliable in wild data, and they fail in opposite directions:</para>
 /// <list type="bullet">
-///   <item><b>Name goes stale on rebuild.</b> morph-tool/Outfit Studio output
+///   <item><b>Name goes stale on rebuild.</b> mesh-editor output
 ///   renames shapes (project shape names differ from the shipped mesh's) while
 ///   preserving their order. The engine still applies the entry — it keys on
 ///   the index — so name-only matching renders such variants in game and the
@@ -30,7 +30,7 @@ namespace SkyRender.Character;
 /// elsewhere never index-hijacks a second shape.</para>
 ///
 /// <para><b>Duplicate shape names.</b> A name match is one-to-many when a mesh
-/// has two shapes with the same name (morph-tool output can produce them), and
+/// has two shapes with the same name (some mesh tools produce them), and
 /// applying the entry to both is wrong: the engine gives it to exactly one. So
 /// when the name is ambiguous AND the entry's 3D Index picks out one of the
 /// same-named shapes, the index breaks the tie

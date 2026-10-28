@@ -34,7 +34,7 @@ public readonly record struct DdsDecodeEvent(
 /// Process-wide cache of the expensive read-only asset inputs to rendering: the shared
 /// <see cref="NifMeshBuilder"/> (parsed-NIF LRU) and the decoded-DDS pixel and cubemap caches,
 /// plus the transparency verdicts and decode telemetry. Holds nothing about NPCs; the character
-/// tier's <see cref="CharacterPreviewCache"/> composes one and adds NPC mesh-path resolution and
+/// tier's preview cache composes one and adds NPC mesh-path resolution and
 /// prewarming.
 ///
 /// Two layers:
@@ -55,7 +55,8 @@ public class AssetCache
 {
     private int? _ddsMaximumFinalMipDimension;
     /// <summary>Frozen for this cache's lifetime. Defaults to <see cref="DdsMipPolicy.Parse"/> of the
-    /// <c>CVR_DDS_MAX_FINAL_MIP_DIMENSION</c> environment variable — unset means
+    /// <c>SKYRENDER_DDS_MAX_FINAL_MIP_DIMENSION</c> environment variable (the older
+    /// <c>CVR_DDS_MAX_FINAL_MIP_DIMENSION</c> name is still honoured) — unset means
     /// <see cref="DdsMipPolicy.DefaultMaximumFinalMipDimension"/>; an invalid value logs and falls
     /// back to decoded. An object initializer overrides it. Null uses decoded pixels and generated mips.
     /// Otherwise, the last supplied DDS mip must have both dimensions at most this value.
@@ -201,7 +202,7 @@ public class AssetCache
     {
         _assetResolver = assetResolver;
         _logger = logger;
-        try { DdsMaximumFinalMipDimension = DdsMipPolicy.Parse(Environment.GetEnvironmentVariable(DdsMipPolicy.EnvironmentVariable)); }
+        try { DdsMaximumFinalMipDimension = DdsMipPolicy.Parse(DdsMipPolicy.ReadEnvironmentValue()); }
         catch (ArgumentException ex) { logger.LogError($"{DdsMipPolicy.EnvironmentVariable}: {ex.Message} Using decoded textures."); }
         _logGate = logGate;
         _settings = settings;
@@ -243,7 +244,7 @@ public class AssetCache
     /// Entries are keyed on the RESOLVED DISK PATH, not the game-relative path.
     /// Under strict per-mod scopes the same relative path legitimately resolves
     /// to different files per scope chain (e.g. 17 variants of one mod family
-    /// each shipping their own 'foxglovehair.dds' / FaceTint DDS under the same
+    /// each shipping their own hair diffuse / FaceTint DDS under the same
     /// relative path); a relative-path key let whichever variant decoded first
     /// poison every sibling variant's renders — and the offscreen resident GL
     /// cache (correctly keyed on disk path) then persisted the wrong pixels
@@ -400,14 +401,6 @@ public class AssetCache
         return true;
     }
 
-    /// <summary>
-    /// Decodes a DDS via Pfim into BGRA32. Handles the formats Pfim emits for
-    /// Skyrim assets — Rgba32 (blittable), Rgb24 (needs padding to 4-byte
-    /// stride), and Rgb8 (8-bit greyscale broadcast to BGR). Matches the
-    /// behavior previously in GlTextureManager.LoadDdsPixels so swapping
-    /// callers from the direct Pfim path to this cached path yields pixel-
-    /// identical output.
-    /// </summary>
     /// <summary>Total bytes held by a cubemap payload: the sum of its six face
     /// buffers. Used for the cubemap cache's byte-budget accounting.</summary>
     private static long CubemapByteSize(DdsCubemapPixels cubemap)
@@ -418,6 +411,11 @@ public class AssetCache
         return total;
     }
 
+    /// <summary>
+    /// Decodes a DDS via Pfim into BGRA32. Handles the formats Pfim emits for
+    /// Skyrim assets — Rgba32 (blittable), Rgb24 (needs padding to 4-byte
+    /// stride), and Rgb8 (8-bit greyscale broadcast to BGR).
+    /// </summary>
     private DdsPixels? DecodeDds(string resolved, string relativeGamePath)
     {
         if (!File.Exists(resolved)) return null;

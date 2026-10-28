@@ -110,16 +110,16 @@ public class NifMeshBuilder
 
         /// <summary>
         /// Bind-pose vertex positions from the weight-0 companion NIF (<c>_0.nif</c>),
-        /// stashed verbatim before any blend. Used by <see cref="VM_CharacterViewer.ApplyShapeDeformer"/>
+        /// stashed verbatim before any blend. Used by the character tier's shape deformer
         /// to lerp against <see cref="Weight1BindPosePositions"/> at the current NpcWeight,
         /// so changing weight without a reload produces the same engine-equivalent base
         /// mesh that loading a weight-specific NPC would. Null when no <c>_0.nif</c>
         /// companion exists for this shape, or for non-body parts.
         /// Mutable (vs. init-only) because it's attached after construction in the
         /// load path — the BuiltMesh comes out of BuildFromFile without _0 awareness,
-        /// then LoadAllMeshParts pairs it with the freshly-built _0 mesh and stashes
-        /// the latter's bind pose here. Travels through scene install via the BuiltMesh
-        /// reference so it survives ClearScene mid-load.
+        /// then the character tier's loader pairs it with the freshly-built _0 mesh and
+        /// stashes the latter's bind pose here. Travels through scene install via the
+        /// BuiltMesh reference so it survives a scene clear mid-load.
         /// </summary>
         public Vector3[]? Weight0BindPosePositions { get; set; }
 
@@ -127,14 +127,14 @@ public class NifMeshBuilder
         /// Bind-pose vertex positions from the weight-1 companion NIF (<c>_1.nif</c>),
         /// snapshotted verbatim before <c>BlendWeightMorph</c> blends them into
         /// <see cref="BindPosePositions"/>. Same purpose as <see cref="Weight0BindPosePositions"/>:
-        /// gives <see cref="VM_CharacterViewer.ApplyShapeDeformer"/> the un-blended _1
+        /// gives the character tier's shape deformer the un-blended _1
         /// endpoint to lerp against. Null when no _0/_1 pair was loaded.
         /// </summary>
         public Vector3[]? Weight1BindPosePositions { get; set; }
 
         /// <summary>
         /// Pre-computed skinning data for CPU-side bone-weight skinning.
-        /// Null for unskinned shapes. Used to re-skin after morph-tool deformation.
+        /// Null for unskinned shapes. Used to re-skin after a CPU deformation.
         /// </summary>
         public SkinningInfo? Skinning { get; init; }
 
@@ -194,8 +194,7 @@ public class NifMeshBuilder
         /// slot-occupancy resolver tag a FaceGen head NIF's sub-shapes by their
         /// real biped slot instead of the coarse "Head" group slot — so a hood
         /// occupying the hair slot (31) can hide baked-in hair (partition 131)
-        /// the same way body armor hides the base body. See
-        /// <c>VM_CharacterViewer.BipedSlotsForBaseShape</c>.
+        /// the same way body armor hides the base body.
         /// </summary>
         public IReadOnlyList<ushort>? DismemberPartitions { get; init; }
 
@@ -204,9 +203,8 @@ public class NifMeshBuilder
         /// block order (the order nifly's <c>GetShapes()</c> returns), counting
         /// every shape — including ones the build later skips or fails. Used as
         /// the "3D Index" fallback when matching a plugin's AlternateTextures
-        /// (MODS) entries against a mesh whose shapes were renamed by a rebuild
-        /// (see <c>VM_CharacterViewer.ApplyOneMeshOverride</c>). Block order
-        /// equals scene order for Outfit Studio/morph-tool-written files, which
+        /// (MODS) entries against a mesh whose shapes were renamed by a rebuild.
+        /// Block order equals scene order for files written by mesh-editing tools, which
         /// are the ones that need the fallback; block-sorting tools can break
         /// that equality, so this is only consulted after name matching fails.
         /// -1 when the shape was built outside the indexed load path. Mutable
@@ -281,7 +279,7 @@ public class NifMeshBuilder
         /// <summary>
         /// DstBlend factor from NiAlphaProperty.flags bits 5-8 (same Bethesda
         /// enum as SrcBlend). Default 7 (INV_SRC_ALPHA) when no alpha property
-        /// is present. UBE-style wet-eye outer cornea shapes ship with this
+        /// is present. replacer-style wet-eye outer cornea shapes ship with this
         /// set to 0 (ONE), producing additive blend so a near-black cornea
         /// adds nothing to the iris underneath while bright catchlight pixels
         /// add brightness.
@@ -377,8 +375,6 @@ public class NifMeshBuilder
     // ═══════════════════════════════════════════════════════════════════════
     //  BSLightingShaderProperty flag constants
     //  Bit positions per Nifskope/Bethesda spec (glproperty.h:450-517).
-    //  NPC Portrait Creator has 9 incorrect bit mappings in ParseShaderFlags;
-    //  these are the authoritative values.
     // ═══════════════════════════════════════════════════════════════════════
 
     // --- SLSF1 (shaderFlags1) ---
@@ -477,11 +473,11 @@ public class NifMeshBuilder
     //  PARSED-NIF LRU CACHE
     //
     //  Skyrim NPCs commonly share the same body NIFs (e.g. femalebody_1.nif),
-    //  so users flipping between NPCs in the Consistency / Specific-NPC editors
+    //  so users flipping between NPCs in a host's UI
     //  would re-parse the same file over and over. This cache keys on the NIF
     //  path + mtime and the skeleton path + mtime (skinning transforms depend
     //  on both). Cache hits return freshly-cloned BuiltMesh instances because
-    //  BlendWeightMorph in VM_CharacterViewer mutates Positions/Normals/etc. in
+    //  the character tier's weight blend mutates Positions/Normals/etc. in
     //  place — returning the canonical snapshot directly would corrupt future
     //  hits. The clone allocates ~1MB of vertex data per body mesh, which is
     //  still ~100× cheaper than a real NIF parse + skinning pass.
@@ -507,7 +503,7 @@ public class NifMeshBuilder
     // 96 (was 16, then 32). The offscreen prewarm pipeline warms this cache from
     // worker threads for several NPCs concurrently while the render thread also
     // parses its current NPC, so the live working set is roughly
-    // (MaxParallelPortraitRenders + 1) NPCs, each touching up to ~9 entries
+    // (the host's parallel render count + 1) NPCs, each touching up to ~9 entries
     // (body/hands/feet × _0/_1 + head + hair + tail). At 32 that working set
     // overflowed and prewarmed entries were evicted before their render consumed
     // them — measured ~1% build-cache hits, so the parse never moved off the
@@ -515,7 +511,7 @@ public class NifMeshBuilder
     // until consumed. Entries are vertex-data clones (~1-2 MB each) → ~100-190 MB
     // worst case; in practice far less since body/hands/feet NIFs are shared across
     // NPCs. Must exceed (maxParallelRenders + 1) × ~9 to avoid re-introducing the
-    // thrash; revisit if MaxParallelPortraitRenders is raised well above 4.
+    // thrash; revisit if the host's parallel render count is raised well above 4.
     private const int CacheMaxEntries = 96;
     // RAM-aware byte ceiling layered ON TOP of the entry-count cap above. The count
     // cap stays the primary mechanism because it is tuned to the parallel-prewarm
@@ -1218,7 +1214,7 @@ public class NifMeshBuilder
         // Detection is gated on the presence of a BSFaceGenNiNodeSkinned block — body /
         // hands / feet NIFs sometimes bundle placeholder head shapes (ChildHead in
         // ChildFeet.nif) and we don't want those flagged primary-head; routing them
-        // through ApplyTexturesToGlMesh's FaceTint-blend branch turns the rendered
+        // through the FaceTint-blend texture path turns the rendered
         // face dark.
         bool isFaceGenNif = DetectFaceGenNif(nif);
         LogVerbose("SkyRender: NIF FaceGen detection: BSFaceGenNiNodeSkinned "
@@ -1300,8 +1296,7 @@ public class NifMeshBuilder
 
     /// <summary>The NiStringExtraData block name hdtSMP64/FSMP uses to point a
     /// NIF at its physics XML config (hdtDefaultBBP.cpp scanBBP() reads the
-    /// path from the block's <c>stringData</c>). Same marker a host's patcher
-    /// keys its physics-XML copying on.</summary>
+    /// path from the block's <c>stringData</c>).</summary>
     public const string SmpPhysicsExtraDataName = "HDT Skinned Mesh Physics Object";
 
     /// <summary>
@@ -1347,14 +1342,14 @@ public class NifMeshBuilder
     ///
     /// <para>"Body" / "Hands" / "Feet" filter against vanilla child meshes
     /// that bundle placeholder shapes (ChildFeet.nif → ChildHead, EyesChild,
-    /// MouthChild, BODY, Wrists). A 250-NPC mesh survey across the user's
-    /// mod library showed every Body shape carries 32, every Hands shape
+    /// MouthChild, BODY, Wrists). A 250-NPC mesh survey across a large
+    /// mod corpus showed every Body shape carries 32, every Hands shape
     /// carries 33, every Feet shape carries 37 — the filter has zero false
     /// positives in the corpus.</para>
     ///
     /// <para>"Head" / "Hair" / "Tail" return null. The same survey found
-    /// 58 face accessories inside FaceGen NIFs (FemaleMouthHumanoidDefault,
-    /// KWA_FemaleBrows, KWA_FemaleEyesHuman, eyelashes, eyeshadow…) authored
+    /// 58 face accessories inside FaceGen NIFs (mouth, brow and eye shapes,
+    /// eyelashes, eyeshadow…) authored
     /// with partition [32] — the body slot — despite being legitimate
     /// head-region geometry. 5 hair-region shapes and 2 tail-region shapes
     /// in their respective NIFs likewise carry [32]. Filtering these body
@@ -1597,7 +1592,7 @@ public class NifMeshBuilder
     private BuiltMesh? BuildShape(NifFile nif, NiShape shape, MatTransform? accessoryOffset,
         NifFile? skeletonNif = null, string? primaryHeadName = null)
     {
-        // Skip non-renderable scaffold geometry. UBE head NIFs ship "*_Dummy" lens
+        // Skip non-renderable scaffold geometry. Some replacer head NIFs ship "*_Dummy" lens
         // shapes positioned over the eyes as decal anchors; without this skip they
         // upload as untextured opaque quads and occlude the iris.
         if ((shape.flags & 1u) != 0)
@@ -1614,12 +1609,12 @@ public class NifMeshBuilder
             return null;
         }
 
-        // SMP hair physics-collision meshes (e.g. "UpperCollision" in
-        // EvelynnHair_1.nif) carry a real BSLightingShaderProperty but bind
+        // SMP hair physics-collision meshes (e.g. an "UpperCollision" shape in
+        // a physics-enabled hair NIF) carry a real BSLightingShaderProperty but bind
         // zero textures and have no NiAlphaProperty. Without this skip they
         // upload as opaque untextured geometry that lights up white where it
         // faces the camera and goes black on the back-side, producing the
-        // "splotches over the chest/neck" symptom. Name-based filtering was
+        // "splotches over the torso/neck" symptom. Name-based filtering was
         // rejected because mod authors freely choose collision-shape names.
         string preDiffuse = nif.GetTexturePathByIndex(shape, 0);
         string preNormal = nif.GetTexturePathByIndex(shape, 1);
@@ -2084,7 +2079,7 @@ public class NifMeshBuilder
                         // Bits 1-4 = SrcBlend, bits 5-8 = DstBlend (Bethesda
                         // enum values, mapped to GL factors at draw time).
                         // Honoring these per-mesh is what lets shapes with
-                        // additive blend (e.g., UBE wet-eye outer cornea
+                        // additive blend (e.g., a replacer wet-eye outer cornea
                         // ships SrcBlend=SRC_ALPHA / DstBlend=ONE) render
                         // correctly without special-case shader hacks.
                         srcBlendIndex = (flags >> 1) & 0xF;
@@ -2463,13 +2458,6 @@ public class NifMeshBuilder
                                                  inverseBind.scale.ToString("F4"));
     }
 
-    /// <summary>
-    /// Diagnostic helper: reports the Z-range of a skinned shape's vertices in NIF Z-up
-    /// space, then breaks them into Y buckets (front-to-back bands) and reports min/max Z
-    /// per bucket. This lets us compare the body's neck-hole rim (max-Z per Y bucket) to
-    /// the head's neck-bottom ring (min-Z per Y bucket) at corresponding front/mid/back
-    /// positions — the critical data for identifying a geometric seam.
-    /// </summary>
     // Per-shape bounds diagnostic. Logs each shape's name, partition IDs, which
     // routing branch it went through (skinned vs unskinned fallback), vertex count,
     // and final-position bounds in NIF Z-up space. Helps detect misrouted or
@@ -2967,7 +2955,7 @@ public class NifMeshBuilder
     /// <summary>
     /// Recalculates vertex normals after a CPU deformation: area-weighted sums of the
     /// triangle face normals, normalized (degenerate vertices get +Y). Used by
-    /// <see cref="VM_CharacterViewer.ApplyShapeDeformer"/>; public so hosts that deform
+    /// the character tier's shape deformer; public so hosts that deform
     /// geometry themselves get identical normals.
     /// </summary>
     public static void RecalculateNormals(Vector3[] positions, int[] indices, Vector3[] normals)

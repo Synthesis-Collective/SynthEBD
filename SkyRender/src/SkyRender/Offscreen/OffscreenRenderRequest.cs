@@ -9,13 +9,13 @@ namespace SkyRender.Offscreen;
 /// image (output size, background, lighting, asset-resolution scopes, the generic shading toggles,
 /// cancellation, diagnostics and out-lists), plus <see cref="Scene"/> for builder-specific input.
 /// What is drawn comes from the renderer's <see cref="IOffscreenSceneBuilder"/>; the NPC builder's
-/// request is <see cref="NpcRenderRequest"/>, which derives from this class.
+/// request is SkyRender.Character's <c>NpcRenderRequest</c>, which derives from this class.
 /// </summary>
 public class OffscreenRenderRequest
 {
     /// <summary>Optional builder-specific scene description for a host-supplied
     /// <see cref="IOffscreenSceneBuilder"/> (the NPC builder ignores it and reads
-    /// <see cref="NpcRenderRequest"/>'s members instead). The renderer never reads it.</summary>
+    /// SkyRender.Character's <c>NpcRenderRequest</c> members instead). The renderer never reads it.</summary>
     public object? Scene { get; init; }
 
     /// <summary>Output framebuffer width in pixels.</summary>
@@ -33,8 +33,7 @@ public class OffscreenRenderRequest
     public LightingColorScheme? Colors { get; init; }
 
     /// <summary>Solid background color the framebuffer is cleared to before
-    /// the character is rendered. Defaults to a neutral mid-gray that matches
-    /// A host's main viewer background.</summary>
+    /// the character is rendered. Defaults to a neutral mid-gray.</summary>
     public (byte R, byte G, byte B) BackgroundRgb { get; init; } = (105, 105, 105);
 
     /// <summary>Optional cancellation token. The renderer aborts at the next
@@ -61,7 +60,7 @@ public class OffscreenRenderRequest
     /// When true, a loose copy of an asset in the host's vanilla data
     /// folder takes precedence over the same path in any mod folder
     /// listed in <see cref="AdditionalScopes"/> — letting the user's
-    /// installed body / skin / texture replacers leak into mod-specific
+    /// installed asset replacers leak into mod-specific
     /// previews. Default false preserves normal mod priority. The
     /// FaceGen tree (<c>…\FaceGenData\…</c>) is excluded regardless of
     /// this flag because its NPC-specific assets are keyed by FormID and
@@ -80,9 +79,8 @@ public class OffscreenRenderRequest
     /// mutating shared adapter state — clears automatically when the request
     /// goes out of scope.
     ///
-    /// <para>Used by a host's per-mod mugshot generation: each
-    /// render targets a specific mod's <c>CorrespondingFolderPaths</c> so
-    /// textures embedded inside NIFs (BSShaderTextureSet blocks) resolve
+    /// <para>Useful e.g. for per-mod portrait generation, where each render
+    /// targets one mod's folders so textures embedded inside NIFs (BSShaderTextureSet blocks) resolve
     /// against that mod's folders without bleeding into renders of other
     /// mods that ship the same relative path.</para>
     /// </summary>
@@ -111,7 +109,7 @@ public class OffscreenRenderRequest
     /// scope in the list (<c>scopes[0]</c> is checked LAST due to the
     /// last-to-first iteration).</para>
     ///
-    /// <para>Used by a host's per-mod mugshot generation
+    /// <para>Useful for per-mod portrait generation,
     /// to faithfully reproduce a single mod's contribution + vanilla
     /// fallback without cross-mod texture bleed. Mirrors the resolution
     /// order of NPC Portrait Creator's CLI (<c>--gamedata</c> +
@@ -120,7 +118,7 @@ public class OffscreenRenderRequest
     public IReadOnlyList<RenderScope>? AdditionalScopes { get; init; }
 
     /// <summary>
-    /// Engine-order resolution mode (2.8.0+). When true, every asset in this
+    /// Engine-order resolution mode. When true, every asset in this
     /// render — base meshes, FaceGen and TXST textures, NIF-embedded texture
     /// paths, skeletons, and mesh overrides alike — resolves in the order the
     /// game will actually use once the host's generated output is in place:
@@ -140,7 +138,7 @@ public class OffscreenRenderRequest
     /// Default false preserves the strict two-phase walk (miss = NotFound),
     /// which depicts ONE mod's contribution without cross-mod bleed — the
     /// right mode when no generated output will exist to justify the wider
-    /// view. The per-override <see cref="MeshOverride.AllowLoadOrderFallback"/>
+    /// view. A per-override fallback flag (SkyRender.Character's mesh overrides)
     /// still widens individual overrides when this is off.
     /// </summary>
     public bool AllowLoadOrderFallback { get; init; }
@@ -154,8 +152,7 @@ public class OffscreenRenderRequest
     /// skeleton path that the host populated did resolve. Non-empty
     /// means the rendered PNG is missing one or more shapes — useful
     /// for surfacing an "incomplete render" UI hint over the resulting
-    /// image (a host's mugshot tile uses this to show a
-    /// missing-mesh overlay when a mod ships a NIF path that doesn't
+    /// image (e.g. to show a missing-mesh overlay when a mod ships a NIF path that doesn't
     /// resolve in the user's load order).
     /// <para>Pass a <c>new List&lt;string&gt;()</c> to opt in; leave
     /// null to skip tracking.</para>
@@ -185,7 +182,7 @@ public class OffscreenRenderRequest
     /// Tier 2 (data-folder loose) and Tier 3 (broadcast archives of enabled
     /// plugins) hits; see <see cref="AssetSource.ViaDataFolderFallback"/>.
     /// Each such asset is a runtime dependency of the depicted mod: the
-    /// render (and the post-patch game) only shows it while whichever mod
+    /// render (and the game) only shows it while whichever mod
     /// supplies it stays activated. Deduplicated case-insensitively and
     /// sorted; hits from a preceding <see cref="IOffscreenRenderer.PrewarmAsync"/>
     /// on the same request instance are included, since the render may
@@ -236,7 +233,7 @@ public class OffscreenRenderRequest
     public bool RenderMissingTextureAsWireframe { get; init; } = true;
 
     /// <summary>
-    /// Portrait-quality tone-mapping toggle (2.5.9+). When true, the final
+    /// Portrait-quality tone-mapping toggle. When true, the final
     /// fragment-shader stage applies an ACES filmic tone-mapper, sRGB
     /// framebuffer encoding, and a mild saturation boost — pushing the
     /// output closer to a "looks-like-a-portrait" aesthetic and away from
@@ -246,7 +243,7 @@ public class OffscreenRenderRequest
     public bool EnableToneMapping { get; init; } = false;
 
     /// <summary>
-    /// Shadow-map toggle (2.5.10+). When true, the renderer runs an extra
+    /// Shadow-map toggle. When true, the renderer runs an extra
     /// depth-only pass from the key directional light's POV and samples
     /// the resulting shadow map with PCF in the main fragment shader,
     /// so the brow ridge casts onto the eye sockets, the nose onto the
@@ -271,7 +268,7 @@ public class OffscreenRenderRequest
     public float ShadowFrustumRadius { get; init; } = 100f;
 
     /// <summary>
-    /// Screen-space ambient occlusion toggle (2.5.11+). When true, the
+    /// Screen-space ambient occlusion toggle. When true, the
     /// renderer runs a depth pre-pass + SSAO post-process and samples
     /// the resulting AO texture per fragment in basic.frag, multiplying
     /// the result into the diffuse term so concave crevices (eye
@@ -281,23 +278,23 @@ public class OffscreenRenderRequest
     /// </summary>
     public bool EnableAmbientOcclusion { get; init; } = false;
 
-    /// <summary>SSAO sample radius in world units (2.5.12+). Larger =
+    /// <summary>SSAO sample radius in world units. Larger =
     /// softer / broader AO; smaller = tight crevice-only AO. Defaults
     /// match the hardcoded value from 2.5.11 so existing pipelines
     /// produce identical output without setting this.</summary>
     public float SsaoRadius { get; init; } = 4.0f;
 
-    /// <summary>SSAO depth-comparison bias in world units (2.5.12+).
+    /// <summary>SSAO depth-comparison bias in world units.
     /// Higher reduces self-shadowing on flat surfaces; too high
     /// erases real AO.</summary>
     public float SsaoBias { get; init; } = 0.05f;
 
-    /// <summary>SSAO power-curve exponent (2.5.12+). Higher = harder
+    /// <summary>SSAO power-curve exponent. Higher = harder
     /// darkening in deep crevices, more subtle elsewhere.</summary>
     public float SsaoIntensity { get; init; } = 1.5f;
 
     /// <summary>Assumed SSAO occluder thickness in view-space units
-    /// (2.5.20+). An occluder only darkens a fragment when its depth is
+    ///. An occluder only darkens a fragment when its depth is
     /// within roughly this distance; geometry farther behind (e.g. a
     /// collar a few units behind a thin beard strand) is treated as a
     /// separate surface seen through a gap, not a local crevice wall.
@@ -305,18 +302,17 @@ public class OffscreenRenderRequest
     /// match GlRenderer's hardcoded 2.5.16 value.</summary>
     public float SsaoThickness { get; init; } = 1.5f;
 
-    /// <summary>Subsurface scattering strength multiplier (2.5.14+). The
+    /// <summary>Subsurface scattering strength multiplier. The
     /// renderer's SSS math now uses subsurfaceRolloff as the proper
     /// wrap parameter and adds a back-scatter / translucency term.
     /// This multiplier scales the visible SSS contribution; 0 disables
-    /// it (matches pre-2.5.14 behavior at runtime - existing v5-stamped
-    /// tiles validate against v5 hashes regardless), 1.0 is "honest"
+    /// it (matches pre-2.5.14 behavior at runtime), 1.0 is "honest"
     /// SSS at the source values, 1.5-2.0 boosts toward professional
     /// portrait reference. Default 0 for back-compat with hosts that
     /// don't opt in.</summary>
     public float SubsurfaceStrength { get; init; } = 0f;
 
-    /// <summary>Vignette inner radius in NDC units (2.5.15+). Pixels
+    /// <summary>Vignette inner radius in NDC units. Pixels
     /// within this circular zone of screen center are unaffected; the
     /// darkening smoothsteps from this radius out to the corner
     /// (sqrt(2)). Folded under the tone-mapping path in basic.frag so
@@ -325,13 +321,13 @@ public class OffscreenRenderRequest
     /// 0.7 mirrors the pre-2.5.15 hardcoded radius.</summary>
     public float VignetteRadius { get; init; } = 0.7f;
 
-    /// <summary>Vignette darkening strength (2.5.15+). 0 = off (no
+    /// <summary>Vignette darkening strength. 0 = off (no
     /// darkening anywhere); 1.0 = corners go to black. Default 0 for
     /// back-compat with hosts that don't opt in - pre-2.5.15 hardcoded
     /// behavior is approximately Radius=0.7 / Intensity=0.3.</summary>
     public float VignetteIntensity { get; init; } = 0f;
 
-    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// <summary>Tone-map exposure multiplier. 1.0 = neutral
     /// (the legacy hardcoded look); &gt;1 brightens, &lt;1 darkens. Scales
     /// the linear color into the ACES curve. Folded under the tone-mapping
     /// path in basic.frag, so it only takes effect when
@@ -356,8 +352,7 @@ public class OffscreenRenderRequest
     public float BloomIntensity { get; init; } = 0.7f;
 
     /// <summary>Optional thread-agnostic diagnostic sink for per-render
-    /// decisions the renderer would otherwise emit silently — currently the
-    /// MeshAware camera fitter's per-shape bbox / union / distance trace.
+    /// decisions the renderer would otherwise emit silently — e.g. a scene builder's camera-fit trace.
     /// Built by the host as a closure that writes to whatever destination
     /// is appropriate (a flow-scoped log file, an in-memory buffer, etc.)
     /// and survives the renderer's dedicated render thread, which does NOT

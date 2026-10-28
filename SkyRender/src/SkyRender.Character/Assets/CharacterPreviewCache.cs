@@ -6,8 +6,8 @@ namespace SkyRender.Character;
 /// <summary>
 /// Process-wide cache of expensive read-only inputs to the 3D preview pipeline.
 ///
-/// Each VM_CharacterViewer is short-lived (e.g. the morph-tool menu disposes the
-/// previous viewer on every preset switch to release its GL context), which
+/// Each VM_CharacterViewer is short-lived (e.g. a host may dispose the
+/// previous viewer on every selection change to release its GL context), which
 /// throws away the per-instance NIF parse cache, resolved-mesh-path data, and
 /// decoded DDS pixel buffers. Hoisting all three into a singleton lets a
 /// freshly-constructed viewer skip the link-cache traversal, NIF re-parse, and
@@ -30,7 +30,7 @@ namespace SkyRender.Character;
 ///     remarks for the cross-variant poisoning that relative keying caused under
 ///     strict per-mod scopes). GL texture handles are still created per
 ///     viewer (context-specific), but the Pfim decode + Rgb24→Rgba32 conversion
-///     happens once. Preset switching is the hot path — a typical NPC pulls
+///     happens once. Switching between previews is the hot path — a typical NPC pulls
 ///     ~20 textures and decoding dominated the ~3.6s latency per switch.
 ///
 /// Invalidation: when the data source's <see cref="INpcMeshDataSource.CurrentInvalidationToken"/>
@@ -243,7 +243,7 @@ public class CharacterPreviewCache
                     PrewarmTexture(paths.FaceTintPath);
             }
 
-            // Attire / headgear mesh overrides (Include Default Outfit / headgear).
+            // Attire / headgear mesh overrides.
             // Parse each override NIF + decode its textures so the render's
             // ApplyMeshOverrides hits the caches. Uses the same skeleton + null body
             // part as ApplyOneMeshOverride so the parse cache key lines up.
@@ -474,7 +474,7 @@ public class CharacterPreviewCache
 
     /// <summary>
     /// Drops every cached resolved path, parsed NIF, and decoded pixel buffer.
-    /// Call when the patcher environment is rebuilt so subsequent viewer loads
+    /// Call when the host's game environment is rebuilt so subsequent viewer loads
     /// re-resolve from the new link cache and re-read NIFs / textures from disk.
     /// </summary>
     public void Clear()

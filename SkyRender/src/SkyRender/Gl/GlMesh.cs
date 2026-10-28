@@ -78,7 +78,7 @@ public class GlMesh : IDisposable
 
     /// <summary>DstBlend factor for the alpha-blend pass (same Bethesda enum
     /// as SrcBlend; bits 5-8 of NiAlphaProperty.flags). Default 7
-    /// (INV_SRC_ALPHA) for standard "over" transparency. UBE-style wet-eye
+    /// (INV_SRC_ALPHA) for standard "over" transparency. replacer-style wet-eye
     /// outer cornea ships with 0 (ONE) so it composites additively over the
     /// iris underneath.</summary>
     public int DstBlendIndex { get; set; } = 7;
@@ -110,9 +110,8 @@ public class GlMesh : IDisposable
     public OpenTK.Mathematics.Matrix4? ModelTransform { get; set; }
 
     // When true, the wireframe overlay pass draws this mesh's edges on top of
-    // the solid surface. Used by the morph-tool classifier for vertex-pick
-    // assignment; toggled per-mesh so non-body shapes (head, hair, outfit)
-    // stay solid.
+    // the solid surface. Hosts toggle this per mesh to outline selected shapes
+    // over the solid surface.
     public bool ShowWireframe { get; set; } = false;
 
     // When true, the mesh is SKIPPED in the solid passes (Pass 0/1/2) and
@@ -128,27 +127,26 @@ public class GlMesh : IDisposable
     // (GlRenderer.WireframeColor / MissingTextureWireframeColor) for this mesh.
     // Null = use the group color as before.
     //
-    // Exists so the guest-overlay ("superimpose") scene can reuse
+    // Lets a host draw a mesh edges-only in its own colour, reusing
     // RenderAsWireframeFallback's draw behavior -- skip the solid passes, draw
-    // edges only -- WITHOUT inheriting its color, which specifically means
-    // "this shape's diffuse failed to decode". A guest drawn in that green
-    // would read as a texture error rather than as the other model.
+    // edges only -- without the missing-texture colour, which specifically
+    // means "this shape's diffuse failed to decode". A mesh drawn in that green
+    // would read as a texture error rather than as an intentional outline.
     public Vector3? WireframeColorOverride { get; set; }
 
     // Eye-space depth bias in world units, applied in basic.vert by sliding each vertex
     // along its view ray: positive pushes the surface away from the camera, negative pulls
-    // it closer. Screen position is unchanged; only the depth test moves. 0 = off. The
-    // guest overlay's Inside/Outside style uses it as a match tolerance, so surfaces that
-    // coincide with the primary model's (within the bias) stay untinted instead of
-    // z-fighting between "outside" and "inside".
+    // it closer. Screen position is unchanged; only the depth test moves. 0 = off.
+    // Useful as a match tolerance when comparing two coincident meshes, so surfaces
+    // that coincide (within the bias) stay untinted instead of z-fighting.
     public float DepthBias { get; set; }
 
     // Hidden-surface ("x-ray") tint. When set, the renderer draws this mesh a second time
     // after the blend pass, with depth test GREATER and no depth writes, in this flat tint
     // at HiddenSurfaceAlpha -- i.e. it paints only the parts of the mesh that lie BEHIND
     // what is already in the depth buffer (the primary model), shifted by
-    // HiddenSurfaceDepthBias. Null = no such pass. Used by the guest overlay's
-    // Inside/Outside style to show where the guest is smaller than the primary model.
+    // HiddenSurfaceDepthBias. Null = no such pass. A host can use it to show where
+    // one mesh lies inside another.
     public Vector3? HiddenSurfaceTint { get; set; }
     public float HiddenSurfaceAlpha { get; set; } = 0.5f;
     public float HiddenSurfaceDepthBias { get; set; }
@@ -157,7 +155,7 @@ public class GlMesh : IDisposable
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;
     public Vector3 TintColor { get; set; } = Vector3.One;
-    // Default glossiness / specular tuned for portrait skin (2.5.9+). The
+    // Default glossiness / specular tuned for portrait skin. The
     // pre-2.5.9 defaults (80f / 1f) produced overly tight, plastic-looking
     // highlights on faces when the source NIF didn't carry explicit shader
     // values — most modded face NIFs DO provide their own values, so this
@@ -248,19 +246,17 @@ public class GlMesh : IDisposable
     }
 
     /// <summary>Drops the cached <see cref="LocalCenter"/> so the next access
-    /// recomputes from <see cref="CpuPositions"/>. For hosts that rewrite a
-    /// mesh's vertex data in place after install (e.g. A host's viewprobe
-    /// baking a character into a world placement) — without this the alpha-pass
-    /// distance sort keeps sorting by the pre-rewrite centroid. Additive;
-    /// nothing in a host/a host calls it, so their behaviour is unchanged.</summary>
+    /// recomputes from <see cref="CpuPositions"/>. For hosts that rewrite vertex
+    /// data in place after install — without this the alpha-pass distance sort
+    /// keeps sorting by the pre-rewrite centroid. Additive; existing callers are
+    /// unaffected.</summary>
     public void InvalidateLocalCenter() => _localCenter = null;
 
     // CPU-side per-vertex skin weights. Both arrays are flat with 4 entries per
     // vertex (CpuBoneIndices[vi*4 + k] is the k-th bone for vertex vi, with
     // CpuBoneWeights[vi*4 + k] the corresponding weight). Populated from the
     // SkinningInfo when the BuiltMesh has one; null for unskinned shapes.
-    // Consumed by the bone-transition Criterion on the host side to find
-    // anatomical seams (e.g. armpit = torso/arm bone boundary).
+    // Lets hosts query which bones drive each vertex.
     public int[]? CpuBoneIndices { get; set; }
     public float[]? CpuBoneWeights { get; set; }
 
@@ -279,8 +275,8 @@ public class GlMesh : IDisposable
     /// shaderType = 4 (BSLSP_FACE) or 5 (BSLSP_SKINTINT). Identifies
     /// "skin shapes" (face + body + hands + feet) for the optional
     /// host-tunable saturation boost in basic.frag, which compensates
-    /// for downstream desaturation that washes Imperials pale, Redguards
-    /// Mediterranean, and Orcs olive. Hair / eyes / brows are excluded
+    /// for downstream desaturation that washes distinctive race skin tones
+    /// toward neutral. Hair / eyes / brows are excluded
     /// since they don't share the desaturation symptom.</summary>
     public bool IsSkinShape { get; set; }
 
@@ -301,7 +297,7 @@ public class GlMesh : IDisposable
     public bool IsFaceWithEmptyDetailSlot { get; set; }
 
     // Source metadata for the hover tooltip. These are display-only and have
-    // no effect on rendering; VM_CharacterViewer populates them at load time.
+    // no effect on rendering; the host populates them at load time.
     public AssetSource? MeshSource { get; set; }
     public System.Collections.Generic.List<(string SlotLabel, AssetSource Source)> TextureSources { get; } = new();
 
@@ -368,7 +364,7 @@ public class GlMesh : IDisposable
     }
 
     /// <summary>
-    /// Re-uploads vertex data (e.g. after morph-tool deformation). Preserves the same VAO/VBO.
+    /// Re-uploads vertex data (e.g. after a CPU-side deformation). Preserves the same VAO/VBO.
     /// </summary>
     public void UpdateVertexData(float[] vertexData)
     {

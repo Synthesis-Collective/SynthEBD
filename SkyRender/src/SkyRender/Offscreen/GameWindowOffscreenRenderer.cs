@@ -10,9 +10,6 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace SkyRender.Offscreen;
 
@@ -22,7 +19,7 @@ namespace SkyRender.Offscreen;
 /// rendering, and an ImageSharp encoder for PNG output. One renderer
 /// instance handles many requests serially via a dedicated render thread.
 ///
-/// <para><b>Threading model (1.3.0+):</b> a single long-lived render thread
+/// <para><b>Threading model:</b> a single long-lived render thread
 /// owns the GL context for the renderer's entire lifetime. The constructor
 /// creates the hidden <see cref="GameWindow"/> on the calling thread (GLFW
 /// installs its event hook there), immediately releases the context via
@@ -35,14 +32,10 @@ namespace SkyRender.Offscreen;
 /// approach hit when parallel render requests landed on different
 /// thread-pool threads.</para>
 ///
-/// <para><b>Per-render flow:</b> a fresh <see cref="VM_CharacterViewer"/> is
-/// constructed for each render with the default
-/// <see cref="InlineRenderThreadMarshaller"/> (no WPF dispatcher). The VM is
-/// initialized against the offscreen GL context, fed the request's
-/// <see cref="ResolvedNpcMeshPaths"/>, drained to completion via
-/// <see cref="VM_CharacterViewer.ProcessPendingSceneToCompletion"/>, then
-/// rendered into the FBO. The VM is disposed before the next render so
-/// GL state can't leak between requests. The <see cref="AssetCache"/>
+/// <para><b>Per-render flow:</b> <see cref="IOffscreenSceneBuilder.Build"/>
+/// creates a scene for each render on the render thread with the offscreen
+/// GL context current; the scene is drawn into the FBO and disposed before
+/// the next render so GL state can't leak between requests. The <see cref="AssetCache"/>
 /// (the only shared cross-request state worth keeping) lives at the host
 /// level and amortizes NIF parses + DDS decodes across calls.</para>
 /// </summary>
@@ -386,11 +379,10 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
         // Per-render asset-resolution scope. PushScopes binds the four scoping
         // values to this flow's AsyncLocal stack and returns a token that
-        // restores the prior values on dispose. The VM's LoadAsync pushes the
-        // same values internally — this outer push is defense-in-depth so any
-        // resolver call made before LoadAsync (or inside the post-load
-        // ApplyTextureOverrides / ApplyShapeDeformer paths) still sees the right
-        // scope chain. AdditionalScopes (1.2.0+) overrides AdditionalDataFolders
+        // restores the prior values on dispose. The scene builder may push
+        // nested scopes; this outer push covers everything, so any resolver
+        // call made during the build or after it still sees the right
+        // scope chain. AdditionalScopes overrides AdditionalDataFolders
         // (1.1.0) when both are provided.
         using var scopes = _assets.PushScopes(
             request.AdditionalScopes,
@@ -455,8 +447,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             //     framebuffer pixels end up storing α < 1.
             //   - ReadPixelsRgba pulls all four channels into bytes. The PNG
             //     encoder writes all four channels. PNG viewers — including
-            //     the WPF Image control that a host's gallery uses to render
-            //     mugshot tiles — honor PNG alpha and composite the image
+            //     UI image controls that display the PNG — honor PNG alpha and composite the image
             //     over their panel background. Khajiit face pixels with
             //     α ≈ 0.5 alpha-blend with the gray panel underneath at 50%
             //     mix, producing the visible "head darker than body" /
@@ -502,7 +493,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
             // The PNG/BGRA encode is pure CPU over this managed pixel buffer with
             // no GL or VM dependency, so the caller (DispatchEncode) offloads it to
-            // the thread pool after this method disposes the VM on the render
+            // the thread pool after this method disposes the scene on the render
             // thread. EncodeMs is recorded there. `pixels` is a fresh per-render
             // allocation (ReadPixelsRgba), so the encode task owns it outright —
             // the next render's FBO reuse can't race it.
@@ -542,7 +533,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
     /// pool and completes the job's <see cref="TaskCompletionSource{TResult}"/>
     /// from there, so the dedicated render thread returns to draining the queue
     /// immediately. The encode is pure CPU over a managed buffer (no GL, no VM),
-    /// and <see cref="MugshotPngEncoder"/> is immutable/stateless, so concurrent
+    /// and <see cref="PngWriter"/> is stateless, so concurrent
     /// encodes from back-to-back renders are safe. The host semaphore that bounds
     /// in-flight renders also bounds how many frames can await encode at once, so
     /// pixel buffers can't pile up unbounded.</summary>
@@ -609,7 +600,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         => (endTimestamp - startTimestamp) * 1000.0 / Stopwatch.Frequency;
 
     /// <summary>Lazily creates / resizes the multisampled draw FBO and the
-    /// single-sample resolve FBO. Called inside the render lock; both are
+    /// single-sample resolve FBO. Called on the render thread; both are
     /// reused across same-size requests.</summary>
     private void EnsureFbo(int width, int height)
     {
@@ -735,32 +726,15 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         return rgba;
     }
 
-    // Mugshot PNG encoder, tuned for speed at negligible size/quality cost.
-    // Two changes from the default:
-    //  * ColorType=Rgb — RenderInternalCore stamps every pixel's alpha to 255
-    //    before encode, so the alpha channel carries no information. Dropping it
-    //    is lossless here and removes a quarter of the pixel data from the
-    //    deflate stage.
-    //  * FilterMethod=Paeth — the default Adaptive filter trials all five PNG
-    //    filters on every scanline and keeps the smallest, which is the bulk of
-    //    encode CPU. On smooth rendered faces a single Paeth filter is within a
-    //    few percent of adaptive's output size for a fraction of the work.
-    // CompressionLevel is left at the default so on-disk size stays comparable.
-    // Immutable + stateless, so a single shared instance is safe (encode runs
-    // only on the serialized render thread anyway).
-    private static readonly PngEncoder MugshotPngEncoder = new()
-    {
-        ColorType = PngColorType.Rgb,
-        FilterMethod = PngFilterMethod.Paeth,
-    };
-
+    // PNG encode, tuned for speed at negligible size cost (see PngWriter):
+    //  * RGB only — RenderInternalCore stamps every pixel's alpha to 255 before
+    //    encode, so the alpha channel carries no information. Dropping it is
+    //    lossless here and removes a quarter of the pixel data from deflate.
+    //  * One Paeth filter per scanline instead of trialling all five filters; on
+    //    smooth rendered images it is within a few percent of adaptive's output
+    //    size for a fraction of the work.
     private static byte[] EncodePngFromRgba(byte[] rgba, int width, int height)
-    {
-        using var image = Image.LoadPixelData<Rgba32>(rgba, width, height);
-        using var ms = new MemoryStream();
-        image.Save(ms, MugshotPngEncoder);
-        return ms.ToArray();
-    }
+        => PngWriter.EncodeRgb(rgba, width, height);
 
     public ValueTask DisposeAsync()
     {

@@ -9,14 +9,13 @@ namespace SkyRender.Character.Offscreen;
 /// overrides, camera framing, the host scene hook and the character-tuning toggles, on top of the
 /// generic <see cref="OffscreenRenderRequest"/> settings.
 ///
-/// A host assembles these from its own <c>PortraitCreator</c> equivalent inputs to
+/// A host assembles these from its own inputs to
 /// drive the in-process mugshot renderer.
 /// </summary>
 public sealed class NpcRenderRequest : OffscreenRenderRequest
 {
     /// <summary>The NPC's resolved body / hands / feet / head mesh paths,
-    /// produced by the host's <see cref="INpcMeshDataSource"/> (or by
-    /// A host's adapter that wraps NpcMeshResolver).</summary>
+    /// produced by the host's <see cref="INpcMeshDataSource"/>.</summary>
     public required ResolvedNpcMeshPaths MeshPaths { get; init; }
 
     /// <summary>Absolute path to a head NIF that should override
@@ -34,8 +33,7 @@ public sealed class NpcRenderRequest : OffscreenRenderRequest
     /// <summary>Mesh overrides applied after mesh load — auxiliary shapes
     /// synthesized from <c>.nif</c> files the base NPC doesn't carry (the same
     /// neutral channel as <see cref="VM_CharacterViewer.ApplyMeshOverrides"/>:
-    /// A host's auxiliary-armature subgroup mesh, a host's
-    /// "Include Default Outfit" / "Include headgear"). Loaded, CPU-skinned to the
+    /// e.g. an auxiliary armature, outfit or headgear). Loaded, CPU-skinned to the
     /// scene skeleton, textured, slot-hidden (body armor hides the base body,
     /// headgear hides hair). Optional — null adds no extra shapes. Any
     /// unrenderable / skeleton-incompatible overrides are reported via
@@ -45,14 +43,10 @@ public sealed class NpcRenderRequest : OffscreenRenderRequest
     /// <summary>How the camera frames the character. See <see cref="CameraFraming"/>.</summary>
     public CameraFraming Camera { get; init; } = CameraFraming.PortraitDefault;
 
-    /// <summary>a host's "normal map hack" toggle — enables a
-    /// CPU-side normal-map fix-up for some non-vanilla mods that ship MSN
-    /// textures the standard tangent-space shader can't read directly.
-    /// Currently unused by this renderer (Phase D.2 will wire it).</summary>
+    /// <summary>Reserved; currently unused.</summary>
     public bool EnableNormalMapHack { get; init; }
 
-    /// <summary>a host's "use modded fallback textures" toggle.
-    /// Currently unused (Phase D.2).</summary>
+    /// <summary>Reserved; currently unused.</summary>
     public bool UseModdedFallbackTextures { get; init; } = true;
 
     /// <summary>Optional host hook invoked on the render thread against the
@@ -118,14 +112,14 @@ public sealed class NpcRenderRequest : OffscreenRenderRequest
 
     /// <summary>Max view-space gap between a hair/beard fragment and the
     /// opaque surface behind it for screen-space AO to still apply to the
-    /// hair (2.5.20+). Hair is excluded from the SSAO depth prepass, so its
+    /// hair. Hair is excluded from the SSAO depth prepass, so its
     /// AO texel belongs to the surface behind the strands; past this gap it
     /// is background structure (collar edges, lip lines) and fades to
     /// unoccluded instead of ghosting through the beard. See
     /// GlRenderer.SsaoHairGap.</summary>
     public float SsaoHairGap { get; init; } = 0.8f;
 
-    /// <summary>Eye catch-light toggle (2.5.13+). When true, eye shapes
+    /// <summary>Eye catch-light toggle. When true, eye shapes
     /// (those flagged <see cref="GlMesh.IsEye"/>) get an extra tight,
     /// bright Blinn-Phong specular spot from the key light layered on
     /// top of their regular specular. The single biggest "alive vs.

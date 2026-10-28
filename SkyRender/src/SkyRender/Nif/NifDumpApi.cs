@@ -6,8 +6,8 @@ namespace SkyRender;
 
 /// <summary>
 /// Public, gate-free entry point to the NifSkope-style diagnostic dump in
-/// <see cref="NifDiagnosticDumper"/>. Intended for standalone tooling (the
-/// CharacterViewer.NifDump CLI) rather than in-app verbose logging: it ignores
+/// <see cref="NifDiagnosticDumper"/>. Intended for standalone tooling (e.g. a
+/// NIF dump command-line tool) rather than in-app verbose logging: it ignores
 /// both <see cref="NifDiagnosticDumper.FULL_LOGGING"/> and
 /// <see cref="RenderLogGate.Verbose"/> and returns the dump as a
 /// string instead of routing it through a host logger.

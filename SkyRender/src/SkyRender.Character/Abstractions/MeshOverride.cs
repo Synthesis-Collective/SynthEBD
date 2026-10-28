@@ -36,14 +36,13 @@ public enum MeshOverrideKind
 /// texture-only <see cref="TextureOverride"/> channel. It synthesizes a new
 /// renderable shape from a <c>.nif</c> the base NPC doesn't carry. The first
 /// consumer is an auxiliary armature on a non-base biped slot (e.g. slot 52)
-/// that some mods add to the actor at runtime by script: its mesh exists only in
-/// the selected asset-pack subgroup, never in the static WornArmor the resolver
-/// walks. The same channel later serves a host's "Include Default
-/// Outfit" / "Include headgear".
+/// that some mods add to the actor at runtime by script: its mesh is known only
+/// to the host and never appears in the static WornArmor the resolver walks. The same
+/// channel serves outfit and headgear previews.
 ///
-/// <para>The host (the hosts) is Mutagen-aware and builds these specs;
-/// the rendering tier stays Mutagen-free and only loads / skins / textures /
-/// hides them.</para>
+/// <para>The host builds these specs from its record data; the rendering tier
+/// stays record-library-free and only loads / skins / textures / hides
+/// them.</para>
 /// </summary>
 public sealed record MeshOverride
 {
@@ -57,12 +56,11 @@ public sealed record MeshOverride
 
     /// <summary>Game-relative <c>.nif</c> path (Data\meshes\...), resolved via
     /// <see cref="GameAssetResolver"/> like any other dependency mesh. For an
-    /// auxiliary armature this is the selected subgroup's
-    /// <c>WorldModel.&lt;gender&gt;.File</c>.</summary>
+    /// auxiliary armature this is the armature's world-model path.</summary>
     public string MeshPath { get; init; } = "";
 
-    /// <summary>Bitmask of biped-object slots this mesh occupies, in the same
-    /// encoding the asset-pack destinations use (<c>(BipedObjectFlag)N</c>,
+    /// <summary>Bitmask of biped-object slots this mesh occupies, in
+    /// BipedObjectFlag encoding (<c>(BipedObjectFlag)N</c>,
     /// i.e. <c>1 &lt;&lt; (slot - 30)</c>). A slot-52 auxiliary armature is
     /// <c>1 &lt;&lt; 22</c> = 4194304. Drives slot occupancy / hiding.</summary>
     public int BipedSlots { get; init; }
@@ -84,8 +82,7 @@ public sealed record MeshOverride
 
     /// <summary>Mesh-wide TXST override bundled with the mesh (texture-slot index
     /// -> game-relative path), applied to every shape. A mesh override carries its
-    /// own texture set because that's how the source provides it: A host
-    /// auxiliary subgroup ships mesh + its slot's <c>SkinTexture.*</c>, and an
+    /// own texture set because that's how the source provides it: an
     /// ArmorAddon ships <c>WorldModel</c> + <c>SkinTexture</c> (NAM0/NAM1)
     /// together. Per-object <c>AlternateTextures</c>, which target individual
     /// named shapes, go through <see cref="ShapeTextures"/> instead. Null = use
@@ -103,7 +100,7 @@ public sealed record MeshOverride
     /// for the same slot on that shape. Null = no per-shape overrides.
     /// <para>Legacy name-only channel. Ignored when <see cref="AlternateTextures"/>
     /// is supplied — that list carries the record's 3D Index too, so a shape the
-    /// mesh's author RENAMED (morph-tool/Outfit Studio rebuilds do this routinely)
+    /// mesh's author RENAMED (mesh-editor rebuilds do this routinely)
     /// can still be matched the way the engine matches it.</para></summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<int, string>>? ShapeTextures { get; init; }
 
@@ -137,7 +134,7 @@ public sealed record MeshOverride
     public bool AllowLoadOrderFallback { get; init; }
 
     /// <summary>Whether the source ArmorAddon has its weight slider enabled for
-    /// the rendered sex — i.e. whether the engine morphs this piece between the
+    /// the rendered gender — i.e. whether the engine morphs this piece between the
     /// <c>_0.nif</c> / <c>_1.nif</c> pair. When false the engine loads exactly
     /// <see cref="MeshPath"/> and no sibling file is expected to exist (many
     /// pieces — hats, jewelry, some clothes — ship a single weight file with the
@@ -153,13 +150,13 @@ public sealed record MeshOverride
 /// <list type="bullet">
 ///   <item><see cref="ShapeName"/> — the "3D Name". Matches the NIF geometry
 ///   node's own name as authored, but goes stale when the mesh is rebuilt:
-///   morph-tool/Outfit Studio output routinely renames shapes (its project
+///   mesh-editor output routinely renames shapes (its project
 ///   shape names differ from the shipped mesh's), and the CK/engine still
 ///   apply the entry — observed in the field as "variant renders in game and
 ///   CK but not in the preview" (untextured/black outfit pieces).</item>
 ///   <item><see cref="ShapeIndex"/> — the "3D Index". The engine-side key, but
 ///   only trustworthy as a shape ordinal for meshes whose block order matches
-///   scene order (true of Outfit Studio/morph-tool output — exactly the files
+///   scene order (true of mesh-editor output — exactly the files
 ///   whose names go stale). Block-sorting optimizers can make a shape's file
 ///   ordinal differ from its record index, so index is the FALLBACK, not the
 ///   primary key: those tools reorder but don't rename, and the name match

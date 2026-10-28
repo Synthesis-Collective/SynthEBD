@@ -6,8 +6,7 @@ namespace SkyRender;
 /// opaque token whose reference identity changes when the load order is
 /// rebuilt so caches can invalidate.
 ///
-/// A host adapts <see cref="IEnvironmentStateProvider"/> behind this
-/// interface.
+/// A host adapts its game-environment service behind this interface.
 /// </summary>
 public interface IDataFolderProvider
 {

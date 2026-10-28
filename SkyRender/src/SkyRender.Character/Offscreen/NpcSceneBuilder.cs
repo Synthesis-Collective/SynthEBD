@@ -204,7 +204,7 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
         {
             vm.ApplyTextureOverrides(request.TextureOverrides);
         }
-        // Auxiliary mesh overrides (e.g. a subgroup mesh, outfit or headgear).
+        // Auxiliary mesh overrides (e.g. an auxiliary armature, outfit or headgear).
         // The scene is ready post-drain, so this loads/skins/textures/hides the
         // extra shapes inline against the bound FBO — they'll be in the next
         // Render() pass. Slot occupancy hides the base body under body armor and

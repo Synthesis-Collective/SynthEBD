@@ -5,12 +5,12 @@ namespace SkyRender;
 /// <summary>
 /// Marshals a callback onto the host's "render thread" — the thread that
 /// owns the GL context and is responsible for advancing the scene-install
-/// queue (<see cref="VM_CharacterViewer.ProcessPendingScene"/>).
+/// queue (the character tier's pending-scene processing).
 ///
-/// A host's WPF host marshals to <c>Application.Current.Dispatcher</c>
+/// A WPF host marshals to <c>Application.Current.Dispatcher</c>
 /// because the host's viewer control's render callback runs on the WPF UI
 /// thread and pending-scene fields must be written from there. The
-/// offscreen renderer (Phase D) doesn't have a WPF Application — its
+/// offscreen renderer doesn't have a WPF Application — its
 /// "render thread" is whatever thread executes
 /// <c>RenderToPngAsync</c> via <see cref="System.Threading.Tasks.Task.Run"/>,
 /// and the VM is single-use per render so there's no cross-thread

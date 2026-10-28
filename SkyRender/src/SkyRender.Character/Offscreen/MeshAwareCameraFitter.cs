@@ -15,8 +15,7 @@ namespace SkyRender.Character.Offscreen;
 /// fits inside the requested framing band at the given viewport aspect.
 ///
 /// <para>The offscreen renderer applies this internally on each render. The
-/// live preview UC (a host's mugshot preview, a host's
-/// CharacterViewer toolbar in interactive mode, etc.) calls this directly
+/// live preview UC (e.g. a host's live portrait preview) calls this directly
 /// to keep the on-screen camera in lockstep with what the saved PNG would
 /// produce — so a yellow crop overlay's framing matches the eventual
 /// output bit-for-bit.</para>

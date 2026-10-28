@@ -42,7 +42,7 @@ public class TextureVisibilityLockTests
         HasTintColor = present.HasFlag(TextureSlots.TintColor),
     };
 
-    private static GlMesh Body(string name = "3BA") => Mesh("Body", name, BodySlots, skin: true);
+    private static GlMesh Body(string name = "BodyB") => Mesh("Body", name, BodySlots, skin: true);
     private static GlMesh Face(string name) => Mesh("Head", name, FaceSlots, skin: true);
     private static GlMesh Hair(string name) => Mesh("Head", name, HairSlots, hair: true);
     private static GlMesh Eyes(string name) => Mesh("Head", name, EyeSlots, eye: true);
@@ -87,10 +87,10 @@ public class TextureVisibilityLockTests
     {
         var hidden = TextureSlots.Diffuse | TextureSlots.Normal;
         var textureLock = new TextureVisibilityLock();
-        textureLock.Record(Body("3BA"), hidden, enabled: false);
+        textureLock.Record(Body("BodyB"), hidden, enabled: false);
 
-        var sameShape = Body("3BA");
-        var otherBody = Body("CBBE");
+        var sameShape = Body("BodyB");
+        var otherBody = Body("BodyA");
         textureLock.Apply(sameShape).Should().Be(hidden);
         textureLock.Apply(otherBody).Should().Be(hidden, "the body group carries the choice across shape names");
 
@@ -122,15 +122,15 @@ public class TextureVisibilityLockTests
     public void Apply_ResolvesEachSlotFromTheMostSpecificLevelThatDecidedIt()
     {
         var textureLock = new TextureVisibilityLock();
-        // The user turned Diffuse back on for CBBE, then later hid Diffuse and Normal on 3BA.
-        // The body group now says both are off, but CBBE's own choice keeps its Diffuse on.
-        textureLock.Record(Body("CBBE"), TextureSlots.Diffuse, enabled: true);
-        textureLock.Record(Body("3BA"), TextureSlots.Diffuse | TextureSlots.Normal, enabled: false);
+        // The user turned Diffuse back on for BodyA, then later hid Diffuse and Normal on BodyB.
+        // The body group now says both are off, but BodyA's own choice keeps its Diffuse on.
+        textureLock.Record(Body("BodyA"), TextureSlots.Diffuse, enabled: true);
+        textureLock.Record(Body("BodyB"), TextureSlots.Diffuse | TextureSlots.Normal, enabled: false);
 
-        var cbbe = Body("CBBE");
-        textureLock.Apply(cbbe);
+        var bodyA = Body("BodyA");
+        textureLock.Apply(bodyA);
 
-        cbbe.DisabledTextureSlots().Should().Be(TextureSlots.Normal);
+        bodyA.DisabledTextureSlots().Should().Be(TextureSlots.Normal);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class TextureVisibilityLockTests
 
         // No diffuse texture and no normal map: Diffuse off would turn it flat grey, and a
         // missing slot's toggle must stay exactly as the mesh had it.
-        var bare = Mesh("Body", "3BA", TextureSlots.Skin | TextureSlots.Specular, skin: true);
+        var bare = Mesh("Body", "BodyB", TextureSlots.Skin | TextureSlots.Specular, skin: true);
         textureLock.Apply(bare).Should().Be(TextureSlots.Skin | TextureSlots.Specular);
 
         bare.DiffuseEnabled.Should().BeTrue();
@@ -182,7 +182,7 @@ public class TextureVisibilityLockTests
     [Fact]
     public void Capture_KeepsEachShapesWholeState_AndGroupsLearnOnlyWhatWasHidden()
     {
-        var body = Body("3BA");
+        var body = Body("BodyB");
         body.SetTextureSlotsEnabled(TextureSlots.Diffuse | TextureSlots.Normal, false);
         var mouth = HeadOther("MouthHumanoidDefault"); // left textured
         var brows = HeadOther("FemaleBrowsHuman06");   // same group as the mouth, Diffuse hidden
@@ -191,7 +191,7 @@ public class TextureVisibilityLockTests
         var textureLock = new TextureVisibilityLock();
         textureLock.Capture(new[] { body, mouth, brows });
 
-        var nextBody = Body("CBBE");
+        var nextBody = Body("BodyA");
         var nextMouth = HeadOther("MouthHumanoidDefault");
         var nextBrows = HeadOther("FemaleBrowsHuman02");
         var nextHair = Hair("HairFemaleNord04");
@@ -230,7 +230,7 @@ public class TextureVisibilityLockTests
         textureLock.Capture(new[] { Body() }); // a fully textured scene
 
         textureLock.HiddenSlots.Should().Be(TextureSlots.None);
-        var body = Body("CBBE");
+        var body = Body("BodyA");
         textureLock.Apply(body);
         body.DisabledTextureSlots().Should().Be(TextureSlots.None);
     }
@@ -247,7 +247,7 @@ public class TextureVisibilityLockTests
 
         // A texture override can give a mesh a normal map after it was created; the viewer
         // re-applies the lock to just the slots that appeared.
-        var body = Mesh("Body", "3BA", BodySlots & ~TextureSlots.Normal, skin: true);
+        var body = Mesh("Body", "BodyB", BodySlots & ~TextureSlots.Normal, skin: true);
         textureLock.Apply(body);
         body.NormalEnabled.Should().BeTrue();
         body.HasNormalMap = true;
@@ -265,7 +265,7 @@ public class TextureVisibilityLockTests
         textureLock.Record(Body(), TextureSlots.Diffuse, enabled: true);
 
         textureLock.HiddenSlots.Should().Be(TextureSlots.None);
-        var body = Body("CBBE");
+        var body = Body("BodyA");
         body.SetTextureSlotsEnabled(TextureSlots.Diffuse, false); // prove Apply turns it back on
         textureLock.Apply(body);
         body.DiffuseEnabled.Should().BeTrue();
@@ -289,11 +289,11 @@ public class TextureVisibilityLockTests
     public void ShapeMatch_IgnoresCaseAndSurroundingWhitespace()
     {
         var textureLock = new TextureVisibilityLock();
-        textureLock.Record(Body("3BA"), TextureSlots.Diffuse, enabled: false);
+        textureLock.Record(Body("BodyB"), TextureSlots.Diffuse, enabled: false);
         // Turn the body group's Diffuse back on, so only an exact shape match can hide it.
-        textureLock.Record(Body("CBBE"), TextureSlots.Diffuse, enabled: true);
+        textureLock.Record(Body("BodyA"), TextureSlots.Diffuse, enabled: true);
 
-        var body = Body("3ba ");
+        var body = Body("bodyb ");
         textureLock.Apply(body);
 
         body.DiffuseEnabled.Should().BeFalse();

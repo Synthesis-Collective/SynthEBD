@@ -138,7 +138,7 @@ public class GameAssetResolver
     /// Optional priority-ordered loose-file search paths consulted BEFORE
     /// <see cref="IDataFolderProvider.DataFolderPath"/> for the active
     /// render or load. Pushed via <see cref="PushScopes"/> by the offscreen
-    /// renderer (per-render) and <see cref="VM_CharacterViewer"/> (per-load,
+    /// renderer (per-render) and the character tier's viewer (per-load,
     /// re-pushed inside per-tick installs). Restored at end-of-scope so
     /// renders don't leak between calls.
     ///
@@ -192,8 +192,8 @@ public class GameAssetResolver
     /// of the strict two-phase walk ending in NotFound. Default false.
     /// Set scene-wide by <see cref="PushScopes"/> (from
     /// <see cref="Offscreen.OffscreenRenderRequest.AllowLoadOrderFallback"/>)
-    /// or per-asset by <see cref="PushLoadOrderFallback"/> (see
-    /// <see cref="MeshOverride.AllowLoadOrderFallback"/>); backed by
+    /// or per-asset by <see cref="PushLoadOrderFallback"/> (e.g. from a
+    /// per-override fallback flag); backed by
     /// <see cref="AsyncLocal{T}"/> for the same flow-isolation reasons as
     /// the fields above.</summary>
     private readonly AsyncLocal<bool> _allowLoadOrderFallback = new();
@@ -212,13 +212,13 @@ public class GameAssetResolver
     /// still carries its flag — only the reporting is muted). Pushed via
     /// <see cref="PushDataFolderFallbackReportSuppression"/> around work done
     /// ON BEHALF OF a NIF that was itself resolved via data-folder fallback:
-    /// such a NIF is the load order's global baseline (a body/skin replacer,
+    /// such a NIF is the load order's global baseline (an asset replacer,
     /// not the depicted mod's contribution), so the textures and physics XMLs
     /// it references are that baseline's own internals, not dependencies OF
     /// THE MOD. The depicted-mod dependency, when there is one, is the parent
     /// NIF itself — reported by the resolve that preceded the suppression
-    /// bracket. Without this, every tile whose mod ships no body badged the
-    /// user's body replacer's internal texture names (femalebody_etc_v2_*).</summary>
+    /// bracket. Without this, every render of a mod shipping no base mesh
+    /// reported the baseline's own texture paths.</summary>
     private readonly AsyncLocal<bool> _suppressDataFolderFallbackReports = new();
 
     public GameAssetResolver(
@@ -540,7 +540,7 @@ public class GameAssetResolver
     /// <summary>
     /// Sets whether vanilla loose files (and only loose, never vanilla BSA)
     /// take priority over mod-folder loose files for non-FaceGen paths.
-    /// When true, the user's installed body / skin / texture replacers in
+    /// When true, the user's installed asset replacers in
     /// the data folder leak into mod-specific previews. The
     /// <c>FaceGenData</c> tree is excluded regardless. Mutates the AsyncLocal
     /// value on the calling flow only. See
@@ -659,9 +659,9 @@ public class GameAssetResolver
             return cachedSource;
         }
 
-        // Absolute-path passthrough. The Headparts preview flow supplies a
-        // rooted path to a temp FaceGen NIF generated outside the game Data
-        // folder; returning it as-is lets the viewer consume it without
+        // Absolute-path passthrough. A host may supply a rooted path (e.g. a
+        // temporary FaceGen NIF generated outside the game Data folder);
+        // returning it as-is lets the viewer consume it without
         // needing the file to live under Data or to be prefixed with
         // DataFolderPath. Applies regardless of scoping.
         if (Path.IsPathRooted(relativeGamePath) && File.Exists(relativeGamePath))
@@ -861,8 +861,8 @@ public class GameAssetResolver
         bool isFaceGen = IsScopeLockedPath(normalized); // the FaceGen tree by default
 
         // Toggle 2 fast-path: vanilla loose preempts mod-folder loose for
-        // non-FaceGen assets. Lets the user's installed body / skin /
-        // texture replacers leak into mod-scoped previews. FaceGen is
+        // non-FaceGen assets. Lets the user's installed asset replacers
+        // leak into mod-scoped previews. FaceGen is
         // excluded because its files are NPC-keyed (FormID-named) and a
         // vanilla copy would defeat the mod's actual face override. Only
         // checks the vanilla scope's LOOSE folder — vanilla BSA is left

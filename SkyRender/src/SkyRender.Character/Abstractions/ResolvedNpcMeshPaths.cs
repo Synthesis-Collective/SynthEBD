@@ -16,13 +16,7 @@ public enum NpcGender
 /// <summary>
 /// Resolved mesh + texture paths for one NPC, packaged in a Mutagen-free POCO so
 /// the CharacterViewer rendering tier can consume it without taking a dependency
-/// on the Skyrim record schema. A host's <see cref="NpcMeshResolver.NpcMeshPaths"/>
-/// is converted to this form by the host's adapter.
-///
-/// Once Phase B/C of the extraction completes this becomes the canonical type
-/// returned by all resolution paths — the inner <c>NpcMeshResolver.NpcMeshPaths</c>
-/// goes away and Skyrim-tier code produces <see cref="ResolvedNpcMeshPaths"/>
-/// directly.
+/// on the Skyrim record schema. A host converts its own resolved paths to this form.
 /// </summary>
 public sealed class ResolvedNpcMeshPaths
 {
@@ -124,9 +118,9 @@ public sealed class ResolvedNpcMeshPaths
     public IReadOnlySet<string> EyeShapeNames { get; init; } = EmptyEyeShapeNames;
 
     /// <summary>Shape names in the FaceGen head NIF the renderer must NOT draw —
-    /// baked head-part geometry the host has designated for removal (e.g. an
-    /// antler head part the patch strips from both the NPC record and the FaceGen
-    /// NIF, so the preview should match the patched result). Matched against each
+    /// baked head-part geometry the host has designated for removal (e.g. a head
+    /// part the host removes from the NPC, so the preview should match the
+    /// result). Matched against each
     /// base-head shape's trimmed name; supply a case-insensitive set. Empty (the
     /// default) hides nothing. Only base-scene head shapes are affected — attire
     /// mesh overrides are never filtered by this set.</summary>
@@ -171,7 +165,7 @@ public sealed class ResolvedNpcMeshPaths
             replacement.FindPartMesh(TailMeshPath) ?? TailMeshPath);
 
     /// <summary>Returns a copy with <see cref="HeadMeshPath"/> swapped — used by
-    /// the HeadParts preview flow to retarget the viewer at a temp FaceGen NIF
+    /// head-part preview flows to retarget the viewer at a temp FaceGen NIF
     /// without re-resolving the rest of the record chain.</summary>
     public ResolvedNpcMeshPaths WithHeadMeshPath(string? headMeshPath) =>
         new()
@@ -227,7 +221,7 @@ public sealed class ResolvedNpcMeshPaths
 
     /// <summary>Returns a copy with <see cref="HideHeadShapeNames"/> replaced.
     /// Used by hosts that resolve the base record chain first and layer a
-    /// head-shape hide-set on afterwards (e.g. A host's antler-Remove preview).</summary>
+    /// head-shape hide-set on afterwards.</summary>
     public ResolvedNpcMeshPaths WithHideHeadShapeNames(IReadOnlySet<string> hideHeadShapeNames) =>
         new()
         {

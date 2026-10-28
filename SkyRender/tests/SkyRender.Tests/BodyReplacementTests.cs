@@ -6,15 +6,15 @@ using Xunit;
 
 namespace SkyRender.Tests;
 
-/// <summary><see cref="BodyReplacement"/>: matching an NPC's resolved part paths to a body type's
-/// slider-set outputs, and the value equality the viewer's same-NPC load short-circuit relies on.</summary>
+/// <summary><see cref="BodyReplacement"/>: matching an NPC's resolved part paths to a replacement
+/// body's part meshes, and the value equality the viewer's same-NPC load short-circuit relies on.</summary>
 public class BodyReplacementTests
 {
     private static readonly Dictionary<string, string> Parts = new()
     {
-        [BodyReplacement.PartKey(@"meshes\actors\character\character assets\femalehands")] = @"C:\bhunp\Hands.nif",
-        [BodyReplacement.PartKey(@"meshes\actors\character\character assets\femalefeet")] = @"C:\bhunp\Feet.nif",
-        [BodyReplacement.PartKey(@"meshes\actors\character\character assets\femalebody")] = @"C:\bhunp\Body Ver 4.nif",
+        [BodyReplacement.PartKey(@"meshes\actors\character\character assets\femalehands")] = @"C:\replacement\Hands.nif",
+        [BodyReplacement.PartKey(@"meshes\actors\character\character assets\femalefeet")] = @"C:\replacement\Feet.nif",
+        [BodyReplacement.PartKey(@"meshes\actors\character\character assets\femalebody")] = @"C:\replacement\Body.nif",
     };
 
     [Theory]
@@ -38,9 +38,9 @@ public class BodyReplacementTests
 
         var swapped = npc.WithBodyReplacement(new BodyReplacement(@"C:\fallback\Body.nif", Parts));
 
-        swapped.BodyMeshPath.Should().Be(@"C:\bhunp\Body Ver 4.nif");     // part map wins for the body path it names
-        swapped.HandsMeshPath.Should().Be(@"C:\bhunp\Hands.nif");
-        swapped.FeetMeshPath.Should().Be(@"C:\bhunp\Feet.nif");
+        swapped.BodyMeshPath.Should().Be(@"C:\replacement\Body.nif");     // part map wins for the body path it names
+        swapped.HandsMeshPath.Should().Be(@"C:\replacement\Hands.nif");
+        swapped.FeetMeshPath.Should().Be(@"C:\replacement\Feet.nif");
         swapped.TailMeshPath.Should().Be(npc.TailMeshPath);               // not built by this body type: kept
         swapped.HeadMeshPath.Should().Be(npc.HeadMeshPath);
     }
@@ -50,8 +50,8 @@ public class BodyReplacementTests
     {
         var npc = new ResolvedNpcMeshPaths { BodyMeshPath = @"meshes\actors\character\ygnord\femalebody_1.nif" };
 
-        npc.WithBodyReplacement(new BodyReplacement(@"C:\bhunp\Body Ver 4.nif", Parts)).BodyMeshPath
-            .Should().Be(@"C:\bhunp\Body Ver 4.nif");
+        npc.WithBodyReplacement(new BodyReplacement(@"C:\replacement\Body.nif", Parts)).BodyMeshPath
+            .Should().Be(@"C:\replacement\Body.nif");
     }
 
     private static NifMeshBuilder.BuiltMesh Face(uint shaderType, Dictionary<int, string> textures) => new()

@@ -40,7 +40,7 @@ public interface ICharacterViewerSettings : IRenderSettings, INotifyPropertyChan
     // on toolbar edit so the choice persists across runs. All are default interface
     // members (get returns the shared out-of-box default / set is a no-op) so existing
     // host adapters keep compiling unchanged; a host that persists these overrides them.
-    // Getter defaults mirror a host's InternalMugshotSettings so a
+    // Getter defaults are the library's portrait defaults, so a
     // non-persisting host still gets the same portrait look.
 
     /// <summary>Green-wireframe placeholder for shapes whose diffuse texture failed to load.</summary>

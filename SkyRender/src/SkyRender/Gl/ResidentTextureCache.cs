@@ -49,7 +49,7 @@ public sealed class ResidentTextureCache : IDisposable
     private readonly LinkedList<Entry> _probation = new();  // single-use so far; MRU at front
     private readonly IRenderLogger? _logger;
     // Gate for the per-hit / per-add / per-evict diagnostic trace. Off by default;
-    // the host's "Verbose Log" toggle (or a force-regen _Mugshot.txt) flips it on so
+    // the host's verbose-log toggle flips it on so
     // a poisoned re-render can be diffed against a post-restart render. The budget /
     // OOM lines below are NOT gated — they're low-volume and always useful.
     private readonly RenderLogGate? _logGate;

@@ -8,15 +8,13 @@ namespace SkyRender.Character;
 /// <summary>
 /// Host-chosen replacement of an NPC's body meshes and body skin, applied at load time by
 /// <see cref="VM_CharacterViewer.BodyReplacement"/> (and per guest by <see cref="VM_CharacterViewer.LoadGuestAsync"/>).
-/// Lets a host preview a body type that isn't the installed one -- a host's morph-tool Compare window
-/// fills it from a body type's morph-tool slider sets.
+/// Lets a host preview a body type that isn't the installed one.
 /// </summary>
 /// <param name="BodyNifPath">Absolute disk path of the body NIF, always swapped in for the NPC's body.</param>
 /// <param name="PartMeshes">Further swaps by game path: <see cref="PartKey"/> of a mesh path a body mod
 /// writes (e.g. <c>meshes\actors\character\character assets\femalehands</c>) -> absolute NIF path. Each of
-/// the NPC's resolved hands / feet / tail meshes is replaced when its key is here, so they match the body
-/// (a slider set's <c>OutputPath\OutputFile</c> is exactly such a key). A body key here wins over
-/// <see cref="BodyNifPath"/> for a body path it names. Null/absent key = keep the NPC's mesh.</param>
+/// the NPC's resolved hands / feet / tail meshes is replaced when its key is here, so they match the body.
+/// A body key here wins over <see cref="BodyNifPath"/> for a body path it names. Null/absent key = keep the NPC's mesh.</param>
 /// <param name="TextureFolder">Where the replacement skin's textures live: a data-folder-like root under
 /// which each replaced-or-kept body-part skin shape's NIF texture paths are looked up
 /// (<see cref="VM_CharacterViewer.ResolveTextureUnderFolder"/>). A skin shape whose diffuse isn't there
@@ -40,8 +38,8 @@ public sealed record BodyReplacement(
     /// <summary>
     /// The lookup key for a mesh path: lower-case, backslashes, no leading <c>data\</c> or <c>meshes\</c>,
     /// no extension and no <c>_0</c>/<c>_1</c> weight suffix -- so a resolved
-    /// <c>Meshes/Actors/Character/Character Assets/FemaleHands_1.nif</c> and a slider set's
-    /// <c>meshes\actors\character\character assets</c> + <c>femalehands</c> agree.
+    /// <c>Meshes/Actors/Character/Character Assets/FemaleHands_1.nif</c> and
+    /// <c>meshes\actors\character\character assets\femalehands</c> agree.
     /// </summary>
     public static string PartKey(string path)
     {
