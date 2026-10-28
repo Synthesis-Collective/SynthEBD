@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using CharacterViewer.Rendering;
+using SkyRender;
 
 // CLI wrapper around CharacterViewer.Rendering's NifSkope-style diagnostic
 // dumper. Prints the full dump (header, block index, scene graph, per-block

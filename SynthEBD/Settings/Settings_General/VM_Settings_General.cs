@@ -402,8 +402,8 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
     public double ConsistencyPreviewerWidth { get; set; } = 525;
     public string CharacterViewerLightingLayout { get; set; } = "";
     public string CharacterViewerLightingColorScheme { get; set; } = "";
-    public ObservableCollection<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
-    public ObservableCollection<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
+    public ObservableCollection<LightingLayout> UserLightingLayouts { get; set; } = new();
+    public ObservableCollection<LightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public bool CharacterViewerVerboseLog { get; set; } = false;
     public bool CharacterViewerRenderMissingTextureAsWireframe { get; set; } = true;
     public bool CharacterViewerEnableToneMapping { get; set; } = true;
@@ -507,10 +507,10 @@ public class VM_Settings_General : VM, IHasAttributeGroupMenu, IHasRaceGroupingE
         ConsistencyPreviewerWidth = model.ConsistencyPreviewerWidth;
         CharacterViewerLightingLayout = model.CharacterViewerLightingLayout;
         CharacterViewerLightingColorScheme = model.CharacterViewerLightingColorScheme;
-        UserLightingLayouts = new ObservableCollection<CharacterViewerLightingLayout>(
-            model.UserLightingLayouts ?? new List<CharacterViewerLightingLayout>());
-        UserLightingColorSchemes = new ObservableCollection<CharacterViewerLightingColorScheme>(
-            model.UserLightingColorSchemes ?? new List<CharacterViewerLightingColorScheme>());
+        UserLightingLayouts = new ObservableCollection<LightingLayout>(
+            model.UserLightingLayouts ?? new List<LightingLayout>());
+        UserLightingColorSchemes = new ObservableCollection<LightingColorScheme>(
+            model.UserLightingColorSchemes ?? new List<LightingColorScheme>());
         CharacterViewerVerboseLog = model.CharacterViewerVerboseLog;
         CharacterViewerRenderMissingTextureAsWireframe = model.CharacterViewerRenderMissingTextureAsWireframe;
         CharacterViewerEnableToneMapping = model.CharacterViewerEnableToneMapping;

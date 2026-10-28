@@ -1,5 +1,6 @@
 using System.Xml.Linq;
-using CharacterViewer.Rendering;
+using SkyRender;
+using SkyRender.Character;
 using FluentAssertions;
 using Xunit;
 using SynthEBD.BodyShapeViewer;

@@ -1,0 +1,3216 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
+
+namespace SkyRender;
+
+/// <summary>
+/// Which half-space of the section-clip plane gets thrown away. "Front" and "Back"
+/// are relative to the camera at the moment the user armed the clip, not to the
+/// character's own facing.
+/// </summary>
+public enum ClipPlaneMode
+{
+    /// <summary>No clipping; the whole model draws.</summary>
+    None = 0,
+    /// <summary>Discard everything BETWEEN the camera and the plane, so the plane
+    /// becomes the nearest visible surface (cut away the chest to look into the torso).</summary>
+    Front = 1,
+    /// <summary>Discard everything BEYOND the plane, keeping only what sits between
+    /// the camera and it (isolate the near surface from the far side of the body).</summary>
+    Back = 2,
+}
+
+/// <summary>
+/// Core OpenGL renderer for the character viewer. Manages the shader program,
+/// draws all meshes with proper material uniforms, and handles lighting.
+/// </summary>
+public class GlRenderer : IDisposable
+{
+    private GlShaderProgram? _shader;
+    private GlShaderProgram? _debugShader;
+    private GlShaderProgram? _wireframeShader;
+    private GlShaderProgram? _shadowShader;
+    private int _debugVao;
+
+    // Shadow-mapping resources (since 2.5.10). Created
+    // lazily on first Render() with EnableShadows=true so hosts that don't
+    // opt in pay zero GPU memory cost. The depth texture is sampled by
+    // basic.frag's sampler2DShadow with hardware-accelerated bilinear PCF
+    // plus a 3x3 manual kernel for soft penumbra.
+    private const int ShadowMapSize = 2048;
+    private int _shadowFbo = -1;
+    private int _shadowDepthTex = -1;
+    private Matrix4 _lightViewProj = Matrix4.Identity;
+
+    // SSAO resources (since 2.5.11). The pipeline:
+    //   1. Depth + normal prepass: render opaque + alpha-test geometry
+    //      with _depthOnlyShader. Writes depth to _depthPrepassDepthTex
+    //      and view-space normals (encoded *0.5+0.5 into RGB8) to
+    //      _depthPrepassNormalTex. The normal G-buffer is what avoids
+    //      faceting - reconstructing the normal via cross(dFdx, dFdy)
+    //      yields a flat per-triangle normal and the triangulation
+    //      pops on smooth surfaces.
+    //   2. SSAO compute: full-screen quad reads _depthPrepassDepthTex +
+    //      _depthPrepassNormalTex + _ssaoNoiseTex, computes per-pixel
+    //      hemispheric occlusion with _ssaoSampleKernel, writes a
+    //      single-channel R8 result into _ssaoFbo's color texture.
+    //   3. SSAO blur: averages a 4x4 neighborhood to cancel the noise
+    //      tile period, writes to _ssaoBlurTex.
+    //   4. Main pass: basic.frag samples _ssaoBlurTex via u_ssaoMap and
+    //      multiplies into the diffuse + SSS terms.
+    // FBOs are sized to the current viewport and re-created when the
+    // viewport size changes (matches the host's MSAA FBO lifecycle).
+    private GlShaderProgram? _depthOnlyShader;
+    private GlShaderProgram? _ssaoShader;
+    private GlShaderProgram? _ssaoBlurShader;
+    private int _depthPrepassFbo = -1;
+    private int _depthPrepassDepthTex = -1;
+    private int _depthPrepassNormalTex = -1;
+    private int _ssaoFbo = -1;
+    private int _ssaoTex = -1;
+    private int _ssaoBlurFbo = -1;
+    private int _ssaoBlurTex = -1;
+    private int _ssaoNoiseTex = -1;
+    private int _ssaoFullscreenVao = -1;
+    private (int Width, int Height) _ssaoFboSize;
+    private Vector3[]? _ssaoSampleKernel;
+    private const int SsaoKernelSize = 16;
+    private const int SsaoNoiseSize = 4;
+
+    // Bloom post-process (off by default; gated on EnableBloom + tone-mapping).
+    // _bloomSceneTex receives the resolved scene color (MSAA-blit from the
+    // bound draw FBO); A/B are full-res Rgba8 ping-pong targets for the
+    // bright-pass + separable Gaussian. Reuses _ssaoFullscreenVao + the
+    // fullscreen.vert oversized-triangle. All lifecycle mirrors the SSAO FBOs.
+    private GlShaderProgram? _bloomShader;
+    private int _bloomSceneFbo = -1;
+    private int _bloomSceneTex = -1;
+    private int _bloomFboA = -1;
+    private int _bloomTexA = -1;
+    private int _bloomFboB = -1;
+    private int _bloomTexB = -1;
+    private (int Width, int Height) _bloomFboSize;
+    // Bright-pass shape (hardcoded; the host exposes the composite intensity
+    // via the BloomIntensity property).
+    private const float BloomThreshold = 0.55f;
+    private const float BloomSoftKnee = 0.35f;
+    private int _debugVbo;
+
+    // Vertex-colour overlay pass. A batched, single-upload/single-draw overlay
+    // primitive parallel to the solid triangles, but with a per-vertex color
+    // attribute (location 2) so each vertex carries its own colour. Uses its own VAO (9-float stride:
+    // pos.xyz + normal.xyz + color.rgb) and an unlit shader. See DrawOverlayVertexColorTriangles.
+    private GlShaderProgram? _heatmapShader;
+    private int _heatmapVao;
+    private int _heatmapVbo;
+
+    private readonly List<GlMesh> _meshes = new();
+
+    // Scratch list for the alpha-blend pass: the blended subset of _meshes —
+    // non-decals sorted back-to-front each frame, then decals in NIF block
+    // order. Reused to avoid per-frame allocation.
+    private readonly List<GlMesh> _blendDrawList = new();
+    private bool _initialized;
+    private bool _disposed;
+    // 1x1 black cubemap bound to texture unit 6 whenever the active mesh has
+    // no envmap or its envmap is the 2D sphere-map fallback. Keeps unit 6's
+    // samplerCube binding "complete" so drivers don't warn about sampling
+    // from an incomplete cubemap target even when the shader's
+    // has_environment_map / is_env_map_2d gates skip the sample.
+    private int _defaultBlackCubemap = -1;
+
+    /// <summary>RGB color used for the wireframe overlay pass. Bright cyan by
+    /// default so edges read clearly against both skin and clothing.</summary>
+    public Vector3 WireframeColor { get; set; } = new Vector3(0.2f, 1.0f, 0.9f);
+
+    /// <summary>Color used for shapes flagged as
+    /// <see cref="GlMesh.RenderAsWireframeFallback"/> (alpha shapes whose
+    /// diffuse couldn't be decoded). Default green — distinct from the
+    /// teal morph-tool-classifier wireframe color so the two overlays
+    /// don't blur together when both are active on the same scene.</summary>
+    public Vector3 MissingTextureWireframeColor { get; set; } = new Vector3(0.0f, 1.0f, 0.0f);
+
+    /// <summary>When true, the fragment shader applies an ACES filmic
+    /// tone-mapper plus a mild saturation boost at the end of the pixel
+    /// pipeline, and the GL framebuffer is treated as sRGB so the linear
+    /// lighting result is gamma-encoded once on write. Compresses HDR
+    /// highlights, lifts shadows into perceptual space, and adds the
+    /// contrast / warmth that makes the output read as a portrait
+    /// rather than a flat render. Off: legacy linear-to-display output
+    /// (pre-2.5.9 look). Hosts mirror their settings toggle here before
+    /// each Render call.</summary>
+    public bool EnableToneMapping { get; set; } = false;
+
+    /// <summary>When true, <see cref="Render"/> runs an extra depth-only
+    /// pass from the key directional light's POV before the main passes,
+    /// then samples the resulting shadow map with PCF in basic.frag to
+    /// cast real shadows from brow / nose / hair onto the face. Off:
+    /// legacy occlusion-free directional lighting (pre-2.5.10 look).
+    /// Hosts mirror their settings toggle here before each Render call.</summary>
+    public bool EnableShadows { get; set; } = false;
+
+    // --- Hair-shadow troubleshooting toggles (A/B/C) ---
+    // Three independent mitigations for the "brow ridge" artifact bangs cast
+    // onto the forehead. Diagnostic knobs surfaced in the Shader
+    // Troubleshooting UI so the winning approach can be picked by eye; all
+    // default OFF (current behavior). Read each frame.
+
+    /// <summary>Strategy A: when true, hair (IsHairTintShader) shapes are
+    /// skipped as shadow casters in <see cref="RenderShadowDepthPass"/>, the
+    /// same way eyes already are, so bangs no longer cast a hard shadow onto
+    /// the forehead. Hair/face contact darkening then falls to SSAO.</summary>
+    public bool ExcludeHairShadowCaster { get; set; } = false;
+
+    /// <summary>Strategy B (default ON): when true, basic.frag's PCF lookup
+    /// drops the slope-scaled bias (which warps the cast-shadow edge into a
+    /// ridge across the curved brow, and over-darkens the neck under the
+    /// jaw) for a small constant bias and a wider kernel, softening the
+    /// shadow. Paired with <see cref="ShadowPcfRadius"/>.</summary>
+    public bool SoftenShadowEdges { get; set; } = true;
+
+    /// <summary>PCF kernel step (in shadow-map texels) used when
+    /// <see cref="SoftenShadowEdges"/> is on. Larger = softer / broader.</summary>
+    public float ShadowPcfRadius { get; set; } = 1.5f;
+
+    /// <summary>Strategy C: when true, <see cref="ComputeLightViewProj"/>
+    /// uses <see cref="ShadowFrustumRadius"/> instead of the default 300,
+    /// tightening the light's orthographic depth range so the same NDC bias
+    /// resolves to fewer world units and the shadow hugs the caster more
+    /// tightly (less peter-panning warp). Risk: too small clips tall
+    /// geometry out of the shadow map.</summary>
+    public bool TightShadowFrustum { get; set; } = false;
+
+    /// <summary>Light-frustum scene radius (world units, pre-ModelScale)
+    /// used when <see cref="TightShadowFrustum"/> is on. Default 300 is the
+    /// legacy value; ~100 clearly tightens a head-and-shoulders portrait.</summary>
+    public float ShadowFrustumRadius { get; set; } = 100f;
+
+    /// <summary>When true, <see cref="Render"/> runs a depth pre-pass +
+    /// SSAO post-process before the main passes, then samples the AO
+    /// texture per-fragment in basic.frag and multiplies into the
+    /// diffuse term to darken concave crevices. Off: no AO modulation
+    /// (pre-2.5.11 look). Hosts mirror their settings toggle here.</summary>
+    public bool EnableAmbientOcclusion { get; set; } = false;
+
+    /// <summary>SSAO sample radius in world units. Read by ComputeSsao
+    /// each render so toggling at runtime is effective on the next
+    /// frame. Defaults match the hardcoded value from 2.5.11.</summary>
+    public float SsaoRadius { get; set; } = 4.0f;
+    /// <summary>SSAO depth-comparison bias in world units.</summary>
+    public float SsaoBias { get; set; } = 0.05f;
+    /// <summary>SSAO power-curve exponent.</summary>
+    public float SsaoIntensity { get; set; } = 1.5f;
+    /// <summary>Assumed occluder thickness in world units. An occluder only
+    /// darkens a fragment when its depth is within ~this distance; geometry
+    /// farther behind is treated as a separate surface seen through a gap and
+    /// does not occlude. Stops screen-space AO from painting the body behind
+    /// thin hair/beard strands onto them, and reduces silhouette haloing. At
+    /// Skyrim head scale (head ~22 units) ~2 units rejects the body behind a
+    /// beard while keeping sub-unit face-crevice contact shadows. Also drives
+    /// the bilateral SSAO blur's depth-similarity threshold. ~1.5 fully
+    /// rejects a body ~3 units behind a beard while keeping sub-1.5-unit
+    /// face-crevice contact shadows; raise it toward the sample radius for
+    /// softer/broader AO, lower it for crevice-only.</summary>
+    public float SsaoThickness { get; set; } = 1.5f;
+
+    /// <summary>Max view-space gap (world units) between a hair/beard fragment
+    /// and the opaque surface behind it for the screen-space AO to still apply
+    /// to the hair (2.5.20+). The SSAO depth prepass excludes alpha-tested and
+    /// alpha-blended geometry, so the AO texel under a hair fragment always
+    /// belongs to whatever opaque surface sits behind the strands (face, neck,
+    /// collar). When that surface is close (hairline on the scalp, beard on
+    /// the chin) its AO is a fair stand-in for the hair's own; when it is
+    /// farther than this gap the AO is background structure (collar edges,
+    /// lip lines) that would ghost through the beard, so basic.frag fades it
+    /// to unoccluded. Fade is smooth from the gap value to 2x the gap.</summary>
+    public float SsaoHairGap { get; set; } = 0.8f;
+
+    /// <summary>Eye catch-light toggle (2.5.13+). When true, basic.frag
+    /// adds a tight high-glossiness specular spot from the key light
+    /// for shapes flagged <see cref="GlMesh.IsEye"/>.</summary>
+    public bool EnableEyeCatchlight { get; set; } = false;
+
+    /// <summary>When true (default), dielectric/skin specular is added on
+    /// top of the albedo*light term in basic.frag instead of being
+    /// multiplied through the base color. Matches NifSkope sk_default.frag
+    /// (color = albedo*(diffuse+emissive) + spec) and Community Shaders'
+    /// additive specular; off restores the legacy albedo-tinted highlight
+    /// for A/B comparison. Read each frame.</summary>
+    public bool SpecularAchromatic { get; set; } = true;
+
+    /// <summary>When true (default), the skin soft-lighting / SSS term uses
+    /// the NifSkope / Community Shaders wrap formulation at honest material
+    /// strength (sqrt(rolloff)); off uses the legacy terminator-delta +
+    /// transmission term. Both scale by <see cref="SubsurfaceStrength"/>.
+    /// Read each frame.</summary>
+    public bool SkinFaithfulSoftLight { get; set; } = true;
+
+    /// <summary>Hair finishing toggle (default ON): when true, hair pixels skip
+    /// the fresnel contour darkening and use a gentler exposure pull-down into
+    /// the ACES curve, so the brown hair midtone is not crushed by the
+    /// skin-tuned finishing chain. Skin is untouched. Read each frame.</summary>
+    public bool TonemapHairRelief { get; set; } = true;
+
+    /// <summary>Neutral-white-tint hair albedo compensation strength (default 1.0;
+    /// 0 = off). This renderer lights on raw sRGB texels, so a hair whose baked
+    /// BSLSP tint is a neutral white keeps its albedo ~3x too bright and clips (a
+    /// red wig reads pink). Keyed on tint neutrality, this applies the sRGB->linear
+    /// the pipeline skips to near-white-tint hair only, pulling it into range;
+    /// colored-tint hair (dark auburn, warm blonde) is exempt. Read each frame.</summary>
+    public float HairAlbedoCompensate { get; set; } = 1.0f;
+
+    /// <summary>Toggle (default ON): when true, directional lights are scaled
+    /// by <see cref="DaylightBoostIntensity"/> and warmed slightly (ambient
+    /// untouched), lifting blonde hair toward its in-game daylight appearance
+    /// without hand-tuning the Key light. Composes with active preset/manual
+    /// lights. Read each frame.</summary>
+    public bool DaylightBoost { get; set; } = true;
+
+    /// <summary>Directional-light gain applied when <see cref="DaylightBoost"/>
+    /// is on. 1.0 = warmth only (no brightening); higher brightens. Read each
+    /// frame.</summary>
+    public float DaylightBoostIntensity { get; set; } = 1.1f;
+
+    /// <summary>Toggle (default ON, needs tone-mapping): when true a bright-pass
+    /// + blur bloom is composited over the scene so hair highlights bleed into
+    /// the soft glow the engine produces. Post pass in <see cref="Render"/> on
+    /// the resolved scene color; affects the whole frame. Read each frame.</summary>
+    public bool EnableBloom { get; set; } = true;
+
+    /// <summary>Bloom composite gain applied when <see cref="EnableBloom"/> is
+    /// on. 0 = no visible glow; higher = stronger. Read each frame.</summary>
+    public float BloomIntensity { get; set; } = 0.7f;
+
+    /// <summary>SSS strength multiplier (2.5.14+). 0 disables the
+    /// corrected SSS pipeline (matches pre-2.5.14 visual when paired
+    /// with the v5 stamped hash). 1.0 = honest SSS at source rolloff
+    /// values. Higher = more pronounced warm-flesh look.</summary>
+    public float SubsurfaceStrength { get; set; } = 0f;
+
+    /// <summary>Skin-only saturation multiplier applied post-tint,
+    /// pre-lighting. 1.0 is no-op. &gt;1 boosts chroma on shapes flagged
+    /// <see cref="GlMesh.IsSkinShape"/>; hair, eyes, and brows are
+    /// excluded. Compensates for downstream desaturation that washes
+    /// race-distinguishing skin character toward neutral.</summary>
+    public float SkinSaturationBoost { get; set; } = 1.0f;
+
+    /// <summary>Vignette inner radius in NDC units (2.5.15+). The
+    /// circular zone of distance &lt;= radius from screen center is
+    /// unaffected; falloff smoothsteps from this radius out to the
+    /// corner (sqrt(2)). Lower = vignette closes in toward center;
+    /// higher = vignette stays wide. Folded under the tone-mapping
+    /// path in basic.frag, so the legacy linear pipeline stays
+    /// untouched when tone-mapping is off.</summary>
+    public float VignetteRadius { get; set; } = 0.7f;
+
+    /// <summary>Vignette darkening strength (2.5.15+). 0 = off (no
+    /// vignette darkening anywhere); 1.0 = corners go to black. The
+    /// pre-2.5.15 hardcoded behavior is approximately reproduced by
+    /// Radius=0.7, Intensity=0.3.</summary>
+    public float VignetteIntensity { get; set; } = 0f;
+
+    /// <summary>Tone-map exposure multiplier (2.5.19+). 1.0 = neutral
+    /// (legacy hardcoded look); &gt;1 brightens, &lt;1 darkens. Scales the
+    /// linear color into the ACES curve. Folded under the tone-mapping
+    /// path in basic.frag, so it only takes effect when tone-mapping is
+    /// on; the legacy linear pipeline stays untouched when it is off.</summary>
+    public float Exposure { get; set; } = 1.0f;
+
+    // ── Skin-tint debug toggles (interactive, runtime-flippable) ─────
+    // Promoted from shader-side const to renderer property so the
+    // operator can be flipped at runtime without re-loading the scene
+    // or recompiling the shader. The user changes the operator from the
+    // CharacterViewerRenderPanel and we push it as a uniform every
+    // application so the user can flip operators at runtime and
+    // visually compare against in-game / NifSkope.
+    /// <summary>When true, ShaderType==4 face shapes also receive the
+    /// QNAM tint (currently only ShaderType==5 body shapes do). Useful
+    /// for testing the "engine applies QNAM to both face and body"
+    /// hypothesis.</summary>
+    public bool SkinTintApplyToFace { get; set; } = false;
+
+    /// <summary>Operator used by basic.frag to combine the QNAM tint
+    /// with the diffuse:
+    /// 0 = multiply (legacy production default),
+    /// 1 = overlay,
+    /// 2 = linear-space multiply (gamma-decode -&gt; multiply -&gt; re-encode),
+    /// 3 = gamma-aware multiply (pow(albedo, 1/tint) approximation),
+    /// 4 = lerp(albedo, albedo*tint, <see cref="SkinTintLerpStrength"/>),
+    /// 5 = lerp weighted by NIF's per-shape skinTintAlpha (0 in our samples),
+    /// 6 = Pegtop soft-light + engine body color-shift constant.
+    /// Default 6: matches the engine's GetFacegenRGBTintBaseColor per
+    /// Community Shaders' Lighting.hlsl replacement shader.</summary>
+    public int SkinTintOperator { get; set; } = 6;
+
+    /// <summary>Strength used by SkinTintOperator == 4 (lerp).
+    /// 0 = no tint; 1 = full multiply.</summary>
+    public float SkinTintLerpStrength { get; set; } = 0.5f;
+
+    /// <summary>Debug override for the per-shape vertex-color multiply
+    /// branch in basic.frag. 0 = auto (use the per-shape
+    /// <c>HasVertexColors</c> flag, production behavior); 1 = force ON
+    /// (apply the multiply for every shape — note: shapes without vertex
+    /// color data upload (1,1,1,1) per vertex, so the multiply is
+    /// visually inert on those, useful as a sanity-check on the
+    /// (1,1,1,1) fallback); 2 = force OFF (skip the multiply for every
+    /// shape — useful for diagnosing whether vanilla NPCs' face vertex
+    /// colors are visibly modulating the diffuse).</summary>
+    public int VertexColorMultiplyMode { get; set; } = 0;
+
+    /// <summary>FaceTint blend operator selector -- runtime version of
+    /// the previous <c>FACE_TINT_MODE</c> shader constant.
+    /// 0 = Auto (MSN gets overlay, non-MSN gets multiply,
+    /// matches NifSkope's sk_msn / sk_default split);
+    /// 1 = Always overlay;
+    /// 2 = Always multiply;
+    /// 3 = Always skip;
+    /// 4 = Pegtop soft-light (engine-faithful per Community Shaders'
+    /// GetFacegenBaseColor source).
+    /// Default 4: pairs with <see cref="SkinTintOperator"/> = 6 and
+    /// <see cref="UseEngineStyleDetailMap"/> = true to reproduce the
+    /// engine's face composition pipeline.</summary>
+    public int FaceTintMode { get; set; } = 4;
+
+    /// <summary>Experimental: when true, face shapes (ShaderType 4)
+    /// whose <c>SLSF1_Facegen_Detail_Map</c> flag is set but whose
+    /// BSShaderTextureSet slot 3 is empty are rendered with the FaceTint
+    /// operator forced to multiply (overriding <see cref="FaceTintMode"/>
+    /// for those specific meshes). Empirically resolves the seam on
+    /// modder faces that omit slot 3 (Brynjolf / Aia / Angeline) without
+    /// affecting NPCs whose slot 3 is populated. Toggle is reactive —
+    /// the per-mesh "empty slot 3" flag is set at load time, the
+    /// override decision is made each frame in basic.frag.</summary>
+    public bool FaceTintMultiplyOnEmptyDetail { get; set; } = false;
+
+    /// <summary>When true, the slot-3 detail map is applied to face
+    /// shapes the way the actual Skyrim engine does (per Community
+    /// Shaders' Lighting.hlsl GetFacegenBaseColor): a direct multiply
+    /// of the post-FaceTint result by
+    /// <c>3.984375 * ((1/255, 0, 1/255) + sampledDetail)</c>, applied AFTER
+    /// the FaceTint blend rather than as a Photoshop overlay before it.
+    /// Default true: combined with FaceTintMode==4 (Pegtop) and
+    /// SkinTintOperator==6 (Pegtop with engine constant), reproduces the
+    /// engine's face / body composition math.</summary>
+    public bool UseEngineStyleDetailMap { get; set; } = true;
+
+    /// <summary>Experimental: when true, face shapes whose slot 3 is
+    /// empty get <c>textures\actors\character\male\BlankDetailmap.dds</c>
+    /// substituted at load time, exercising the detail-map blend with
+    /// the standard Bethesda CK fallback (mid-grey). Tests whether the
+    /// engine substitutes a default detail texture when slot 3 is empty.
+    /// Changing this toggle fires <see cref="VM_CharacterViewer.ReloadRequested"/>
+    /// because texture binding is decided at scene-build time.</summary>
+    public bool UseBlankDetailFallback { get; set; } = false;
+
+    /// <summary>Whether this context honors glLineWidth &gt; 1 (probed once in <see cref="Initialize"/>).
+    /// False on forward-compatible core contexts, where overlay lines fall back to screen-aligned
+    /// quads.</summary>
+    private bool _wideLinesSupported = true;
+
+    /// <summary>
+    /// Host overlays drawn after the scene, the wireframe overlay and the clip-plane visual, and
+    /// before the light-direction gizmos. Drawn in list order; each one composes the overlay
+    /// primitives below (<see cref="BeginOverlaySurfacePass"/>, <see cref="BeginOverlayLinePass"/>
+    /// and the <c>DrawOverlay*</c> methods). Positions handed to the primitives are in the same
+    /// pre-<see cref="ModelScale"/> mesh-local space as <see cref="GlMesh.CpuPositions"/>.
+    /// </summary>
+    public List<IRenderOverlay> Overlays { get; } = new();
+
+    /// <summary>
+    /// Sphere (pre-ModelScale centre and radius) the directional shadow map must cover. Null (the
+    /// default) keeps the character framing: centred at Y=85 with radius 300, or
+    /// <see cref="ShadowFrustumRadius"/> when <see cref="TightShadowFrustum"/> is on. Set it for
+    /// scenes of another size, such as a whole cell.
+    /// </summary>
+    public (Vector3 Center, float Radius)? ShadowBounds { get; set; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  OVERLAY PRIMITIVES
+    //
+    //  Valid only inside IRenderOverlay.Draw. Two pass kinds share the debug
+    //  shader and VAO (position.xyz + normal.xyz): a surface pass (lit, depth
+    //  test off, back-face cull on) for markers and triangle patches, and a
+    //  line pass (unlit, depth test off) for line segments. Each Begin
+    //  returns the GL state to restore at the matching End.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>GL state saved by a Begin*Pass call and restored by the matching End*Pass.</summary>
+    public readonly struct OverlayPassState
+    {
+        internal OverlayPassState(bool depthWasEnabled, bool cullWasEnabled)
+        {
+            DepthWasEnabled = depthWasEnabled;
+            CullWasEnabled = cullWasEnabled;
+        }
+        internal bool DepthWasEnabled { get; }
+        internal bool CullWasEnabled { get; }
+    }
+
+    /// <summary>
+    /// Starts a surface pass: debug shader, lit (<c>u_shaded=1</c>), opaque, depth test off,
+    /// back-face culling on, so everything drawn reads as always-on-top. Returns false (and
+    /// draws nothing) before <see cref="Initialize"/>.
+    /// </summary>
+    public bool BeginOverlaySurfacePass(in OverlayContext ctx, out OverlayPassState state)
+    {
+        state = default;
+        if (_debugShader == null) return false;
+
+        var view = ctx.View;
+        var projection = ctx.Projection;
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 1f);
+        // Opaque. debug.frag gained u_alpha for the clip-plane fill; an unset
+        // uniform defaults to 0, so every caller must push it or draw invisible.
+        _debugShader.SetFloat("u_alpha", 1f);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        state = new OverlayPassState(GL.IsEnabled(EnableCap.DepthTest), GL.IsEnabled(EnableCap.CullFace));
+        GL.Disable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
+        return true;
+    }
+
+    /// <summary>Ends a surface pass, restoring the depth and cull state saved at its start.</summary>
+    public void EndOverlaySurfacePass(in OverlayPassState state)
+    {
+        if (state.DepthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        if (!state.CullWasEnabled) GL.Disable(EnableCap.CullFace);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>Switches the surface pass between lit and flat shading.</summary>
+    public void SetOverlayShaded(bool shaded) => _debugShader?.SetFloat("u_shaded", shaded ? 1f : 0f);
+
+    /// <summary>Draws a 6-float (position.xyz + normal.xyz) triangle list as an opaque solid in
+    /// <paramref name="color"/>. Surface pass only. Positions are scaled by ModelScale via a scratch
+    /// copy so the caller's list is never mutated.</summary>
+    public void DrawOverlaySolidTriangles(List<float> triangles, Vector3 color)
+    {
+        int floats = UploadScaledPosNormal(triangles, ref _overlaySolidScratch);
+        if (floats == 0) return;
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 6);
+    }
+    private float[]? _overlaySolidScratch;
+
+    /// <summary>Draws a 6-float triangle list as a lit, translucent, depth-tested tint, so it shades
+    /// only the visible surface. Surface pass only; this draw alone re-enables the depth test with a
+    /// small polygon offset (the patch lies exactly on the surface and would z-fight) and blends with
+    /// the destination alpha kept at 1, so an offscreen BGRA readback stays opaque. It relies on the
+    /// scene FBO's depth buffer still holding the scene, as the wireframe overlay does. Restores
+    /// depth-off / opaque / depth-writes-on before returning. When <paramref name="colorRanges"/> is
+    /// non-empty, only the listed vertex ranges are drawn, each in its own colour.</summary>
+    public void DrawOverlayTranslucentTint(List<float> triangles, Vector3 color, float alpha,
+        IReadOnlyList<(int FirstVertex, int VertexCount, Vector3 Color)> colorRanges)
+    {
+        int floats = UploadScaledPosNormal(triangles, ref _overlayTintScratch);
+        if (floats == 0) return;
+
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        _debugShader.SetFloat("u_alpha", alpha);
+        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFuncSeparate(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha,
+            BlendingFactorSrc.Zero, BlendingFactorDest.One);
+        GL.DepthMask(false);
+        GL.Enable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.PolygonOffsetFill);
+        GL.PolygonOffset(-1.0f, -2.0f);
+
+        int vertexCount = floats / 6;
+        if (colorRanges.Count == 0)
+        {
+            GL.DrawArrays(PrimitiveType.Triangles, 0, vertexCount);
+        }
+        else
+        {
+            // One draw per colored range (same uploaded buffer); ranges are clamped to what was uploaded.
+            foreach (var (first, count, rangeColor) in colorRanges)
+            {
+                if (first < 0 || first >= vertexCount) continue;
+                int n = Math.Min(count, vertexCount - first);
+                n -= n % 3; // whole triangles only
+                if (n <= 0) continue;
+                _debugShader.SetVector3("u_color", rangeColor.X, rangeColor.Y, rangeColor.Z);
+                GL.DrawArrays(PrimitiveType.Triangles, first, n);
+            }
+        }
+
+        GL.Disable(EnableCap.PolygonOffsetFill);
+        GL.Disable(EnableCap.DepthTest);
+        GL.DepthMask(true);
+        if (!blendWasEnabled) GL.Disable(EnableCap.Blend);
+        _debugShader.SetFloat("u_alpha", 1f);
+    }
+    private float[]? _overlayTintScratch;
+
+    /// <summary>Copies a 6-float (position + normal) triangle list into <paramref name="scratch"/> with
+    /// positions scaled by ModelScale, and uploads it to the bound debug VBO. Returns the float count,
+    /// or 0 (nothing uploaded) when the list holds less than one triangle.</summary>
+    private int UploadScaledPosNormal(List<float> src, ref float[]? scratch)
+    {
+        int floats = src.Count;
+        if (floats < 18) return 0; // need at least one triangle (3 verts * 6 floats)
+        var buf = scratch;
+        if (buf == null || buf.Length < floats) buf = scratch = new float[floats];
+        float s = ModelScale;
+        for (int i = 0; i < floats; i += 6)
+        {
+            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
+            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
+        }
+        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+        return floats;
+    }
+
+    /// <summary>Draws a 9-float (position.xyz + normal.xyz + color.rgb) triangle list unlit, coloured
+    /// per vertex, through the dedicated vertex-colour shader and VAO. Batched (one BufferData + one
+    /// DrawArrays), so it scales to many thousands of vertices. Surface pass only, and it leaves its
+    /// own shader bound, so draw it after the pass's debug-shader primitives.</summary>
+    public void DrawOverlayVertexColorTriangles(List<float> triangles, in OverlayContext ctx)
+    {
+        if (_heatmapShader == null) return;
+        int floats = triangles.Count;
+        if (floats < 27) return; // need at least one triangle (3 verts * 9 floats)
+
+        var src = triangles;
+        var buf = _heatmapScratch;
+        if (buf == null || buf.Length < floats) buf = _heatmapScratch = new float[floats];
+        float s = ModelScale;
+        for (int i = 0; i < floats; i += 9)
+        {
+            buf[i + 0] = src[i + 0] * s; buf[i + 1] = src[i + 1] * s; buf[i + 2] = src[i + 2] * s; // position
+            buf[i + 3] = src[i + 3];     buf[i + 4] = src[i + 4];     buf[i + 5] = src[i + 5];     // normal (unscaled)
+            buf[i + 6] = src[i + 6];     buf[i + 7] = src[i + 7];     buf[i + 8] = src[i + 8];     // color (per-vertex)
+        }
+
+        var view = ctx.View;
+        var projection = ctx.Projection;
+        _heatmapShader.Use();
+        _heatmapShader.SetMatrix4("u_view", ref view);
+        _heatmapShader.SetMatrix4("u_projection", ref projection);
+        GL.BindVertexArray(_heatmapVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
+        GL.BufferData(BufferTarget.ArrayBuffer, floats * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, floats / 9);
+    }
+    private float[]? _heatmapScratch;
+
+    /// <summary>Draws a sphere of <paramref name="radius"/> (pre-ModelScale) at each position.
+    /// Surface pass only. Markers whose index is in <paramref name="selectedIndices"/> draw in
+    /// <paramref name="selectedColor"/>.</summary>
+    public void DrawOverlayMarkers(
+        List<Vector3> markers, Vector3 color, float radius,
+        HashSet<int>? selectedIndices = null, Vector3 selectedColor = default)
+    {
+        if (markers.Count == 0) return;
+
+        var unit = GetUnitSphereMesh();
+        var scratch = _sphereScratch ??= new float[unit.Length];
+        float worldRadius = radius * ModelScale;
+
+        // Set the default color once; swap to the selected color only when a marker's
+        // index lands in selectedIndices, and only emit the uniform update on transition.
+        _debugShader!.SetVector3("u_color", color.X, color.Y, color.Z);
+        bool currentlySelected = false;
+
+        for (int i = 0; i < markers.Count; i++)
+        {
+            bool markerSelected = selectedIndices != null && selectedIndices.Contains(i);
+            if (markerSelected != currentlySelected)
+            {
+                var c = markerSelected ? selectedColor : color;
+                _debugShader.SetVector3("u_color", c.X, c.Y, c.Z);
+                currentlySelected = markerSelected;
+            }
+
+            var worldCenter = markers[i] * ModelScale;
+            for (int v = 0; v < unit.Length; v += 6)
+            {
+                scratch[v + 0] = worldCenter.X + unit[v + 0] * worldRadius;
+                scratch[v + 1] = worldCenter.Y + unit[v + 1] * worldRadius;
+                scratch[v + 2] = worldCenter.Z + unit[v + 2] * worldRadius;
+                scratch[v + 3] = unit[v + 3];
+                scratch[v + 4] = unit[v + 4];
+                scratch[v + 5] = unit[v + 5];
+            }
+            GL.BufferData(BufferTarget.ArrayBuffer,
+                scratch.Length * sizeof(float), scratch, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, scratch.Length / 6);
+        }
+    }
+
+    /// <summary>
+    /// Starts a line pass: debug shader, flat (<c>u_shaded=0</c>) so lighting doesn't tint the
+    /// colour, depth test off so segments stay visible through the scene. Returns false (and
+    /// draws nothing) before <see cref="Initialize"/>.
+    /// </summary>
+    public bool BeginOverlayLinePass(in OverlayContext ctx, out OverlayPassState state)
+    {
+        state = default;
+        if (_debugShader == null) return false;
+
+        var view = ctx.View;
+        var projection = ctx.Projection;
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 0f);
+        _debugShader.SetFloat("u_alpha", 1f);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        state = new OverlayPassState(GL.IsEnabled(EnableCap.DepthTest), cullWasEnabled: false);
+        GL.Disable(EnableCap.DepthTest);
+
+        // Two verts per line, 6 floats per vert (pos + unused normal); the quad fallback needs
+        // six verts (two triangles) per segment.
+        _lineScratch = new float[_wideLinesSupported ? 12 : 36];
+        return true;
+    }
+
+    /// <summary>Ends a line pass, restoring line width and the depth state saved at its start.</summary>
+    public void EndOverlayLinePass(in OverlayPassState state)
+    {
+        if (_wideLinesSupported) GL.LineWidth(1.0f);
+        if (state.DepthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>Draws each segment <paramref name="widthPixels"/> wide. Line pass only.
+    /// <para>When the context rejects wide lines (a forward-compatible core context such as the
+    /// offscreen renderer's), each segment is instead expanded on the CPU into a screen-aligned
+    /// quad <paramref name="widthPixels"/> wide, emitted directly in NDC with identity
+    /// view/projection. Without this the overlay silently draws at 1 px, which vanishes in a
+    /// scaled-down thumbnail.</para></summary>
+    public void DrawOverlayLines(List<OverlayLineSegment> lines, float widthPixels, in OverlayContext ctx)
+    {
+        if (lines.Count == 0 || _lineScratch == null) return;
+        var buf = _lineScratch;
+        if (!_wideLinesSupported)
+        {
+            var viewProj = ctx.View * ctx.Projection;
+            DrawOverlayLinesAsQuads(lines, buf, widthPixels, ref viewProj, ctx.ViewportWidth, ctx.ViewportHeight);
+            return;
+        }
+
+        GL.LineWidth(widthPixels);
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var seg = lines[i];
+            var a = seg.A * ModelScale;
+            var b = seg.B * ModelScale;
+
+            buf[0] = a.X; buf[1] = a.Y; buf[2] = a.Z; buf[3] = 0f; buf[4] = 0f; buf[5] = 0f;
+            buf[6] = b.X; buf[7] = b.Y; buf[8] = b.Z; buf[9] = 0f; buf[10] = 0f; buf[11] = 0f;
+
+            _debugShader!.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            GL.BufferData(BufferTarget.ArrayBuffer, 12 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+        }
+    }
+    private float[]? _lineScratch;
+
+    /// <summary>Quad fallback for <see cref="DrawOverlayLines"/>: projects both endpoints to NDC,
+    /// offsets them by half of <paramref name="widthPixels"/> perpendicular to the segment in pixel
+    /// space, and draws two triangles with identity view/projection (restored afterwards). Z is
+    /// pinned to 0 -- depth test is off for the overlay pass, and this keeps the quad inside the
+    /// near/far clip range. Segments with an endpoint behind the camera (w &lt;= 0) are skipped;
+    /// that only happens with the camera inside the mesh.</summary>
+    private void DrawOverlayLinesAsQuads(List<OverlayLineSegment> lines, float[] buf, float widthPixels,
+        ref Matrix4 viewProj, int viewportWidth, int viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0) return;
+
+        var identity = Matrix4.Identity;
+        _debugShader!.SetMatrix4("u_view", ref identity);
+        _debugShader.SetMatrix4("u_projection", ref identity);
+
+        // Quad winding follows the segment's screen direction, so either face may point at the camera.
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        GL.Disable(EnableCap.CullFace);
+
+        float halfWidth = MathF.Max(widthPixels, 1f) * 0.5f;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var seg = lines[i];
+            var ca = new Vector4(seg.A * ModelScale, 1f) * viewProj;
+            var cb = new Vector4(seg.B * ModelScale, 1f) * viewProj;
+            if (ca.W <= 1e-6f || cb.W <= 1e-6f) continue;
+
+            var na = ca.Xy / ca.W;
+            var nb = cb.Xy / cb.W;
+            // Direction in pixel space, so the perpendicular offset is a true pixel width even when
+            // the viewport isn't square.
+            var dirPx = new Vector2((nb.X - na.X) * viewportWidth, (nb.Y - na.Y) * viewportHeight);
+            float len = dirPx.Length;
+            Vector2 perpPx = len > 1e-6f
+                ? new Vector2(-dirPx.Y, dirPx.X) / len * halfWidth
+                : new Vector2(0f, halfWidth); // zero-length: a small square dot
+            var off = new Vector2(perpPx.X * 2f / viewportWidth, perpPx.Y * 2f / viewportHeight);
+            if (len <= 1e-6f)
+            {
+                var along = new Vector2(halfWidth * 2f / viewportWidth, 0f);
+                na -= along;
+                nb += along;
+            }
+
+            var p0 = na + off; var p1 = na - off; var p2 = nb + off; var p3 = nb - off;
+            int k = 0;
+            void Put(Vector2 p)
+            {
+                buf[k++] = p.X; buf[k++] = p.Y; buf[k++] = 0f;
+                buf[k++] = 0f; buf[k++] = 0f; buf[k++] = 0f;
+            }
+            Put(p0); Put(p1); Put(p2);
+            Put(p2); Put(p1); Put(p3);
+
+            _debugShader.SetVector3("u_color", seg.Color.X, seg.Color.Y, seg.Color.Z);
+            GL.BufferData(BufferTarget.ArrayBuffer, 36 * sizeof(float), buf, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        }
+
+        if (cullWasEnabled) GL.Enable(EnableCap.CullFace);
+    }
+
+    /// <summary>When true, renders arrow gizmos showing each directional light's shining
+    /// direction (from source to model) and magnitude. Arrow tips anchor at
+    /// <c>OrbitCamera.Target</c> and lengths scale with <c>OrbitCamera.Distance</c>
+    /// so the gizmos stay framed regardless of close-up vs. wide camera setups.</summary>
+    public bool ShowKeyLightVisualization { get; set; } = false;
+
+    /// <summary>Index of the light currently selected for editing (1=key, 2=fill, 3=rim,
+    /// 0=none). Selected arrows render with a highlighted appearance.</summary>
+    public int SelectedLightIndex { get; set; } = 0;
+
+    // Cached world-space arrow segments for picking. Indexed by light slot.
+    private struct ArrowSegment { public Vector3 Tail; public Vector3 Tip; public float Radius; public bool Valid; }
+    private readonly ArrowSegment[] _arrowSegments = new ArrowSegment[5];
+
+    /// <summary>Retrieves the last rendered arrow's world-space tail/tip/radius for picking.</summary>
+    public bool TryGetArrowSegment(int slot, out Vector3 tail, out Vector3 tip, out float radius)
+    {
+        tail = tip = Vector3.Zero; radius = 0f;
+        if (slot < 0 || slot >= _arrowSegments.Length) return false;
+        var s = _arrowSegments[slot];
+        if (!s.Valid) return false;
+        tail = s.Tail; tip = s.Tip; radius = s.Radius;
+        return true;
+    }
+
+    // Lighting state — up to 5 lights
+    public struct LightData
+    {
+        public int Type;       // 0=disabled, 1=ambient, 2=directional
+        // Surface-to-light vector in WORLD space. Transformed to view space
+        // once per frame (see Render) before upload to the shader, so lights
+        // stay anchored to world coordinates while the orbit camera moves.
+        public Vector3 Direction;
+        public Vector3 Color;
+        public float Intensity;
+    }
+    public LightData[] Lights { get; } = new LightData[5];
+
+    // Cached view-space light directions (P5). Each frame we'd otherwise
+    // multiply Lights[i].Direction by the view rotation and normalize for all
+    // 5 slots. Static cameras with static lights make that work redundant —
+    // we only recompute when either the view matrix or a light's world-space
+    // direction/type changes.
+    private readonly Vector3[] _cachedViewSpaceLightDirs = new Vector3[5];
+    private Matrix4 _cachedLightUploadView;
+    private readonly Vector3[] _cachedLightWorldDirs = new Vector3[5];
+    private readonly int[] _cachedLightTypes = new int[5];
+    private bool _hasCachedLightDirs;
+
+    // Per-light arrow colors for the visualization gizmo (key=yellow, fill=cyan, rim=magenta).
+    private static readonly Vector3[] _arrowColors =
+    {
+        new(0.2f, 0.2f, 0.2f),  // 0 ambient (unused for arrows)
+        new(1.0f, 0.9f, 0.2f),  // 1 key   — yellow
+        new(0.3f, 0.9f, 1.0f),  // 2 fill  — cyan
+        new(1.0f, 0.3f, 0.9f),  // 3 rim   — magenta
+        new(0.6f, 1.0f, 0.4f),  // 4 extra — green
+    };
+
+    /// <summary>Backlight color for hair rimlight.</summary>
+    public Vector3 BacklightColor { get; set; } = new Vector3(0.6f, 0.5f, 0.4f);
+
+    /// <summary>Background clear color (RGB 0-1).</summary>
+    public Vector3 ClearColor { get; set; } = new Vector3(0.41f, 0.41f, 0.41f); // DimGray
+
+    /// <summary>Uniform scale applied to the world-space mesh geometry via the
+    /// model matrix. Drives the NPC-height multiplier — 1.0 is identity; 1.1
+    /// is a 10% taller character. Meshes are already in world space, so this
+    /// is applied in the model matrix rather than per-mesh.</summary>
+    public float ModelScale { get; set; } = 1.0f;
+
+    // ===================================================================
+    //  SECTION CLIP PLANE
+    // ===================================================================
+
+    /// <summary>
+    /// The world-space section-clip plane, packed as (normal.xyz, -distance): a
+    /// vertex survives when <c>dot(worldPos, normal) - distance &gt;= 0</c>. The
+    /// identity value <c>(0,0,0,1)</c> is a constant +1 for every vertex, i.e. clip
+    /// nothing, and is what <see cref="ClipEnabled"/>=false leaves in the uniform.
+    ///
+    /// <para>Composed by the view model (<c>VM_CharacterViewer.PushClipPlaneToRenderer</c>),
+    /// not here: the axis is chosen once when the user arms Clip F / Clip B and then
+    /// stays locked while the camera orbits, which is a UI decision the renderer has no
+    /// business re-deriving per frame.</para>
+    /// </summary>
+    public Vector4 ClipPlane { get; set; } = new Vector4(0f, 0f, 0f, 1f);
+
+    /// <summary>
+    /// Whether <see cref="ClipPlane"/> is applied to scene geometry. Gates
+    /// <c>GL_CLIP_DISTANCE0</c> around the four geometry passes (main, wireframe
+    /// overlay, SSAO depth prepass, shadow depth) and nothing else.
+    ///
+    /// <para>Overlay gizmos — vertex-pick markers, measurement lines, region
+    /// wireframes, light arrows — are deliberately never clipped, so a pick you made
+    /// on a now-hidden surface stays visible. They already draw with depth-test off
+    /// for the same reason.</para>
+    /// </summary>
+    public bool ClipEnabled { get; set; }
+
+    /// <summary>Draws the translucent quad + border marking where
+    /// <see cref="ClipPlane"/> cuts. Purely cosmetic: clipping itself is driven by
+    /// <see cref="ClipEnabled"/> and works with this off.</summary>
+    public bool ShowClipPlaneVisual { get; set; }
+
+    /// <summary>Fill / border color of the clip-plane visualization.</summary>
+    public Vector3 ClipPlaneVisualColor { get; set; } = new Vector3(0.20f, 0.85f, 1.0f);
+
+    /// <summary>Scratch buffer for the clip-plane quad (6 verts x 6 floats) and its
+    /// 4-segment border, reused each frame to keep the render loop allocation-free.</summary>
+    private readonly float[] _clipQuadScratch = new float[36];
+
+    /// <summary>
+    /// Enables GL_CLIP_DISTANCE0 for a geometry pass and pushes the plane onto the
+    /// pass's shader. Every vertex shader reached between this and
+    /// <see cref="EndClipPass"/> MUST write <c>gl_ClipDistance[0]</c> — a shader that
+    /// leaves it unwritten while the clip distance is enabled yields an undefined
+    /// clip result, not an unclipped one. Currently that means basic.vert,
+    /// wireframe.vert, depth_only.vert and shadow_depth.vert.
+    /// </summary>
+    private void BeginClipPass(GlShaderProgram shader)
+    {
+        shader.SetVector4("u_clipPlane", ClipEnabled ? ClipPlane : new Vector4(0f, 0f, 0f, 1f));
+        if (ClipEnabled) GL.Enable(EnableCap.ClipDistance0);
+    }
+
+    /// <summary>Disables GL_CLIP_DISTANCE0 after a geometry pass, so the overlay and
+    /// full-screen post-process shaders (debug.vert, heatmap.vert, fullscreen.vert)
+    /// — none of which write gl_ClipDistance — are never reached with it on.</summary>
+    private void EndClipPass()
+    {
+        GL.Disable(EnableCap.ClipDistance0);
+    }
+
+    public GlRenderer()
+    {
+        // Default lighting: ambient + key + fill + rim
+        Lights[0] = new LightData { Type = 1, Color = Vector3.One, Intensity = 0.2f };
+        Lights[1] = new LightData { Type = 2, Direction = new Vector3(-0.4f, -0.7f, 0.6f), Color = Vector3.One, Intensity = 1.0f };
+        Lights[2] = new LightData { Type = 2, Direction = new Vector3(0.5f, 0.3f, 1.0f), Color = Vector3.One, Intensity = 0.38f };
+        Lights[3] = new LightData { Type = 2, Direction = new Vector3(0f, 0.5f, -1.0f), Color = Vector3.One, Intensity = 0.25f };
+    }
+
+    /// <summary>
+    /// Initializes OpenGL state and compiles shaders. Must be called after GL context is available.
+    /// </summary>
+    public void Initialize(string? shaderDirectory)
+    {
+        if (_initialized) return;
+
+        // SHADER EDITING WARNING: basic.vert/basic.frag must be pure ASCII,
+        // even inside comments. Non-ASCII bytes (em-dash —, curly quotes “ ”,
+        // ellipsis …, NBSP, etc.) make the GLSL compiler emit a misleading
+        // "unexpected $end at token <EOF>" with no line number. See
+        // GlShaderProgram class remarks. Keep this note across refactors.
+        _shader = GlShaderProgram.Load(shaderDirectory, "basic.vert", "basic.frag");
+
+        // Set texture unit bindings (these don't change)
+        _shader.Use();
+        _shader.SetInt("texture_diffuse", 0);
+        _shader.SetInt("texture_normal", 1);
+        _shader.SetInt("texture_skin", 2);
+        _shader.SetInt("texture_specular", 3);
+        _shader.SetInt("texture_face_tint", 4);
+        _shader.SetInt("texture_detail", 5);
+        // Unit 6 carries the cubemap environment map (samplerCube). Unit 10
+        // carries the 2D sphere-map fallback (sampler2D) used for mod-shipped
+        // panoramic envmaps that aren't packaged as DDS cubemaps. The shader
+        // chooses between them per-mesh via the is_env_map_2d flag.
+        _shader.SetInt("texture_envmap", 6);
+        _shader.SetInt("texture_envmap_2d", 10);
+        _shader.SetInt("texture_envmask", 7);
+        _shader.SetInt("u_shadowMap", 8);
+        // Unit 12: glow map (units 8/9/11 are shadow / SSAO blur / depth prepass).
+        _shader.SetInt("texture_glow", 12);
+
+        GL.Enable(EnableCap.DepthTest);
+        // LEQUAL, not the GL default LESS: hair ships as two coincident copies
+        // of the same strand geometry — an aggressive alpha-TEST pass that
+        // writes depth (the opaque core) and an alpha-BLEND pass drawn after it
+        // that supplies the color and soft edges. The blend twin sits at
+        // exactly the depth its test twin wrote, so under LESS every interior
+        // fragment z-rejects and only the sub-threshold edge strands survive —
+        // observed as a hair NIF whose two twins carried different baked tints
+        // rendering the test twin's color with edge-only highlights of the
+        // blend twin's, while in-game showed the blend twin's color throughout.
+        // LEQUAL lets the later pass repaint its own prepass, matching the
+        // engine and NifSkope. Within each pass, later coincident draws win —
+        // NIF block order, the author-intended layering.
+        GL.DepthFunc(DepthFunction.Lequal);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
+
+        // Smooth filtering across cubemap face seams. Implicit on most modern
+        // drivers in core 3.2+, but enable explicitly so the cubemap edge
+        // interpolation is consistent across vendors.
+        GL.Enable(EnableCap.TextureCubeMapSeamless);
+
+        // 1x1 opaque-black fallback cubemap. Bound to unit 6 whenever the
+        // active mesh has no real cubemap envmap, so the samplerCube uniform
+        // is always backed by a complete cube target.
+        _defaultBlackCubemap = GL.GenTexture();
+        GL.BindTexture(TextureTarget.TextureCubeMap, _defaultBlackCubemap);
+        byte[] blackPixel = { 0, 0, 0, 255 };
+        var faceTargets = new[]
+        {
+            TextureTarget.TextureCubeMapPositiveX,
+            TextureTarget.TextureCubeMapNegativeX,
+            TextureTarget.TextureCubeMapPositiveY,
+            TextureTarget.TextureCubeMapNegativeY,
+            TextureTarget.TextureCubeMapPositiveZ,
+            TextureTarget.TextureCubeMapNegativeZ,
+        };
+        foreach (var target in faceTargets)
+        {
+            GL.TexImage2D(target, 0, PixelInternalFormat.Rgba8,
+                1, 1, 0, PixelFormat.Bgra, PixelType.UnsignedByte, blackPixel);
+        }
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter,
+            (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter,
+            (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS,
+            (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT,
+            (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR,
+            (int)TextureWrapMode.ClampToEdge);
+
+        // Debug (line-based) shader for the key-light arrow gizmo
+        _debugShader = GlShaderProgram.Load(shaderDirectory, "debug.vert", "debug.frag");
+
+        // Vertex-colour overlay shader — reads position + normal + per-vertex color
+        // (locations 0/1/2) from the dedicated VAO and paints each vertex by its
+        // color unlit (see DrawOverlayVertexColorTriangles / heatmap.frag).
+        _heatmapShader = GlShaderProgram.Load(shaderDirectory, "heatmap.vert", "heatmap.frag");
+
+        // Wireframe shader — reads position (location 0) from the standard mesh
+        // VAO and draws a flat-colored edge overlay on top of the solid mesh.
+        _wireframeShader = GlShaderProgram.Load(shaderDirectory, "wireframe.vert", "wireframe.frag");
+
+        // Shadow-depth shader — reads position + texcoords (locations 0, 2)
+        // from the standard mesh VAO, transforms by u_lightViewProj, and
+        // emits depth-only output (no color attachment on the shadow FBO).
+        // Alpha-test path samples the diffuse texture and discards
+        // transparent texels so hair / brow strands cast strand-shaped
+        // shadows instead of solid card-shaped occluders.
+        _shadowShader = GlShaderProgram.Load(shaderDirectory, "shadow_depth.vert", "shadow_depth.frag");
+        _shadowShader.Use();
+        _shadowShader.SetInt("texture_diffuse", 0);
+
+        // Depth-only shader for the SSAO depth pre-pass. Same alpha-test
+        // logic as shadow_depth but renders from the camera's POV
+        // (separate u_view + u_projection uniforms instead of a
+        // pre-multiplied light view-proj matrix).
+        _depthOnlyShader = GlShaderProgram.Load(shaderDirectory, "depth_only.vert", "depth_only.frag");
+        _depthOnlyShader.Use();
+        _depthOnlyShader.SetInt("texture_diffuse", 0);
+
+        // SSAO post-process shader. Reads u_depthTex (unit 0) +
+        // u_normalTex (unit 1) + u_noiseTex (unit 2), writes per-pixel
+        // occlusion factor. The normal G-buffer comes from the depth
+        // prepass so the hemisphere orients off smooth interpolated
+        // vertex normals (not faceted dFdx/dFdy reconstruction).
+        _ssaoShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "ssao.frag");
+        _ssaoShader.Use();
+        _ssaoShader.SetInt("u_depthTex", 0);
+        _ssaoShader.SetInt("u_normalTex", 1);
+        _ssaoShader.SetInt("u_noiseTex", 2);
+
+        // SSAO blur post-pass. Reads the raw SSAO texture (unit 0),
+        // averages a 4x4 neighborhood per pixel to cancel the noise
+        // tile pattern, writes the smoothed result. Always runs
+        // between ComputeSsao and the main pass when SSAO is on.
+        _ssaoBlurShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "ssao_blur.frag");
+        _ssaoBlurShader.Use();
+        _ssaoBlurShader.SetInt("u_ssaoTex", 0);
+        _ssaoBlurShader.SetInt("u_depthTex", 1);
+
+        // Bloom post-process shader (bright-pass + separable blur + composite
+        // scale, selected by u_pass). Single sampler on unit 0.
+        _bloomShader = GlShaderProgram.Load(shaderDirectory, "fullscreen.vert", "bloom.frag");
+        _bloomShader.Use();
+        _bloomShader.SetInt("u_tex", 0);
+
+        // basic.frag samples the AO map via texture unit 9 (8 is the
+        // shadow map, 0..7 are the standard material slots, 10 is the 2D
+        // envmap). Unit 11 carries the prepass depth so hair fragments can
+        // measure the gap to the opaque surface behind them and fade out
+        // background AO (see SsaoHairGap).
+        _shader.Use();
+        _shader.SetInt("u_ssaoMap", 9);
+        _shader.SetInt("u_ssaoDepthTex", 11);
+
+        // Pre-compute the hemispheric sample kernel + a 4x4 noise tile.
+        // Done once at init since neither depends on the scene.
+        BuildSsaoKernel();
+        BuildSsaoNoiseTexture();
+
+        _debugVao = GL.GenVertexArray();
+        _debugVbo = GL.GenBuffer();
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+        // Vertex layout: position(3) + normal(3) = 6 floats per vertex.
+        int stride = 6 * sizeof(float);
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, 0);
+        GL.EnableVertexAttribArray(0);
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, 3 * sizeof(float));
+        GL.EnableVertexAttribArray(1);
+        GL.BindVertexArray(0);
+
+        // Wide-line capability probe. A forward-compatible core context (the offscreen renderer's
+        // GameWindow) rejects glLineWidth > 1 with GL_INVALID_VALUE and keeps drawing 1 px lines, so
+        // overlay lines switch to CPU-expanded quads there (see DrawOverlayLines).
+        while (GL.GetError() != ErrorCode.NoError) { }
+        GL.LineWidth(2.0f);
+        _wideLinesSupported = GL.GetError() != ErrorCode.InvalidValue;
+        GL.LineWidth(1.0f);
+
+        // Heatmap VAO: position(3) + normal(3) + color(3) = 9 floats per vertex.
+        // The normal is carried for layout parity with the debug VAO/emit path even
+        // though heatmap.frag is unlit, so a later lit variant needs no re-plumbing.
+        _heatmapVao = GL.GenVertexArray();
+        _heatmapVbo = GL.GenBuffer();
+        GL.BindVertexArray(_heatmapVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _heatmapVbo);
+        int heatmapStride = 9 * sizeof(float);
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, heatmapStride, 0);
+        GL.EnableVertexAttribArray(0);
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, heatmapStride, 3 * sizeof(float));
+        GL.EnableVertexAttribArray(1);
+        GL.VertexAttribPointer(2, 3, VertexAttribPointerType.Float, false, heatmapStride, 6 * sizeof(float));
+        GL.EnableVertexAttribArray(2);
+        GL.BindVertexArray(0);
+
+        // Fullscreen-quad VAO for post-process passes (SSAO etc.). The
+        // fullscreen.vert generates positions from gl_VertexID alone, so
+        // no VBO is needed - we just need a non-zero VAO bound for the
+        // glDrawArrays(TRIANGLES, 0, 3) call to be valid in core profile.
+        _ssaoFullscreenVao = GL.GenVertexArray();
+
+        _initialized = true;
+    }
+
+    public void AddMesh(GlMesh mesh)
+    {
+        _meshes.Add(mesh);
+    }
+
+    public void RemoveMesh(GlMesh mesh)
+    {
+        _meshes.Remove(mesh);
+    }
+
+    public void ClearMeshes()
+    {
+        foreach (var mesh in _meshes)
+            mesh.Dispose();
+        _meshes.Clear();
+    }
+
+    public IReadOnlyList<GlMesh> Meshes => _meshes;
+
+    /// <summary>Optional diagnostic sink for one-shot GL-state dumps emitted at
+    /// the top of <see cref="Render"/>. Hosts wire this to their per-render
+    /// capture file so renderer-side state (GL_FRAMEBUFFER_SRGB, viewport,
+    /// bound FBO, color-attachment format) lands alongside the host-side
+    /// resolver / lighting / material trace. Null = no emission.
+    /// Re-binding the sink (new capture session) re-arms the one-shot dumps so
+    /// each capture file gets its own GL-state + draw-list trace.</summary>
+    public Action<string>? DiagnosticLog
+    {
+        get => _diagnosticLog;
+        set
+        {
+            _diagnosticLog = value;
+            _glStateLogged = false;
+            _drawListLogged = false;
+        }
+    }
+    private Action<string>? _diagnosticLog;
+
+    /// <summary>
+    /// Renders all meshes with the given camera matrices.
+    /// </summary>
+    public void Render(OrbitCamera camera, int viewportWidth, int viewportHeight)
+    {
+        if (!_initialized || _shader == null) return;
+        if (viewportWidth <= 0 || viewportHeight <= 0) return;
+
+        EmitGlStateDiagnostic(viewportWidth, viewportHeight);
+        EmitDrawListDiagnostic();
+
+        // Camera matrices (computed up here so the pre-passes share them
+        // with the main pass below).
+        var modelMat = Matrix4.CreateScale(ModelScale);
+        float aspectPre = (float)viewportWidth / viewportHeight;
+        var viewMatPre = camera.GetViewMatrix();
+        var projMatPre = camera.GetProjectionMatrix(aspectPre);
+
+        // Pre-passes (shadow + SSAO) run BEFORE the main FBO is rebound,
+        // so we capture the host's bound FBO once and restore at the end.
+        bool needsHostFboRestore = EnableShadows || EnableAmbientOcclusion;
+        int hostFbo = 0;
+        if (needsHostFboRestore)
+        {
+            GL.GetInteger(GetPName.DrawFramebufferBinding, out hostFbo);
+        }
+
+        // Shadow depth pre-pass.
+        if (EnableShadows)
+        {
+            ComputeLightViewProj();
+            RenderShadowDepthPass(ref modelMat);
+        }
+
+        // SSAO depth pre-pass + post-process. Two passes: first renders
+        // depth from the camera POV (so basic.frag's screen-space SSAO
+        // sample matches the visible silhouette), then runs the SSAO
+        // shader to compute the per-pixel occlusion factor.
+        if (EnableAmbientOcclusion)
+        {
+            RenderDepthPrepass(ref modelMat, ref viewMatPre, ref projMatPre,
+                viewportWidth, viewportHeight);
+            ComputeSsao(ref projMatPre, viewportWidth, viewportHeight);
+            BlurSsao(ref projMatPre, viewportWidth, viewportHeight);
+        }
+
+        if (needsHostFboRestore)
+        {
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
+        }
+
+        // Toggle sRGB framebuffer encoding alongside the tone-map shader
+        // path. The tone-mapper outputs values in linear space; with
+        // FRAMEBUFFER_SRGB enabled the GL driver gamma-encodes them on
+        // write. Without the framebuffer flag the linear output would
+        // display too dark (mid-tones crushed). Pairing must be
+        // deterministic - never enable one without the other.
+        if (EnableToneMapping) GL.Enable(EnableCap.FramebufferSrgb);
+        else GL.Disable(EnableCap.FramebufferSrgb);
+
+        GL.Viewport(0, 0, viewportWidth, viewportHeight);
+        GL.ClearColor(ClearColor.X, ClearColor.Y, ClearColor.Z, 1f);
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        _shader.Use();
+        _shader.SetBool("u_enableToneMapping", EnableToneMapping);
+        _shader.SetBool("u_enableShadows", EnableShadows);
+        _shader.SetBool("u_softenShadowEdges", SoftenShadowEdges);
+        _shader.SetFloat("u_shadowPcfRadius", ShadowPcfRadius);
+        _shader.SetBool("u_enableAO", EnableAmbientOcclusion);
+        _shader.SetBool("u_enableEyeCatchlight", EnableEyeCatchlight);
+        _shader.SetBool("u_specularAchromatic", SpecularAchromatic);
+        _shader.SetBool("u_skinFaithfulSoftLight", SkinFaithfulSoftLight);
+        _shader.SetBool("u_tonemapHairRelief", TonemapHairRelief);
+        _shader.SetFloat("u_hairAlbedoCompensate", HairAlbedoCompensate);
+        _shader.SetBool("u_daylightBoost", DaylightBoost);
+        _shader.SetFloat("u_daylightBoostIntensity", DaylightBoostIntensity);
+        _shader.SetFloat("u_subsurfaceStrength", SubsurfaceStrength);
+        _shader.SetFloat("u_skinSaturationBoost", SkinSaturationBoost);
+        // u_screenSize is consumed by both the SSAO sample lookup AND
+        // the tone-mapping vignette (2.5.15+), so push it on every
+        // frame regardless of which toggles are on.
+        _shader.SetVector2("u_screenSize",
+            (float)viewportWidth, (float)viewportHeight);
+        _shader.SetFloat("u_vignetteRadius", VignetteRadius);
+        _shader.SetFloat("u_vignetteIntensity", VignetteIntensity);
+        _shader.SetFloat("u_exposure", Exposure);
+        _shader.SetBool("u_skinTintApplyToFace", SkinTintApplyToFace);
+        _shader.SetInt("u_skinTintOperator", SkinTintOperator);
+        _shader.SetFloat("u_skinTintLerpStrength", SkinTintLerpStrength);
+        _shader.SetInt("u_vertexColorMode", VertexColorMultiplyMode);
+        _shader.SetInt("u_faceTintMode", FaceTintMode);
+        _shader.SetBool("u_faceTintMultiplyOnEmptyDetail", FaceTintMultiplyOnEmptyDetail);
+        _shader.SetBool("u_detailMapEngineStyle", UseEngineStyleDetailMap);
+        if (EnableShadows && _shadowDepthTex != -1)
+        {
+            _shader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
+            GL.ActiveTexture(TextureUnit.Texture8);
+            GL.BindTexture(TextureTarget.Texture2D, _shadowDepthTex);
+            GL.ActiveTexture(TextureUnit.Texture0);
+        }
+        if (EnableAmbientOcclusion && _ssaoBlurTex != -1)
+        {
+            // Bind the BLURRED AO map (not the raw _ssaoTex) so the main
+            // shader doesn't see the noise-tile pattern.
+            GL.ActiveTexture(TextureUnit.Texture9);
+            GL.BindTexture(TextureTarget.Texture2D, _ssaoBlurTex);
+            // Prepass depth for the hair AO gap test in basic.frag.
+            GL.ActiveTexture(TextureUnit.Texture11);
+            GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+            GL.ActiveTexture(TextureUnit.Texture0);
+            _shader.SetFloat("u_ssaoHairGap", SsaoHairGap);
+        }
+
+        // Camera matrices
+        float aspect = (float)viewportWidth / viewportHeight;
+        var view = camera.GetViewMatrix();
+        var projection = camera.GetProjectionMatrix(aspect);
+        // modelMat was already computed at the top of Render() so the
+        // shadow pass could share it.
+        ref var model = ref modelMat;
+
+        _shader.SetMatrix4("u_model", ref model);
+        _frameModel = model;
+        _shader.SetMatrix4("u_view", ref view);
+        _shader.SetMatrix4("u_projection", ref projection);
+        // Inverse projection reconstructs view-space depth from the prepass
+        // depth texture for the hair AO gap test (u_ssaoDepthTex, unit 11).
+        var invProjMain = projection.Inverted();
+        _shader.SetMatrix4("u_invProjection", ref invProjMain);
+
+        // World-space camera position for the cubemap-envmap reflection
+        // direction (reflect(-(cameraPos - worldPos), worldNormal)). Pushed
+        // once per frame; the orbit camera already exposes this so we don't
+        // need to invert the view matrix.
+        var camPos = camera.GetEyePosition();
+        _shader.SetVector3("u_cameraPos", camPos.X, camPos.Y, camPos.Z);
+
+        // Set light uniforms — transform directions to view space
+        EnsureViewSpaceLightDirs(ref view);
+        for (int i = 0; i < 5; i++)
+        {
+            string prefix = "lights[" + i + "].";
+            _shader.SetInt(prefix + "type", Lights[i].Type);
+            if (Lights[i].Type == 2)
+            {
+                var viewDir = _cachedViewSpaceLightDirs[i];
+                _shader.SetVector3(prefix + "direction", viewDir.X, viewDir.Y, viewDir.Z);
+            }
+            _shader.SetVector3(prefix + "color", Lights[i].Color.X, Lights[i].Color.Y, Lights[i].Color.Z);
+            _shader.SetFloat(prefix + "intensity", Lights[i].Intensity);
+        }
+
+        _shader.SetVector3("u_backlightColor", BacklightColor.X, BacklightColor.Y, BacklightColor.Z);
+
+        // Arm the section-clip plane for the three geometry passes below. Cleared
+        // again after pass 2, before the bloom post-process and the overlay gizmos.
+        BeginClipPass(_shader);
+
+        // Pass 0: Opaque meshes (no alpha test or blend)
+        GL.Disable(EnableCap.Blend);
+        GL.DepthMask(true);
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            if (mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
+            DrawMesh(mesh);
+        }
+
+        // Pass 1: Alpha-tested-only meshes (discard in shader, depth writes ON,
+        // no blend). Cutout shapes whose NiAlphaProperty has the alpha-test bit
+        // but NOT the alpha-blend bit. Smooth edges come from MSAA on the
+        // private FBO (4× samples) — no SAMPLE_ALPHA_TO_COVERAGE here, since
+        // it interprets sub-1.0 diffuse alpha as partial coverage and would
+        // wash out shapes whose alpha encodes non-cutout data (e.g. vanilla
+        // Khajiit / Argonian heads have alpha < 1 across the whole face).
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            if (!mesh.UseAlphaTest || mesh.HasAlphaBlend) continue;
+            DrawMesh(mesh);
+        }
+
+        // Pass 2: Alpha-blended meshes (transparency). Shapes with the
+        // alpha-blend bit come here regardless of whether the alpha-test bit is
+        // also set — the per-shape `use_alpha_test` uniform (set in DrawMesh)
+        // handles any sub-threshold discard. This matches Portrait Creator's
+        // classification ("alphaBlend wins"), and gives hair / beard / brow
+        // edges the soft fade that comes from blending raw alpha values with
+        // the surface beneath, instead of a hard cutout.
+        //
+        // Depth-write is decided PER SHAPE, not disabled wholesale, matching
+        // NifSkope (renderer.cpp: `if (!depthWrite || translucent)
+        // glDepthMask(GL_FALSE)`). Solid blended geometry — e.g. an SMP beard,
+        // which carries SLSF2_ZBuffer_Write and an opaque material alpha — keeps
+        // depth-write ON so it occludes the neck/body behind it; the blend only
+        // softens its cutout edges. Overlay decals (brows, eyelashes, face
+        // marks: ZBuffer_Write clear) and genuinely translucent materials
+        // (material alpha < 1) keep depth-write OFF so they composite over what's
+        // beneath without writing depth. Disabling depth-write for ALL blended
+        // shapes (the prior behavior) made solid blended beards render
+        // see-through.
+        GL.Enable(EnableCap.Blend);
+
+        // Collect the blended NON-DECAL subset and sort it back-to-front by
+        // camera distance, so overlapping transparent surfaces composite in the
+        // right order once depth-write is re-enabled for the solid ones.
+        // (NifSkope's secondPass.alphaSort.) All shapes share the single
+        // u_model matrix, so a world-space center distance gives a correct
+        // global ordering.
+        _blendDrawList.Clear();
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            if (!mesh.HasAlphaBlend) continue;
+            if (mesh.IsDecal) continue;
+            _blendDrawList.Add(mesh);
+        }
+        var modelForSort = model;
+        var camForSort = camPos;
+        _blendDrawList.Sort((a, b) =>
+            CameraDistanceSq(b, modelForSort, camForSort)
+                .CompareTo(CameraDistanceSq(a, modelForSort, camForSort)));
+
+        // Blended DECAL shapes (hairline shells, brows, face overlays) are
+        // appended after the distance-sorted set, in _meshes order — i.e. NIF
+        // block order. Camera distance is meaningless between interpenetrating
+        // shells hugging the same scalp: their near-coincident centroids make
+        // the sort order flip with small rotations, and since "over" blending
+        // is not commutative for partial alpha, each flip visibly pops the
+        // brightness of the region where two decals overlap (hairline fade vs
+        // fringe). NIF block order is the author-intended layering and is
+        // rotation-stable; drawing decals last is safe because they never
+        // write depth and sit on opaque geometry that already did.
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            if (!mesh.HasAlphaBlend) continue;
+            if (!mesh.IsDecal) continue;
+            _blendDrawList.Add(mesh);
+        }
+
+        // Per-mesh src/dst blend factors honored from NiAlphaProperty.
+        // The vast majority of alpha-blended actor shapes use SRC_ALPHA /
+        // INV_SRC_ALPHA (standard "over" transparency), but some authored
+        // overlays -- notably the UBE-style wet-eye outer cornea -- ship
+        // with SRC_ALPHA / ONE (additive), so a near-black diffuse adds
+        // nothing to the iris underneath while bright catchlight pixels
+        // add brightness. Honoring per-mesh factors removes the need for
+        // any special-case shader hack to handle the cornea.
+        int curSrc = -1, curDst = -1;
+        // Depth mask currently TRUE (left by passes 0/1); track so we only
+        // flip GL state when a shape actually differs.
+        bool curDepthWrite = true;
+        foreach (var mesh in _blendDrawList)
+        {
+            if (mesh.SrcBlendIndex != curSrc || mesh.DstBlendIndex != curDst)
+            {
+                GL.BlendFunc(MapBethesdaBlendFactor(mesh.SrcBlendIndex),
+                             MapBethesdaBlendFactor(mesh.DstBlendIndex));
+                curSrc = mesh.SrcBlendIndex;
+                curDst = mesh.DstBlendIndex;
+            }
+
+            // Write depth only for solid, opaque-material blended shapes.
+            // Decal geometry (SLSF1_Decal/Dynamic_Decal — hairline shells, face
+            // overlays) never writes depth even when ZBuffer_Write is set: it
+            // hugs an opaque surface that already wrote depth, and its fully
+            // transparent fragments writing depth would z-reject whichever
+            // overlapping blended shape the centroid sort puts after it,
+            // cutting rotation-dependent holes at triangle boundaries.
+            bool writeDepth = mesh.DepthWrite && mesh.MaterialAlpha >= 1f && !mesh.IsDecal;
+            if (writeDepth != curDepthWrite)
+            {
+                GL.DepthMask(writeDepth);
+                curDepthWrite = writeDepth;
+            }
+
+            DrawMesh(mesh);
+        }
+
+        // Pass 3: hidden-surface ("x-ray") tint. Meshes with HiddenSurfaceTint are drawn
+        // again with depth test GREATER and no depth writes, so only their fragments that
+        // lie BEHIND the depth already written (the opaque primary model) survive -- painted
+        // in that flat tint, blended over the model. Back faces stay culled, so it is the
+        // mesh's own near surface that shows, not its far side. The guest overlay's
+        // Inside/Outside style uses this to show where the guest body is inside (smaller
+        // than) the primary one; HiddenSurfaceDepthBias (pulled toward the camera) is its
+        // match tolerance, keeping coincident surfaces from speckling.
+        bool anyHiddenTint = false;
+        foreach (var mesh in _meshes)
+        {
+            if (mesh.ShouldRender && !mesh.RenderAsWireframeFallback && mesh.HiddenSurfaceTint.HasValue) { anyHiddenTint = true; break; }
+        }
+        if (anyHiddenTint)
+        {
+            GL.DepthMask(false);
+            GL.DepthFunc(DepthFunction.Greater);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            foreach (var mesh in _meshes)
+            {
+                if (!mesh.ShouldRender || mesh.RenderAsWireframeFallback || mesh.HiddenSurfaceTint is not { } hiddenTint) continue;
+
+                var (tint, hasTint, alpha, bias) = (mesh.TintColor, mesh.HasTintColor, mesh.MaterialAlpha, mesh.DepthBias);
+                mesh.TintColor = hiddenTint;
+                mesh.HasTintColor = true;
+                mesh.MaterialAlpha = mesh.HiddenSurfaceAlpha;
+                mesh.DepthBias = mesh.HiddenSurfaceDepthBias;
+                DrawMesh(mesh);
+                (mesh.TintColor, mesh.HasTintColor, mesh.MaterialAlpha, mesh.DepthBias) = (tint, hasTint, alpha, bias);
+            }
+            GL.DepthFunc(DepthFunction.Lequal);
+        }
+
+        GL.Disable(EnableCap.Blend);
+        GL.DepthMask(true);
+        // Geometry passes done. Clear the clip distance before the full-screen
+        // bloom quad and the overlay gizmos, which use shaders that never write
+        // gl_ClipDistance[0]; DrawWireframeOverlay re-arms it for itself.
+        EndClipPass();
+
+        // Bloom post-process (off by default; needs tone-mapping for a
+        // meaningful glow). Runs on the fully composited character scene but
+        // BEFORE the gizmo / marker / light-arrow overlays, so those stay
+        // crisp. RenderBloom restores the bound FBO + depth/blend/sRGB state
+        // for the overlay draws that follow.
+        if (EnableBloom && EnableToneMapping)
+            RenderBloom(viewportWidth, viewportHeight);
+
+        // Wireframe overlay: drawn after alpha-blend so its lines layer on top
+        // of the solid surface. Uses glPolygonOffset to avoid z-fighting.
+        DrawWireframeOverlay(ref model, ref view, ref projection);
+
+        // Section-clip plane visualization. Drawn after the geometry it cuts but
+        // before the marker/line gizmos, which are depth-test-off and so stay on
+        // top of it.
+        DrawClipPlaneVisual(camera, ref view, ref projection);
+
+        // Host overlays (markers, surface patches, line segments). Mostly depth-test-off so
+        // they stay visible through the model.
+        if (Overlays.Count > 0)
+        {
+            var overlayContext = new OverlayContext(view, projection, viewportWidth, viewportHeight);
+            foreach (var overlay in Overlays)
+                overlay.Draw(this, overlayContext);
+        }
+
+        // Overlay: directional-light direction arrows. Drawn last with depth test off
+        // so they behave like gizmos (always visible through the model).
+        if (ShowKeyLightVisualization)
+            DrawDirectionalLightArrows(camera, ref view, ref projection);
+    }
+
+    /// <summary>
+    /// Draws the section-clip plane as a translucent quad with a bright border and a
+    /// faint interior grid, so the user can see where the cut sits and which way the
+    /// wheel is about to push it. Cosmetic only - <see cref="ClipEnabled"/> alone does
+    /// the actual clipping, and this can be turned off independently.
+    ///
+    /// <para>The quad is centred on the camera target's perpendicular projection onto
+    /// the plane and sized from the camera's distance and vertical FOV, so it always
+    /// spans the viewport without the renderer needing scene bounds. The fill is
+    /// depth-tested so it composites against the model like a pane of glass, but never
+    /// writes depth (it would otherwise z-reject the marker and measurement-line
+    /// gizmos drawn after it); the border and grid draw with depth test off so the
+    /// plane stays locatable even when the model is in front of it.</para>
+    /// </summary>
+    private void DrawClipPlaneVisual(OrbitCamera camera, ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_debugShader == null) return;
+        if (!ClipEnabled || !ShowClipPlaneVisual) return;
+
+        // Plane is dot(p, n) + w = 0. The disabled/identity value (0,0,0,1) has a
+        // zero-length normal and no geometric meaning, so bail rather than divide.
+        var n = new Vector3(ClipPlane.X, ClipPlane.Y, ClipPlane.Z);
+        float nLen = n.Length;
+        if (nLen < 1e-6f) return;
+        n /= nLen;
+        float w = ClipPlane.W / nLen;
+
+        var target = camera.Target;
+        var center = target - n * (Vector3.Dot(target, n) + w);
+
+        // In-plane basis. n is axis-aligned in practice (the VM locks it to X, Y or
+        // Z), but the helper-vector construction stays correct for any normal.
+        var helper = MathF.Abs(n.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitX;
+        var u = Vector3.Normalize(Vector3.Cross(helper, n));
+        var v = Vector3.Cross(n, u);
+
+        float halfExtent = MathF.Max(10f, camera.Distance
+            * MathF.Tan(MathHelper.DegreesToRadians(camera.FieldOfView) * 0.5f) * 1.8f);
+        var du = u * halfExtent;
+        var dv = v * halfExtent;
+
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 0f);
+        _debugShader.SetVector3("u_color",
+            ClipPlaneVisualColor.X, ClipPlaneVisualColor.Y, ClipPlaneVisualColor.Z);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        bool blendWasEnabled = GL.IsEnabled(EnableCap.Blend);
+
+        GL.Disable(EnableCap.CullFace); // the plane is looked at from both sides
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        GL.DepthMask(false);
+
+        // ---- Translucent fill, depth-tested ----
+        GL.Enable(EnableCap.DepthTest);
+        var c00 = center - du - dv;
+        var c10 = center + du - dv;
+        var c11 = center + du + dv;
+        var c01 = center - du + dv;
+        int k = 0;
+        WriteVert(_clipQuadScratch, ref k, c00);
+        WriteVert(_clipQuadScratch, ref k, c10);
+        WriteVert(_clipQuadScratch, ref k, c11);
+        WriteVert(_clipQuadScratch, ref k, c00);
+        WriteVert(_clipQuadScratch, ref k, c11);
+        WriteVert(_clipQuadScratch, ref k, c01);
+        _debugShader.SetFloat("u_alpha", 0.13f);
+        GL.BufferData(BufferTarget.ArrayBuffer, _clipQuadScratch.Length * sizeof(float),
+            _clipQuadScratch, BufferUsageHint.DynamicDraw);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+
+        // ---- Interior grid then border, depth test off ----
+        GL.Disable(EnableCap.DepthTest);
+
+        const int Divisions = 6;
+        _debugShader.SetFloat("u_alpha", 0.30f);
+        GL.LineWidth(1.0f);
+        for (int i = 1; i < Divisions; i++)
+        {
+            float t = (i / (float)Divisions) * 2f - 1f; // -1..+1 across the quad
+            DrawSeg(center + du * t - dv, center + du * t + dv);
+            DrawSeg(center - du + dv * t, center + du + dv * t);
+        }
+
+        _debugShader.SetFloat("u_alpha", 0.95f);
+        GL.LineWidth(2.0f);
+        DrawSeg(c00, c10);
+        DrawSeg(c10, c11);
+        DrawSeg(c11, c01);
+        DrawSeg(c01, c00);
+        GL.LineWidth(1.0f);
+
+        // Restore whatever the caller had. u_alpha is left where this method put it,
+        // so every other debug-shader caller pushes its own (they all do).
+        GL.DepthMask(true);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest); else GL.Disable(EnableCap.DepthTest);
+        if (cullWasEnabled) GL.Enable(EnableCap.CullFace); else GL.Disable(EnableCap.CullFace);
+        if (blendWasEnabled) GL.Enable(EnableCap.Blend); else GL.Disable(EnableCap.Blend);
+        GL.BindVertexArray(0);
+
+        // Uploads one world-space segment through the already-bound debug VAO/VBO,
+        // reusing the head of the quad scratch buffer to stay allocation-free.
+        void DrawSeg(Vector3 a, Vector3 b)
+        {
+            int j = 0;
+            WriteVert(_clipQuadScratch, ref j, a);
+            WriteVert(_clipQuadScratch, ref j, b);
+            GL.BufferData(BufferTarget.ArrayBuffer, 12 * sizeof(float),
+                _clipQuadScratch, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Lines, 0, 2);
+        }
+
+        // pos.xyz + normal.xyz; the normal is unused at u_shaded = 0.
+        static void WriteVert(float[] buf, ref int w, Vector3 p)
+        {
+            buf[w++] = p.X; buf[w++] = p.Y; buf[w++] = p.Z;
+            buf[w++] = 0f;  buf[w++] = 0f;  buf[w++] = 0f;
+        }
+    }
+
+    /// <summary>Cached unit-sphere vertex data (pos.xyz + normal.xyz per vert;
+    /// for a unit sphere the position equals the normal). Built once from a
+    /// 2x-subdivided octahedron = 128 triangles.</summary>
+    private static float[]? _unitSphereMesh;
+
+    /// <summary>Reused per-marker scratch buffer for the scaled + translated
+    /// sphere mesh, to avoid per-frame allocation in the render loop.</summary>
+    private float[]? _sphereScratch;
+
+    /// <summary>
+    /// Returns the cached unit-sphere vertex array (128 CCW-from-outside triangles,
+    /// 4608 floats = 128 * 3 * 6). Built lazily from a 2x-subdivided octahedron so
+    /// each vertex lies on the unit sphere and its outward normal equals its position.
+    /// </summary>
+    private static float[] GetUnitSphereMesh()
+    {
+        if (_unitSphereMesh != null) return _unitSphereMesh;
+
+        var top = new Vector3(0f,  1f, 0f);
+        var bot = new Vector3(0f, -1f, 0f);
+        var xp  = new Vector3( 1f, 0f,  0f);
+        var xn  = new Vector3(-1f, 0f,  0f);
+        var zp  = new Vector3( 0f, 0f,  1f);
+        var zn  = new Vector3( 0f, 0f, -1f);
+
+        // Seed octahedron: 8 triangles, wound CCW-from-outside so the Lambert
+        // term in the debug shader lights the outside surface.
+        var tris = new List<(Vector3 a, Vector3 b, Vector3 c)>(8)
+        {
+            (top, zp, xp), (top, xp, zn), (top, zn, xn), (top, xn, zp),
+            (bot, xp, zp), (bot, zn, xp), (bot, xn, zn), (bot, zp, xn),
+        };
+
+        // Two levels of midpoint subdivision: 8 -> 32 -> 128 triangles.
+        // Each new midpoint is re-normalized so it sits on the unit sphere.
+        for (int s = 0; s < 2; s++)
+        {
+            var next = new List<(Vector3, Vector3, Vector3)>(tris.Count * 4);
+            foreach (var (a, b, c) in tris)
+            {
+                var mab = Vector3.Normalize((a + b) * 0.5f);
+                var mbc = Vector3.Normalize((b + c) * 0.5f);
+                var mca = Vector3.Normalize((c + a) * 0.5f);
+                next.Add((a, mab, mca));
+                next.Add((mab, b, mbc));
+                next.Add((mca, mbc, c));
+                next.Add((mab, mbc, mca));
+            }
+            tris = next;
+        }
+
+        var data = new float[tris.Count * 3 * 6];
+        int w = 0;
+        foreach (var (a, b, c) in tris)
+        {
+            Write(data, ref w, a);
+            Write(data, ref w, b);
+            Write(data, ref w, c);
+        }
+        _unitSphereMesh = data;
+        return data;
+
+        static void Write(float[] buf, ref int w, Vector3 v)
+        {
+            buf[w++] = v.X; buf[w++] = v.Y; buf[w++] = v.Z;
+            buf[w++] = v.X; buf[w++] = v.Y; buf[w++] = v.Z;
+        }
+    }
+
+    /// <summary>Lazily creates the shadow FBO + depth texture sized
+    /// <see cref="ShadowMapSize"/>. The depth texture is configured for
+    /// hardware PCF: COMPARE_REF_TO_TEXTURE mode, LINEAR filter (gives
+    /// 4-tap bilinear PCF on top of the manual 3x3 kernel in basic.frag
+    /// for 36 effective samples). Border-clamped to 1.0 so any sample
+    /// outside the shadow frustum reads as fully lit (avoids the dark
+    /// halo around the shadow region).</summary>
+    private void EnsureShadowFbo()
+    {
+        if (_shadowFbo != -1) return;
+
+        _shadowDepthTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _shadowDepthTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0,
+            PixelInternalFormat.DepthComponent24,
+            ShadowMapSize, ShadowMapSize, 0,
+            PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
+        var border = new[] { 1f, 1f, 1f, 1f };
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureBorderColor, border);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureCompareFunc, (int)All.Lequal);
+
+        _shadowFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _shadowFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.DepthAttachment,
+            TextureTarget.Texture2D, _shadowDepthTex, 0);
+        // Depth-only FBO: no color attachments. Tell the driver explicitly
+        // so it doesn't fail FBO completeness on drivers that require it.
+        GL.DrawBuffer(DrawBufferMode.None);
+        GL.ReadBuffer(ReadBufferMode.None);
+
+        var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (status != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "Shadow FBO incomplete: " + status + " (size=" + ShadowMapSize + ")");
+        }
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+    }
+
+    /// <summary>Computes the orthographic light-space view-projection matrix
+    /// for the key directional light. Uses a fixed scene radius (300 world
+    /// units around the camera target) which covers any reasonable Skyrim
+    /// NPC + accessories at the heights the renderer is used at; avoiding
+    /// a per-frame bbox walk keeps the cost negligible. The output is
+    /// uploaded to <c>u_lightViewProj</c> on the main shader so
+    /// <c>basic.frag</c>'s shadow lookup can transform world positions into
+    /// the light's clip space.</summary>
+    private void ComputeLightViewProj()
+    {
+        // Key light = index 1 (0 is ambient). LightData.Direction is the
+        // *surface-to-light* vector (per the LightData comment), i.e. it
+        // points FROM the surface TOWARD the light source. Photons travel
+        // along -Direction. So the light's world-space POSITION is
+        // sceneCenter + Direction * distance (NOT - Direction; that would
+        // place the shadow camera on the opposite side of the model and
+        // every front-facing fragment would read as occluded by the back
+        // of the head).
+        var lightDir = Vector3.Normalize(Lights[1].Direction);
+
+        // Place the light "eye" along the surface-to-light direction far
+        // enough that the whole scene fits inside the orthographic
+        // frustum. Center on ShadowBounds when the host set it; otherwise on a
+        // character's chest height (Y=85 pre-scale). Both scale by ModelScale.
+        var sceneCenter = ShadowBounds is { } bounds
+            ? bounds.Center * ModelScale
+            : new Vector3(0f, 85f * ModelScale, 0f);
+        // Strategy C: tighten the frustum to shrink the world-units-per-NDC
+        // depth range so the bias warps the cast-shadow edge less.
+        float radius = (ShadowBounds is { } boundsR ? boundsR.Radius
+            : TightShadowFrustum ? ShadowFrustumRadius : 300f) * ModelScale;
+        var lightEye = sceneCenter + lightDir * radius * 1.5f;
+
+        // Up vector: world up unless the light is shining straight down.
+        var up = MathF.Abs(lightDir.Y) > 0.99f ? Vector3.UnitZ : Vector3.UnitY;
+        var lightView = Matrix4.LookAt(lightEye, sceneCenter, up);
+        var lightProj = Matrix4.CreateOrthographic(
+            radius * 2.5f, radius * 2.5f,
+            0.1f, radius * 4f);
+
+        // Match the main render's matrix-multiply convention (basic.vert
+        // does u_projection * u_view * pos with column-major shader
+        // matrices): in OpenTK row-vector C# that's view * proj.
+        _lightViewProj = lightView * lightProj;
+    }
+
+    /// <summary>Renders the scene's opaque + alpha-test geometry to the
+    /// shadow depth texture from the key light's POV. Skips alpha-blend
+    /// shapes (transparent geometry doesn't cast meaningful shadows) and
+    /// wireframe-fallback shapes (no diffuse to alpha-test against).
+    /// Caller must restore the previously bound framebuffer + viewport
+    /// after this method returns.</summary>
+    private void RenderShadowDepthPass(ref Matrix4 model)
+    {
+        if (_shadowShader == null) return;
+        EnsureShadowFbo();
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _shadowFbo);
+        GL.Viewport(0, 0, ShadowMapSize, ShadowMapSize);
+        GL.Clear(ClearBufferMask.DepthBufferBit);
+
+        // Front-face culling reduces self-shadowing acne (the back face of
+        // the geometry casts the shadow, so the front face's depth is
+        // strictly less and the bias has more room to work). Restore the
+        // default at the end.
+        GL.CullFace(CullFaceMode.Front);
+
+        _shadowShader.Use();
+        _shadowShader.SetMatrix4("u_model", ref model);
+        _shadowShader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
+        BeginClipPass(_shadowShader);
+
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            // Pure alpha-blend shapes (no alpha-test bit) don't cast useful
+            // shadows; their cast would just be a soft amorphous blob.
+            if (mesh.HasAlphaBlend && !mesh.UseAlphaTest) continue;
+            // Eyes are inside the head — their cast shadow would always be
+            // self-occluding noise. Skip.
+            if (mesh.IsEye) continue;
+            // Strategy A: optionally drop hair as a caster so bangs don't
+            // throw a hard shadow onto the forehead.
+            if (ExcludeHairShadowCaster && mesh.IsHairTintShader) continue;
+
+            _shadowShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
+            _shadowShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+            _shadowShader.SetFloat("material_alpha", mesh.MaterialAlpha);
+            if (mesh.UseAlphaTest)
+            {
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
+            }
+
+            ApplyMeshModel(_shadowShader!, mesh, model);
+            GL.BindVertexArray(mesh.Vao);
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
+        }
+
+        GL.BindVertexArray(0);
+        EndClipPass();
+        GL.CullFace(CullFaceMode.Back);
+    }
+
+    /// <summary>Builds a 16-sample hemispheric kernel of view-space
+    /// offsets used by ssao.frag. Each offset is randomly oriented within
+    /// the hemisphere centered on the surface normal (TBN reorients in
+    /// the shader), with sample distances accelerated toward the origin
+    /// (closer samples carry more weight). Computed once at init.</summary>
+    private void BuildSsaoKernel()
+    {
+        var rng = new Random(1337); // Fixed seed: deterministic kernel.
+        _ssaoSampleKernel = new Vector3[SsaoKernelSize];
+        for (int i = 0; i < SsaoKernelSize; i++)
+        {
+            // Random vector in upper hemisphere (z >= 0). Normalized to
+            // unit length, then rescaled with a quadratic falloff so the
+            // first samples cluster near the origin.
+            var v = new Vector3(
+                (float)(rng.NextDouble() * 2.0 - 1.0),
+                (float)(rng.NextDouble() * 2.0 - 1.0),
+                (float)rng.NextDouble());
+            v = Vector3.Normalize(v);
+            v *= (float)rng.NextDouble();
+            float scale = (float)i / SsaoKernelSize;
+            // Lerp from 0.1 to 1.0 with a quadratic curve.
+            scale = 0.1f + scale * scale * (1.0f - 0.1f);
+            v *= scale;
+            _ssaoSampleKernel[i] = v;
+        }
+    }
+
+    /// <summary>Builds a small RGB tile of random tangent vectors used by
+    /// ssao.frag to rotate the kernel per-pixel. The tile is repeat-tiled
+    /// across the screen so neighboring pixels use different rotations,
+    /// breaking up the banding a fixed kernel would otherwise produce.
+    /// 4x4 is enough for the post-pass to look noisy rather than
+    /// patterned; the host's MSAA + the inherent low-frequency nature of
+    /// AO smooth the result.</summary>
+    private void BuildSsaoNoiseTexture()
+    {
+        var rng = new Random(2718);
+        var noise = new float[SsaoNoiseSize * SsaoNoiseSize * 3];
+        for (int i = 0; i < SsaoNoiseSize * SsaoNoiseSize; i++)
+        {
+            // Tangent-space vector lies in the X-Y plane (z = 0); the
+            // shader cross-products with the surface normal to produce
+            // a perpendicular tangent.
+            noise[i * 3 + 0] = (float)(rng.NextDouble() * 2.0 - 1.0);
+            noise[i * 3 + 1] = (float)(rng.NextDouble() * 2.0 - 1.0);
+            noise[i * 3 + 2] = 0f;
+        }
+
+        _ssaoNoiseTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoNoiseTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb16f,
+            SsaoNoiseSize, SsaoNoiseSize, 0, PixelFormat.Rgb, PixelType.Float, noise);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+    }
+
+    /// <summary>Lazily creates / resizes the depth+normal prepass FBO and
+    /// the SSAO output FBO at the current viewport size. Same lifecycle
+    /// as the host's MSAA FBO: re-allocated when the viewport size
+    /// changes, otherwise reused across renders.</summary>
+    /// <summary>Deletes the viewport-sized SSAO / depth-prepass FBOs and their
+    /// attachments (the resources EnsureSsaoFbos reallocates on a size change),
+    /// resetting each handle to -1. Does NOT touch _ssaoNoiseTex, which is created
+    /// once and reused across resizes -- Dispose deletes that separately. Shared by
+    /// the resize path and Dispose so the teardown set stays in one place.</summary>
+    private void DestroySsaoFbos()
+    {
+        if (_depthPrepassDepthTex != -1) { GL.DeleteTexture(_depthPrepassDepthTex); _depthPrepassDepthTex = -1; }
+        if (_depthPrepassNormalTex != -1) { GL.DeleteTexture(_depthPrepassNormalTex); _depthPrepassNormalTex = -1; }
+        if (_depthPrepassFbo != -1) { GL.DeleteFramebuffer(_depthPrepassFbo); _depthPrepassFbo = -1; }
+        if (_ssaoTex != -1) { GL.DeleteTexture(_ssaoTex); _ssaoTex = -1; }
+        if (_ssaoFbo != -1) { GL.DeleteFramebuffer(_ssaoFbo); _ssaoFbo = -1; }
+        if (_ssaoBlurTex != -1) { GL.DeleteTexture(_ssaoBlurTex); _ssaoBlurTex = -1; }
+        if (_ssaoBlurFbo != -1) { GL.DeleteFramebuffer(_ssaoBlurFbo); _ssaoBlurFbo = -1; }
+    }
+
+    /// <summary>Deletes the viewport-sized bloom FBOs + textures, resetting
+    /// each handle to -1. Mirrors <see cref="DestroySsaoFbos"/>; shared by the
+    /// resize path and Dispose.</summary>
+    private void DestroyBloomFbos()
+    {
+        if (_bloomSceneTex != -1) { GL.DeleteTexture(_bloomSceneTex); _bloomSceneTex = -1; }
+        if (_bloomSceneFbo != -1) { GL.DeleteFramebuffer(_bloomSceneFbo); _bloomSceneFbo = -1; }
+        if (_bloomTexA != -1) { GL.DeleteTexture(_bloomTexA); _bloomTexA = -1; }
+        if (_bloomFboA != -1) { GL.DeleteFramebuffer(_bloomFboA); _bloomFboA = -1; }
+        if (_bloomTexB != -1) { GL.DeleteTexture(_bloomTexB); _bloomTexB = -1; }
+        if (_bloomFboB != -1) { GL.DeleteFramebuffer(_bloomFboB); _bloomFboB = -1; }
+        _bloomFboSize = (0, 0);
+    }
+
+    /// <summary>Lazily (re)creates the three full-res Rgba8 bloom FBOs sized to
+    /// the viewport. Reused across same-size renders; reallocated on resize.
+    /// Returns false if creation fails (bloom is then skipped).</summary>
+    private bool EnsureBloomFbos(int width, int height)
+    {
+        if (_bloomFboSize == (width, height) && _bloomSceneFbo != -1) return true;
+
+        DestroyBloomFbos();
+
+        _bloomSceneFbo = CreateBloomTarget(width, height, out _bloomSceneTex);
+        _bloomFboA = CreateBloomTarget(width, height, out _bloomTexA);
+        _bloomFboB = CreateBloomTarget(width, height, out _bloomTexB);
+
+        bool ok = _bloomSceneFbo != -1 && _bloomFboA != -1 && _bloomFboB != -1;
+        if (!ok) { DestroyBloomFbos(); return false; }
+
+        _bloomFboSize = (width, height);
+        return true;
+    }
+
+    /// <summary>Creates a single full-res Rgba8 color FBO (linear-filtered,
+    /// clamp-to-edge) for a bloom stage. Returns the FBO handle (or -1) and
+    /// outputs the color texture handle.</summary>
+    private int CreateBloomTarget(int width, int height, out int tex)
+    {
+        tex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, tex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8,
+            width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        int fbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, fbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, tex, 0);
+        if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer)
+            != FramebufferErrorCode.FramebufferComplete)
+        {
+            GL.DeleteFramebuffer(fbo);
+            GL.DeleteTexture(tex);
+            tex = -1;
+            return -1;
+        }
+        return fbo;
+    }
+
+    /// <summary>Post-tonemap bloom. Captures the composited scene color from
+    /// the currently-bound draw FBO (MSAA-resolved via a blit), runs a
+    /// bright-pass + two-iteration separable Gaussian into the ping-pong FBOs,
+    /// then additively composites the glow back over the scene. Restores the
+    /// bound FBO + viewport + depth/blend/sRGB state on exit so the overlay
+    /// draws that follow are unaffected. Only called when EnableBloom +
+    /// EnableToneMapping are both on.</summary>
+    private void RenderBloom(int width, int height)
+    {
+        if (_bloomShader == null || _ssaoFullscreenVao == -1) return;
+        if (width <= 0 || height <= 0) return;
+
+        // The bound draw FBO is the host's scene target (GLWpfControl's FBO or
+        // the offscreen MSAA FBO). Capture it so we can read from / restore it.
+        // Captured BEFORE EnsureBloomFbos: (re)creating the bloom FBOs leaves the
+        // last one bound, and capturing after that "restored" to a bloom FBO, so the
+        // composite and every overlay draw after it (measurement lines, markers)
+        // landed off-screen. The live viewer only hit that on its first frame / a
+        // resize; the offscreen renderer builds a fresh GlRenderer per render, so
+        // every bloom-enabled offscreen image lost both its bloom and its overlay.
+        GL.GetInteger(GetPName.DrawFramebufferBinding, out int hostFbo);
+        if (!EnsureBloomFbos(width, height))
+        {
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
+            return;
+        }
+
+        // Add the (display-encoded) glow directly to the (display-encoded)
+        // scene: disable sRGB encoding for every bloom stage so no stage
+        // re-gamma-encodes. Restored to the post-tone-map state at the end.
+        GL.Disable(EnableCap.FramebufferSrgb);
+        GL.Disable(EnableCap.DepthTest);
+        GL.Disable(EnableCap.Blend);
+        GL.Viewport(0, 0, width, height);
+
+        // 1) Resolve the bound (possibly MSAA) scene color into a single-sample
+        //    texture. Nearest filter: an MSAA resolve already averages samples
+        //    (Linear here would double-blur), and for a non-MSAA source it is a
+        //    straight copy.
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, hostFbo);
+        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, _bloomSceneFbo);
+        GL.BlitFramebuffer(0, 0, width, height, 0, 0, width, height,
+            ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+
+        _bloomShader.Use();
+        GL.BindVertexArray(_ssaoFullscreenVao);
+        GL.ActiveTexture(TextureUnit.Texture0);
+
+        // 2) Bright-pass: scene -> A.
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _bloomFboA);
+        _bloomShader.SetInt("u_pass", 0);
+        _bloomShader.SetFloat("u_threshold", BloomThreshold);
+        _bloomShader.SetFloat("u_softKnee", BloomSoftKnee);
+        GL.BindTexture(TextureTarget.Texture2D, _bloomSceneTex);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+        // 3) Separable Gaussian, two iterations (H,V,H,V) ping-ponging A<->B.
+        float tx = 1f / width, ty = 1f / height;
+        _bloomShader.SetInt("u_pass", 1);
+        for (int iter = 0; iter < 2; iter++)
+        {
+            // Horizontal: A -> B
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _bloomFboB);
+            _bloomShader.SetVector2("u_direction", tx, 0f);
+            GL.BindTexture(TextureTarget.Texture2D, _bloomTexA);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            // Vertical: B -> A
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, _bloomFboA);
+            _bloomShader.SetVector2("u_direction", 0f, ty);
+            GL.BindTexture(TextureTarget.Texture2D, _bloomTexB);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+
+        // 4) Composite the blurred glow (in A) additively over the scene.
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, hostFbo);
+        GL.Viewport(0, 0, width, height);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+        _bloomShader.SetInt("u_pass", 2);
+        _bloomShader.SetFloat("u_intensity", BloomIntensity);
+        GL.BindTexture(TextureTarget.Texture2D, _bloomTexA);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+        // Restore state for the overlay draws that follow (matches the
+        // post-alpha-blend state in Render(): depth on, blend off, depth-write
+        // on, and sRGB encoding back on since tone-mapping is enabled here).
+        GL.BindVertexArray(0);
+        GL.BindTexture(TextureTarget.Texture2D, 0);
+        GL.Disable(EnableCap.Blend);
+        GL.Enable(EnableCap.DepthTest);
+        GL.DepthMask(true);
+        GL.Enable(EnableCap.FramebufferSrgb);
+    }
+
+    private void EnsureSsaoFbos(int width, int height)
+    {
+        if (_ssaoFboSize == (width, height) && _ssaoFbo != -1) return;
+
+        // Tear down existing resources before reallocating.
+        DestroySsaoFbos();
+
+        // Depth prepass texture: depth-only single-sample so SSAO can
+        // sample it with bilinear filtering.
+        _depthPrepassDepthTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0,
+            PixelInternalFormat.DepthComponent24,
+            width, height, 0,
+            PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        // Normal G-buffer: RGB8 unsigned, encoded view-space normal
+        // (*0.5+0.5 in the shader). Linear filter is fine - neighboring
+        // smooth-shaded pixels lerp to a still-valid intermediate normal
+        // before renormalization in ssao.frag.
+        _depthPrepassNormalTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassNormalTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0,
+            PixelInternalFormat.Rgb8,
+            width, height, 0,
+            PixelFormat.Rgb, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        _depthPrepassFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _depthPrepassFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.DepthAttachment,
+            TextureTarget.Texture2D, _depthPrepassDepthTex, 0);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _depthPrepassNormalTex, 0);
+        GL.DrawBuffer(DrawBufferMode.ColorAttachment0);
+        GL.ReadBuffer(ReadBufferMode.None);
+        var prepassStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (prepassStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "SSAO depth-prepass FBO incomplete: " + prepassStatus);
+        }
+
+        // SSAO output FBO: single-channel R8 texture. basic.frag samples
+        // it with linear filtering so the inherent noisiness of the
+        // hemisphere kernel gets smoothed slightly without an explicit
+        // blur pass.
+        _ssaoTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8,
+            width, height, 0, PixelFormat.Red, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        _ssaoFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _ssaoTex, 0);
+        var ssaoStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (ssaoStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "SSAO output FBO incomplete: " + ssaoStatus);
+        }
+
+        // SSAO blur output FBO. Same R8 format / size as the raw SSAO
+        // texture; receives the box-blur result. basic.frag samples
+        // this (not the raw _ssaoTex) so the noise tile period doesn't
+        // bleed through into the final image.
+        _ssaoBlurTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoBlurTex);
+        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8,
+            width, height, 0, PixelFormat.Red, PixelType.UnsignedByte, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.Texture2D,
+            TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+        _ssaoBlurFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoBlurFbo);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D, _ssaoBlurTex, 0);
+        var blurStatus = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (blurStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException(
+                "SSAO blur FBO incomplete: " + blurStatus);
+        }
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        _ssaoFboSize = (width, height);
+    }
+
+    /// <summary>Renders the scene's opaque + alpha-test geometry to the
+    /// depth pre-pass FBO from the camera's POV. The resulting depth
+    /// texture feeds the SSAO post-pass; basic.frag's per-fragment
+    /// gl_FragCoord-based sampling matches what was rendered here so
+    /// AO is consistent with the visible silhouette. Caller must
+    /// restore the previously bound FBO + viewport.</summary>
+    private void RenderDepthPrepass(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection,
+        int width, int height)
+    {
+        if (_depthOnlyShader == null) return;
+        EnsureSsaoFbos(width, height);
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _depthPrepassFbo);
+        GL.Viewport(0, 0, width, height);
+        // Background clear value (0.5, 0.5, 1.0) decodes to (0, 0, +1) in
+        // view space - a safe "facing camera" fallback for pixels with no
+        // geometry, so ssao.frag's normal sample at the far plane doesn't
+        // pull garbage. ssao.frag early-outs on far-plane depth anyway,
+        // but defensible default in case the early-out is ever loosened.
+        GL.ClearColor(0.5f, 0.5f, 1.0f, 1.0f);
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+        // Normal matrix is transpose(inverse(mat3(view * model))). Built
+        // once per pass since model / view are uniform across all meshes
+        // in this prepass (matches the main render pass - per-mesh local
+        // transforms are baked into vertex positions).
+        var viewModel = model * view;
+        var normalMatrix = new Matrix3(viewModel);
+        normalMatrix.Invert();
+        normalMatrix.Transpose();
+
+        _depthOnlyShader.Use();
+        _depthOnlyShader.SetMatrix4("u_model", ref model);
+        _depthOnlyShader.SetMatrix4("u_view", ref view);
+        _depthOnlyShader.SetMatrix4("u_projection", ref projection);
+        _depthOnlyShader.SetMatrix3("u_normalMatrix", ref normalMatrix);
+        BeginClipPass(_depthOnlyShader);
+
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            if (mesh.RenderAsWireframeFallback) continue;
+            // Skip every transparent mesh (alpha-blend AND alpha-test).
+            //
+            // Alpha-blend: cumulative transparency makes any depth value misleading.
+            //
+            // Alpha-test: the per-pixel discard produces a hard binary depth edge
+            // wherever the threshold flips. SSAO (ssao.frag) samples this prepass
+            // depth with a hemispheric kernel and a smoothstep range check, which
+            // reads those edges as nearby occluders and darkens the surface
+            // underneath - producing a "mask-like" halo around alpha-tested
+            // perimeters (hair fringes, eyelashes, brow cards, lace, fur trim).
+            // See basic.frag's is_eye AO gate for the same artifact class gated
+            // downstream instead of at the source.
+            //
+            // Shadow and main color passes still include alpha-test geometry;
+            // only this SSAO depth prepass excludes it.
+            if (mesh.HasAlphaBlend || mesh.UseAlphaTest) continue;
+
+            _depthOnlyShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
+            _depthOnlyShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+            _depthOnlyShader.SetFloat("material_alpha", mesh.MaterialAlpha);
+            if (mesh.UseAlphaTest)
+            {
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
+            }
+
+            ApplyMeshModel(_depthOnlyShader!, mesh, model);
+            GL.BindVertexArray(mesh.Vao);
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
+        }
+        GL.BindVertexArray(0);
+        // Must be cleared before ComputeSsao / BlurSsao, whose full-screen quad
+        // shaders never write gl_ClipDistance[0].
+        EndClipPass();
+    }
+
+    /// <summary>Runs the SSAO post-process: reads the depth prepass
+    /// depth + normal textures and the noise texture, writes per-pixel
+    /// occlusion factor to the SSAO FBO. Caller must restore the
+    /// previously bound FBO + viewport.</summary>
+    private void ComputeSsao(ref Matrix4 projection, int width, int height)
+    {
+        if (_ssaoShader == null || _ssaoSampleKernel == null) return;
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoFbo);
+        GL.Viewport(0, 0, width, height);
+        // Clear isn't strictly needed (the full-screen quad covers every
+        // pixel) but is cheap and avoids surprises if an early-out is
+        // added later.
+        GL.ClearColor(1f, 1f, 1f, 1f);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+
+        _ssaoShader.Use();
+
+        // Bind depth (unit 0), normal G-buffer (unit 1), noise (unit 2).
+        GL.ActiveTexture(TextureUnit.Texture0);
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+        GL.ActiveTexture(TextureUnit.Texture1);
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassNormalTex);
+        GL.ActiveTexture(TextureUnit.Texture2);
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoNoiseTex);
+
+        var invProj = projection.Inverted();
+        _ssaoShader.SetMatrix4("u_projection", ref projection);
+        _ssaoShader.SetMatrix4("u_invProjection", ref invProj);
+        // Kernel is uploaded as 16 separate vec3 uniforms (one per index)
+        // because GlShaderProgram doesn't ship an array uploader. The
+        // uniform names match the GLSL declaration "uniform vec3 u_kernel[16]".
+        for (int i = 0; i < _ssaoSampleKernel.Length; i++)
+        {
+            var k = _ssaoSampleKernel[i];
+            _ssaoShader.SetVector3("u_kernel[" + i + "]", k.X, k.Y, k.Z);
+        }
+        _ssaoShader.SetVector2("u_noiseScale",
+            (float)width / SsaoNoiseSize, (float)height / SsaoNoiseSize);
+        // Radius / bias / intensity all driven from the host-mirrored
+        // public properties, so the user's settings sliders take effect
+        // on the next render. Sensible-default suggestions: ~4 units
+        // for radius, ~0.05 for bias, ~1.5 for intensity at Skyrim NPC
+        // head scale (head ~22 units tall).
+        _ssaoShader.SetFloat("u_radius", SsaoRadius);
+        _ssaoShader.SetFloat("u_bias", SsaoBias);
+        _ssaoShader.SetFloat("u_intensity", SsaoIntensity);
+        _ssaoShader.SetFloat("u_thickness", SsaoThickness);
+
+        GL.Disable(EnableCap.DepthTest);
+        GL.BindVertexArray(_ssaoFullscreenVao);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        GL.BindVertexArray(0);
+        GL.Enable(EnableCap.DepthTest);
+    }
+
+    /// <summary>Smooths the raw SSAO texture with a 4x4 box blur to
+    /// cancel the noise tile pattern. Reads <see cref="_ssaoTex"/>,
+    /// writes to <see cref="_ssaoBlurTex"/> which the main pass binds
+    /// instead of the raw output. Caller must restore previously bound
+    /// FBO + viewport.</summary>
+    private void BlurSsao(ref Matrix4 projection, int width, int height)
+    {
+        if (_ssaoBlurShader == null) return;
+
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _ssaoBlurFbo);
+        GL.Viewport(0, 0, width, height);
+        GL.ClearColor(1f, 1f, 1f, 1f);
+        GL.Clear(ClearBufferMask.ColorBufferBit);
+
+        _ssaoBlurShader.Use();
+        _ssaoBlurShader.SetVector2("u_texelSize", 1f / width, 1f / height);
+        // Bilateral guard: reconstruct view-space depth (u_invProjection) and
+        // reject neighbors more than SsaoThickness units away so AO doesn't
+        // average across surfaces (e.g. body-in-gaps onto beard strands).
+        var invProj = projection.Inverted();
+        _ssaoBlurShader.SetMatrix4("u_invProjection", ref invProj);
+        _ssaoBlurShader.SetFloat("u_depthThreshold", SsaoThickness);
+        // depth G-buffer on unit 1 for the depth-similarity test.
+        GL.ActiveTexture(TextureUnit.Texture1);
+        GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+        GL.ActiveTexture(TextureUnit.Texture0);
+        GL.BindTexture(TextureTarget.Texture2D, _ssaoTex);
+
+        GL.Disable(EnableCap.DepthTest);
+        GL.BindVertexArray(_ssaoFullscreenVao);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        GL.BindVertexArray(0);
+        GL.Enable(EnableCap.DepthTest);
+    }
+
+    /// <summary>
+    /// Draws edges for every mesh with <see cref="GlMesh.ShowWireframe"/> set
+    /// (morph-tool classifier overlay), and for every mesh with
+    /// <see cref="GlMesh.RenderAsWireframeFallback"/> set (missing-texture
+    /// placeholder — these aren't drawn by the solid passes at all). Uses
+    /// polygon-mode Line with a negative polygon offset so explicit overlay
+    /// edges sit just in front of the solid surface without z-fighting.
+    /// </summary>
+    private void DrawWireframeOverlay(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_wireframeShader == null) return;
+
+        // Early exit if nothing wants wireframe — typical case.
+        bool any = false;
+        for (int i = 0; i < _meshes.Count; i++)
+        {
+            if (!_meshes[i].ShouldRender) continue;
+            if (_meshes[i].ShowWireframe || _meshes[i].RenderAsWireframeFallback)
+            { any = true; break; }
+        }
+        if (!any) return;
+
+        _wireframeShader.Use();
+        _wireframeShader.SetMatrix4("u_model", ref model);
+        _wireframeShader.SetMatrix4("u_view", ref view);
+        _wireframeShader.SetMatrix4("u_projection", ref projection);
+        BeginClipPass(_wireframeShader);
+
+        GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+        GL.Enable(EnableCap.PolygonOffsetLine);
+        GL.PolygonOffset(-1.0f, -1.0f);
+        GL.Disable(EnableCap.CullFace);
+        GL.LineWidth(1.0f);
+
+        // Three color sources, in precedence order: the mesh's own
+        // WireframeColorOverride (guest overlay), else the missing-texture color
+        // for fallback shapes, else the classifier overlay color. Tracked as
+        // loose floats rather than a Vector3 because GlMesh works in
+        // System.Numerics while this file works in OpenTK.Mathematics — the same
+        // reason every other per-mesh color reaches the shader component-wise.
+        // The uniform is updated only when the color actually changes, so a run
+        // of same-colored meshes still costs one SetVector3.
+        float curR = WireframeColor.X, curG = WireframeColor.Y, curB = WireframeColor.Z;
+        _wireframeShader.SetVector3("u_color", curR, curG, curB);
+
+        foreach (var mesh in _meshes)
+        {
+            if (!mesh.ShouldRender) continue;
+            bool wantFallback = mesh.RenderAsWireframeFallback;
+            bool wantOverlay = mesh.ShowWireframe;
+            if (!wantFallback && !wantOverlay) continue;
+
+            // Absent an explicit override, fallback shapes ALWAYS draw in the
+            // missing-texture color even when ShowWireframe is also true — the
+            // missing-texture state is the more important diagnostic.
+            float wantR, wantG, wantB;
+            if (mesh.WireframeColorOverride is { } ov)
+            {
+                wantR = ov.X; wantG = ov.Y; wantB = ov.Z;
+            }
+            else
+            {
+                var group = wantFallback ? MissingTextureWireframeColor : WireframeColor;
+                wantR = group.X; wantG = group.Y; wantB = group.Z;
+            }
+
+            if (wantR != curR || wantG != curG || wantB != curB)
+            {
+                _wireframeShader.SetVector3("u_color", wantR, wantG, wantB);
+                curR = wantR; curG = wantG; curB = wantB;
+            }
+
+            ApplyMeshModel(_wireframeShader!, mesh, model);
+            GL.BindVertexArray(mesh.Vao);
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
+        }
+
+        GL.BindVertexArray(0);
+        EndClipPass();
+        GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+        GL.Disable(EnableCap.PolygonOffsetLine);
+        GL.Enable(EnableCap.CullFace);
+    }
+
+    /// <summary>
+    /// Recomputes view-space light directions only when the view matrix or any
+    /// light's world-space direction/type has changed since the last frame.
+    /// OpenTK uses row-vector convention (v * M), matching how GLSL interprets
+    /// the uploaded matrix. Using M * v here would apply the transpose rotation
+    /// and cause the lit side of the mesh to drift as the camera orbits.
+    /// </summary>
+    private void EnsureViewSpaceLightDirs(ref Matrix4 view)
+    {
+        bool dirty = !_hasCachedLightDirs || view != _cachedLightUploadView;
+        if (!dirty)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (Lights[i].Type != _cachedLightTypes[i] ||
+                    Lights[i].Direction != _cachedLightWorldDirs[i])
+                {
+                    dirty = true;
+                    break;
+                }
+            }
+        }
+        if (!dirty) return;
+
+        var viewMat3 = new Matrix3(view);
+        for (int i = 0; i < 5; i++)
+        {
+            if (Lights[i].Type == 2)
+            {
+                var viewDir = Lights[i].Direction * viewMat3;
+                viewDir.Normalize();
+                _cachedViewSpaceLightDirs[i] = viewDir;
+            }
+            _cachedLightTypes[i] = Lights[i].Type;
+            _cachedLightWorldDirs[i] = Lights[i].Direction;
+        }
+        _cachedLightUploadView = view;
+        _hasCachedLightDirs = true;
+    }
+
+    /// <summary>
+    /// Renders solid 3D arrows (cylinder shaft + cone head) showing each enabled
+    /// directional light's shining direction (source → model) and magnitude.
+    /// The stored <see cref="LightData.Direction"/> is the surface-to-light
+    /// vector, so arrows point along its negation. Selected arrows brighten and
+    /// thicken slightly for visual distinction.
+    ///
+    /// <para>Arrows tip at <paramref name="camera"/>.Target and scale with
+    /// <paramref name="camera"/>.Distance so they stay roughly the same
+    /// on-screen size regardless of how tightly the host frames the model.
+    /// Without this, head-only Auto framing would push fixed-size arrows
+    /// (originally sized for full-body framing at distance ≈ 350) clean
+    /// out of the viewport.</para>
+    /// </summary>
+    private void DrawDirectionalLightArrows(OrbitCamera camera, ref Matrix4 view, ref Matrix4 projection)
+    {
+        if (_debugShader == null) return;
+
+        // Reset cached segments; we repopulate only for lights we draw.
+        for (int i = 0; i < _arrowSegments.Length; i++)
+            _arrowSegments[i] = default;
+
+        _debugShader.Use();
+        _debugShader.SetMatrix4("u_view", ref view);
+        _debugShader.SetMatrix4("u_projection", ref projection);
+        _debugShader.SetFloat("u_shaded", 1f);
+        // Opaque. debug.frag gained u_alpha for the clip-plane fill; an unset
+        // uniform defaults to 0, so every caller must push it or draw invisible.
+        _debugShader.SetFloat("u_alpha", 1f);
+
+        GL.BindVertexArray(_debugVao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _debugVbo);
+
+        bool depthWasEnabled = GL.IsEnabled(EnableCap.DepthTest);
+        bool cullWasEnabled = GL.IsEnabled(EnableCap.CullFace);
+        // Arrow gizmos always draw on top of the model so the user can find them
+        // regardless of orbit angle.
+        GL.Disable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(CullFaceMode.Back);
+
+        // Constant on-screen size: world-space length scales linearly with the
+        // camera's orbit distance. Since perspective shrinks objects by
+        // 1/cameraDistance, length ∝ cameraDistance keeps the arrow's pixel
+        // footprint stable across framings (head close-up vs full-body wide).
+        float camDistance = MathF.Max(camera.Distance, camera.MinDistance);
+
+        for (int i = 1; i <= 3; i++)
+        {
+            if (Lights[i].Type != 2) continue;
+            if (Lights[i].Intensity <= 0f) continue;
+
+            var toLight = Lights[i].Direction;
+            if (toLight.LengthSquared < 1e-8f) continue;
+
+            var shineDir = -toLight;
+            shineDir.Normalize();
+
+            // Length-as-fraction-of-camera-distance, modulated by light intensity
+            // so brighter lights still read as longer arrows (preserving the
+            // visual cue from the previous fixed-world-units mapping). Above
+            // 100% the slope flattens so 300% lights don't dominate the view.
+            float intensityVis = MathF.Min(Lights[i].Intensity, 3.0f);
+            float lengthFraction =
+                  0.05f
+                + 0.15f * MathF.Min(intensityVis, 1f)
+                + 0.05f * MathF.Max(intensityVis - 1f, 0f);
+            float length = camDistance * lengthFraction;
+
+            bool selected = SelectedLightIndex == i;
+            float radius = length * (selected ? 0.040f : 0.030f);
+            float headLen = length * 0.22f;
+            float headRad = length * (selected ? 0.085f : 0.065f);
+            float shaftLen = length - headLen;
+
+            // Anchor the tip at the camera's look-at point so arrows track
+            // whatever the host framed (head/face for Auto-mode mugshots, full
+            // body for Manual orbits) instead of the old fixed chest-height.
+            var tip = camera.Target;
+            var tail = tip - shineDir * length;
+            var shaftEnd = tip - shineDir * headLen;
+
+            _arrowSegments[i] = new ArrowSegment
+            {
+                Tail = tail, Tip = tip, Radius = headRad, Valid = true,
+            };
+
+            // Base color: blend the light's actual color toward a saturated
+            // default per-slot hue so arrows remain identifiable even if the
+            // user picks a near-white color.
+            var baseHue = _arrowColors[Math.Min(i, _arrowColors.Length - 1)];
+            var lightCol = Lights[i].Color;
+            var c = Vector3.Lerp(baseHue, lightCol, 0.45f);
+            if (selected) c *= 1.35f; // boost brightness for selection
+            _debugShader.SetVector3("u_color", MathF.Min(c.X, 1.6f), MathF.Min(c.Y, 1.6f), MathF.Min(c.Z, 1.6f));
+
+            var verts = BuildArrowMesh(tail, shaftEnd, tip, shineDir, radius, headRad);
+            GL.BufferData(BufferTarget.ArrayBuffer,
+                verts.Length * sizeof(float), verts, BufferUsageHint.DynamicDraw);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, verts.Length / 6);
+        }
+
+        _debugShader.SetFloat("u_shaded", 0f);
+        if (depthWasEnabled) GL.Enable(EnableCap.DepthTest);
+        if (!cullWasEnabled) GL.Disable(EnableCap.CullFace);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>
+    /// Builds a triangle mesh (position + world-space normal, interleaved 6 floats
+    /// per vertex) for a single arrow composed of a cylindrical shaft, a disk at
+    /// the shaft's far end, and a conical head. All triangles are wound CCW from
+    /// outside so back-face culling hides interiors.
+    /// </summary>
+    private static float[] BuildArrowMesh(Vector3 tail, Vector3 shaftEnd, Vector3 tip,
+        Vector3 shineDir, float shaftRadius, float headRadius)
+    {
+        const int sides = 16;
+        // Orthonormal basis perpendicular to shineDir
+        var up = MathF.Abs(shineDir.Y) < 0.95f ? Vector3.UnitY : Vector3.UnitX;
+        var u = Vector3.Normalize(Vector3.Cross(shineDir, up));
+        var v = Vector3.Normalize(Vector3.Cross(shineDir, u));
+
+        // Pre-compute ring offsets and outward normals.
+        var ringDirs = new Vector3[sides];
+        for (int s = 0; s < sides; s++)
+        {
+            float t = (s / (float)sides) * MathF.PI * 2f;
+            ringDirs[s] = u * MathF.Cos(t) + v * MathF.Sin(t);
+        }
+
+        // Triangle count:
+        //   Shaft:     sides * 2 quads * 3 verts = sides * 6
+        //   Back cap:  sides triangles             = sides * 3
+        //   Head ring: sides quads                  = sides * 6  (disk at shaft end)
+        //   Cone:      sides triangles              = sides * 3
+        // Total:       sides * 18
+        var data = new float[sides * 18 * 6];
+        int w = 0;
+
+        void AddVert(Vector3 p, Vector3 n)
+        {
+            data[w++] = p.X; data[w++] = p.Y; data[w++] = p.Z;
+            data[w++] = n.X; data[w++] = n.Y; data[w++] = n.Z;
+        }
+
+        // --- Shaft (cylinder between tail and shaftEnd) ---
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var nA = ringDirs[s];
+            var nB = ringDirs[s2];
+            var a0 = tail     + nA * shaftRadius;
+            var a1 = shaftEnd + nA * shaftRadius;
+            var b0 = tail     + nB * shaftRadius;
+            var b1 = shaftEnd + nB * shaftRadius;
+            // Quad as two triangles, outward-facing.
+            AddVert(a0, nA); AddVert(b0, nB); AddVert(a1, nA);
+            AddVert(a1, nA); AddVert(b0, nB); AddVert(b1, nB);
+        }
+
+        // --- Back cap (disk at tail, facing -shineDir) ---
+        var tailNormal = -shineDir;
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var p1 = tail + ringDirs[s] * shaftRadius;
+            var p2 = tail + ringDirs[s2] * shaftRadius;
+            AddVert(tail, tailNormal); AddVert(p2, tailNormal); AddVert(p1, tailNormal);
+        }
+
+        // --- Head ring (annular disk between shaft radius and head radius at shaftEnd,
+        //     facing -shineDir, so the head's back side is visible). ---
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var p1 = shaftEnd + ringDirs[s] * shaftRadius;
+            var p2 = shaftEnd + ringDirs[s2] * shaftRadius;
+            var q1 = shaftEnd + ringDirs[s] * headRadius;
+            var q2 = shaftEnd + ringDirs[s2] * headRadius;
+            AddVert(p1, tailNormal); AddVert(p2, tailNormal); AddVert(q1, tailNormal);
+            AddVert(q1, tailNormal); AddVert(p2, tailNormal); AddVert(q2, tailNormal);
+        }
+
+        // --- Cone head (from ring at shaftEnd (head radius) to tip) ---
+        // Compute slanted normals so the cone shades correctly.
+        float coneHeight = (tip - shaftEnd).Length;
+        float slant = MathF.Sqrt(coneHeight * coneHeight + headRadius * headRadius);
+        float nAxial = headRadius / slant;    // component along +shineDir
+        float nRadial = coneHeight / slant;   // component radially outward
+        for (int s = 0; s < sides; s++)
+        {
+            int s2 = (s + 1) % sides;
+            var p1 = shaftEnd + ringDirs[s] * headRadius;
+            var p2 = shaftEnd + ringDirs[s2] * headRadius;
+            var n1 = Vector3.Normalize(ringDirs[s] * nRadial + shineDir * nAxial);
+            var n2 = Vector3.Normalize(ringDirs[s2] * nRadial + shineDir * nAxial);
+            var nTip = Vector3.Normalize((n1 + n2) * 0.5f);
+            AddVert(p1, n1); AddVert(p2, n2); AddVert(tip, nTip);
+        }
+
+        return data;
+    }
+
+    /// <summary>
+    /// Sets u_model for one mesh: its <see cref="GlMesh.ModelTransform"/> composed with the pass's
+    /// shared model matrix, or the shared matrix again after a placed mesh. Meshes without a
+    /// placement cost nothing.
+    /// </summary>
+    private void ApplyMeshModel(GlShaderProgram shader, GlMesh mesh, Matrix4 shared)
+    {
+        if (mesh.ModelTransform is { } placement)
+        {
+            var m = placement * shared;
+            shader.SetMatrix4("u_model", ref m);
+            _modelOverriddenOn = shader;
+        }
+        else if (ReferenceEquals(_modelOverriddenOn, shader))
+        {
+            shader.SetMatrix4("u_model", ref shared);
+            _modelOverriddenOn = null;
+        }
+    }
+    // Non-owning marker of which program currently holds a per-mesh u_model (not a GL handle
+    // this renderer owns, hence object rather than GlShaderProgram).
+    private object? _modelOverriddenOn;
+    private Matrix4 _frameModel = Matrix4.Identity;
+
+    /// <summary>
+    /// World-space squared distance from the camera eye to a mesh's model-local
+    /// centroid (transformed by its placement and the shared u_model matrix). Used to sort the
+    /// alpha-blend pass back-to-front. Squared distance is enough for ordering.
+    /// </summary>
+    private static float CameraDistanceSq(GlMesh mesh, Matrix4 model, Vector3 camPos)
+    {
+        var lc = mesh.LocalCenter; // System.Numerics.Vector3 (model-local)
+        var effective = mesh.ModelTransform is { } placement ? placement * model : model;
+        var world = Vector3.TransformPosition(new Vector3(lc.X, lc.Y, lc.Z), effective);
+        return (world - camPos).LengthSquared;
+    }
+
+    /// <summary>
+    /// Maps a Bethesda NiAlphaProperty blend-factor enum index (as stored in
+    /// flags bits 1-4 / 5-8) to the corresponding OpenTK BlendingFactor.
+    /// The Bethesda enum order matches the GL convention 1-to-1 except that
+    /// Bethesda reuses an integer-indexed enum (0=ONE, 1=ZERO, ...) instead
+    /// of the GL constants directly.
+    /// </summary>
+    private static BlendingFactor MapBethesdaBlendFactor(int idx) => idx switch
+    {
+        0 => BlendingFactor.One,
+        1 => BlendingFactor.Zero,
+        2 => BlendingFactor.SrcColor,
+        3 => BlendingFactor.OneMinusSrcColor,
+        4 => BlendingFactor.DstColor,
+        5 => BlendingFactor.OneMinusDstColor,
+        6 => BlendingFactor.SrcAlpha,
+        7 => BlendingFactor.OneMinusSrcAlpha,
+        8 => BlendingFactor.DstAlpha,
+        9 => BlendingFactor.OneMinusDstAlpha,
+        10 => BlendingFactor.SrcAlphaSaturate,
+        // Indices 11-15 are reserved by the Bethesda enum and shouldn't appear
+        // on actor meshes. Conservative fallback: standard "over" blending.
+        _ => idx == 0xF ? BlendingFactor.One : BlendingFactor.SrcAlpha,
+    };
+
+    private void DrawMesh(GlMesh mesh)
+    {
+        if (_shader == null) return;
+
+        // Bind textures
+        GL.ActiveTexture(TextureUnit.Texture0);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.DiffuseTexture);
+        GL.ActiveTexture(TextureUnit.Texture1);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.NormalTexture);
+        GL.ActiveTexture(TextureUnit.Texture2);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.SkinTexture);
+        GL.ActiveTexture(TextureUnit.Texture3);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.SpecularTexture);
+        GL.ActiveTexture(TextureUnit.Texture4);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.FaceTintTexture);
+        GL.ActiveTexture(TextureUnit.Texture5);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.DetailTexture);
+        // Envmap dual binding: unit 6 is samplerCube, unit 10 is sampler2D.
+        // Whichever path the mesh isn't using gets a neutral binding (default
+        // black cubemap or texture 0) so both sampler uniforms stay valid.
+        GL.ActiveTexture(TextureUnit.Texture6);
+        if (mesh.HasEnvironmentMap && !mesh.IsEnvMap2D && mesh.EnvMapTexture != 0)
+            GL.BindTexture(TextureTarget.TextureCubeMap, mesh.EnvMapTexture);
+        else
+            GL.BindTexture(TextureTarget.TextureCubeMap, _defaultBlackCubemap);
+        GL.ActiveTexture(TextureUnit.Texture7);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMaskTexture);
+        GL.ActiveTexture(TextureUnit.Texture10);
+        if (mesh.HasEnvironmentMap && mesh.IsEnvMap2D && mesh.EnvMapTexture != 0)
+            GL.BindTexture(TextureTarget.Texture2D, mesh.EnvMapTexture);
+        else
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+        GL.ActiveTexture(TextureUnit.Texture12);
+        GL.BindTexture(TextureTarget.Texture2D, mesh.HasGlowMap ? mesh.GlowTexture : 0);
+
+        // Set material flags
+        _shader.SetBool("has_normal_map", mesh.HasNormalMap);
+        _shader.SetBool("has_skin_map", mesh.HasSkinMap);
+        _shader.SetBool("has_specular", mesh.HasSpecular);
+        _shader.SetBool("has_specular_map", mesh.HasSpecularMap);
+        _shader.SetBool("has_face_tint_map", mesh.HasFaceTintMap);
+        _shader.SetBool("has_greyscale_to_palette", mesh.HasGreyscaleToPalette);
+        _shader.SetBool("has_tint_color", mesh.HasTintColor);
+        _shader.SetBool("has_emissive", mesh.HasEmissive);
+        _shader.SetBool("has_glow_map", mesh.HasGlowMap);
+        _shader.SetBool("is_model_space", mesh.IsModelSpace);
+        _shader.SetBool("has_hair_soft_lighting", mesh.HasHairSoftLighting);
+        _shader.SetBool("has_soft_lighting", mesh.HasSoftLighting);
+        _shader.SetBool("has_rim_lighting", mesh.HasRimLighting);
+        _shader.SetBool("has_vertex_colors", mesh.HasVertexColors);
+        _shader.SetBool("has_environment_map", mesh.HasEnvironmentMap);
+        _shader.SetBool("has_env_mask", mesh.HasEnvMask);
+        _shader.SetBool("is_env_map_2d", mesh.IsEnvMap2D);
+        _shader.SetBool("has_detail_map", mesh.HasDetailMap);
+        _shader.SetBool("is_eye", mesh.IsEye);
+        _shader.SetBool("use_alpha_test", mesh.UseAlphaTest);
+        _shader.SetBool("is_face_shape", mesh.IsFaceShape);
+        _shader.SetBool("is_skin", mesh.IsSkinShape);
+        _shader.SetFloat("skin_tint_alpha", mesh.SkinTintAlpha);
+        _shader.SetBool("is_face_empty_detail", mesh.IsFaceWithEmptyDetailSlot);
+        _shader.SetBool("is_hair_tint", mesh.IsHairTintShader);
+
+        // Per-shape texture visibility toggles
+        _shader.SetBool("u_enableDiffuse", mesh.DiffuseEnabled);
+        _shader.SetBool("u_enableNormal", mesh.NormalEnabled);
+        _shader.SetBool("u_enableSkin", mesh.SkinEnabled);
+        _shader.SetBool("u_enableSpecular", mesh.SpecularEnabled);
+        _shader.SetBool("u_enableFaceTint", mesh.FaceTintEnabled);
+        _shader.SetBool("u_enableDetail", mesh.DetailEnabled);
+        _shader.SetBool("u_enableEnvMap", mesh.EnvMapEnabled);
+        _shader.SetBool("u_enableEmissive", mesh.EmissiveEnabled);
+        _shader.SetBool("u_enableTintColor", mesh.TintColorEnabled);
+
+        // Set material properties
+        _shader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
+        _shader.SetFloat("material_alpha", mesh.MaterialAlpha);
+        _shader.SetFloat("u_depthBias", mesh.DepthBias);
+        _shader.SetFloat("greyscaleToPaletteScale", mesh.GreyscaleToPaletteScale);
+        _shader.SetVector3("tint_color", mesh.TintColor.X, mesh.TintColor.Y, mesh.TintColor.Z);
+        _shader.SetFloat("materialGlossiness", mesh.MaterialGlossiness);
+        _shader.SetFloat("materialSpecularStrength", mesh.MaterialSpecularStrength);
+        _shader.SetVector3("specularColor", mesh.SpecularColor.X, mesh.SpecularColor.Y, mesh.SpecularColor.Z);
+        _shader.SetFloat("rimlightPower", mesh.RimlightPower);
+        _shader.SetFloat("subsurfaceRolloff", mesh.SubsurfaceRolloff);
+        _shader.SetVector3("emissiveColor", mesh.EmissiveColor.X, mesh.EmissiveColor.Y, mesh.EmissiveColor.Z);
+        _shader.SetFloat("emissiveMultiple", mesh.EmissiveMultiple);
+        // Effective cubemap scale, selected host-side by SHADER TYPE (only
+        // BSLSP_EYE uses eyeCubemapScale in-engine). Not keyed on is_eye:
+        // ENVMAP-typed eyeballs classified IsEye for AO/catchlight purposes
+        // still take their authored envMapScale, matching the engine.
+        _shader.SetFloat("envMapScale",
+            mesh.UseEyeCubemapScale ? mesh.EyeCubemapScale : mesh.EnvMapScale);
+        _shader.SetVector2("u_uvScale", mesh.UvScale.X, mesh.UvScale.Y);
+        _shader.SetVector2("u_uvOffset", mesh.UvOffset.X, mesh.UvOffset.Y);
+
+        // Double-sided meshes (brow, eyelash, hair) need face culling disabled
+        if (mesh.IsDoubleSided)
+            GL.Disable(EnableCap.CullFace);
+        else
+            GL.Enable(EnableCap.CullFace);
+
+        // Draw
+        ApplyMeshModel(_shader!, mesh, _frameModel);
+        GL.BindVertexArray(mesh.Vao);
+        GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+            DrawElementsType.UnsignedInt, 0);
+        GL.BindVertexArray(0);
+
+        // Restore culling default
+        if (mesh.IsDoubleSided)
+            GL.Enable(EnableCap.CullFace);
+    }
+
+    // Once-per-render-lifetime guard so the diagnostic dump doesn't spam every
+    // frame of the live preview's continuous render loop. Reset to false when
+    // the host re-binds <see cref="DiagnosticLog"/> (typically per capture session).
+    private bool _glStateLogged;
+    private bool _drawListLogged;
+
+    /// <summary>One-shot per-capture dump of the actual draw list: for every
+    /// mesh, which of the three solid passes it lands in (or whether it's
+    /// skipped/hidden or downgraded to wireframe for a missing diffuse), plus
+    /// the alpha-mode flags that decide coverage. Lets us see, from the capture
+    /// file alone, whether a translucent-looking shape is genuinely going to the
+    /// blend pass, whether an expected opaque layer is silently absent, and what
+    /// per-shape depth-write the blend pass resolves. Gated like
+    /// <see cref="EmitGlStateDiagnostic"/> so the live preview's continuous loop
+    /// doesn't spam it.</summary>
+    private void EmitDrawListDiagnostic()
+    {
+        var sink = DiagnosticLog;
+        if (sink == null || _drawListLogged) return;
+        // The renderer's mesh list is populated later than the first render
+        // ticks (the scene-install queue drains in ProcessPendingScene), so on
+        // early frames _meshes is still empty. Don't consume the one-shot guard
+        // until there's actually a scene to describe, or we'd log nothing.
+        if (_meshes.Count == 0) return;
+        _drawListLogged = true;
+        try
+        {
+            foreach (var m in _meshes)
+            {
+                string pass;
+                if (!m.ShouldRender) pass = "SKIP(hidden)";
+                else if (m.RenderAsWireframeFallback) pass = "WIREFRAME(no-diffuse)";
+                else if (!m.UseAlphaTest && !m.HasAlphaBlend) pass = "0-opaque";
+                else if (m.UseAlphaTest && !m.HasAlphaBlend) pass = "1-alphaTest";
+                else pass = "2-alphaBlend";
+                bool effDepthWrite = m.HasAlphaBlend ? (m.DepthWrite && m.MaterialAlpha >= 1f && !m.IsDecal) : true;
+                sink($"SkyRender: DRAWLIST '{m.ShapeName}' pass={pass} " +
+                    $"aTest={m.UseAlphaTest} thr={m.AlphaThreshold:F2} aBlend={m.HasAlphaBlend} " +
+                    $"zWrite={m.DepthWrite} decal={m.IsDecal} matA={m.MaterialAlpha:F2} effDepthWrite={effDepthWrite} " +
+                    $"hairTint={m.IsHairTintShader} doubleSided={m.IsDoubleSided}");
+            }
+        }
+        catch { /* swallow; diagnostic is best-effort */ }
+    }
+
+    /// <summary>Queries and emits the renderer's current GL state to
+    /// <see cref="DiagnosticLog"/> once per assignment of that delegate. The
+    /// state captured — GL_FRAMEBUFFER_SRGB, viewport, bound draw-FBO, and
+    /// the FBO's color-attachment color-encoding + component-type — surfaces
+    /// driver / framebuffer-level info that CPU-side property dumps don't see.
+    /// Intended as a general diagnostic for portrait-rendering differences
+    /// between the offscreen mugshot pathway (private Rgba8 resolve FBO +
+    /// ReadPixels) and the live-preview pathway (blits to GLWpfControl's
+    /// WPF-managed backbuffer, whose format is opaque from this side).
+    /// Whether any specific bug is explained by this state depends on the
+    /// bug; for the Khajiit mugshot transparency issue traced in late 2026
+    /// this query confirmed both pathways had matching MSAA Rgba8 FBOs and
+    /// the actual cause was downstream (PNG alpha-channel write-through),
+    /// not GL state.</summary>
+    private void EmitGlStateDiagnostic(int viewportWidth, int viewportHeight)
+    {
+        var sink = DiagnosticLog;
+        if (sink == null) return;
+        if (_glStateLogged) return;
+        _glStateLogged = true;
+        try
+        {
+            bool framebufferSrgb = GL.IsEnabled(EnableCap.FramebufferSrgb);
+            int[] vp = new int[4];
+            GL.GetInteger(GetPName.Viewport, vp);
+            GL.GetInteger(GetPName.DrawFramebufferBinding, out int drawFbo);
+            int colorEncoding = 0;
+            int componentType = 0;
+            int redSize = 0;
+            int alphaSize = 0;
+            try
+            {
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentColorEncoding,
+                    out colorEncoding);
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentComponentType,
+                    out componentType);
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentRedSize,
+                    out redSize);
+                GL.GetFramebufferAttachmentParameter(
+                    FramebufferTarget.DrawFramebuffer,
+                    FramebufferAttachment.ColorAttachment0,
+                    FramebufferParameterName.FramebufferAttachmentAlphaSize,
+                    out alphaSize);
+            }
+            catch { /* default framebuffer attachment may not support all queries */ }
+
+            // Color-encoding constants: 0x8C40 = GL_SRGB, 0x8DA8 = GL_LINEAR
+            // (the GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING enum reuses
+            // values from the broader GL constants list). Component-type
+            // constants below are the standard GL_BYTE / GL_UNSIGNED_BYTE
+            // / etc. enum range starting at 0x1400.
+            string encName = colorEncoding switch
+            {
+                0x8C40 => "SRGB",
+                0x8DA8 => "LINEAR",
+                _ => "0x" + colorEncoding.ToString("X")
+            };
+            string typeName = componentType switch
+            {
+                0x1400 => "BYTE",
+                0x1401 => "UNSIGNED_BYTE",
+                0x1402 => "SHORT",
+                0x1403 => "UNSIGNED_SHORT",
+                0x1404 => "INT",
+                0x1405 => "UNSIGNED_INT",
+                0x1406 => "FLOAT",
+                0x8DF4 => "FLOAT_VEC4",
+                0x140B => "HALF_FLOAT",
+                0x8C17 => "UNSIGNED_NORMALIZED",
+                0x8F9C => "SIGNED_NORMALIZED",
+                _ => "0x" + componentType.ToString("X")
+            };
+            sink($"SkyRender: GL-STATE — FramebufferSRGB={framebufferSrgb}, " +
+                $"viewport=({vp[0]},{vp[1]},{vp[2]}x{vp[3]}), passedW={viewportWidth}, passedH={viewportHeight}, " +
+                $"drawFBO={drawFbo}, color0(encoding={encName}, componentType={typeName}, redBits={redSize}, alphaBits={alphaSize})");
+        }
+        catch { /* swallow; diagnostic is best-effort */ }
+    }
+
+    /// <summary>
+    /// Updates lighting from the VM's slider values.
+    /// </summary>
+    public void SetAmbientIntensity(float intensity01)
+    {
+        Lights[0].Intensity = intensity01;
+    }
+
+    public void SetKeyLightIntensity(float intensity01)
+    {
+        Lights[1].Intensity = intensity01;
+    }
+
+    public void SetKeyLightDirection(float azimuthDeg, float elevationDeg)
+    {
+        Lights[1].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+    }
+
+    /// <summary>Configures the key light (slot 1) in one call.</summary>
+    public void SetKeyLight(float azimuthDeg, float elevationDeg, float intensity01, Vector3 color)
+    {
+        Lights[1].Type = 2;
+        Lights[1].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+        Lights[1].Intensity = intensity01;
+        Lights[1].Color = color;
+    }
+
+    /// <summary>Configures the fill light (slot 2) in one call.</summary>
+    public void SetFillLight(float azimuthDeg, float elevationDeg, float intensity01, Vector3 color)
+    {
+        Lights[2].Type = 2;
+        Lights[2].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+        Lights[2].Intensity = intensity01;
+        Lights[2].Color = color;
+    }
+
+    /// <summary>Configures the rim light (slot 3) in one call.</summary>
+    public void SetRimLight(float azimuthDeg, float elevationDeg, float intensity01, Vector3 color)
+    {
+        Lights[3].Type = 2;
+        Lights[3].Direction = DirectionFromAzEl(azimuthDeg, elevationDeg);
+        Lights[3].Intensity = intensity01;
+        Lights[3].Color = color;
+    }
+
+    /// <summary>Converts azimuth/elevation (degrees) to the surface-to-light vector
+    /// convention used by the shader (NdotL = dot(normal, direction)). The character
+    /// faces world -Z (NIF +Y_nif mapped through R_X(-90) to -Z_yup), and the orbit
+    /// camera at az=180 places the eye at -Z (front of character). For the light
+    /// to share this convention - az=180 puts the light on the camera side (front)
+    /// - this formula must match OrbitCamera.GetViewMatrix's offset formula exactly
+    /// (no negated Z). A prior version negated the Z term on the mistaken assumption
+    /// that the character faced +Z, which put all az=180 lights behind the character.</summary>
+    private static Vector3 DirectionFromAzEl(float azimuthDeg, float elevationDeg)
+    {
+        float az = MathHelper.DegreesToRadians(azimuthDeg);
+        float el = MathHelper.DegreesToRadians(elevationDeg);
+        return new Vector3(
+            MathF.Cos(el) * MathF.Sin(az),
+            MathF.Sin(el),
+            MathF.Cos(el) * MathF.Cos(az));
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            ClearMeshes();
+            _shader?.Dispose();
+            _debugShader?.Dispose();
+            _heatmapShader?.Dispose();
+            _wireframeShader?.Dispose();
+
+            // The shadow + SSAO shader programs, the default cubemap, the SSAO
+            // fullscreen VAO, and the lazily-created shadow / SSAO FBOs were all
+            // created in Initialize()/EnsureShadowFbo()/EnsureSsaoFbos() but were
+            // previously NOT deleted here. A fresh GlRenderer is built and disposed
+            // for every offscreen mugshot, so each render leaked these GL objects.
+            // Driver-side program/texture/FBO memory is unmanaged (invisible to the
+            // GC), which is the source of the monotonic native memory climb during
+            // batch mugshot generation. Keep this symmetric with the resource set
+            // enumerated in ForgetResourcesFromDeadContext().
+            _shadowShader?.Dispose();
+            _depthOnlyShader?.Dispose();
+            _ssaoShader?.Dispose();
+            _ssaoBlurShader?.Dispose();
+            _bloomShader?.Dispose();
+
+            if (_debugVbo != 0) GL.DeleteBuffer(_debugVbo);
+            if (_debugVao != 0) GL.DeleteVertexArray(_debugVao);
+            if (_heatmapVbo != 0) GL.DeleteBuffer(_heatmapVbo);
+            if (_heatmapVao != 0) GL.DeleteVertexArray(_heatmapVao);
+            if (_ssaoFullscreenVao != -1) GL.DeleteVertexArray(_ssaoFullscreenVao);
+            if (_defaultBlackCubemap != -1) GL.DeleteTexture(_defaultBlackCubemap);
+
+            // Shadow FBO + depth texture (created lazily by EnsureShadowFbo).
+            if (_shadowDepthTex != -1) GL.DeleteTexture(_shadowDepthTex);
+            if (_shadowFbo != -1) GL.DeleteFramebuffer(_shadowFbo);
+
+            // Viewport-sized SSAO / depth-prepass FBOs + the once-created noise tex.
+            DestroySsaoFbos();
+            if (_ssaoNoiseTex != -1) GL.DeleteTexture(_ssaoNoiseTex);
+
+            // Viewport-sized bloom FBOs (created lazily by EnsureBloomFbos).
+            DestroyBloomFbos();
+
+            _disposed = true;
+        }
+    }
+
+    /// <summary>
+    /// Drops all GL-resource references without issuing any GL calls. Used when the
+    /// owning the host's viewer control is unloaded/recreated: GLWpfControl 4.x creates a new
+    /// GL context per control instance, so the shader-program ID, VAO, VBOs, and mesh
+    /// buffers stored here belong to the old (now-destroyed) context. Calling
+    /// <see cref="GL.DeleteBuffer(int)"/> etc. on those IDs in the new context either
+    /// no-ops or emits GL_INVALID_OPERATION; the resources themselves die with their
+    /// context. Next <see cref="Initialize"/> rebuilds everything on the fresh context.
+    /// </summary>
+    public void ForgetResourcesFromDeadContext()
+    {
+        _meshes.Clear();
+        _shader = null;
+        _debugShader = null;
+        _heatmapShader = null;
+        _wireframeShader = null;
+        _shadowShader = null;
+        _shadowFbo = -1;
+        _shadowDepthTex = -1;
+        _depthOnlyShader = null;
+        _ssaoShader = null;
+        _ssaoBlurShader = null;
+        _depthPrepassFbo = -1;
+        _depthPrepassDepthTex = -1;
+        _depthPrepassNormalTex = -1;
+        _ssaoFbo = -1;
+        _ssaoTex = -1;
+        _ssaoBlurFbo = -1;
+        _ssaoBlurTex = -1;
+        _ssaoNoiseTex = -1;
+        _ssaoFullscreenVao = -1;
+        _ssaoFboSize = (0, 0);
+        _bloomShader = null;
+        _bloomSceneFbo = -1;
+        _bloomSceneTex = -1;
+        _bloomFboA = -1;
+        _bloomTexA = -1;
+        _bloomFboB = -1;
+        _bloomTexB = -1;
+        _bloomFboSize = (0, 0);
+        _debugVao = 0;
+        _debugVbo = 0;
+        _heatmapVao = 0;
+        _heatmapVbo = 0;
+        // Created once in Initialize() and deleted in Dispose(). It was missing here, so after a
+        // context death the field kept a stale texture name: a later Dispose would then issue
+        // GL.DeleteTexture on it in the NEW context, destroying whatever texture had been handed
+        // that name in the meantime. Every handle Dispose deletes must be forgotten here.
+        _defaultBlackCubemap = -1;
+        _initialized = false;
+        _hasCachedLightDirs = false;
+    }
+}

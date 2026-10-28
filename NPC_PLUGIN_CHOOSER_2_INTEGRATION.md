@@ -1,5 +1,14 @@
 # Integrating CharacterViewer.Rendering into NPC Plugin Chooser 2
 
+> **3.0.0 note.** The library has since been split into `SkyRender` (core) and `SkyRender.Character`
+> under `SkyRender/src/` (namespaces `SkyRender`, `SkyRender.Offscreen`, `SkyRender.Character`,
+> `SkyRender.Character.Offscreen`, `SkyRender.Character.Views`). NPC2 references
+> `SkyRender/src/SkyRender.Character/SkyRender.Character.csproj`; the NPC offscreen renderer is
+> `NpcOffscreenRendererFactory.Create(...)` and requests are `NpcRenderRequest`. Renamed types:
+> `RenderLogGate`, `IRenderLogger`, `LightingLayout` / `LightingColorScheme` / `LightingPresets`,
+> `SkyRenderInfo`, `NpcGender` (`ResolvedNpcMeshPaths.Gender`). The rest of this document describes
+> the original integration and uses the pre-3.0 names.
+
 This document is the handoff for wiring SynthEBD's `CharacterViewer.Rendering` module into NPC Plugin Chooser 2 (NPC2). The goal is to replace NPC2's C++ `NPC Portrait Creator` subprocess with an in-process .NET renderer that produces equivalent (or better) mugshots, plus a live preview window the user can manually fine-tune.
 
 The intended user-facing change in NPC2's Settings → Mugshots panel:
@@ -43,11 +52,11 @@ Key types you'll touch:
 
 `CharacterViewer.Rendering` consumes these interfaces; SynthEBD has its own implementations in `SynthEBD/CharacterViewerHost/Adapters/` that you can use as references. NPC2 implements one per service.
 
-### `ICharacterViewerLogger`
+### `IRenderLogger`
 Routes diagnostic messages into NPC2's existing log sink.
 
 ```csharp
-internal sealed class NpcChooserViewerLoggerAdapter : ICharacterViewerLogger
+internal sealed class NpcChooserViewerLoggerAdapter : IRenderLogger
 {
     private readonly /* your logger */ _inner;
     public NpcChooserViewerLoggerAdapter(/* your logger */ inner) => _inner = inner;
@@ -76,7 +85,7 @@ internal sealed class NpcChooserSettingsAdapter : ICharacterViewerSettings, INot
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CharacterViewerLightingLayout)));
         }
     }
-    // ... same pattern for CharacterViewerLightingColorScheme, CharacterViewerVerboseLog
+    // ... same pattern for LightingColorScheme, CharacterViewerVerboseLog
     // ... UserLightingLayouts / UserLightingColorSchemes are IList<T>; back them with
     //     ObservableCollection<T> so the viewer's WhenAnyValue subscriptions fire.
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -175,7 +184,7 @@ Register the adapters and the leaf services from `CharacterViewer.Rendering`. NP
 
 ```csharp
 // Host adapters
-builder.RegisterType<NpcChooserViewerLoggerAdapter>().As<ICharacterViewerLogger>().SingleInstance();
+builder.RegisterType<NpcChooserViewerLoggerAdapter>().As<IRenderLogger>().SingleInstance();
 builder.RegisterType<NpcChooserSettingsAdapter>().As<ICharacterViewerSettings>().SingleInstance();
 builder.RegisterType<NpcChooserDataFolderAdapter>().As<IDataFolderProvider>().SingleInstance();
 builder.RegisterType<NpcChooserBsaProviderAdapter>().As<IBsaArchiveProvider>().SingleInstance();
@@ -183,7 +192,7 @@ builder.RegisterType<NpcChooserNpcMeshDataSourceAdapter>().As<INpcMeshDataSource
 builder.RegisterType<WpfDispatcherMarshaller>().As<IRenderThreadMarshaller>().SingleInstance();
 
 // CharacterViewer.Rendering leaves
-builder.RegisterType<CharacterViewerLogGate>().AsSelf().SingleInstance();
+builder.RegisterType<RenderLogGate>().AsSelf().SingleInstance();
 builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
 builder.RegisterType<CharacterPreviewCache>().AsSelf().SingleInstance();
 builder.RegisterType<VM_CharacterViewer>().AsSelf();  // transient — one per preview window
@@ -195,8 +204,8 @@ builder.Register(c => OffscreenRendererFactory.Create(
         c.Resolve<CharacterPreviewCache>(),
         c.Resolve<GameAssetResolver>(),
         c.Resolve<ICharacterViewerSettings>(),
-        c.Resolve<CharacterViewerLogGate>(),
-        c.Resolve<ICharacterViewerLogger>()))
+        c.Resolve<RenderLogGate>(),
+        c.Resolve<IRenderLogger>()))
     .As<IOffscreenRenderer>()
     .SingleInstance();
 ```
@@ -245,7 +254,7 @@ public sealed class InternalMugshotSettings
 
     // Lighting: the named preset the user selected in the preview's
     // lighting dropdown. The actual layout/scheme objects come from
-    // CharacterViewerLightingPresets + ICharacterViewerSettings.UserLighting*.
+    // LightingPresets + ICharacterViewerSettings.UserLighting*.
     public string LightingLayoutName { get; set; } = "";    // empty = default
     public string LightingColorSchemeName { get; set; } = "";
 
@@ -388,8 +397,8 @@ private NpcRenderRequest BuildRequest(ResolvedNpcMeshPaths paths, InternalMugsho
 
         // Lighting: look up by name from the viewer's preset list, or
         // fall back to defaults if the saved name no longer exists.
-        Lighting = ResolveLayout(cfg.LightingLayoutName) ?? CharacterViewerLightingPresets.DefaultLayout,
-        Colors = ResolveColors(cfg.LightingColorSchemeName) ?? CharacterViewerLightingPresets.DefaultColorScheme,
+        Lighting = ResolveLayout(cfg.LightingLayoutName) ?? LightingPresets.DefaultLayout,
+        Colors = ResolveColors(cfg.LightingColorSchemeName) ?? LightingPresets.DefaultColorScheme,
 
         Camera = cfg.CameraMode == InternalMugshotCameraMode.Manual
             ? BuildOrbitStateFromManual(cfg)

@@ -2,7 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
-using CharacterViewer.Rendering;
+using SkyRender;
+using SkyRender.Character;
 using CharacterViewer.TextureProbe;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -13,7 +14,7 @@ try
 {
     if (args.Length < 2) throw new ArgumentException("verify OUTPUT | bench OUTPUT TEXTURE_LIST_JSON decoded|INTEGER|unlimited | inventory OUTPUT TEXTURE_LIST_JSON");
     string output = Path.GetFullPath(args[1]); Directory.CreateDirectory(output);
-    var log = new ProbeLog(); var gate = new CharacterViewerLogGate();
+    var log = new ProbeLog(); var gate = new RenderLogGate();
     var resolver = new GameAssetResolver(new DataRoot(output), new NoArchives(), gate, log);
     var identity = new
     {
@@ -45,7 +46,7 @@ try
     int passed = 0;
     void Check(bool condition, string description) { if (!condition) throw new Exception(description); passed++; Console.WriteLine("PASS " + description); }
     string Save(string name, byte[] bytes) { string path = Path.Combine(output, name + ".dds"); File.WriteAllBytes(path, bytes); return path; }
-    CharacterPreviewCache Cache(int? maximum) => new(new NoNpcs(), resolver, log, gate) { DdsMaximumFinalMipDimension = maximum };
+    AssetCache Cache(int? maximum) => new(resolver, log, gate) { DdsMaximumFinalMipDimension = maximum };
     using var resident = new ResidentTextureCache(log, 256L * 1024 * 1024);
     resident.BeginRenderPass();
     var compressedCache = Cache(1);
@@ -290,7 +291,7 @@ sealed class NoArchives : IBsaArchiveProvider
     public bool TryLocateInScopedBsa(string p, string f, IReadOnlyList<string> m, out string? b) { b = null; return false; }
     public bool TryExtractToDisk(string b, string p, string d, out string? e) { e = "No archive fixture"; return false; }
 }
-sealed class ProbeLog : ICharacterViewerLogger
+sealed class ProbeLog : IRenderLogger
 {
     public void LogMessage(string m) { }
     public void LogError(string m) => Console.Error.WriteLine(m);

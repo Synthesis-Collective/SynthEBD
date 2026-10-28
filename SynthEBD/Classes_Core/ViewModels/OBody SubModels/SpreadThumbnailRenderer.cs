@@ -2,7 +2,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using CharacterViewer.Rendering.Offscreen;
+using SkyRender.Offscreen;
+using SkyRender.Character.Offscreen;
 
 namespace SynthEBD;
 
@@ -267,7 +268,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
     /// and lights together by the same angle is the same picture as turning the model on a turntable
     /// under fixed studio lights, so the side and back views are lit the way the front view is rather
     /// than showing the model's unlit far side. Image-based reflections still come from the world.</summary>
-    private CharacterViewer.Rendering.CharacterViewerLightingLayout? LightingForAzimuth(float cameraAzimuth)
+    private SkyRender.LightingLayout? LightingForAzimuth(float cameraAzimuth)
     {
         var layout = _scene.Lighting;
         if (layout == null) return null;

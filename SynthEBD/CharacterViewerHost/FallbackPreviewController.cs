@@ -7,8 +7,10 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using CharacterViewer.Rendering;
-using CharacterViewer.Rendering.Offscreen;
+using SkyRender;
+using SkyRender.Character;
+using SkyRender.Offscreen;
+using SkyRender.Character.Offscreen;
 
 namespace SynthEBD;
 
@@ -42,7 +44,7 @@ public sealed class FallbackPreviewController
 {
     private readonly VM_CharacterViewer _vm;
     private readonly Func<IOffscreenRenderer> _sharedRenderer;
-    private readonly ICharacterViewerLogger _logger;
+    private readonly IRenderLogger _logger;
     private readonly int _instanceId;
     private readonly Dispatcher? _dispatcher;
 
@@ -75,7 +77,7 @@ public sealed class FallbackPreviewController
     private bool _loggedFirstFrame;
 
     internal FallbackPreviewController(VM_CharacterViewer vm,
-        Func<IOffscreenRenderer> sharedRenderer, ICharacterViewerLogger logger, int instanceId)
+        Func<IOffscreenRenderer> sharedRenderer, IRenderLogger logger, int instanceId)
     {
         _vm = vm;
         _sharedRenderer = sharedRenderer;
@@ -396,7 +398,7 @@ public static class FallbackPreviewControllerRegistry
     private static readonly ConditionalWeakTable<VM_CharacterViewer, FallbackPreviewController> _controllers = new();
 
     private static Func<IOffscreenRenderer>? _rendererFactory;
-    private static Func<ICharacterViewerLogger>? _loggerFactory;
+    private static Func<IRenderLogger>? _loggerFactory;
 
     private static readonly object _rendererGate = new();
     private static IOffscreenRenderer? _sharedRenderer;
@@ -406,7 +408,7 @@ public static class FallbackPreviewControllerRegistry
     /// builds the shared offscreen renderer from the same dependency set
     /// <see cref="Offscreen.OffscreenRendererFactory.Create"/> takes (all already registered in
     /// MainModule); it is invoked at most once, on the process main thread.</summary>
-    public static void Configure(Func<IOffscreenRenderer> rendererFactory, Func<ICharacterViewerLogger> loggerFactory)
+    public static void Configure(Func<IOffscreenRenderer> rendererFactory, Func<IRenderLogger> loggerFactory)
     {
         _rendererFactory = rendererFactory;
         _loggerFactory = loggerFactory;

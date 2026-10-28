@@ -771,7 +771,7 @@ public partial class UC_CharacterViewer : UserControl
         }
 
         // Initialize GL on first render — context is guaranteed current here.
-        // The shader directory ships next to CharacterViewer.Rendering.dll;
+        // The shader directory ships next to SkyRender.dll;
         // ModuleResourceLocator resolves it from the assembly's on-disk path
         // so the same code works whether SynthEBD or NPC2 is the host.
         if (!_vm.IsGlInitialized)

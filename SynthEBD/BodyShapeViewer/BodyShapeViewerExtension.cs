@@ -37,13 +37,13 @@ public sealed class BodyShapeViewerExtension : VM
     private static readonly ConditionalWeakTable<VM_CharacterViewer, BodyShapeViewerExtension> _byViewer = new();
     private static Func<BodySlideDeformer>? _deformerFactory;
     private static Func<BodyTriFileParser>? _triParserFactory;
-    private static Func<ICharacterViewerLogger>? _loggerFactory;
-    private static Func<CharacterViewerLogGate>? _logGateFactory;
+    private static Func<IRenderLogger>? _loggerFactory;
+    private static Func<RenderLogGate>? _logGateFactory;
 
     /// <summary>Wires the shared services <see cref="For"/> uses when it has to attach lazily. Called once
     /// at startup (MainModule's build callback); lazy delegates, resolved on first use.</summary>
     public static void Configure(Func<BodySlideDeformer> deformer, Func<BodyTriFileParser> triParser,
-        Func<ICharacterViewerLogger> logger, Func<CharacterViewerLogGate> logGate)
+        Func<IRenderLogger> logger, Func<RenderLogGate> logGate)
     {
         _deformerFactory = deformer;
         _triParserFactory = triParser;
@@ -71,7 +71,7 @@ public sealed class BodyShapeViewerExtension : VM
     /// <summary>Attaches an extension to <paramref name="viewer"/> with explicit services (hosts without
     /// <see cref="Configure"/>, e.g. test harnesses). Returns the existing one if already attached.</summary>
     public static BodyShapeViewerExtension Attach(VM_CharacterViewer viewer, BodySlideDeformer deformer,
-        BodyTriFileParser triParser, ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
+        BodyTriFileParser triParser, IRenderLogger logger, RenderLogGate logGate)
     {
         if (viewer == null) throw new ArgumentNullException(nameof(viewer));
         lock (_byViewer)
@@ -86,11 +86,11 @@ public sealed class BodyShapeViewerExtension : VM
     private readonly VM_CharacterViewer _viewer;
     private readonly BodySlideDeformer _bodySlideDeformer;
     private readonly BodyTriFileParser _bodyTriFileParser;
-    private readonly ICharacterViewerLogger _logger;
-    private readonly CharacterViewerLogGate _logGate;
+    private readonly IRenderLogger _logger;
+    private readonly RenderLogGate _logGate;
 
     private BodyShapeViewerExtension(VM_CharacterViewer viewer, BodySlideDeformer deformer,
-        BodyTriFileParser triParser, ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
+        BodyTriFileParser triParser, IRenderLogger logger, RenderLogGate logGate)
     {
         _viewer = viewer;
         _bodySlideDeformer = deformer;

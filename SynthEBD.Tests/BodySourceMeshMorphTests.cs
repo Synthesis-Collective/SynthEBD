@@ -1,7 +1,8 @@
 using System.IO;
 using System.Numerics;
 using System.Xml.Linq;
-using CharacterViewer.Rendering;
+using SkyRender;
+using SkyRender.Character;
 using FluentAssertions;
 using Xunit;
 using SynthEBD.BodyShapeViewer;
@@ -24,14 +25,14 @@ public class BodySourceMeshMorphTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { /* best effort */ }
     }
 
-    private sealed class NullLogger : ICharacterViewerLogger
+    private sealed class NullLogger : IRenderLogger
     {
         public void LogMessage(string message) { }
         public void LogError(string message) { }
         public void LogError(string message, Exception ex) { }
     }
 
-    private static BsdFileParser Parser() => new(new NullLogger(), new CharacterViewerLogGate());
+    private static BsdFileParser Parser() => new(new NullLogger(), new RenderLogGate());
 
     /// <summary>A UUNP-style .bsd: uint32 count, then (uint32 index, float x, y, z) records.</summary>
     private string WriteBsd(string name, params (uint Index, float X)[] deltas)

@@ -1,6 +1,7 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
-using CharacterViewer.Rendering;
+using SkyRender;
+using SkyRender.Character;
 
 namespace SynthEBD;
 
@@ -326,9 +327,9 @@ public class Settings_General
     /// <summary>Name of the selected CharacterViewer lighting color scheme.</summary>
     public string CharacterViewerLightingColorScheme { get; set; } = "";
     /// <summary>User-defined CharacterViewer lighting layouts (in addition to the built-in ones).</summary>
-    public List<CharacterViewerLightingLayout> UserLightingLayouts { get; set; } = new();
+    public List<LightingLayout> UserLightingLayouts { get; set; } = new();
     /// <summary>User-defined CharacterViewer lighting color schemes (in addition to the built-in ones).</summary>
-    public List<CharacterViewerLightingColorScheme> UserLightingColorSchemes { get; set; } = new();
+    public List<LightingColorScheme> UserLightingColorSchemes { get; set; } = new();
     public bool CharacterViewerVerboseLog { get; set; } = false;
 
     // CharacterViewer render-pipeline settings. Defaults mirror NPC Plugin Chooser 2's

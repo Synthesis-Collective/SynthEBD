@@ -12,13 +12,13 @@ namespace SynthEBD;
 /// </summary>
 public class NpcMeshResolver
 {
-    private readonly ICharacterViewerLogger _logger;
-    private readonly CharacterViewerLogGate _logGate;
+    private readonly IRenderLogger _logger;
+    private readonly RenderLogGate _logGate;
 
     /// <summary>Creates the resolver.</summary>
     /// <param name="logger">Character-viewer logger for diagnostics.</param>
     /// <param name="logGate">Gate controlling whether verbose messages are emitted.</param>
-    public NpcMeshResolver(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
+    public NpcMeshResolver(IRenderLogger logger, RenderLogGate logGate)
     {
         _logger = logger;
         _logGate = logGate;

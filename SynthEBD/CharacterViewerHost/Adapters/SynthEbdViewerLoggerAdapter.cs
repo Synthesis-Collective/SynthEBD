@@ -3,12 +3,12 @@ using System;
 namespace SynthEBD;
 
 /// <summary>
-/// Routes the CharacterViewer subsystem's <see cref="ICharacterViewerLogger"/>
+/// Routes the CharacterViewer subsystem's <see cref="IRenderLogger"/>
 /// calls to SynthEBD's host <see cref="Logger"/>. Errors that include an
 /// <see cref="Exception"/> are flattened through <see cref="ExceptionLogger"/>
 /// to match the formatting of the rest of SynthEBD's error output.
 /// </summary>
-public sealed class SynthEbdViewerLoggerAdapter : ICharacterViewerLogger
+public sealed class SynthEbdViewerLoggerAdapter : IRenderLogger
 {
     private readonly Logger _inner;
 

@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Windows TFM because the probe uses the character tier (SkyRender.Character is a WPF
+         assembly, net8.0-windows10.0.19041.0). -->
     <OutputType>Exe</OutputType><TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../CharacterViewer.Rendering/CharacterViewer.Rendering.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../SkyRender/src/SkyRender.Character/SkyRender.Character.csproj" /></ItemGroup>
 </Project>

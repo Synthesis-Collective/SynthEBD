@@ -56,7 +56,7 @@ public sealed class SynthEbdNpcMeshDataSourceAdapter : INpcMeshDataSource
             HairMeshPath = src.HairMeshPath,
             TailMeshPath = src.TailMeshPath,
             // Rendering-tier Sex enum matches SynthEBD's Gender ordinal layout.
-            Sex = (Sex)(int)src.Gender,
+            Gender = (NpcGender)(int)src.Gender,
             SkeletonPath = src.SkeletonPath,
             ResolutionChains = src.ResolutionChains,
             TxstTextures = src.TxstTextures,
@@ -100,7 +100,7 @@ public sealed class SynthEbdNpcMeshDataSourceAdapter : INpcMeshDataSource
             HeadMeshPath = basis.HeadMeshPath,
             HairMeshPath = basis.HairMeshPath,
             TailMeshPath = basis.TailMeshPath,
-            Sex = basis.Sex,
+            Gender = basis.Gender,
             SkeletonPath = basis.SkeletonPath,
             ResolutionChains = basis.ResolutionChains,
             TxstTextures = basis.TxstTextures,

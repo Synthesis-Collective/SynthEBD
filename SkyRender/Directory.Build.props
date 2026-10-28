@@ -1,0 +1,35 @@
+<Project>
+  <!-- Shared version and package metadata for SkyRender and SkyRender.Character.
+       Version: Major = breaking, Minor = additive, Patch = bugfix. SkyRenderInfo.Version reads the
+       assembly version at runtime, so it always matches what is set here. -->
+  <PropertyGroup>
+    <Version>3.0.0</Version>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
+    <FileVersion>3.0.0.0</FileVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <!-- NuGet packaging metadata. Produced with `dotnet pack -c Release`; not packed on every build. -->
+  <PropertyGroup>
+    <Authors>Synthesis Collective</Authors>
+    <Company>Synthesis Collective</Company>
+    <Copyright>Copyright (C) Synthesis Collective</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>skyrim;nif;opengl;renderer;offscreen</PackageTags>
+    <!-- set at extraction -->
+    <PackageProjectUrl>https://github.com/OWNER/SkyRender</PackageProjectUrl>
+    <!-- set at extraction -->
+    <RepositoryUrl>https://github.com/OWNER/SkyRender</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+</Project>

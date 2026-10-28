@@ -1,0 +1,253 @@
+using System.Collections.Generic;
+
+namespace SkyRender.Character;
+
+/// <summary>
+/// Gender of the NPC whose mesh paths were resolved: which of a record's male / female
+/// alternatives (world models, skeleton, skin) the paths were taken from. <c>Male = 0</c>,
+/// <c>Female = 1</c>, so a host whose own enum uses the same ordinals can cast directly.
+/// </summary>
+public enum NpcGender
+{
+    Male,
+    Female
+}
+
+/// <summary>
+/// Resolved mesh + texture paths for one NPC, packaged in a Mutagen-free POCO so
+/// the CharacterViewer rendering tier can consume it without taking a dependency
+/// on the Skyrim record schema. A host's <see cref="NpcMeshResolver.NpcMeshPaths"/>
+/// is converted to this form by the host's adapter.
+///
+/// Once Phase B/C of the extraction completes this becomes the canonical type
+/// returned by all resolution paths — the inner <c>NpcMeshResolver.NpcMeshPaths</c>
+/// goes away and Skyrim-tier code produces <see cref="ResolvedNpcMeshPaths"/>
+/// directly.
+/// </summary>
+public sealed class ResolvedNpcMeshPaths
+{
+    public string? BodyMeshPath { get; init; }
+    public string? HandsMeshPath { get; init; }
+    public string? FeetMeshPath { get; init; }
+    public string? HeadMeshPath { get; init; }
+
+    /// <summary>Mesh path for the worn armor's hair-slot ARMA (biped slot 31).
+    /// Skyrim mods like High Poly NPC Overhaul use a "bald" FaceGen scalp
+    /// paired with a wig in this slot — without rendering it the NPC appears
+    /// hairless. Vanilla NPCs and most overhauls leave this null and bake
+    /// hair shapes into the FaceGen NIF directly.</summary>
+    public string? HairMeshPath { get; init; }
+
+    /// <summary>Mesh path for the worn armor's tail-slot ARMA (biped slot 40).
+    /// Required for Khajiit and Argonian races whose tails are armatures
+    /// rather than baked-in shapes.</summary>
+    public string? TailMeshPath { get; init; }
+
+    public NpcGender Gender { get; init; }
+
+    /// <summary>Race-specific skeleton NIF path (Data-relative); used for CPU-side
+    /// bone-weight skinning to close the head-body neck seam.</summary>
+    public string? SkeletonPath { get; init; }
+
+    /// <summary>Body-part name → human-readable record traversal trace, displayed
+    /// in viewer tooltips and used for resolution diagnostics.</summary>
+    public Dictionary<string, string> ResolutionChains { get; init; } = new();
+
+    /// <summary>Body-part name → texture-slot index → game-relative texture path.
+    /// Sourced from ARMA.SkinTexture (TXST) records and overrides the NIF's
+    /// embedded BSShaderTextureSet at runtime. Head textures are intentionally
+    /// excluded — FaceGen NIF paths are ground truth for heads.</summary>
+    public Dictionary<string, Dictionary<int, string>> TxstTextures { get; init; } = new();
+
+    /// <summary>FaceTint DDS path (Data-relative) constructed from the NPC's
+    /// FormKey; CPU-blended onto the head diffuse texture.</summary>
+    public string? FaceTintPath { get; init; }
+
+    /// <summary>QNAM TextureLighting color (RGB, 0..1) applied as a skin tint
+    /// to body/hands/feet meshes that use the ST_SkinTint shader type. Null when
+    /// the NPC has no TextureLighting set.</summary>
+    public (float R, float G, float B)? TextureLightingColor { get; init; }
+
+    /// <summary>NPC weight (0–100) from the NPC record, used by the morph
+    /// interpolator. Defaults to 50 if the host can't determine it.</summary>
+    public int NpcWeight { get; init; } = 50;
+
+    /// <summary>NPC.Height multiplier from the record (1.0 default). Applied
+    /// uniformly to the rendered model. The host should clamp zero/negative
+    /// values from malformed records before populating this.</summary>
+    public float NpcBaseHeight { get; init; } = 1f;
+
+    /// <summary>HCLR record-resolved hair color (RGB, 0..1). Fallback tint for
+    /// hair-tint shapes whose NIF carries no baked BSLSP hairTintColor — when a
+    /// baked tint is present the renderer uses it, matching the in-game engine
+    /// (verified empirically: editing the NIF's tint alone recolors the hair
+    /// in-game with no plugin edit). Null when the NPC has no HairColor
+    /// FormLink set or the host can't resolve the HCLR record.</summary>
+    public (float R, float G, float B)? HairColorRgb { get; init; }
+
+    /// <summary>
+    /// Tint to force onto WORN hair-slot (biped 31) shapes that use the HairTint
+    /// shader, overriding whatever the wig NIF bakes. This emulates RaceMenu's
+    /// skee64 <c>bEnableTintHairSlot</c> — "automatically tinting worn items in
+    /// the hair slot where they have the Hair Tint Shader" — which the vanilla
+    /// engine does NOT do. Wig meshes are routinely authored with a near-black
+    /// placeholder tint on that assumption (High Poly NPC Overhaul's KS Hairdos
+    /// wigs bake (0.133, 0.133, 0.133)), so without this a RaceMenu-equipped
+    /// load order renders black-haired here and correct in game.
+    ///
+    /// <para>Applies ONLY to worn hair-slot items. FaceGen/head-part hair keeps
+    /// the baked-tint-wins rule (see <see cref="HairColorRgb"/>) — that geometry
+    /// is not a worn item and skee64 never touches it.</para>
+    ///
+    /// <para>Null disables the emulation (the host's opt-out, and the correct
+    /// value for a load order without RaceMenu). Non-null enables it, but is
+    /// itself only a FALLBACK: the renderer prefers the hair color baked into
+    /// this NPC's own FaceGen (its hair/brows/beard), so a converted or previewed
+    /// wig matches the rest of the head even when the two disagree — a color
+    /// record overridden later in the load order than the appearance mod's
+    /// FaceGen export. Supply the record-derived value in FaceGen tint space
+    /// (the CK bakes 2x the HCLR color).</para>
+    /// </summary>
+    public (float R, float G, float B)? WornHairSlotTintRgb { get; init; }
+
+    /// <summary>Shape names in the FaceGen NIF that are eyeball geometry,
+    /// per the NPC's resolved HeadPart records: the EditorIDs of every
+    /// effective head part of type Eyes plus its Extra Parts (FaceGen bakes
+    /// one shape per geometry-bearing head part, named after its EditorID).
+    /// Authoritative input to <c>GlMesh.IsEye</c> classification for shapes
+    /// whose shader type is not BSLSP_EYE — custom eyes authored as
+    /// BSLSP_ENVMAP with arbitrary shape names ("FoxGloveEyeMesh") otherwise
+    /// evade the plural-"Eyes" name heuristic and receive eye-socket SSAO.
+    /// Supply a case-insensitive set (membership is tested with the set's
+    /// own comparer). Empty when the host has no head-part data; the name
+    /// heuristic then remains the only fallback.</summary>
+    public IReadOnlySet<string> EyeShapeNames { get; init; } = EmptyEyeShapeNames;
+
+    /// <summary>Shape names in the FaceGen head NIF the renderer must NOT draw —
+    /// baked head-part geometry the host has designated for removal (e.g. an
+    /// antler head part the patch strips from both the NPC record and the FaceGen
+    /// NIF, so the preview should match the patched result). Matched against each
+    /// base-head shape's trimmed name; supply a case-insensitive set. Empty (the
+    /// default) hides nothing. Only base-scene head shapes are affected — attire
+    /// mesh overrides are never filtered by this set.</summary>
+    public IReadOnlySet<string> HideHeadShapeNames { get; init; } = EmptyEyeShapeNames;
+
+    private static readonly IReadOnlySet<string> EmptyEyeShapeNames = new HashSet<string>();
+
+    /// <summary>Returns a copy with the body-part mesh paths swapped (Body / Hands / Feet / Tail) -- used by
+    /// <see cref="VM_CharacterViewer.BodyReplacement"/> to render another body type's meshes on the same
+    /// NPC. Head and hair are kept.</summary>
+    public ResolvedNpcMeshPaths WithBodyPartMeshPaths(string? body, string? hands, string? feet, string? tail) =>
+        new()
+        {
+            BodyMeshPath = body,
+            HandsMeshPath = hands,
+            FeetMeshPath = feet,
+            HeadMeshPath = HeadMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = tail,
+            Gender = Gender,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
+            EyeShapeNames = EyeShapeNames,
+            HideHeadShapeNames = HideHeadShapeNames,
+        };
+
+    /// <summary>Returns a copy with every part <paramref name="replacement"/> covers swapped: the body
+    /// always (a <see cref="BodyReplacement.PartMeshes"/> match for its path first, else
+    /// <see cref="BodyReplacement.BodyNifPath"/>); hands, feet and tail when their path is in the part map.</summary>
+    public ResolvedNpcMeshPaths WithBodyReplacement(BodyReplacement replacement) =>
+        WithBodyPartMeshPaths(
+            replacement.FindPartMesh(BodyMeshPath) ?? replacement.BodyNifPath,
+            replacement.FindPartMesh(HandsMeshPath) ?? HandsMeshPath,
+            replacement.FindPartMesh(FeetMeshPath) ?? FeetMeshPath,
+            replacement.FindPartMesh(TailMeshPath) ?? TailMeshPath);
+
+    /// <summary>Returns a copy with <see cref="HeadMeshPath"/> swapped — used by
+    /// the HeadParts preview flow to retarget the viewer at a temp FaceGen NIF
+    /// without re-resolving the rest of the record chain.</summary>
+    public ResolvedNpcMeshPaths WithHeadMeshPath(string? headMeshPath) =>
+        new()
+        {
+            BodyMeshPath = BodyMeshPath,
+            HandsMeshPath = HandsMeshPath,
+            FeetMeshPath = FeetMeshPath,
+            HeadMeshPath = headMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = TailMeshPath,
+            Gender = Gender,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
+            EyeShapeNames = EyeShapeNames,
+            HideHeadShapeNames = HideHeadShapeNames,
+        };
+
+    /// <summary>Returns a copy with <see cref="EyeShapeNames"/> replaced — the
+    /// companion to <see cref="WithHeadMeshPath"/> for head-part preview flows
+    /// whose override NIF bakes shapes for head parts OTHER than the NPC
+    /// record's (a host previewing a candidate eyes assignment). Callers
+    /// typically pass the union of the record-derived set and the assigned
+    /// part's names so both authored and assigned eyes stay classified.</summary>
+    public ResolvedNpcMeshPaths WithEyeShapeNames(IReadOnlySet<string> eyeShapeNames) =>
+        new()
+        {
+            BodyMeshPath = BodyMeshPath,
+            HandsMeshPath = HandsMeshPath,
+            FeetMeshPath = FeetMeshPath,
+            HeadMeshPath = HeadMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = TailMeshPath,
+            Gender = Gender,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
+            EyeShapeNames = eyeShapeNames,
+            HideHeadShapeNames = HideHeadShapeNames,
+        };
+
+    /// <summary>Returns a copy with <see cref="HideHeadShapeNames"/> replaced.
+    /// Used by hosts that resolve the base record chain first and layer a
+    /// head-shape hide-set on afterwards (e.g. A host's antler-Remove preview).</summary>
+    public ResolvedNpcMeshPaths WithHideHeadShapeNames(IReadOnlySet<string> hideHeadShapeNames) =>
+        new()
+        {
+            BodyMeshPath = BodyMeshPath,
+            HandsMeshPath = HandsMeshPath,
+            FeetMeshPath = FeetMeshPath,
+            HeadMeshPath = HeadMeshPath,
+            HairMeshPath = HairMeshPath,
+            TailMeshPath = TailMeshPath,
+            Gender = Gender,
+            SkeletonPath = SkeletonPath,
+            ResolutionChains = ResolutionChains,
+            TxstTextures = TxstTextures,
+            FaceTintPath = FaceTintPath,
+            TextureLightingColor = TextureLightingColor,
+            NpcWeight = NpcWeight,
+            NpcBaseHeight = NpcBaseHeight,
+            HairColorRgb = HairColorRgb,
+            WornHairSlotTintRgb = WornHairSlotTintRgb,
+            EyeShapeNames = EyeShapeNames,
+            HideHeadShapeNames = hideHeadShapeNames,
+        };
+}

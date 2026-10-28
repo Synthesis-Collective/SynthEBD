@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <!-- Match the app's Windows platform floor (references SynthEBD + CharacterViewer.Rendering,
+        <!-- Match the app's Windows platform floor (references SynthEBD + SkyRender.Character,
              both on net*-windows10.0.19041 for the ReactiveUI.WPF 23.x assets). -->
         <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -23,7 +23,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\SynthEBD\SynthEBD.csproj" />
-      <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
+      <ProjectReference Include="..\SkyRender\src\SkyRender.Character\SkyRender.Character.csproj" />
     </ItemGroup>
 
     <!-- Demo settings/config fixtures consumed by the integration harness. Copied next to the

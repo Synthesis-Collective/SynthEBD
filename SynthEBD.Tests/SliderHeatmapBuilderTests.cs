@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Numerics;
-using CharacterViewer.Rendering;
+using SkyRender;
+using SkyRender.Character;
 using FluentAssertions;
 using Xunit;
 using SynthEBD.BodyShapeViewer;

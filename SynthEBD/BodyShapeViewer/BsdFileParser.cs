@@ -63,7 +63,7 @@ public class OsdFile
 /// </summary>
 public class BsdFileParser
 {
-    private readonly ICharacterViewerLogger _logger;
+    private readonly IRenderLogger _logger;
 
     /// <summary>
     /// OSD file magic. BodySlide writes this as the C/C++ multichar literal 'OSD\0',
@@ -75,9 +75,9 @@ public class BsdFileParser
     /// </summary>
     private const uint OsdMagic = 0x4F534400;
 
-    private readonly CharacterViewerLogGate _logGate;
+    private readonly RenderLogGate _logGate;
 
-    public BsdFileParser(ICharacterViewerLogger logger, CharacterViewerLogGate logGate)
+    public BsdFileParser(IRenderLogger logger, RenderLogGate logGate)
     {
         _logger = logger;
         _logGate = logGate;

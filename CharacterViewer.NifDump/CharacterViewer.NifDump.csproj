@@ -2,19 +2,17 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <!-- Windows TFM because CharacterViewer.Rendering is a WPF assembly
-             (net8.0-windows10.0.19041.0); match the repo's other tools. -->
-        <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+        <!-- Plain TFM: the core SkyRender library (net8.0) needs no WPF. -->
+        <TargetFramework>net10.0</TargetFramework>
         <!-- Same rationale as SynthEBD.CLI: relax CET so the tool can run under MO2's USVFS. -->
         <CETCompat>false</CETCompat>
-        <UseWPF>true</UseWPF>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <IsPackable>false</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
+      <ProjectReference Include="..\SkyRender\src\SkyRender\SkyRender.csproj" />
     </ItemGroup>
 
 </Project>

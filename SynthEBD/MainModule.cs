@@ -117,7 +117,7 @@ public class MainModule : Autofac.Module
         // modular CharacterViewer interfaces. The viewer subsystem only sees the
         // interfaces, so it can be reused by other host apps that supply their own
         // adapters. See CharacterViewerHost/ for the abstractions and adapters.
-        builder.RegisterType<SynthEbdViewerLoggerAdapter>().As<ICharacterViewerLogger>().SingleInstance();
+        builder.RegisterType<SynthEbdViewerLoggerAdapter>().As<IRenderLogger>().SingleInstance();
         builder.RegisterType<SynthEbdSettingsAdapter>().As<ICharacterViewerSettings>().SingleInstance();
         builder.RegisterType<SynthEbdDataFolderAdapter>().As<IDataFolderProvider>().SingleInstance();
         builder.RegisterType<SynthEbdBsaProviderAdapter>().As<IBsaArchiveProvider>().SingleInstance();
@@ -133,7 +133,7 @@ public class MainModule : Autofac.Module
         builder.RegisterType<BodyTypeSourceMeshes>().AsSelf().SingleInstance();
         builder.RegisterType<NpcMeshResolver>().AsSelf().SingleInstance();
         // NifTextureLoader removed — textures now loaded by GlTextureManager via OpenGL pipeline
-        builder.RegisterType<CharacterViewerLogGate>().AsSelf().SingleInstance();
+        builder.RegisterType<RenderLogGate>().AsSelf().SingleInstance();
         builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
         builder.RegisterType<BodyTriFileParser>().AsSelf().SingleInstance();
         builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
@@ -147,15 +147,15 @@ public class MainModule : Autofac.Module
             .OnActivated(e => BodyShapeViewerExtension.Attach(e.Instance,
                 e.Context.Resolve<BodySlideDeformer>(),
                 e.Context.Resolve<BodyTriFileParser>(),
-                e.Context.Resolve<ICharacterViewerLogger>(),
-                e.Context.Resolve<CharacterViewerLogGate>()));
+                e.Context.Resolve<IRenderLogger>(),
+                e.Context.Resolve<RenderLogGate>()));
         // Lazy attachment for viewers built outside the container (the offscreen renderer's
         // per-request viewers, reached from NpcRenderRequest.BeforeDraw).
         builder.RegisterBuildCallback(c => BodyShapeViewerExtension.Configure(
             () => c.Resolve<BodySlideDeformer>(),
             () => c.Resolve<BodyTriFileParser>(),
-            () => c.Resolve<ICharacterViewerLogger>(),
-            () => c.Resolve<CharacterViewerLogGate>()));
+            () => c.Resolve<IRenderLogger>(),
+            () => c.Resolve<RenderLogGate>()));
 
         // BodySlide Compare window VM. Transient (NOT SingleInstance): each Compare window
         // owns two live VM_CharacterViewer instances with their own GL contexts and disposes
@@ -184,13 +184,13 @@ public class MainModule : Autofac.Module
         // Same deferred-resolver pattern: the shared offscreen renderer is built lazily on
         // the first fallback render, from the very dependency set the live viewer uses.
         builder.RegisterBuildCallback(c => FallbackPreviewControllerRegistry.Configure(
-            () => CharacterViewer.Rendering.Offscreen.OffscreenRendererFactory.Create(
+            () => SkyRender.Character.Offscreen.NpcOffscreenRendererFactory.Create(
                 c.Resolve<CharacterPreviewCache>(),
                 c.Resolve<GameAssetResolver>(),
                 c.Resolve<ICharacterViewerSettings>(),
-                c.Resolve<CharacterViewerLogGate>(),
-                c.Resolve<ICharacterViewerLogger>()),
-            () => c.Resolve<ICharacterViewerLogger>()));
+                c.Resolve<RenderLogGate>(),
+                c.Resolve<IRenderLogger>()),
+            () => c.Resolve<IRenderLogger>()));
         builder.RegisterType<RaceMenuIniHandler>().AsSelf().SingleInstance();
         builder.RegisterType<DictionaryMapper>().AsSelf().SingleInstance();
         builder.RegisterType<AliasHandler>().AsSelf().SingleInstance();

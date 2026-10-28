@@ -15,7 +15,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\SynthEBD\SynthEBD.csproj" />
-      <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
+      <ProjectReference Include="..\SkyRender\src\SkyRender.Character\SkyRender.Character.csproj" />
     </ItemGroup>
 
 </Project>

@@ -43,8 +43,8 @@ public sealed class SynthEbdSettingsAdapter : ICharacterViewerSettings
     // through the inner ObservableCollection's CollectionChanged events as
     // before, and the JSON-serialized round-trip in CopyInFromModel/DumpToModel
     // sees the mutations on save.
-    public IList<CharacterViewerLightingLayout> UserLightingLayouts => _inner.UserLightingLayouts;
-    public IList<CharacterViewerLightingColorScheme> UserLightingColorSchemes => _inner.UserLightingColorSchemes;
+    public IList<LightingLayout> UserLightingLayouts => _inner.UserLightingLayouts;
+    public IList<LightingColorScheme> UserLightingColorSchemes => _inner.UserLightingColorSchemes;
 
     public bool CharacterViewerVerboseLog
     {

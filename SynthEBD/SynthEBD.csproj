@@ -271,9 +271,8 @@
     <PackageReference Include="ReactiveUI.WPF" Version="23.2.28" />
   </ItemGroup>
 
-  <!-- Shaders moved to CharacterViewer.Rendering project; their Content/CopyToOutputDirectory
-       rules ship them next to CharacterViewer.Rendering.dll in this project's bin folder via
-       the ProjectReference declared below. -->
+  <!-- The renderer's shaders ship with SkyRender (embedded + copied next to SkyRender.dll), and
+       reach this project's bin folder through the SkyRender.Character ProjectReference below. -->
 
   <ItemGroup>
     <Page Update="Settings\Settings_TexMesh\UC_SettingsTexMesh.xaml">
@@ -305,14 +304,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CharacterViewer.Rendering\CharacterViewer.Rendering.csproj" />
+    <!-- SkyRender.Character brings the core SkyRender library transitively. -->
+    <ProjectReference Include="..\SkyRender\src\SkyRender.Character\SkyRender.Character.csproj" />
   </ItemGroup>
 
-  <!-- Treat the rendering tier's namespace as global so the existing SynthEBD
-       call sites (VM_CharacterViewer, NpcMeshResolver, host adapters, settings,
-       MainModule registrations) compile without per-file using directives. -->
+  <!-- Treat the renderer's namespaces as global so the SynthEBD call sites (VM_CharacterViewer,
+       NpcMeshResolver, host adapters, settings, MainModule registrations) compile without per-file
+       using directives. -->
   <ItemGroup>
-    <Using Include="CharacterViewer.Rendering" />
+    <Using Include="SkyRender" />
+    <Using Include="SkyRender.Character" />
     <!-- SynthEBD's body-shape tooling around the viewer (BodySlide morphs, key-vertex picking,
          measurement overlays), moved out of the renderer; see BodyShapeViewer/. -->
     <Using Include="SynthEBD.BodyShapeViewer" />
