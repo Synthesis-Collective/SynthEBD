@@ -119,18 +119,6 @@ public class MiscValidation
         return verified;
     }
 
-    /// <summary>Verifies that OBody's preset-distribution config JSON exists in the Data folder.</summary>
-    /// <returns><c>true</c> if the config JSON is present.</returns>
-    public bool VerifyOBodyTemplateJsonExists()
-    {
-        bool verified = CheckDataFiles(_environmentProvider.DataFolderPath, new[]
-        {
-            (@"SKSE\Plugins\OBody_presetDistributionConfig.json", "OBody"),
-        }, null, File.Exists, out var messages);
-        foreach (var message in messages) { _logger.LogMessage(message); }
-        return verified;
-    }
-
     /// <summary>Verifies that AutoBody is installed (its Papyrus script and SKSE plugin DLL).</summary>
     /// <returns><c>true</c> if both files exist.</returns>
     public bool VerifyAutoBodyInstalled()

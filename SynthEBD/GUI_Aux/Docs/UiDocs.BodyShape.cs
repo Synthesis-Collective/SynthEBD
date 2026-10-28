@@ -91,12 +91,12 @@ public static partial class UiDocs
 
         Add("OBody.OBodyAssignmentMode",
             layperson: "Chooses how your body assignments reach OBody in the game. Native writes them straight into OBody's own settings file; Script uses a small in-game script to apply them instead.",
-            technical: "Mirror of Settings_OBody.OBodySelectionMode. Native mode rewrites the npcFormID section of SKSE/Plugins/OBody_presetDistributionConfig.json from Patcher.BodySlideTracker (OBodyWriter.WriteNativeAssignmentDictionary). Script mode instead emits SynthEBD/BodySlideAssignments.json plus a spell/magic-effect/loader-quest Papyrus setup that calls OBody's API per NPC, which requires JContainers.",
+            technical: "Mirror of Settings_OBody.OBodySelectionMode. Native mode writes an OBody NG include file, SKSE/Plugins/OBody/obody_includes/SynthEBD.json, holding only an npcFormID section built from Patcher.BodySlideTracker (OBodyWriter.WriteNativeAssignmentDictionary); OBody merges it into its own config at startup, so the user's OBody_presetDistributionConfig.json is never touched. Script mode instead emits SynthEBD/BodySlideAssignments.json plus a spell/magic-effect/loader-quest Papyrus setup that calls OBody's API per NPC, which requires JContainers.",
             motivation: "Native mode is simpler and lighter at runtime since OBody reads its own config directly; Script mode predates it and remains for setups where writing OBody's config file is not desirable.");
 
         Add("OBody.OBodyEnableMultipleAssignments",
             layperson: "When checked, SynthEBD gives OBody the full list of body presets that fit each NPC instead of picking just one, and OBody randomly picks one in the game.",
-            technical: "Mirror of Settings_OBody.OBodyEnableMultipleAssignments (Native mode only). OBodySelector records every rule-compliant preset for the NPC into Patcher.BodySlideTracker rather than a single selection, and all of them are written to OBody_presetDistributionConfig.json. Consistency for BodySlide selection is bypassed in this mode since the final pick happens in-game.",
+            technical: "Mirror of Settings_OBody.OBodyEnableMultipleAssignments (Native mode only). OBodySelector records every rule-compliant preset for the NPC into Patcher.BodySlideTracker rather than a single selection, and all of them are written to the OBody include file. Consistency for BodySlide selection is bypassed in this mode since the final pick happens in-game.",
             motivation: "Some users prefer OBody's own in-game randomization; this keeps SynthEBD in charge of which presets are allowed per NPC while letting OBody make the final roll.");
 
         Add("OBody.UseVerboseScripts",

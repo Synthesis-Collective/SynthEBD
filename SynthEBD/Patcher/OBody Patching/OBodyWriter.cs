@@ -3,7 +3,6 @@ using Mutagen.Bethesda;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
-using Newtonsoft.Json.Linq;
 using System.IO;
 
 namespace SynthEBD;
@@ -11,7 +10,7 @@ namespace SynthEBD;
 /// <summary>
 /// Emits the OBody/AutoBody/BodySlide runtime artifacts: the SKSE-based spell, magic effect, and loader
 /// quest records that apply BodySlide presets in-game, the supporting Papyrus scripts, and the assignment
-/// data (JSON dictionary, autoBody <c>morphs.ini</c>, or OBody native <c>OBody_presetDistributionConfig.json</c>)
+/// data (JSON dictionary, autoBody <c>morphs.ini</c>, or an OBody NG <c>obody_includes</c> file for Native mode)
 /// built from <see cref="Patcher.BodySlideTracker"/>. Runs near the end of the pipeline for body-shape output.
 /// </summary>
 public class OBodyWriter
@@ -299,12 +298,51 @@ public class OBodyWriter
         }
     }
 
+    /// <summary>Output path of the OBody NG include file that carries SynthEBD's Native-mode assignments.</summary>
+    private string NativeIncludePath => Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "OBody", "obody_includes", "SynthEBD.json");
+
+    /// <summary>Output path where older SynthEBD versions wrote a full copy of OBody's main config.</summary>
+    private string LegacyNativeConfigPath => Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
+
     /// <summary>
-    /// Writes assignments in OBody Native format by loading the existing <c>OBody_presetDistributionConfig.json</c>
-    /// template from the data folder, clearing and repopulating its <c>npcFormID</c> section (grouped by plugin,
-    /// keyed by FormID) from <see cref="Patcher.BodySlideTracker"/>, and saving it to the output. No-ops with a log
-    /// message when nothing was assigned. Side effects: reads the template, writes the output JSON; logs and returns
-    /// on load/parse failure or unresolvable FormKeys.
+    /// Deletes the Native-mode include file, and the full main-config copy that older SynthEBD versions wrote, from the
+    /// output folder so neither outlives a mode switch or a run that assigns nothing. The legacy file is left alone when
+    /// the output folder is the game's Data folder, because there it is OBody's own config rather than a SynthEBD copy.
+    /// Side effect: deletes files.
+    /// </summary>
+    public void ClearNativeOutput()
+    {
+        if (File.Exists(NativeIncludePath))
+        {
+            _patcherIO.TryDeleteFile(NativeIncludePath, _logger);
+        }
+
+        if (File.Exists(LegacyNativeConfigPath))
+        {
+            if (IsOutputFolderDataFolder())
+            {
+                _logger.LogMessage("SynthEBD now writes OBody assignments to " + NativeIncludePath + ". Your OBody_presetDistributionConfig.json may still contain an npcFormID section written by an older SynthEBD version; reinstall OBody's config to remove it.");
+            }
+            else
+            {
+                _patcherIO.TryDeleteFile(LegacyNativeConfigPath, _logger);
+            }
+        }
+    }
+
+    private bool IsOutputFolderDataFolder()
+    {
+        string Normalize(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.Equals(Normalize(_paths.OutputDataFolder), Normalize(_environmentProvider.DataFolderPath), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Writes assignments in OBody Native format as an OBody NG include file
+    /// (<c>SKSE/Plugins/OBody/obody_includes/SynthEBD.json</c>) containing only an <c>npcFormID</c> section, grouped by
+    /// plugin filename and keyed by the 6-digit FormKey ID. OBody NG merges include files into its main config at
+    /// startup, so the user's own <c>OBody_presetDistributionConfig.json</c> is never read or overwritten. OBody discards
+    /// the load-order digits of each key, so no load-order index is needed. No-ops with a log message when nothing was
+    /// assigned. Side effect: writes the include file.
     /// </summary>
     public void WriteNativeAssignmentDictionary()
     {
@@ -314,55 +352,32 @@ public class OBodyWriter
             return;
         }
 
-        var templatePath = Path.Combine(_environmentProvider.DataFolderPath, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
-        var templateJson = JSONhandler<dynamic>.LoadJSONFile(templatePath, out bool success, out string exceptionStr);
+        var npcFormIDAssignments = new SortedDictionary<string, SortedDictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in Patcher.BodySlideTracker)
+        {
+            if (!entry.Value.Any()) { continue; }
 
+            var pluginName = entry.Key.ModKey.ToString();
+            if (!npcFormIDAssignments.TryGetValue(pluginName, out var modEntry))
+            {
+                modEntry = new SortedDictionary<string, List<string>>(StringComparer.Ordinal);
+                npcFormIDAssignments.Add(pluginName, modEntry);
+            }
+            modEntry[entry.Key.ID.ToString("X6")] = entry.Value.ToList();
+        }
+
+        var includeFile = new Dictionary<string, SortedDictionary<string, SortedDictionary<string, List<string>>>>()
+        {
+            { "npcFormID", npcFormIDAssignments }
+        };
+        string outputStr = JSONhandler<Dictionary<string, SortedDictionary<string, SortedDictionary<string, List<string>>>>>.Serialize(includeFile, out bool success, out string exception);
         if (!success)
         {
-            _logger.LogError("Could not open OBody_presetDistributionConfig.json for editing. The following error was encountered: " + Environment.NewLine + exceptionStr);
+            _logger.LogErrorWithStatusUpdate("Could not serialize OBody assignments: " + exception, ErrorType.Error);
             return;
         }
 
-        Dictionary<string, Dictionary<string, List<string>>> npcFormIDAssignments = new();
-        try
-        {
-            npcFormIDAssignments = templateJson.npcFormID.ToObject<Dictionary<string, Dictionary<string, List<string>>>>();
-        }
-        catch
-        {
-            _logger.LogError("Error parsing OBody_presetDistributionConfig.json");
-            return;
-        }
-
-        npcFormIDAssignments.Clear();
-
-        var npcsGroupedByModKey = Patcher.BodySlideTracker.GroupBy(x => x.Key.ModKey).ToArray();
-
-        foreach (var modGroup in npcsGroupedByModKey)
-        {
-            Dictionary<string, List<string>> modEntry = new();
-
-            npcFormIDAssignments.Add(modGroup.Key.ToString(), modEntry);
-
-            foreach (var entry in modGroup)
-            {
-                if (_converters.TryFormKeyStringToFormIDString(entry.Key.ToString(), out string formID))
-                {
-                    modEntry.Add(formID, new List<string>() { entry.Value });
-                }
-                else
-                {
-                    _logger.LogError("Cannot obtain FormID for FormKey " + entry.Key.ToString());
-                }
-            }
-        }
-
-        templateJson.npcFormID = JObject.FromObject(npcFormIDAssignments);
-
-
-        string outputStr = JSONhandler<dynamic>.Serialize(templateJson, out success, out string exception);
-
-        var destPath = Path.Combine(_paths.OutputDataFolder, "SKSE", "Plugins", "OBody_presetDistributionConfig.json");
+        var destPath = NativeIncludePath;
 
         try
         {

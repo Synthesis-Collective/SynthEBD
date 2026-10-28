@@ -401,6 +401,7 @@ public class Patcher
 
         // BodySlide Pre-patching tasks:
         _oBodyWriter.ClearOutputForJsonMode();
+        _oBodyWriter.ClearNativeOutput();
         var gEnableBodySlideScript = outputMod.Globals.AddNewShort();
         gEnableBodySlideScript.EditorID = "SynthEBD_BodySlideScriptActive";
         gEnableBodySlideScript.Data = 0; // default to 0; patcher will change later if one of several conditions are met

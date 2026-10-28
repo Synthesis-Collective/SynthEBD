@@ -111,11 +111,6 @@ namespace SynthEBD
                         {
                             valid = false;
                         }
-
-                        if (_patcherState.OBodySettings.OBodySelectionMode == OBodySelectionMode.Native && !_miscValidation.VerifyOBodyTemplateJsonExists())
-                        {
-                            valid = false;
-                        }
                     }
                     else if (_patcherState.GeneralSettings.BSSelectionMode == BodySlideSelectionMode.AutoBody)
                     {
