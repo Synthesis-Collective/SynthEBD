@@ -1055,13 +1055,18 @@ Four points that are easy to get wrong:
 - **Geometry is shared, not duplicated.** Both scenes deform through the same `DeformShape` helper, so the two panes' bodies are produced by identical math. The guest probes its *own* body NIF's sibling `.tri` — it may be a different body mod entirely from the primary's.
 - **The guest takes no part in slot occupancy.** `BipedSlots` and `HidesSlots` are forced to 0: it is a comparison overlay, not gear worn by the primary NPC, so it must neither hide the primary model's shapes nor be hidden by them.
 
-**Draw styles** are expressed purely through existing per-mesh `GlMesh` material fields — the guest adds **no new render pass**:
+**Draw styles** are expressed through per-mesh `GlMesh` material fields; only `InsideOutside` also uses a dedicated pass (the hidden-surface pass below):
 
 | `GuestOverlayStyle` | How it is expressed | Pass it lands in |
 | --- | --- | --- |
 | `Textured` | untouched after the texture pass | whichever pass its own `NiAlphaProperty` implies |
 | `Translucent` | `HasAlphaBlend`, `MaterialAlpha < 1`, `DepthWrite = false`, flat `TintColor` | alpha-blend (never occludes the primary model) |
 | `Wireframe` | `RenderAsWireframeFallback` + `WireframeColorOverride` | wireframe overlay only; solid passes skip it |
+| `InsideOutside` | Translucent's fields + `DepthBias = +GuestMatchTolerance`; `HiddenSurfaceTint = GuestInsideTintColor`, `HiddenSurfaceDepthBias = -GuestMatchTolerance` | alpha-blend (outside: orange) **and** the hidden-surface pass (inside: blue) |
+
+*Why `InsideOutside`.* A translucent guest over an opaque primary shows where the guest pokes **out**, but where it falls **inside** the primary model the depth test simply drops it; making both translucent doesn't fix that, because two blended layers give the same colour whichever is in front. `InsideOutside` puts the depth order in the colour: the translucent pass paints guest surface in front of the primary model (orange), and **Pass 3, the hidden-surface pass** (`GlRenderer`, after the blend pass) redraws every mesh with a `HiddenSurfaceTint` with `DepthFunc(Greater)`, depth writes off and that flat tint, so only guest surface lying **behind** the primary model's survives (blue). Back faces stay culled, so it is the guest's near surface in both passes, not its far side.
+
+*Match tolerance (`GlMesh.DepthBias`).* Unchanged regions of the two bodies coincide exactly and would z-fight between the two tints. `basic.vert` therefore slides each vertex along its view ray by `u_depthBias` world units (`pos_viewSpace.xyz += normalize(pos_viewSpace.xyz) * u_depthBias`) -- screen position unchanged, depth only, and in world units rather than depth-buffer units, so the tolerance doesn't depend on camera distance or depth precision. The translucent pass is pushed back by the tolerance and the hidden pass pulled forward by it, so guest surface within +/- tolerance of the primary model's paints in neither: untinted means "same here". The SynthEBD Compare window exposes the tolerance (default 0.25 units). Known limit: it is an x-ray, so guest surface hidden by *another* part of the primary model (a thigh behind the primary's hand) also paints blue.
 
 `WireframeColorOverride` exists specifically so the guest can borrow the missing-texture fallback's *draw behavior* without inheriting its *color* — that green means "this shape's diffuse failed to decode", and a guest drawn in it would read as a texture error.
 

@@ -160,6 +160,24 @@ public class GlMesh : IDisposable
     // would read as a texture error rather than as the other model.
     public Vector3? WireframeColorOverride { get; set; }
 
+    // Eye-space depth bias in world units, applied in basic.vert by sliding each vertex
+    // along its view ray: positive pushes the surface away from the camera, negative pulls
+    // it closer. Screen position is unchanged; only the depth test moves. 0 = off. The
+    // guest overlay's Inside/Outside style uses it as a match tolerance, so surfaces that
+    // coincide with the primary model's (within the bias) stay untinted instead of
+    // z-fighting between "outside" and "inside".
+    public float DepthBias { get; set; }
+
+    // Hidden-surface ("x-ray") tint. When set, the renderer draws this mesh a second time
+    // after the blend pass, with depth test GREATER and no depth writes, in this flat tint
+    // at HiddenSurfaceAlpha -- i.e. it paints only the parts of the mesh that lie BEHIND
+    // what is already in the depth buffer (the primary model), shifted by
+    // HiddenSurfaceDepthBias. Null = no such pass. Used by the guest overlay's
+    // Inside/Outside style to show where the guest is smaller than the primary model.
+    public Vector3? HiddenSurfaceTint { get; set; }
+    public float HiddenSurfaceAlpha { get; set; } = 0.5f;
+    public float HiddenSurfaceDepthBias { get; set; }
+
     // Material properties
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;

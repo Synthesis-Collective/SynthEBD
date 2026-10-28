@@ -37,11 +37,19 @@ uniform vec2 u_uvOffset;
 // GlRenderer.ClipPlaneMode / RENDERING_PIPELINE.md.
 uniform vec4 u_clipPlane;
 
+// Eye-space depth bias in world units (GlMesh.DepthBias): the vertex slides along its
+// view ray, so its screen position is unchanged and only its depth moves. Positive =
+// farther from the camera. 0 leaves gl_Position exactly as before.
+uniform float u_depthBias;
+
 void main()
 {
     vec4 pos_worldSpace = u_model * vec4(aPos, 1.0);
 
-    gl_Position = u_projection * u_view * pos_worldSpace;
+    vec4 pos_viewSpace = u_view * pos_worldSpace;
+    if (u_depthBias != 0.0)
+        pos_viewSpace.xyz += normalize(pos_viewSpace.xyz) * u_depthBias;
+    gl_Position = u_projection * pos_viewSpace;
     gl_ClipDistance[0] = dot(pos_worldSpace, u_clipPlane);
     v_viewSpacePos = vec3(u_view * pos_worldSpace);
     v_worldPos = pos_worldSpace.xyz;

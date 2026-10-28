@@ -1227,6 +1227,40 @@ public class GlRenderer : IDisposable
 
             DrawMesh(mesh);
         }
+
+        // Pass 3: hidden-surface ("x-ray") tint. Meshes with HiddenSurfaceTint are drawn
+        // again with depth test GREATER and no depth writes, so only their fragments that
+        // lie BEHIND the depth already written (the opaque primary model) survive -- painted
+        // in that flat tint, blended over the model. Back faces stay culled, so it is the
+        // mesh's own near surface that shows, not its far side. The guest overlay's
+        // Inside/Outside style uses this to show where the guest body is inside (smaller
+        // than) the primary one; HiddenSurfaceDepthBias (pulled toward the camera) is its
+        // match tolerance, keeping coincident surfaces from speckling.
+        bool anyHiddenTint = false;
+        foreach (var mesh in _meshes)
+        {
+            if (mesh.ShouldRender && !mesh.RenderAsWireframeFallback && mesh.HiddenSurfaceTint.HasValue) { anyHiddenTint = true; break; }
+        }
+        if (anyHiddenTint)
+        {
+            GL.DepthMask(false);
+            GL.DepthFunc(DepthFunction.Greater);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            foreach (var mesh in _meshes)
+            {
+                if (!mesh.ShouldRender || mesh.RenderAsWireframeFallback || mesh.HiddenSurfaceTint is not { } hiddenTint) continue;
+
+                var (tint, hasTint, alpha, bias) = (mesh.TintColor, mesh.HasTintColor, mesh.MaterialAlpha, mesh.DepthBias);
+                mesh.TintColor = hiddenTint;
+                mesh.HasTintColor = true;
+                mesh.MaterialAlpha = mesh.HiddenSurfaceAlpha;
+                mesh.DepthBias = mesh.HiddenSurfaceDepthBias;
+                DrawMesh(mesh);
+                (mesh.TintColor, mesh.HasTintColor, mesh.MaterialAlpha, mesh.DepthBias) = (tint, hasTint, alpha, bias);
+            }
+            GL.DepthFunc(DepthFunction.Lequal);
+        }
+
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
         // Geometry passes done. Clear the clip distance before the full-screen
@@ -2958,6 +2992,7 @@ public class GlRenderer : IDisposable
         // Set material properties
         _shader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
         _shader.SetFloat("material_alpha", mesh.MaterialAlpha);
+        _shader.SetFloat("u_depthBias", mesh.DepthBias);
         _shader.SetFloat("greyscaleToPaletteScale", mesh.GreyscaleToPaletteScale);
         _shader.SetVector3("tint_color", mesh.TintColor.X, mesh.TintColor.Y, mesh.TintColor.Z);
         _shader.SetFloat("materialGlossiness", mesh.MaterialGlossiness);

@@ -22,6 +22,14 @@ public enum GuestOverlayStyle
     /// <summary>Triangle edges only, in the guest tint. Cheapest to read at a glance and
     /// never hides the primary model, at the cost of showing no volume.</summary>
     Wireframe,
+
+    /// <summary>Colour-codes where the guest's surface is relative to the primary model's:
+    /// translucent guest tint (orange) where the guest is OUTSIDE the primary model (larger),
+    /// the inside tint (blue) drawn through the primary model where the guest is INSIDE it
+    /// (smaller), and no tint where the two surfaces match within
+    /// <see cref="VM_CharacterViewer.GuestMatchTolerance"/>. Unlike two translucent layers,
+    /// the colour records which surface is in front at every pixel, from any angle.</summary>
+    InsideOutside,
 }
 
 public partial class VM_CharacterViewer
@@ -116,6 +124,33 @@ public partial class VM_CharacterViewer
 
     /// <summary>Opacity of the guest in <see cref="GuestOverlayStyle.Translucent"/>.</summary>
     public float GuestAlpha { get; set; } = 0.45f;
+
+    /// <summary>Tint of the guest where it lies inside the primary model, in
+    /// <see cref="GuestOverlayStyle.InsideOutside"/>. A blue opposite the orange
+    /// <see cref="GuestTintColor"/> -- a pair that stays distinct under the common colour-vision
+    /// deficiencies.</summary>
+    public System.Numerics.Vector3 GuestInsideTintColor { get; set; } = new(0.15f, 0.55f, 1.0f);
+
+    /// <summary>
+    /// <see cref="GuestOverlayStyle.InsideOutside"/>'s match tolerance in world units (Skyrim
+    /// units, ~1.4 cm each): guest surface closer than this to the primary model's, in front or
+    /// behind, counts as matching and is left untinted. Applied as an eye-space depth bias on
+    /// both passes (GlMesh.DepthBias / HiddenSurfaceDepthBias), so it also stops coincident
+    /// surfaces -- the unchanged parts of the two bodies -- from z-fighting between the two tints.
+    /// Restyles in place.
+    /// </summary>
+    public float GuestMatchTolerance
+    {
+        get => _guestMatchTolerance;
+        set
+        {
+            float clamped = Math.Clamp(value, 0f, 5f);
+            if (clamped == _guestMatchTolerance) return;
+            _guestMatchTolerance = clamped;
+            foreach (var mesh in _guestMeshes) ApplyGuestStyle(mesh);
+        }
+    }
+    private float _guestMatchTolerance = 0.25f;
 
     /// <summary>True while a guest overlay is loaded or queued for install.</summary>
     public bool HasGuestOverlay => _guestRequest != null;
@@ -466,8 +501,9 @@ public partial class VM_CharacterViewer
     }
 
     /// <summary>
-    /// Applies <see cref="GuestStyle"/> to one guest mesh. Expressed purely through existing
-    /// per-mesh GlMesh material fields, so no new renderer pass is needed:
+    /// Applies <see cref="GuestStyle"/> to one guest mesh. Expressed through per-mesh GlMesh
+    /// material fields; only InsideOutside also relies on a dedicated renderer pass (the
+    /// hidden-surface pass, driven by <c>GlMesh.HiddenSurfaceTint</c>):
     /// <list type="bullet">
     ///   <item><b>Textured</b> — leave the mesh exactly as the texture pass built it.</item>
     ///   <item><b>Translucent</b> — flat tint, sub-1 <c>MaterialAlpha</c>, alpha-blended with
@@ -475,6 +511,9 @@ public partial class VM_CharacterViewer
     ///     model. Depth-write-off is what keeps two interpenetrating bodies readable.</item>
     ///   <item><b>Wireframe</b> — the renderer's existing wireframe-fallback path, which draws
     ///     edges only and skips the solid passes entirely.</item>
+    ///   <item><b>InsideOutside</b> — Translucent, depth-biased back by the match tolerance, plus
+    ///     the renderer's hidden-surface pass (<c>GlMesh.HiddenSurfaceTint</c>, depth test
+    ///     GREATER) in the inside tint, biased forward by the tolerance.</item>
     /// </list>
     /// </summary>
     private void ApplyGuestStyle(GlMesh mesh)
@@ -483,6 +522,8 @@ public partial class VM_CharacterViewer
         mesh.RenderAsWireframeFallback = false;
         mesh.WireframeColorOverride = null;
         mesh.MaterialAlpha = 1f;
+        mesh.DepthBias = 0f;
+        mesh.HiddenSurfaceTint = null;
 
         switch (_guestStyle)
         {
@@ -492,6 +533,7 @@ public partial class VM_CharacterViewer
                 break;
 
             case GuestOverlayStyle.Translucent:
+            case GuestOverlayStyle.InsideOutside:
                 mesh.HasAlphaBlend = true;
                 mesh.UseAlphaTest = false;
                 mesh.DepthWrite = false;
@@ -502,6 +544,17 @@ public partial class VM_CharacterViewer
                 // NIF loader emits for ordinary translucent shapes.
                 mesh.SrcBlendIndex = 6;
                 mesh.DstBlendIndex = 7;
+                if (_guestStyle == GuestOverlayStyle.InsideOutside)
+                {
+                    // Outside: the translucent pass above, pushed back by the tolerance so a
+                    // surface matching the primary model's fails the depth test (no tint).
+                    // Inside: the renderer's hidden-surface pass, pulled forward by the same
+                    // amount so only surface clearly behind the primary model is painted.
+                    mesh.DepthBias = _guestMatchTolerance;
+                    mesh.HiddenSurfaceTint = GuestInsideTintColor;
+                    mesh.HiddenSurfaceAlpha = Math.Clamp(GuestAlpha + 0.1f, 0.05f, 1f);
+                    mesh.HiddenSurfaceDepthBias = -_guestMatchTolerance;
+                }
                 break;
 
             case GuestOverlayStyle.Wireframe:

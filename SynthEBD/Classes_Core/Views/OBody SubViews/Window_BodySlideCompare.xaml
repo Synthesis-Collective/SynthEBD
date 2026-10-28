@@ -179,8 +179,18 @@
                           IsEnabled="{Binding Superimpose}"
                           local:DocTooltip.Key="BodySlideCompare.SuperimposeBodyOnly"/>
 
+                <!-- Inside/Outside only: how close counts as "the same" (Skyrim units). -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,20,0" VerticalAlignment="Center"
+                            IsEnabled="{Binding Superimpose}"
+                            Visibility="{Binding IsInsideOutsideStyle, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Tolerance:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <xctk:DoubleUpDown Width="70" Minimum="0" Maximum="5" Increment="0.05" FormatString="F2"
+                                       Value="{Binding SuperimposeTolerance}"
+                                       local:DocTooltip.Key="BodySlideCompare.SuperimposeTolerance"/>
+                </StackPanel>
+
                 <TextBlock VerticalAlignment="Center" FontStyle="Italic" Opacity="0.75"
-                           Text="B is drawn inside A"
+                           Text="{Binding SuperimposeLegend}"
                            Visibility="{Binding Superimpose, Converter={StaticResource BoolToVis}}"/>
             </WrapPanel>
         </Border>

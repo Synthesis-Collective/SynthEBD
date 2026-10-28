@@ -74,7 +74,7 @@ public class VM_BodySlideCompare : VM
         // Superimpose state. Every input rebuilds the overlay: the toggle itself, the
         // fill style, the body-only scope, and — via the panes' own change signal — the
         // guest pane's preset / NPC / weight.
-        this.WhenAnyValue(x => x.Superimpose, x => x.SuperimposeStyle, x => x.SuperimposeBodyOnly)
+        this.WhenAnyValue(x => x.Superimpose, x => x.SuperimposeStyle, x => x.SuperimposeBodyOnly, x => x.SuperimposeTolerance)
             .Subscribe(_ => RefreshSuperimpose())
             .DisposeWith(this);
 
@@ -95,7 +95,19 @@ public class VM_BodySlideCompare : VM
     public bool Superimpose { get; set; } = false;
 
     /// <summary>How the superimposed (pane B) model is drawn inside pane A. See <see cref="GuestOverlayStyle"/>.</summary>
-    public GuestOverlayStyle SuperimposeStyle { get; set; } = GuestOverlayStyle.Translucent;
+    public GuestOverlayStyle SuperimposeStyle { get; set; } = GuestOverlayStyle.InsideOutside;
+
+    /// <summary>True while the Inside/Outside style is selected: shows its tolerance box and legend.</summary>
+    public bool IsInsideOutsideStyle => SuperimposeStyle == GuestOverlayStyle.InsideOutside;
+
+    /// <summary>Inside/Outside match tolerance in Skyrim units (~1.4 cm each): B's surface closer
+    /// than this to A's, in front or behind, counts as matching and stays untinted.</summary>
+    public double SuperimposeTolerance { get; set; } = 0.25;
+
+    /// <summary>One-line key to what the overlay colours mean in the current style.</summary>
+    public string SuperimposeLegend => IsInsideOutsideStyle
+        ? "orange = B outside A (bigger), blue = B inside A (smaller), untinted = same"
+        : "B is drawn inside A";
 
     /// <summary>
     /// When on, only the body mesh of pane B is superimposed — head, hair and worn gear are
@@ -174,6 +186,7 @@ public class VM_BodySlideCompare : VM
                 return;
             }
 
+            host.GuestMatchTolerance = (float)SuperimposeTolerance;
             host.GuestStyle = SuperimposeStyle;
             host.GuestBodyOnly = SuperimposeBodyOnly;
             PaneB.ProjectOnto(host);
