@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using OpenTK.Mathematics;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>
 /// The key-vertex, region, measurement and slider-heatmap overlay channels of the body-shape

@@ -8,16 +8,13 @@ namespace CharacterViewer.Rendering.Offscreen;
 
 /// <summary>
 /// The NPC <see cref="IOffscreenSceneBuilder"/>: builds a <see cref="VM_CharacterViewer"/> per
-/// render from the request's mesh paths, applies texture and mesh overrides, morphs and the host's
-/// <see cref="OffscreenRenderRequest.BeforeDraw"/> hook, and frames the camera from the request's
+/// render from the request's mesh paths, applies texture and mesh overrides and the host's
+/// <see cref="OffscreenRenderRequest.BeforeDraw"/> hook (where a host deforms the body shapes), and frames the camera from the request's
 /// <see cref="CameraFraming"/>.
 /// </summary>
 public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
 {
     private readonly CharacterPreviewCache _previewCache;
-    private readonly BodySlideDeformer _bodySlideDeformer;
-    private readonly BsdFileParser _bsdParser;
-    private readonly BodyTriFileParser _triParser;
     private readonly GameAssetResolver _assets;
     private readonly ICharacterViewerSettings _settings;
     private readonly CharacterViewerLogGate _logGate;
@@ -25,18 +22,12 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
 
     public NpcSceneBuilder(
         CharacterPreviewCache previewCache,
-        BodySlideDeformer bodySlideDeformer,
-        BsdFileParser bsdParser,
-        BodyTriFileParser triParser,
         GameAssetResolver assets,
         ICharacterViewerSettings settings,
         CharacterViewerLogGate logGate,
         ICharacterViewerLogger logger)
     {
         _previewCache = previewCache;
-        _bodySlideDeformer = bodySlideDeformer;
-        _bsdParser = bsdParser;
-        _triParser = triParser;
         _assets = assets;
         _settings = settings;
         _logGate = logGate;
@@ -72,8 +63,7 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
     public IOffscreenScene Build(OffscreenSceneContext context, OffscreenRenderRequest request)
     {
         var vm = new VM_CharacterViewer(
-            _bodySlideDeformer, _bsdParser, _triParser, _assets,
-            _settings, _previewCache, _logGate, _logger
+            _assets, _settings, _previewCache, _logGate, _logger
             /* renderThread defaults to InlineRenderThreadMarshaller */);
         try
         {
@@ -201,7 +191,7 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
             request.MissingTexturePathsOut.AddRange(vm.MissingTexturePaths);
         }
 
-        // Optional post-load adjustments. Texture overrides and morphs are
+        // Optional post-load adjustments. Texture overrides are
         // queued internally if the scene wasn't ready; after
         // ProcessPendingSceneToCompletion above the scene IS ready, so
         // these apply immediately.
@@ -242,13 +232,10 @@ public sealed class NpcSceneBuilder : IOffscreenSceneBuilder
                 }
             }
         }
-        if (request.Morphs != null)
-        {
-            vm.ApplyMorphSet(request.Morphs, request.MorphWeight);
-        }
-        // Host scene hook: runs against the fully built, deformed scene so an overlay
-        // computed from vertex positions (e.g. measurement lines) matches this render.
-        // A throwing hook costs the overlay, not the frame.
+        // Host scene hook: runs against the fully built scene, after the overrides, so a
+        // deformation it applies (ApplyShapeDeformer is immediate here) and any overlay it
+        // computes from vertex positions match this render. A throwing hook costs what it
+        // had left to do, not the frame.
         if (request.BeforeDraw != null)
         {
             try

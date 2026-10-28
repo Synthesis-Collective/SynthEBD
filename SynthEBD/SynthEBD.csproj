@@ -313,6 +313,9 @@
        MainModule registrations) compile without per-file using directives. -->
   <ItemGroup>
     <Using Include="CharacterViewer.Rendering" />
+    <!-- SynthEBD's body-shape tooling around the viewer (BodySlide morphs, key-vertex picking,
+         measurement overlays), moved out of the renderer; see BodyShapeViewer/. -->
+    <Using Include="SynthEBD.BodyShapeViewer" />
   </ItemGroup>
 
 </Project>

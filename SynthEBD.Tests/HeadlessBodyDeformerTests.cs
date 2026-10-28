@@ -5,6 +5,7 @@ using System.Numerics;
 using CharacterViewer.Rendering;
 using FluentAssertions;
 using Xunit;
+using SynthEBD.BodyShapeViewer;
 
 namespace SynthEBD.Tests;
 

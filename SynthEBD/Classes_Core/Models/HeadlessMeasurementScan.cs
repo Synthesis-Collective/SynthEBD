@@ -80,7 +80,7 @@ public sealed class HeadlessMeasurementScan
         {
             bones[shape] = viewer.GetShapeBoneInfo(shape);
             indices[shape] = viewer.GetShapeIndices(shape);
-            if (viewer.GetZeroedShapePositions(shape, 0) is { } z) zeroed0[shape] = z;
+            if (viewer.BodyShape().GetZeroedShapePositions(shape, 0) is { } z) zeroed0[shape] = z;
             if (!deformable.Contains(shape) && viewer.GetShapePositions(shape) is { } p) staticPositions[shape] = p;
         }
         return new HeadlessMeasurementScan(deformer, profile, staticPositions, bones, indices, zeroed0,

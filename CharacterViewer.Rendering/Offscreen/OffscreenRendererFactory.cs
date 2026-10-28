@@ -29,16 +29,12 @@ public static class OffscreenRendererFactory
     /// </summary>
     public static IOffscreenRenderer Create(
         CharacterPreviewCache previewCache,
-        BodySlideDeformer bodySlideDeformer,
-        BsdFileParser bsdParser,
-        BodyTriFileParser triParser,
         GameAssetResolver assets,
         ICharacterViewerSettings settings,
         CharacterViewerLogGate logGate,
         ICharacterViewerLogger logger)
         => Create(
-            new NpcSceneBuilder(previewCache, bodySlideDeformer, bsdParser, triParser,
-                assets, settings, logGate, logger),
+            new NpcSceneBuilder(previewCache, assets, settings, logGate, logger),
             previewCache, assets, logGate, logger);
 
     /// <summary>Creates the default offscreen renderer around a host-supplied

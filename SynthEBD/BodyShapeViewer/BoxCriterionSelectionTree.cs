@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>UI-side grouping of <see cref="BoxCriterionSelection"/> values into algorithm
 /// categories, for the TreeView dropdown on the viewer's BB-pick Criterion picker. The enum

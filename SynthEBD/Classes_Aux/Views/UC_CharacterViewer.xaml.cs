@@ -210,16 +210,16 @@ public partial class UC_CharacterViewer : UserControl
     {
         if (_vm != null)
         {
-            _vm.Picks.CollectionChanged -= Picks_CollectionChanged;
-            _vm.RequestPickSelection -= OnVmRequestPickSelection;
+            _vm.BodyShape().Picks.CollectionChanged -= Picks_CollectionChanged;
+            _vm.BodyShape().RequestPickSelection -= OnVmRequestPickSelection;
         }
 
         _vm = DataContext as VM_CharacterViewer;
 
         if (_vm != null)
         {
-            _vm.Picks.CollectionChanged += Picks_CollectionChanged;
-            _vm.RequestPickSelection += OnVmRequestPickSelection;
+            _vm.BodyShape().Picks.CollectionChanged += Picks_CollectionChanged;
+            _vm.BodyShape().RequestPickSelection += OnVmRequestPickSelection;
             _vm.LogViewerDiagnostic("UC #" + _instanceId + " DataContext -> VM #"
                 + _vm.GetHashCode().ToString("X"));
 
@@ -277,7 +277,7 @@ public partial class UC_CharacterViewer : UserControl
     /// BodyTypeProfile editor) into the PicksList. Setting SelectedItems fires
     /// PicksList_SelectionChanged which routes into VM.SetSelectedPicks, so the renderer
     /// marker turns green through the normal path.</summary>
-    private void OnVmRequestPickSelection(IReadOnlyList<VM_CharacterViewer.PickRow> rows)
+    private void OnVmRequestPickSelection(IReadOnlyList<BodyShapeViewerExtension.PickRow> rows)
     {
         if (rows == null) return;
         Dispatcher.BeginInvoke(new Action(() =>
@@ -303,18 +303,18 @@ public partial class UC_CharacterViewer : UserControl
         }
         else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
         {
-            _vm?.SetSelectedPicks(Array.Empty<VM_CharacterViewer.PickRow>());
+            _vm?.BodyShape().SetSelectedPicks(Array.Empty<BodyShapeViewerExtension.PickRow>());
         }
     }
 
-    /// <summary>Forwards the list's selected pick rows to <see cref="VM_CharacterViewer.SetSelectedPicks"/>.</summary>
+    /// <summary>Forwards the list's selected pick rows to <see cref="BodyShapeViewerExtension.SetSelectedPicks"/>.</summary>
     private void PicksList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_vm == null) return;
-        var sel = new List<VM_CharacterViewer.PickRow>(PicksList.SelectedItems.Count);
+        var sel = new List<BodyShapeViewerExtension.PickRow>(PicksList.SelectedItems.Count);
         foreach (var item in PicksList.SelectedItems)
-            if (item is VM_CharacterViewer.PickRow row) sel.Add(row);
-        _vm.SetSelectedPicks(sel);
+            if (item is BodyShapeViewerExtension.PickRow row) sel.Add(row);
+        _vm.BodyShape().SetSelectedPicks(sel);
     }
 
     /// <summary>Starts the GL render loop once the control is loaded and has a non-zero size; idempotent. Toggles visibility afterward to work around a GLWpfControl bug where continuous rendering isn't registered when the control is already visible at Start().</summary>
@@ -850,12 +850,12 @@ public partial class UC_CharacterViewer : UserControl
     /// Projects the 8 AABB corners of the pending box (mesh-local, pre-ModelScale)
     /// through model*view*projection each frame and rewrites the 12 edge lines in
     /// WPF screen coords. Mirrors the projection path in
-    /// <see cref="VM_CharacterViewer.ComputeBoxFromScreenRect"/> so the wireframe
+    /// <see cref="BodyShapeViewerExtension.ComputeBoxFromScreenRect"/> so the wireframe
     /// overlays exactly the vertices the BB-pick would match.
     /// </summary>
     private void UpdateBoxWireframe()
     {
-        if (_vm == null || !_vm.HasPendingBox) return;
+        if (_vm == null || !_vm.BodyShape().HasPendingBox) return;
         double vw = GlControl.ActualWidth;
         double vh = GlControl.ActualHeight;
         if (vw <= 0 || vh <= 0) return;
@@ -864,9 +864,9 @@ public partial class UC_CharacterViewer : UserControl
         var viewProj = _vm.Camera.GetViewMatrix() * _vm.Camera.GetProjectionMatrix(aspect);
         float s = _vm.Renderer.ModelScale;
 
-        float minX = _vm.PendingBoxMinX, maxX = _vm.PendingBoxMaxX;
-        float minY = _vm.PendingBoxMinY, maxY = _vm.PendingBoxMaxY;
-        float minZ = _vm.PendingBoxMinZ, maxZ = _vm.PendingBoxMaxZ;
+        float minX = _vm.BodyShape().PendingBoxMinX, maxX = _vm.BodyShape().PendingBoxMaxX;
+        float minY = _vm.BodyShape().PendingBoxMinY, maxY = _vm.BodyShape().PendingBoxMaxY;
+        float minZ = _vm.BodyShape().PendingBoxMinZ, maxZ = _vm.BodyShape().PendingBoxMaxZ;
 
         Span<double> sx = stackalloc double[8];
         Span<double> sy = stackalloc double[8];
@@ -1010,14 +1010,14 @@ public partial class UC_CharacterViewer : UserControl
         // under the cursor and hands it to the VM instead of orbiting the
         // camera. Takes precedence over light-arrow picking because the
         // classifier workflow is the exclusive focus when this mode is on.
-        if (e.ChangedButton == MouseButton.Left && _vm.IsKeyVertexPickMode)
+        if (e.ChangedButton == MouseButton.Left && _vm.BodyShape().IsKeyVertexPickMode)
         {
-            var pick = _vm.HitTestKeyVertex(
+            var pick = _vm.BodyShape().HitTestKeyVertex(
                 (float)pos.X, (float)pos.Y,
                 (float)GlControl.ActualWidth, (float)GlControl.ActualHeight);
             if (pick.HasValue)
             {
-                _vm.NotifyKeyVertexPicked(pick.Value);
+                _vm.BodyShape().NotifyKeyVertexPicked(pick.Value);
             }
             e.Handled = true;
             return;
@@ -1026,7 +1026,7 @@ public partial class UC_CharacterViewer : UserControl
         // BB picking: left-drag paints a screen rect; on MouseUp the VM projects every
         // mesh vertex through it and returns a mesh-local AABB. Also takes precedence
         // over orbit + light arrows when the mode is on.
-        if (e.ChangedButton == MouseButton.Left && _vm.IsBoundingBoxPickMode)
+        if (e.ChangedButton == MouseButton.Left && _vm.BodyShape().IsBoundingBoxPickMode)
         {
             _boxDragging = true;
             _boxDragStart = pos;
@@ -1043,7 +1043,7 @@ public partial class UC_CharacterViewer : UserControl
         // Region vertex-edit: left press starts a rubber-band (shared with BB). A tiny rect on release
         // is a single-vertex toggle; a real rect bulk-edits every enclosed vertex. Takes precedence over
         // orbit + light arrows like the other pick modes.
-        if (e.ChangedButton == MouseButton.Left && _vm.IsRegionVertexEditMode)
+        if (e.ChangedButton == MouseButton.Left && _vm.BodyShape().IsRegionVertexEditMode)
         {
             _vertexEditDragging = true;
             _vertexEditDragStart = pos;
@@ -1146,19 +1146,19 @@ public partial class UC_CharacterViewer : UserControl
             double dragW = Math.Abs(end.X - _vertexEditDragStart.X);
             double dragH = Math.Abs(end.Y - _vertexEditDragStart.Y);
 
-            VM_CharacterViewer.RegionVertexEditPick? pick;
+            BodyShapeViewerExtension.RegionVertexEditPick? pick;
             if (dragW < 4 && dragH < 4)
             {
                 // Click → ray-pick the nearest vertex under the cursor.
-                var hit = _vm.HitTestKeyVertex((float)end.X, (float)end.Y, vw, vh);
-                pick = hit.HasValue ? _vm.BuildRegionVertexEdit(hit.Value) : null;
+                var hit = _vm.BodyShape().HitTestKeyVertex((float)end.X, (float)end.Y, vw, vh);
+                pick = hit.HasValue ? _vm.BodyShape().BuildRegionVertexEdit(hit.Value) : null;
             }
             else
             {
-                pick = _vm.BuildRegionVertexEditFromScreenRect(
+                pick = _vm.BodyShape().BuildRegionVertexEditFromScreenRect(
                     (float)_vertexEditDragStart.X, (float)_vertexEditDragStart.Y, (float)end.X, (float)end.Y, vw, vh);
             }
-            if (pick.HasValue) _vm.NotifyRegionVertexEdited(pick.Value);
+            if (pick.HasValue) _vm.BodyShape().NotifyRegionVertexEdited(pick.Value);
 
             e.Handled = true;
             return;
@@ -1174,16 +1174,16 @@ public partial class UC_CharacterViewer : UserControl
             GlControl.ReleaseMouseCapture();
 
             var end = e.GetPosition(GlControl);
-            var pick = _vm.ComputeBoxFromScreenRect(
+            var pick = _vm.BodyShape().ComputeBoxFromScreenRect(
                 (float)_boxDragStart.X, (float)_boxDragStart.Y,
                 (float)end.X, (float)end.Y,
                 (float)GlControl.ActualWidth, (float)GlControl.ActualHeight,
-                _vm.PendingBoxCriterion);
+                _vm.BodyShape().PendingBoxCriterion);
             // Seed the pending-box edit panel + wireframe instead of firing the pick
             // immediately. The user tweaks the six min/max values (or clicks
             // Shrink-to-Camera-Half), then Confirm fans out through
             // NotifyKeyVertexBoxPicked; Cancel discards.
-            if (pick.HasValue) _vm.BeginPendingBox(pick.Value);
+            if (pick.HasValue) _vm.BodyShape().BeginPendingBox(pick.Value);
 
             e.Handled = true;
             return;
@@ -1406,21 +1406,21 @@ public partial class UC_CharacterViewer : UserControl
     private void ClearKeyVertexMarkersButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
-        _vm?.ClearKeyVertexMarkers();
+        _vm?.BodyShape().ClearKeyVertexMarkers();
     }
 
     /// <summary>Selects the mirror-image counterparts of the current picks.</summary>
     private void SelectMirrorPicksButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
-        _vm?.SelectMirrorPicks();
+        _vm?.BodyShape().SelectMirrorPicks();
     }
 
     /// <summary>Projects the most recent pick across the mirror axis to create its pair.</summary>
     private void PairAcrossAxisButton_Click(object sender, RoutedEventArgs e)
     {
         _vm ??= DataContext as VM_CharacterViewer;
-        _vm?.ProjectLastPickAcrossAxis();
+        _vm?.BodyShape().ProjectLastPickAcrossAxis();
     }
 
     /// <summary>Handles a selection in either of the BB-pick Criterion popups. The XAML sets
@@ -1439,8 +1439,8 @@ public partial class UC_CharacterViewer : UserControl
 
         switch (tree.Tag as string)
         {
-            case "Pending":      _vm.PendingBoxCriterion      = leaf.Value; break;
-            case "PendingFinal": _vm.PendingBoxFinalCriterion = leaf.Value; break;
+            case "Pending":      _vm.BodyShape().PendingBoxCriterion      = leaf.Value; break;
+            case "PendingFinal": _vm.BodyShape().PendingBoxFinalCriterion = leaf.Value; break;
             default: return;
         }
 
@@ -1471,7 +1471,7 @@ public partial class UC_CharacterViewer : UserControl
         // so visually they ARE the topmost thing under the cursor when one is close enough.
         // Falling through to the mesh hover only when no labeled segment is within the
         // threshold keeps the rest of the existing hover behavior unchanged.
-        string? measurementLabel = _vm.HitTestMeasurementLine(
+        string? measurementLabel = _vm.BodyShape().HitTestMeasurementLine(
             (float)_lastMousePos.X, (float)_lastMousePos.Y,
             (float)GlControl.ActualWidth, (float)GlControl.ActualHeight,
             MeasurementLineHoverThresholdPx);

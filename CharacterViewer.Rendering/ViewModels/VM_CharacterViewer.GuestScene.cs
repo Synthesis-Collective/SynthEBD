@@ -38,8 +38,9 @@ public partial class VM_CharacterViewer
     //  GUEST OVERLAY SCENE ("superimpose")
     //
     //  A complete SECOND scene installed alongside the primary one so two
-    //  BodySlide presets can be compared at the same origin. Used by SynthEBD's
-    //  BodySlide Compare window, where pane B projects its model into pane A.
+    //  differently deformed models can be compared at the same origin (e.g. a
+    //  host's side-by-side compare window, where pane B projects its model into
+    //  pane A).
     //
     //  Why the guest is loaded by THIS VM rather than transplanted from the
     //  other pane's viewer: GL objects are per-context and cannot be shared
@@ -55,14 +56,13 @@ public partial class VM_CharacterViewer
     private sealed record GuestSceneRequest(
         List<(string BodyPart, AssetSource? MeshSource, List<NifMeshBuilder.BuiltMesh> Meshes)> LoadResults,
         ResolvedNpcMeshPaths MeshPaths,
-        MorphSet? Morphs,
+        IShapeDeformer? Deformer,
         int Weight,
-        List<OsdFile>? OsdFiles,
         string CacheKey,
         BodyReplacement? Replacement = null);
 
     /// <summary>The guest's GL meshes, tracked separately from <c>_meshesByBodyPart</c> so
-    /// nothing in the primary scene's texture / morph / slot-occupancy bookkeeping treats
+    /// nothing in the primary scene's texture / deformation / slot-occupancy bookkeeping treats
     /// them as part of the NPC being edited.</summary>
     private readonly List<GlMesh> _guestMeshes = new();
 
@@ -73,9 +73,6 @@ public partial class VM_CharacterViewer
     /// tick — a fresh load, a style/scope change, or a primary ClearScene having torn the
     /// guest meshes down along with everything else.</summary>
     private bool _guestInstallPending;
-
-    /// <summary>Parsed sibling .tri for the guest's body NIF, cached alongside the request.</summary>
-    private BodyTriFile? _guestBodyTri;
 
     /// <summary>Generation guard for overlapping <see cref="LoadGuestAsync"/> calls: only the
     /// newest load queues its result. Mirrors the primary scene's cancellation semantics
@@ -157,19 +154,17 @@ public partial class VM_CharacterViewer
 
     /// <summary>
     /// Loads <paramref name="identity"/> as a guest overlay on top of the current primary
-    /// scene, deformed by <paramref name="morphs"/> at <paramref name="weight"/>.
-    ///
-    /// <para>Neutral entry point (no Mutagen / SynthEBD types) — SynthEBD calls it through
-    /// <c>CharacterViewerSynthEbdExtensions.LoadGuestNpcAsync</c>, which resolves the FormKey
-    /// and translates a <c>BodySlideSetting</c> into the <see cref="MorphSet"/> and OSD
-    /// context this takes.</para>
+    /// scene, its body shapes deformed by <paramref name="deformer"/> (null = undeformed) at
+    /// <paramref name="weight"/>, through the same per-shape pipeline as
+    /// <see cref="ApplyShapeDeformer"/>. The deformer is prepared against the guest's own body
+    /// NIF, which may differ from the primary's.
     ///
     /// <para>Parsing happens off-thread; the GL install is deferred to the render callback
     /// exactly like the primary scene's. Repeated calls describing the same overlay
     /// short-circuit, so a host may call this freely whenever its inputs change.</para>
     /// </summary>
-    public async Task LoadGuestAsync(NpcIdentity identity, MorphSet? morphs, int weight,
-        List<OsdFile>? osdFiles = null, BodyReplacement? bodyReplacement = null)
+    public async Task LoadGuestAsync(NpcIdentity identity, IShapeDeformer? deformer, int weight,
+        BodyReplacement? bodyReplacement = null)
     {
         if (RenderingUnavailable || ForceRenderingUnavailableForTesting)
         {
@@ -179,13 +174,13 @@ public partial class VM_CharacterViewer
             return;
         }
 
-        // Identity + preset + weight fully determine the overlay's geometry. Style and scope
+        // Identity + deformer label + weight fully determine the overlay's geometry. Style and scope
         // are deliberately NOT in the key: both are applied post-install and must not force a
         // reload (style restyles in place, scope re-installs from the retained request).
         // The body replacement (the guest's own body type: meshes and skin) changes the geometry
         // and textures too, so it is part of the key.
         if (string.IsNullOrWhiteSpace(bodyReplacement?.BodyNifPath)) bodyReplacement = null;
-        string cacheKey = identity.CacheKey + "|" + (morphs?.Label ?? "") + "|" + weight
+        string cacheKey = identity.CacheKey + "|" + (deformer?.Label ?? "") + "|" + weight
             + "|" + (bodyReplacement?.CacheKey ?? "");
         if (_guestRequest?.CacheKey == cacheKey && !_guestInstallPending) return;
 
@@ -223,7 +218,7 @@ public partial class VM_CharacterViewer
             if (myGen != _guestLoadGeneration) return;
 
             var request = new GuestSceneRequest(
-                loadResults, meshPaths, morphs, Math.Clamp(weight, 0, 100), osdFiles, cacheKey,
+                loadResults, meshPaths, deformer, Math.Clamp(weight, 0, 100), cacheKey,
                 Replacement: bodyReplacement);
 
             _renderThread.Invoke(() =>
@@ -232,7 +227,6 @@ public partial class VM_CharacterViewer
                 // between the generation check above and this queue write.
                 if (myGen != _guestLoadGeneration) return;
                 _guestRequest = request;
-                _guestBodyTri = null; // probed lazily at install, against the guest's own body NIF
                 _guestInstallPending = true;
             });
         }
@@ -255,7 +249,6 @@ public partial class VM_CharacterViewer
         _guestLoadGeneration++;
 
         _guestRequest = null;
-        _guestBodyTri = null;
         _guestInstallPending = false;
 
         if (_guestMeshes.Count == 0) return;
@@ -345,12 +338,16 @@ public partial class VM_CharacterViewer
             .Where(r => !_guestBodyOnly || r.BodyPart == "Body")
             .OrderBy(r => InstallOrderRank(r.BodyPart));
 
-        // Probe the guest's own sibling .tri before deforming: it is topology-matched to the
-        // guest's body NIF, which may be a completely different body mod from the primary's.
-        // Falls through to the request's OSD files when absent.
-        if (request.Morphs != null)
+        // Prepare the deformer against the guest's own body NIF before deforming: it may be a
+        // completely different body from the primary's. The guest is re-derived (weight blend,
+        // normals, skinning) even when the deformer has nothing to apply, so Prepare's result
+        // does not gate it.
+        if (request.Deformer != null)
         {
-            TryLoadGuestBodyTri(request);
+            string? guestBodyNifPath = request.LoadResults
+                .FirstOrDefault(r => r.BodyPart == "Body")
+                .MeshSource?.ResolvedDiskPath;
+            request.Deformer.Prepare(guestBodyNifPath, request.Weight);
         }
 
         int installed = 0;
@@ -380,10 +377,10 @@ public partial class VM_CharacterViewer
                 }
 
                 // Deform AFTER texturing so a failure in either leaves no half-installed mesh
-                // in the renderer. Body shapes only — the morph deltas are body topology.
-                if (request.Morphs != null && bodyPart == "Body")
+                // in the renderer. Body shapes only — the deformation targets body topology.
+                if (request.Deformer != null && bodyPart == "Body")
                 {
-                    ApplyGuestShapeMorph(request, built, glMesh);
+                    ApplyGuestShapeDeform(request, built, glMesh);
                 }
 
                 ApplyGuestStyle(glMesh);
@@ -448,16 +445,15 @@ public partial class VM_CharacterViewer
             isHairTint, hairR, hairG, hairB, isFaceTint, faceTintPath);
     }
 
-    /// <summary>Deforms one guest body shape by the guest's own preset at the guest's own
+    /// <summary>Deforms one guest body shape by the guest's own deformer at the guest's own
     /// weight and uploads the result. Shares <c>DeformShape</c> with the primary scene, so the
     /// two panes' geometry is produced by identical math.</summary>
-    private void ApplyGuestShapeMorph(GuestSceneRequest request, NifMeshBuilder.BuiltMesh built, GlMesh glMesh)
+    private void ApplyGuestShapeDeform(GuestSceneRequest request, NifMeshBuilder.BuiltMesh built, GlMesh glMesh)
     {
         try
         {
             var (positions, normals) = DeformShape(
-                built, built.ShapeName, request.Morphs!, request.Weight,
-                _guestBodyTri, request.OsdFiles);
+                built, built.ShapeName, request.Deformer, request.Weight);
 
             glMesh.UpdateVertexData(GlMeshFactory.Interleave(
                 positions, normals, built.TextureCoordinates,
@@ -468,35 +464,8 @@ public partial class VM_CharacterViewer
         {
             // An undeformed guest is still a useful overlay (it shows the base body), so log
             // and keep the shape rather than dropping it.
-            _logger.LogError("CharacterViewer: guest morph failed for shape '"
+            _logger.LogError("CharacterViewer: guest deformation failed for shape '"
                 + built.ShapeName + "': " + ex.ToString());
-        }
-    }
-
-    /// <summary>Probes for a .tri sibling of the guest's body NIF, matching the primary
-    /// scene's <c>TryLoadSiblingBodyTri</c>. Absent .tri simply leaves the OSD path in play.</summary>
-    private void TryLoadGuestBodyTri(GuestSceneRequest request)
-    {
-        if (_guestBodyTri != null) return;
-
-        string? bodyNifPath = request.LoadResults
-            .FirstOrDefault(r => r.BodyPart == "Body")
-            .MeshSource?.ResolvedDiskPath;
-        if (bodyNifPath == null) return;
-
-        string? triPath = ProbeSiblingTriPath(bodyNifPath);
-        if (triPath == null)
-        {
-            LogVerbose("CharacterViewer: no sibling .tri for guest body '" + bodyNifPath
-                + "' — falling back to the OSD path.");
-            return;
-        }
-
-        _guestBodyTri = _bodyTriFileParser.Parse(triPath);
-        if (_guestBodyTri == null)
-        {
-            LogVerbose("CharacterViewer: guest sibling .tri at '" + triPath
-                + "' failed to parse — falling back to the OSD path.");
         }
     }
 

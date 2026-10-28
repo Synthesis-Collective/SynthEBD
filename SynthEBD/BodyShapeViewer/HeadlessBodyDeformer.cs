@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>
 /// Deforms body shapes for measurement without the viewer: no GL, no normals, no render buffers, no scene
-/// queues. Produces the same post-skinning positions <see cref="VM_CharacterViewer.ApplyMorphSet"/> writes
+/// queues. Produces the same post-skinning positions <see cref="BodyShapeViewerExtension.ApplyMorphSet"/> writes
 /// to a mesh's CPU positions, for batch work such as a body-type profile's measurement scan.
 ///
 /// <para><b>Why it is fast and still exact.</b> The viewer computes, per shape,

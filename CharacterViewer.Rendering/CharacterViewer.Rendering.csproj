@@ -20,12 +20,6 @@
     <FileVersion>2.10.0.0</FileVersion>
   </PropertyGroup>
 
-  <!-- Lets SynthEBD.Tests build skinned test meshes (SkinningInfo.BoneTransforms is internal) to check
-       HeadlessBodyDeformer against the viewer's deform-then-skin path. -->
-  <ItemGroup>
-    <InternalsVisibleTo Include="SynthEBD.Tests" />
-  </ItemGroup>
-
   <!-- NuGet packaging metadata. Produced with `dotnet pack -c Release`; not packed
        on every build. PackageId is SynthEBD-prefixed because nuget.org is a global
        namespace. Authors is a free-text handle (no legal name required). -->

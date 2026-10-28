@@ -40,7 +40,7 @@ public sealed class MeasurementMeshSource
         Vertex = (shape, idx) => viewer.TryGetCurrentVertex(shape, idx, out var p) ? p : null,
         Positions = shape => viewer.GetShapePositions(shape),
         Bones = shape => viewer.GetShapeBoneInfo(shape),
-        Zeroed = (shape, weight) => viewer.GetZeroedShapePositions(shape, weight),
+        Zeroed = (shape, weight) => viewer.BodyShape().GetZeroedShapePositions(shape, weight),
         Indices = shape => viewer.GetShapeIndices(shape),
         ShapeVertexCounts = () => viewer.GetCurrentShapeVertexCounts(),
         NpcWeight = viewer.NpcWeight,

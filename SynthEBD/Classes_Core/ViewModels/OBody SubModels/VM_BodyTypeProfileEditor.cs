@@ -105,7 +105,7 @@ public class VM_BodyTypeProfileEditor : VM
 
         CharacterViewer = characterViewerFactory();
         CharacterViewer.Mode = ViewerMode.ReadOnly;
-        CharacterViewer.ShowClassifierControls = true;
+        CharacterViewer.BodyShape().ShowClassifierControls = true;
         // Lock the embedded viewer at default model scale (HeightOverride = 1.0) so the
         // body isn't scaled to the preview NPC's record Height. BoundingBox key vertices
         // are authored in mesh-local coordinates that don't carry through ModelScale, so a
@@ -132,7 +132,7 @@ public class VM_BodyTypeProfileEditor : VM
         // drain path runs later and calls ApplyBodySlide internally — RefreshPreviewAsync's
         // in-line RefreshMeasurementValues would have already run on an empty scene by then.
         // Subscribing here guarantees a post-deform recompute regardless of path.
-        CharacterViewer.BodySlideApplied += () => SelectedProfile?.RefreshMeasurementValues();
+        CharacterViewer.BodyShape().BodySlideApplied += () => SelectedProfile?.RefreshMeasurementValues();
 
         // When the viewer's GL context is swapped out from under it (user navigated off
         // the settings page and returned, which recreates UC_CharacterViewer with a fresh
@@ -247,10 +247,10 @@ public class VM_BodyTypeProfileEditor : VM
             .Subscribe(_ => Sliders.RebuildPresetRows())
             .DisposeWith(this);
 
-        VM_CharacterViewer.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
-        VM_CharacterViewer.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
-        VM_CharacterViewer.AnyRegionBoxPicked += OnAnyRegionBoxPicked;
-        VM_CharacterViewer.AnyRegionVertexEdited += OnAnyRegionVertexEdited;
+        BodyShapeViewerExtension.AnyKeyVertexPicked += OnAnyKeyVertexPicked;
+        BodyShapeViewerExtension.AnyKeyVertexBoxPicked += OnAnyKeyVertexBoxPicked;
+        BodyShapeViewerExtension.AnyRegionBoxPicked += OnAnyRegionBoxPicked;
+        BodyShapeViewerExtension.AnyRegionVertexEdited += OnAnyRegionVertexEdited;
 
         _environmentProvider.WhenAnyValue(x => x.LinkCache)
             .Subscribe(x => lk = x)
@@ -320,7 +320,7 @@ public class VM_BodyTypeProfileEditor : VM
                     // PropertyChanged on profile switch (the value carries over), so without
                     // this the old marker would linger until the user clicked into the new
                     // profile's grid.
-                    CharacterViewer?.SetPreviewKeyVertex(null, -1);
+                    CharacterViewer?.BodyShape().SetPreviewKeyVertex(null, -1);
                     if (SelectedProfile != null)
                     {
                         SelectedProfile.AttachViewer(CharacterViewer);
@@ -698,10 +698,10 @@ public class VM_BodyTypeProfileEditor : VM
 
     public override void Dispose()
     {
-        VM_CharacterViewer.AnyKeyVertexPicked -= OnAnyKeyVertexPicked;
-        VM_CharacterViewer.AnyKeyVertexBoxPicked -= OnAnyKeyVertexBoxPicked;
-        VM_CharacterViewer.AnyRegionBoxPicked -= OnAnyRegionBoxPicked;
-        VM_CharacterViewer.AnyRegionVertexEdited -= OnAnyRegionVertexEdited;
+        BodyShapeViewerExtension.AnyKeyVertexPicked -= OnAnyKeyVertexPicked;
+        BodyShapeViewerExtension.AnyKeyVertexBoxPicked -= OnAnyKeyVertexBoxPicked;
+        BodyShapeViewerExtension.AnyRegionBoxPicked -= OnAnyRegionBoxPicked;
+        BodyShapeViewerExtension.AnyRegionVertexEdited -= OnAnyRegionVertexEdited;
         base.Dispose();
     }
 
@@ -1254,7 +1254,7 @@ public class VM_BodyTypeProfileEditor : VM
         AnnotationQueue?.RefreshPendingApplyCount();
     }
 
-    private void OnAnyKeyVertexPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)
+    private void OnAnyKeyVertexPicked(VM_CharacterViewer viewer, BodyShapeViewerExtension.KeyVertexPick pick)
     {
         // Scope picks to the editor's own viewer so the BodySlides-menu viewer doesn't
         // bleed into profile capture when both menus are open.
@@ -1265,7 +1265,7 @@ public class VM_BodyTypeProfileEditor : VM
         profile.OnVertexPickedFromViewer(viewer, pick);
     }
 
-    private void OnAnyKeyVertexBoxPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    private void OnAnyKeyVertexBoxPicked(VM_CharacterViewer viewer, BodyShapeViewerExtension.KeyVertexBoxPick pick)
     {
         if (!ReferenceEquals(viewer, CharacterViewer)) return;
 
@@ -1279,7 +1279,7 @@ public class VM_BodyTypeProfileEditor : VM
         profile.OnBoxPickedFromViewer(viewer, pick);
     }
 
-    private void OnAnyRegionBoxPicked(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    private void OnAnyRegionBoxPicked(VM_CharacterViewer viewer, BodyShapeViewerExtension.KeyVertexBoxPick pick)
     {
         if (!ReferenceEquals(viewer, CharacterViewer)) return;
 
@@ -1290,7 +1290,7 @@ public class VM_BodyTypeProfileEditor : VM
         profile.OnRegionBoxPickedFromViewer(viewer, pick);
     }
 
-    private void OnAnyRegionVertexEdited(VM_CharacterViewer viewer, VM_CharacterViewer.RegionVertexEditPick pick)
+    private void OnAnyRegionVertexEdited(VM_CharacterViewer viewer, BodyShapeViewerExtension.RegionVertexEditPick pick)
     {
         if (!ReferenceEquals(viewer, CharacterViewer)) return;
 
@@ -2090,7 +2090,7 @@ public class VM_BodyTypeProfileEditor : VM
                     if (viewer.GetCurrentShapeVertexCounts().Count == 0) continue; // viewer unloaded mid-prep
                     var resolved = RegionVolumeEvaluator.ResolveRegions(
                         profileModel.Regions,
-                        shape => viewer.GetZeroedShapePositions(shape, wSlot),
+                        shape => viewer.BodyShape().GetZeroedShapePositions(shape, wSlot),
                         shape => viewer.GetShapeIndices(shape),
                         logMisses: msg => _logger?.LogMessage($"{msg} (scan reference @ weight {wSlot})"));
                     resolvedRegionsByWeight[wSlot] = resolved;
@@ -5409,7 +5409,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                 var entries = KeyVertices
                     .Where(k => !string.IsNullOrEmpty(k.ShapeName) && k.VertexIndex >= 0)
                     .Select(k => (k.ShapeName, k.VertexIndex));
-                ActiveViewer.ShowKeyVerticesInViewer(entries);
+                ActiveViewer.BodyShape().ShowKeyVerticesInViewer(entries);
             });
 
         // Explicit one-shot import that bypasses the CapturePicks toggle: takes whatever pick
@@ -5418,13 +5418,13 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // button is a safe no-op. Lets the user pick freely in the viewer, then promote only
         // the interesting ones instead of having every click flow into the roster.
         CaptureSelectedPicks = new RelayCommand(
-            canExecute: _ => ActiveViewer != null && ActiveViewer.SelectedPicks.Count > 0,
+            canExecute: _ => ActiveViewer != null && ActiveViewer.BodyShape().SelectedPicks.Count > 0,
             execute: _ =>
             {
                 var viewer = ActiveViewer;
                 if (viewer == null) return;
                 VM_NamedKeyVertex? firstAdded = null;
-                foreach (var row in viewer.SelectedPicks)
+                foreach (var row in viewer.BodyShape().SelectedPicks)
                 {
                     if (row == null) continue;
                     var shapeName = row.ShapeName ?? "";
@@ -5646,18 +5646,18 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                     && !string.IsNullOrEmpty(kv.ShapeName)
                     && kv.VertexIndex >= 0)
                 {
-                    ActiveViewer.RequestSelectPickByShapeAndIndex(kv.ShapeName, kv.VertexIndex);
+                    ActiveViewer.BodyShape().RequestSelectPickByShapeAndIndex(kv.ShapeName, kv.VertexIndex);
                     // Transient "you-are-here" sphere for the selected row, drawn even when
                     // no matching Picks entry exists. Doesn't add a Picks row (so the picks
                     // ListBox stays uncluttered) and is cleared automatically when the user
                     // selects a different row, deselects, or switches profile.
-                    ActiveViewer.SetPreviewKeyVertex(kv.ShapeName, kv.VertexIndex);
+                    ActiveViewer.BodyShape().SetPreviewKeyVertex(kv.ShapeName, kv.VertexIndex);
                 }
                 else
                 {
                     // Deselection (or unresolved row): drop the preview so it doesn't linger
                     // on the model after the user clicks away from a row.
-                    ActiveViewer?.SetPreviewKeyVertex(null, -1);
+                    ActiveViewer?.BodyShape().SetPreviewKeyVertex(null, -1);
                 }
 
                 SyncPendingBoxEditSessionWithSelection(kv);
@@ -6410,7 +6410,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                 keys.Add((kv.ShapeName, kv.VertexIndex));
             }
         }
-        ActiveViewer.RequestSelectPicksByShapeAndIndices(keys);
+        ActiveViewer.BodyShape().RequestSelectPicksByShapeAndIndices(keys);
     }
 
     /// <summary>Currently highlighted measurement (the DataGrid's primary / last-focused row).
@@ -6586,7 +6586,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // (cancel, or post-confirm cleanup) drop any edit-session target so a subsequent
         // drag-picked box doesn't accidentally overwrite a stale row.
         _viewerHasPendingBoxSub?.Dispose();
-        _viewerHasPendingBoxSub = viewer?
+        _viewerHasPendingBoxSub = viewer?.BodyShape()
             .WhenAnyValue(v => v.HasPendingBox)
             .Subscribe(hasBox =>
             {
@@ -6622,7 +6622,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // Region edit path: when the "Show zeroed body" flip toggles while a region box is open,
         // re-express the pending box into the body space now showing so it stays on the same anatomy.
         _viewerShowZeroedSub?.Dispose();
-        _viewerShowZeroedSub = viewer?
+        _viewerShowZeroedSub = viewer?.BodyShape()
             .WhenAnyValue(v => v.PendingBoxShowZeroed)
             .Subscribe(showZeroed => OnPendingBoxShowZeroedFlipped(showZeroed));
 
@@ -6631,27 +6631,27 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // feedback for what Confirm would commit. Merging single-property streams (rather
         // than the 9-arg WhenAnyValue) keeps the wiring readable.
         _viewerBulgeOverlaySub?.Dispose();
-        _viewerBulgeOverlaySub = viewer?
+        _viewerBulgeOverlaySub = viewer?.BodyShape()
             .WhenAnyValue(v => v.ShowBulgeBinOverlay)
             .Subscribe(b => ShowBulgeOverlay = b);
 
         _viewerPendingBoxPreviewSub?.Dispose();
         _viewerPendingBoxPreviewSub = viewer == null ? null : Observable.Merge(
-            viewer.WhenAnyValue(v => v.HasPendingBox).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxShapeName).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxFinalCriterion).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxMinX).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxMaxX).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxMinY).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxMaxY).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxMinZ).Select(_ => 0),
-            viewer.WhenAnyValue(v => v.PendingBoxMaxZ).Select(_ => 0)
+            viewer.BodyShape().WhenAnyValue(v => v.HasPendingBox).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxShapeName).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxFinalCriterion).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxMinX).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxMaxX).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxMinY).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxMaxY).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxMinZ).Select(_ => 0),
+            viewer.BodyShape().WhenAnyValue(v => v.PendingBoxMaxZ).Select(_ => 0)
         ).Subscribe(_ => RefreshPendingBoxPreview(viewer));
     }
 
     /// <summary>Re-runs <see cref="MeasurementMath.FindBestInBox"/> against the viewer's
     /// current pending-box state and pushes the resolved positions to
-    /// <see cref="VM_CharacterViewer.SetPreviewPickMarkers"/>. Returns immediately and clears
+    /// <see cref="BodyShapeViewerExtension.SetPreviewPickMarkers"/>. Returns immediately and clears
     /// the preview when the pending box is dismissed, the shape isn't loaded, or the box is
     /// empty. Mirror-style authoring criteria expand into multiple resolutions; the synthetic
     /// rows are made each other's pair siblings so PinchPair / BulgePair criteria resolve via
@@ -6665,28 +6665,28 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     private void RefreshPendingBoxPreview(VM_CharacterViewer? viewer)
     {
         if (viewer == null) return;
-        if (!viewer.HasPendingBox) { viewer.SetPreviewPickMarkers(null); return; }
+        if (!viewer.BodyShape().HasPendingBox) { viewer.BodyShape().SetPreviewPickMarkers(null); return; }
 
         // Region edit: the purple key-vertex pick-preview (a single-vertex extremum) is meaningless
         // for a region box. Clear it and instead live-refresh the region's own cyan cap-loop overlay
         // from the edited pending coords, so adjusting the box updates the region preview in place.
         if (_pendingRegionEditTarget != null)
         {
-            viewer.SetPreviewPickMarkers(null);
+            viewer.BodyShape().SetPreviewPickMarkers(null);
             RefreshSelectedRegionFromPendingBox(viewer);
             return;
         }
 
-        var shapeName = viewer.PendingBoxShapeName ?? "";
-        if (string.IsNullOrEmpty(shapeName)) { viewer.SetPreviewPickMarkers(null); return; }
+        var shapeName = viewer.BodyShape().PendingBoxShapeName ?? "";
+        if (string.IsNullOrEmpty(shapeName)) { viewer.BodyShape().SetPreviewPickMarkers(null); return; }
 
         var positions = viewer.GetShapePositions(shapeName);
-        if (positions == null || positions.Length == 0) { viewer.SetPreviewPickMarkers(null); return; }
+        if (positions == null || positions.Length == 0) { viewer.BodyShape().SetPreviewPickMarkers(null); return; }
 
-        var boxMin = new OpenTK.Mathematics.Vector3(viewer.PendingBoxMinX, viewer.PendingBoxMinY, viewer.PendingBoxMinZ);
-        var boxMax = new OpenTK.Mathematics.Vector3(viewer.PendingBoxMaxX, viewer.PendingBoxMaxY, viewer.PendingBoxMaxZ);
+        var boxMin = new OpenTK.Mathematics.Vector3(viewer.BodyShape().PendingBoxMinX, viewer.BodyShape().PendingBoxMinY, viewer.BodyShape().PendingBoxMinZ);
+        var boxMax = new OpenTK.Mathematics.Vector3(viewer.BodyShape().PendingBoxMaxX, viewer.BodyShape().PendingBoxMaxY, viewer.BodyShape().PendingBoxMaxZ);
 
-        var criteria = ExpandSelectionToPersistedCriteria(viewer.PendingBoxFinalCriterion);
+        var criteria = ExpandSelectionToPersistedCriteria(viewer.BodyShape().PendingBoxFinalCriterion);
         var synthetics = criteria.Select(c => new NamedKeyVertex
         {
             ShapeName = shapeName,
@@ -6757,7 +6757,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             if (idx.Value < 0 || idx.Value >= positions.Length) continue;
             resolved.Add(positions[idx.Value]);
         }
-        viewer.SetPreviewPickMarkers(resolved);
+        viewer.BodyShape().SetPreviewPickMarkers(resolved);
 
         // The debug overlay reads the same pending-box state, so re-run it whenever the
         // preview refreshes. Internal guard makes this a no-op when the toggle is off.
@@ -6775,19 +6775,19 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         var target = _pendingRegionEditTarget;
         if (target == null) { return; }
 
-        var shapeName = viewer.PendingBoxShapeName ?? "";
-        if (string.IsNullOrEmpty(shapeName)) { viewer.ClearRegionOverlay(); return; }
+        var shapeName = viewer.BodyShape().PendingBoxShapeName ?? "";
+        if (string.IsNullOrEmpty(shapeName)) { viewer.BodyShape().ClearRegionOverlay(); return; }
 
         int weight = target.DefiningWeight >= 0 ? target.DefiningWeight : (_parent?.PreviewWeight ?? 0);
-        var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+        var zeroed = viewer.BodyShape().GetZeroedShapePositions(shapeName, weight);
         var shown = viewer.GetShapePositions(shapeName); // body currently displayed (deformed or zeroed)
-        if (zeroed == null || zeroed.Length == 0) { viewer.ClearRegionOverlay(); return; }
+        if (zeroed == null || zeroed.Length == 0) { viewer.BodyShape().ClearRegionOverlay(); return; }
 
         // Current pending box, in the space the session last put it in (tracked, not read off the viewer's
         // flag, so a flip that is mid-flight still resolves the coords in the space they are actually in).
         var pendingBox = new RegionVolumeEvaluator.RegionAabb(
-            new OpenTK.Mathematics.Vector3(viewer.PendingBoxMinX, viewer.PendingBoxMinY, viewer.PendingBoxMinZ),
-            new OpenTK.Mathematics.Vector3(viewer.PendingBoxMaxX, viewer.PendingBoxMaxY, viewer.PendingBoxMaxZ));
+            new OpenTK.Mathematics.Vector3(viewer.BodyShape().PendingBoxMinX, viewer.BodyShape().PendingBoxMinY, viewer.BodyShape().PendingBoxMinZ),
+            new OpenTK.Mathematics.Vector3(viewer.BodyShape().PendingBoxMaxX, viewer.BodyShape().PendingBoxMaxY, viewer.BodyShape().PendingBoxMaxZ));
         var zeroedBox = ResolvePendingRegionZeroedBox(viewer, shapeName, weight, pendingBox, _pendingRegionBoxIsZeroed)
             ?? pendingBox;
 
@@ -6797,7 +6797,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         model.BoxMaxX = zeroedBox.Max.X; model.BoxMaxY = zeroedBox.Max.Y; model.BoxMaxZ = zeroedBox.Max.Z;
         var resolved = RegionVolumeEvaluator.ResolveRegions(
             new[] { model },
-            s => viewer.GetZeroedShapePositions(s, weight),
+            s => viewer.BodyShape().GetZeroedShapePositions(s, weight),
             s => viewer.GetShapeIndices(s));
 
         // Evaluate the transient region against the CURRENTLY SHOWN body so the overlay sits on it.
@@ -7042,7 +7042,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// which rule is being edited.</summary>
     public int IndexOfRule(VM_MeasurementRule rule) => Rules.IndexOf(rule);
 
-    public void OnVertexPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexPick pick)
+    public void OnVertexPickedFromViewer(VM_CharacterViewer viewer, BodyShapeViewerExtension.KeyVertexPick pick)
     {
         ActiveViewer = viewer;
 
@@ -7090,7 +7090,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     {
         x = y = z = 0f;
         if (viewer == null || string.IsNullOrEmpty(shapeName) || vertexIndex < 0) return false;
-        var zeroed = viewer.GetZeroedShapePositions(shapeName, 0);
+        var zeroed = viewer.BodyShape().GetZeroedShapePositions(shapeName, 0);
         if (zeroed == null || vertexIndex >= zeroed.Length) return false;
         var p = zeroed[vertexIndex];
         x = p.X; y = p.Y; z = p.Z;
@@ -7107,11 +7107,11 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// session on an existing row (opened by selecting a BoundingBox row); the target is
     /// updated in place instead of appending. A mirror criterion during edit updates the
     /// target with the primary half and appends the partner row. A
-    /// <see cref="VM_CharacterViewer.KeyVertexBoxPick.IsDuplicate"/> pick (from "Confirm as
+    /// <see cref="BodyShapeViewerExtension.KeyVertexBoxPick.IsDuplicate"/> pick (from "Confirm as
     /// Duplicate") always forks to a new row even with an edit session active, leaving the
     /// edit target intact so a later regular Confirm still updates the original.</para>
     /// </summary>
-    public void OnBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    public void OnBoxPickedFromViewer(VM_CharacterViewer viewer, BodyShapeViewerExtension.KeyVertexBoxPick pick)
     {
         ActiveViewer = viewer;
         _regionPickFiredThisSession = true; // a Confirm was clicked (even if the guard below cancels it,
@@ -7139,7 +7139,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             {
                 // Re-route to the region update path. Strip IsDuplicate so it updates the edited row
                 // rather than forking, regardless of which key-vertex confirm was clicked.
-                var regionPick = new VM_CharacterViewer.KeyVertexBoxPick(
+                var regionPick = new BodyShapeViewerExtension.KeyVertexBoxPick(
                     pick.ShapeName, pick.BoxMin, pick.BoxMax, pick.Criterion, isDuplicate: false);
                 OnRegionBoxPickedFromViewer(viewer, regionPick);
                 return;
@@ -7237,7 +7237,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         var entries = newRows
             .Where(kv => !string.IsNullOrEmpty(kv.ShapeName) && kv.VertexIndex >= 0)
             .Select(kv => (kv.ShapeName, kv.VertexIndex));
-        viewer.ShowKeyVerticesInViewer(entries);
+        viewer.BodyShape().ShowKeyVerticesInViewer(entries);
     }
 
     /// <summary>Reopens a stored BoundingBox row in the viewer's pending-box editor so the
@@ -7255,9 +7255,9 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         {
             // Selection moved off a BB row: tear down any active edit session. The viewer's
             // HasPendingBox subscription below clears _pendingBoxEditTarget.
-            if (_pendingBoxEditTarget != null && viewer.HasPendingBox)
+            if (_pendingBoxEditTarget != null && viewer.BodyShape().HasPendingBox)
             {
-                viewer.CancelPendingBox();
+                viewer.BodyShape().CancelPendingBox();
             }
             return;
         }
@@ -7266,12 +7266,12 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // (0-9) to BoxCriterionSelection — their numeric ranges are aligned for exactly this
         // reason (see BoxCriterionSelection doc comment).
         _pendingBoxEditTarget = kv;
-        var initial = new VM_CharacterViewer.KeyVertexBoxPick(
+        var initial = new BodyShapeViewerExtension.KeyVertexBoxPick(
             kv!.ShapeName ?? "",
             new OpenTK.Mathematics.Vector3(kv.BoxMinX, kv.BoxMinY, kv.BoxMinZ),
             new OpenTK.Mathematics.Vector3(kv.BoxMaxX, kv.BoxMaxY, kv.BoxMaxZ),
             (BoxCriterionSelection)(int)kv.Criterion);
-        viewer.BeginPendingBox(initial);
+        viewer.BodyShape().BeginPendingBox(initial);
     }
 
     /// <summary>Region analog of <see cref="SyncPendingBoxEditSessionWithSelection"/>: brings the
@@ -7292,10 +7292,10 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             // programmatic cancel (clicking AWAY), NOT the Cancel button, so it must NOT revert the
             // region's committed vertex edits — suppress the revert around it. The HasPendingBox
             // subscription clears _pendingRegionEditTarget + caches.
-            if (_pendingRegionEditTarget != null && viewer.HasPendingBox)
+            if (_pendingRegionEditTarget != null && viewer.BodyShape().HasPendingBox)
             {
                 _suppressCancelRevert = true;
-                try { viewer.CancelPendingBox(); } finally { _suppressCancelRevert = false; }
+                try { viewer.BodyShape().CancelPendingBox(); } finally { _suppressCancelRevert = false; }
             }
             // No region selected → no undo history applies.
             _regionEditHistoryOwner = null;
@@ -7316,15 +7316,15 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // that's fine — the flip handler re-fetches the right pair each time.)
         int weight = model.DefiningWeight >= 0 ? model.DefiningWeight : (_parent?.PreviewWeight ?? 0);
         var deformed = viewer.GetShapePositions(shapeName);
-        var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+        var zeroed = viewer.BodyShape().GetZeroedShapePositions(shapeName, weight);
         _pendingRegionDeformedPositions = deformed;
         _pendingRegionSessionPresetLabel = _parent?.SelectedPreset?.AssociatedModel?.Label ?? "";
-        _pendingRegionBoxIsZeroed = viewer.PendingBoxShowZeroed;
+        _pendingRegionBoxIsZeroed = viewer.BodyShape().PendingBoxShowZeroed;
 
         // Choose the display box for the body currently shown: if deformed and we can convert, map the
         // stored zeroed box onto the deformed mesh so the wireframe hugs the visible bump.
         var displayBox = zeroedBox;
-        if (!viewer.PendingBoxShowZeroed && deformed != null && zeroed != null)
+        if (!viewer.BodyShape().PendingBoxShowZeroed && deformed != null && zeroed != null)
         {
             var conv = RegionVolumeEvaluator.ConvertBoxByVertexSet(zeroed, deformed, zeroedBox);
             if (conv.HasValue) displayBox = conv.Value;
@@ -7338,9 +7338,9 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         BeginRegionEditSession(region);
         // Criterion is irrelevant for regions; pass a default. BeginPendingBox resets ShowZeroed=false,
         // which matches _pendingRegionBoxIsZeroed=false for the deformed display box above.
-        var initial = new VM_CharacterViewer.KeyVertexBoxPick(
+        var initial = new BodyShapeViewerExtension.KeyVertexBoxPick(
             shapeName, displayBox.Min, displayBox.Max, default);
-        viewer.BeginPendingBox(initial);
+        viewer.BodyShape().BeginPendingBox(initial);
         _pendingRegionBoxIsZeroed = false; // BeginPendingBox forced ShowZeroed off → deformed display
 
         // A region authored against the zeroed body reopens on the zeroed body, so its spinners show the
@@ -7348,7 +7348,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // the typed values and grow the box. The flip handler maps the untouched box straight to the
         // canonical (stored) zeroed box; the viewer restores the preset when the box is confirmed/cancelled.
         if (string.Equals(region.DefiningPresetLabel, ZeroedSlidersDefiningLabel, StringComparison.Ordinal))
-            viewer.PendingBoxShowZeroed = true;
+            viewer.BodyShape().PendingBoxShowZeroed = true;
     }
 
     /// <summary>Handles the "Show zeroed body" flip while a REGION box is open: re-expresses the live
@@ -7361,22 +7361,22 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     {
         var viewer = ActiveViewer;
         if (viewer == null) return;
-        if (_pendingRegionEditTarget == null || !viewer.HasPendingBox) return;
+        if (_pendingRegionEditTarget == null || !viewer.BodyShape().HasPendingBox) return;
         if (showZeroed == _pendingRegionBoxIsZeroed) return; // already in the requested space
 
-        var shapeName = viewer.PendingBoxShapeName ?? "";
+        var shapeName = viewer.BodyShape().PendingBoxShapeName ?? "";
         if (string.IsNullOrEmpty(shapeName)) return;
 
         int weight = _pendingRegionEditTarget.DefiningWeight >= 0
             ? _pendingRegionEditTarget.DefiningWeight
             : (_parent?.PreviewWeight ?? 0);
         var deformed = _pendingRegionDeformedPositions ?? viewer.GetShapePositions(shapeName);
-        var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+        var zeroed = viewer.BodyShape().GetZeroedShapePositions(shapeName, weight);
         if (deformed == null || zeroed == null) { _pendingRegionBoxIsZeroed = showZeroed; return; }
 
         var cur = new RegionVolumeEvaluator.RegionAabb(
-            new OpenTK.Mathematics.Vector3(viewer.PendingBoxMinX, viewer.PendingBoxMinY, viewer.PendingBoxMinZ),
-            new OpenTK.Mathematics.Vector3(viewer.PendingBoxMaxX, viewer.PendingBoxMaxY, viewer.PendingBoxMaxZ));
+            new OpenTK.Mathematics.Vector3(viewer.BodyShape().PendingBoxMinX, viewer.BodyShape().PendingBoxMinY, viewer.BodyShape().PendingBoxMinZ),
+            new OpenTK.Mathematics.Vector3(viewer.BodyShape().PendingBoxMaxX, viewer.BodyShape().PendingBoxMaxY, viewer.BodyShape().PendingBoxMaxZ));
 
         // Re-express from the canonical zeroed box, never by converting the displayed box back and forth:
         // the conversion is not an exact inverse, so a deformed→zeroed→deformed round trip re-captured a
@@ -7396,7 +7396,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         _pendingRegionZeroedBox = zeroedBox.Value;
         _pendingRegionSyncedBox = display;
         _pendingRegionBoxIsZeroed = showZeroed;
-        viewer.SetPendingBoxCoords(display.Min, display.Max);
+        viewer.BodyShape().SetPendingBoxCoords(display.Min, display.Max);
     }
 
     /// <summary>The zeroed-space box that <paramref name="current"/> (pending-box coords, in zeroed space when
@@ -7415,7 +7415,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         if (currentIsZeroed) return current;
 
         var deformed = _pendingRegionDeformedPositions ?? viewer.GetShapePositions(shapeName);
-        var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+        var zeroed = viewer.BodyShape().GetZeroedShapePositions(shapeName, weight);
         if (deformed == null || zeroed == null) return null;
         return RegionVolumeEvaluator.ConvertBoxByVertexSet(deformed, zeroed, current);
     }
@@ -7442,7 +7442,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// bounds those same vertices on the zeroed mesh (at the authoring weight). Falls back to the
     /// raw box if the zeroed snapshot isn't available (unskinned / non-body shape). Also records the
     /// defining preset + weight for re-editing.</summary>
-    public void OnRegionBoxPickedFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.KeyVertexBoxPick pick)
+    public void OnRegionBoxPickedFromViewer(VM_CharacterViewer viewer, BodyShapeViewerExtension.KeyVertexBoxPick pick)
     {
         ActiveViewer = viewer;
         _regionPickFiredThisSession = true; // a confirm happened → the pending teardown is not a Cancel
@@ -7470,7 +7470,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             && _pendingRegionZeroedBox.HasValue && _pendingRegionSyncedBox.HasValue
             && BoxApproxEqual(pick.BoxMin, pick.BoxMax, _pendingRegionSyncedBox.Value, 1e-3f);
 
-        bool alreadyZeroed = viewer.PendingBoxShowZeroed;
+        bool alreadyZeroed = viewer.BodyShape().PendingBoxShowZeroed;
         if (boxUntouched)
         {
             boxMin = _pendingRegionZeroedBox!.Value.Min;
@@ -7481,7 +7481,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             // Framing-time deformed mesh (cached when the session began) so a mid-edit preset/weight
             // change doesn't shift the conversion; fall back to the live body for a fresh draw.
             var deformed = _pendingRegionDeformedPositions ?? viewer.GetShapePositions(shapeName);
-            var zeroed = viewer.GetZeroedShapePositions(shapeName, weight);
+            var zeroed = viewer.BodyShape().GetZeroedShapePositions(shapeName, weight);
             if (deformed != null && zeroed != null)
             {
                 var converted = RegionVolumeEvaluator.ConvertBoxByVertexSet(
@@ -7664,7 +7664,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// edit only for a vertex the box <i>does</i> contain. So a region whose edits exactly match its box
     /// keeps an empty edit list and stays on the smooth box path — only genuine deviations switch it to
     /// the induced path.</summary>
-    public void OnRegionVertexEditFromViewer(VM_CharacterViewer viewer, VM_CharacterViewer.RegionVertexEditPick pick)
+    public void OnRegionVertexEditFromViewer(VM_CharacterViewer viewer, BodyShapeViewerExtension.RegionVertexEditPick pick)
     {
         ActiveViewer = viewer;
 
@@ -7694,7 +7694,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // display weight; re-look the vertex up at the region's resolve weight instead, so store-weight
         // and match-weight agree regardless of which weight the body is currently shown at.
         int regionWeight = region.DefiningWeight >= 0 ? region.DefiningWeight : (_parent?.PreviewWeight ?? 0);
-        var zeroedAtWeight = viewer.GetZeroedShapePositions(region.ShapeName, regionWeight);
+        var zeroedAtWeight = viewer.BodyShape().GetZeroedShapePositions(region.ShapeName, regionWeight);
 
         static float SqDist(RegionVertexEdit e, OpenTK.Mathematics.Vector3 p)
         {
@@ -7855,7 +7855,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         int weight = model.DefiningWeight >= 0 ? model.DefiningWeight : (_parent?.PreviewWeight ?? 0);
         var resolved = RegionVolumeEvaluator.ResolveRegions(
             new[] { model },
-            shape => viewer.GetZeroedShapePositions(shape, weight),
+            shape => viewer.BodyShape().GetZeroedShapePositions(shape, weight),
             shape => viewer.GetShapeIndices(shape),
             logMisses: msg => _parent?.Logger?.LogMessage(msg));
         if (!resolved.TryGetValue(model.Name, out var rr) || rr == null) return null;
@@ -7892,8 +7892,8 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         var region = SelectedRegion;
         if (region == null)
         {
-            viewer.ClearRegionOverlay();
-            viewer.SetPreviewPickMarkers(null); // drop any lingering vertex-edit markers on deselect
+            viewer.BodyShape().ClearRegionOverlay();
+            viewer.BodyShape().SetPreviewPickMarkers(null); // drop any lingering vertex-edit markers on deselect
             return;
         }
 
@@ -7901,7 +7901,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // Confirm will store), not the region's saved box. Otherwise every other repaint trigger — the
         // End-Cap/Solid view-mode switch, a preset/weight change, a vertex edit — silently swapped the live
         // preview for the stale saved region while the box panel still showed the edited coords.
-        if (ReferenceEquals(_pendingRegionEditTarget, region) && viewer.HasPendingBox)
+        if (ReferenceEquals(_pendingRegionEditTarget, region) && viewer.BodyShape().HasPendingBox)
         {
             RefreshSelectedRegionFromPendingBox(viewer);
             return;
@@ -7910,7 +7910,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         var model = region.DumpToModel();
         if (string.IsNullOrEmpty(model.Name) || string.IsNullOrEmpty(model.ShapeName))
         {
-            viewer.ClearRegionOverlay();
+            viewer.BodyShape().ClearRegionOverlay();
             return;
         }
 
@@ -7919,7 +7919,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         var deformed = viewer.GetShapePositions(model.ShapeName);
         if (deformed == null || deformed.Length == 0)
         {
-            viewer.ClearRegionOverlay();
+            viewer.BodyShape().ClearRegionOverlay();
             return;
         }
 
@@ -7940,12 +7940,12 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     private void ShowUnresolvedRegionOverlay(VM_CharacterViewer viewer, string shapeName,
         OpenTK.Mathematics.Vector3[] deformed, RegionVolumeEvaluator.MatchedEdits? matched)
     {
-        viewer.ClearRegionOverlay();
+        viewer.BodyShape().ClearRegionOverlay();
         if (matched != null && !matched.IsEmpty)
-            viewer.SetRegionWireColored(BuildEditNodeCrosses(null, deformed, matched, EstimateShapeEdgeLength(viewer, shapeName, deformed) * 0.6f));
+            viewer.BodyShape().SetRegionWireColored(BuildEditNodeCrosses(null, deformed, matched, EstimateShapeEdgeLength(viewer, shapeName, deformed) * 0.6f));
         else
-            viewer.SetRegionWireColored(null);
-        viewer.SetPreviewPickMarkers(null);
+            viewer.BodyShape().SetRegionWireColored(null);
+        viewer.BodyShape().SetPreviewPickMarkers(null);
     }
 
     /// <summary>Rough mean triangle-edge length of a shape's current mesh, for sizing edit-node glyphs
@@ -8005,28 +8005,28 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             var solid = RegionVolumeEvaluator.BuildSolidSurface(rr, deformed, rr.CapMode);
             if (hasEdits)
             {
-                viewer.SetRegionSolid(solid, null);                                   // faces only
-                viewer.SetRegionWireColored(BuildColoredEditWire(rr, deformed, edits!)); // colored wire + node crosses
+                viewer.BodyShape().SetRegionSolid(solid, null);                                   // faces only
+                viewer.BodyShape().SetRegionWireColored(BuildColoredEditWire(rr, deformed, edits!)); // colored wire + node crosses
             }
             else
             {
                 var wire = RegionVolumeEvaluator.BuildSolidWireframe(rr, deformed);
-                viewer.SetRegionSolid(solid, wire, cyan);                             // original behavior
+                viewer.BodyShape().SetRegionSolid(solid, wire, cyan);                             // original behavior
             }
             // Clear the cap-loop contour/markers channel — the wireframe replaces it in Solid mode.
-            viewer.SetRegionOverlay(null, null, cyan);
+            viewer.BodyShape().SetRegionOverlay(null, null, cyan);
         }
         else
         {
             // End-Cap mode (default): the clean cyan contour. When edited, add the green/red node
             // crosses so the curated vertices are still visible without cluttering the contour.
-            viewer.SetRegionSolid(null);
-            viewer.SetRegionOverlay(null, edges, cyan);
-            viewer.SetRegionWireColored(hasEdits ? BuildEditNodeCrosses(rr, deformed, edits!, null) : null);
+            viewer.BodyShape().SetRegionSolid(null);
+            viewer.BodyShape().SetRegionOverlay(null, edges, cyan);
+            viewer.BodyShape().SetRegionWireColored(hasEdits ? BuildEditNodeCrosses(rr, deformed, edits!, null) : null);
         }
 
         // The colored wire / crosses replace the old preview-sphere markers — make sure none linger.
-        viewer.SetPreviewPickMarkers(null);
+        viewer.BodyShape().SetPreviewPickMarkers(null);
     }
 
     /// <summary>Colored Solid-mode wireframe for an edited region: each patch edge is cyan, except the
@@ -8102,7 +8102,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     {
         if (model?.VertexEdits == null || model.VertexEdits.Count == 0) return null;
         int weight = model.DefiningWeight >= 0 ? model.DefiningWeight : (_parent?.PreviewWeight ?? 0);
-        var zeroed = viewer.GetZeroedShapePositions(model.ShapeName, weight);
+        var zeroed = viewer.BodyShape().GetZeroedShapePositions(model.ShapeName, weight);
         if (zeroed == null || zeroed.Length == 0) return null;
         var refs = new List<RegionVolumeEvaluator.VertexEditRef>(model.VertexEdits.Count);
         foreach (var e in model.VertexEdits)
@@ -8503,7 +8503,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             && !string.IsNullOrEmpty(selKv.ShapeName)
             && selKv.VertexIndex >= 0)
         {
-            viewer.SetPreviewKeyVertex(selKv.ShapeName, selKv.VertexIndex);
+            viewer.BodyShape().SetPreviewKeyVertex(selKv.ShapeName, selKv.VertexIndex);
         }
 
         if (Measurements.Count == 0)
@@ -8563,7 +8563,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                     shape => viewer.GetShapePositions(shape),
                     shape => viewer.GetShapeBoneInfo(shape),
                     resolvedRegions,
-                    shape => viewer.GetZeroedShapePositions(shape, 0),
+                    shape => viewer.BodyShape().GetZeroedShapePositions(shape, 0),
                     shape => viewer.GetShapeIndices(shape),
                     liveTraceCache,
                     out float tv, out _)
@@ -8590,7 +8590,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
                 shape => viewer.GetShapePositions(shape),
                 shape => viewer.GetShapeBoneInfo(shape),
                 resolvedRegions,
-                shape => viewer.GetZeroedShapePositions(shape, 0),
+                shape => viewer.BodyShape().GetZeroedShapePositions(shape, 0),
                 out float v))
             {
                 m.LiveValue = v;
@@ -8798,7 +8798,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
     /// mesh state and caches the resolved index onto the row VM (so the DataGrid reflects it,
     /// and <see cref="MeasurementMath"/> evaluators can read the cached index). When the index
     /// changes, also updates any corresponding orange pick in the viewer's Picks list via
-    /// <see cref="VM_CharacterViewer.MigrateKeyVertexPick"/> — so entries the user has already
+    /// <see cref="BodyShapeViewerExtension.MigrateKeyVertexPick"/> — so entries the user has already
     /// sent to the viewer (via box-confirm or "Show Picks in Viewer") keep tracking live.
     /// <para>
     /// Does NOT push resolved positions to any renderer marker list by itself. Markers are
@@ -8893,7 +8893,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             // switches. No-op when the pick isn't in the viewer's list yet.
             if (oldIdx >= 0 && oldIdx != idx.Value)
             {
-                viewer.MigrateKeyVertexPick(shapeName, oldIdx, idx.Value);
+                viewer.BodyShape().MigrateKeyVertexPick(shapeName, oldIdx, idx.Value);
             }
         }
 
@@ -8908,7 +8908,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             if (string.IsNullOrEmpty(kv.ShapeName)) continue;
             if (!zeroedCache.TryGetValue(kv.ShapeName, out var zeroed))
             {
-                zeroed = viewer.GetZeroedShapePositions(kv.ShapeName, 0);
+                zeroed = viewer.BodyShape().GetZeroedShapePositions(kv.ShapeName, 0);
                 zeroedCache[kv.ShapeName] = zeroed;
             }
             if (zeroed == null || zeroed.Length == 0) continue;
@@ -8929,7 +8929,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             kv.VertexIndex = matched;
             if (oldCoordIdx >= 0 && oldCoordIdx != matched)
             {
-                viewer.MigrateKeyVertexPick(kv.ShapeName, oldCoordIdx, matched);
+                viewer.BodyShape().MigrateKeyVertexPick(kv.ShapeName, oldCoordIdx, matched);
             }
         }
     }
@@ -8959,21 +8959,21 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         if (viewer == null) return;
         if (!ShowBulgeOverlay) return;
         // The bulge debug overlay owns the measurement overlay while on: no region tint under it.
-        viewer.SetMeasurementRegionTint(null);
+        viewer.BodyShape().SetMeasurementRegionTint(null);
 
         string? shapeName;
         float minX, minY, minZ, maxX, maxY, maxZ;
         BoundingBoxCriterion criterion;
 
-        if (viewer.HasPendingBox && !string.IsNullOrEmpty(viewer.PendingBoxShapeName))
+        if (viewer.BodyShape().HasPendingBox && !string.IsNullOrEmpty(viewer.BodyShape().PendingBoxShapeName))
         {
             // Pending box wins because the user is actively editing — the overlay should
             // reflect the in-flight coords, not whatever was last confirmed.
-            shapeName = viewer.PendingBoxShapeName;
-            minX = viewer.PendingBoxMinX; maxX = viewer.PendingBoxMaxX;
-            minY = viewer.PendingBoxMinY; maxY = viewer.PendingBoxMaxY;
-            minZ = viewer.PendingBoxMinZ; maxZ = viewer.PendingBoxMaxZ;
-            var expanded = ExpandSelectionToPersistedCriteria(viewer.PendingBoxFinalCriterion);
+            shapeName = viewer.BodyShape().PendingBoxShapeName;
+            minX = viewer.BodyShape().PendingBoxMinX; maxX = viewer.BodyShape().PendingBoxMaxX;
+            minY = viewer.BodyShape().PendingBoxMinY; maxY = viewer.BodyShape().PendingBoxMaxY;
+            minZ = viewer.BodyShape().PendingBoxMinZ; maxZ = viewer.BodyShape().PendingBoxMaxZ;
+            var expanded = ExpandSelectionToPersistedCriteria(viewer.BodyShape().PendingBoxFinalCriterion);
             criterion = expanded.Count > 0 ? expanded[0] : BoundingBoxCriterion.MaxX;
         }
         else
@@ -8983,7 +8983,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             var sel = SelectedKeyVertex;
             if (sel == null || sel.Strategy != KeyVertexStrategy.BoundingBox)
             {
-                viewer.SetMeasurementLines(null);
+                viewer.BodyShape().SetMeasurementLines(null);
                 return;
             }
             shapeName = sel.ShapeName;
@@ -8995,7 +8995,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
 
         if (string.IsNullOrEmpty(shapeName))
         {
-            viewer.SetMeasurementLines(null);
+            viewer.BodyShape().SetMeasurementLines(null);
             return;
         }
 
@@ -9004,14 +9004,14 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // notion of a "paired width per slice" doesn't apply, so we just clear.
         if (!MeasurementMath.IsPairCriterion(criterion))
         {
-            viewer.SetMeasurementLines(null);
+            viewer.BodyShape().SetMeasurementLines(null);
             return;
         }
 
         var positions = viewer.GetShapePositions(shapeName);
         if (positions == null || positions.Length == 0)
         {
-            viewer.SetMeasurementLines(null);
+            viewer.BodyShape().SetMeasurementLines(null);
             return;
         }
 
@@ -9032,7 +9032,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         var snapshot = MeasurementMath.GetPairXBinSnapshot(positions, stub, wantPinch, measureAxis);
         if (snapshot == null)
         {
-            viewer.SetMeasurementLines(null);
+            viewer.BodyShape().SetMeasurementLines(null);
             return;
         }
 
@@ -9055,7 +9055,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             segments.Add((a, b, bin.IsWinner ? cyan : white, null));
         }
 
-        viewer.SetMeasurementLines(segments);
+        viewer.BodyShape().SetMeasurementLines(segments);
     }
 
     private void RefreshMeasurementHighlight()
@@ -9075,8 +9075,8 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
 
         if (sels.Count == 0)
         {
-            viewer.SetMeasurementLines(null);
-            viewer.SetMeasurementRegionTint(null);
+            viewer.BodyShape().SetMeasurementLines(null);
+            viewer.BodyShape().SetMeasurementRegionTint(null);
             return;
         }
 
@@ -9229,15 +9229,15 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
         // Tint every region the selected measurements use. Pushed before the empty-segments early
         // return: a RegionVolume selection has no lines, and the tint is then all there is to see.
         var tint = BuildMeasurementRegionTint(viewer, ResolveRegionsByName(viewer, regionTints.Select(t => t.Region)), regionTints);
-        viewer.SetMeasurementRegionTint(tint.Triangles, tint.Ranges);
+        viewer.BodyShape().SetMeasurementRegionTint(tint.Triangles, tint.Ranges);
 
         if (segments.Count == 0)
         {
-            viewer.SetMeasurementLines(null);
+            viewer.BodyShape().SetMeasurementLines(null);
             return;
         }
 
-        viewer.SetMeasurementLines(segments);
+        viewer.BodyShape().SetMeasurementLines(segments);
     }
 
     /// <summary>The Regions a measurement depends on, deduplicated: a RegionVolume measurement's own
@@ -9313,7 +9313,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
 
     /// <summary>Appends <paramref name="regionName"/>'s surface on <paramref name="vm"/>'s current
     /// deformed mesh to <paramref name="tint"/> as interleaved position + flat-normal triangles (the
-    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/> layout). A valid region contributes its
+    /// <see cref="BodyShapeViewerExtension.SetMeasurementRegionTint"/> layout). A valid region contributes its
     /// baked patch (box-clipped, so it matches the measured surface exactly); an invalid one -- a Region
     /// key vertex only needs the member set, not a closed volume -- falls back to the mesh triangles
     /// whose three vertices are all members. The caps are left out: they lie inside the body, and the
@@ -9469,9 +9469,9 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
 
     /// <summary>Builds the measurement-region tint for <paramref name="regionTints"/> on <paramref name="vm"/>'s
     /// current mesh: each distinct (region, color) once, with per-range colors when any request carries an explicit
-    /// color (null = <see cref="VM_CharacterViewer.MeasurementRegionDefaultColor"/>). Returns the interleaved
+    /// color (null = <see cref="BodyShapeViewerExtension.MeasurementRegionDefaultColor"/>). Returns the interleaved
     /// triangles and the color ranges (null when every request uses the default color) for
-    /// <see cref="VM_CharacterViewer.SetMeasurementRegionTint"/>. <paramref name="tintResults"/> (optional) receives
+    /// <see cref="BodyShapeViewerExtension.SetMeasurementRegionTint"/>. <paramref name="tintResults"/> (optional) receives
     /// "name=ok" / "name=UNRESOLVED" per request for diagnostics.</summary>
     internal static (List<float> Triangles, List<(int FirstVertex, int VertexCount, OpenTK.Mathematics.Vector3 Color)>? Ranges)
         BuildMeasurementRegionTint(VM_CharacterViewer vm,
@@ -9491,7 +9491,7 @@ public partial class VM_BodyTypeProfile : VM, GongSolutions.Wpf.DragDrop.IDropTa
             bool ok = AppendMeasurementRegionTint(vm, regions, region, tint);
             tintResults?.Add(region + (ok ? "=ok" : "=UNRESOLVED"));
             if (tint.Count > before)
-                ranges.Add((before / 6, (tint.Count - before) / 6, color ?? vm.MeasurementRegionDefaultColor));
+                ranges.Add((before / 6, (tint.Count - before) / 6, color ?? vm.BodyShape().MeasurementRegionDefaultColor));
         }
         return (tint, anyExplicit ? ranges : null);
     }

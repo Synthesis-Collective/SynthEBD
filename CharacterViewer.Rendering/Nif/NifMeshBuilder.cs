@@ -110,9 +110,9 @@ public class NifMeshBuilder
 
         /// <summary>
         /// Bind-pose vertex positions from the weight-0 companion NIF (<c>_0.nif</c>),
-        /// stashed verbatim before any blend. Used by <see cref="VM_CharacterViewer.ApplyMorphSet"/>
+        /// stashed verbatim before any blend. Used by <see cref="VM_CharacterViewer.ApplyShapeDeformer"/>
         /// to lerp against <see cref="Weight1BindPosePositions"/> at the current NpcWeight,
-        /// so changing weight via ApplyBodySlide produces the same engine-equivalent base
+        /// so changing weight without a reload produces the same engine-equivalent base
         /// mesh that loading a weight-specific NPC would. Null when no <c>_0.nif</c>
         /// companion exists for this shape, or for non-body parts.
         /// Mutable (vs. init-only) because it's attached after construction in the
@@ -127,7 +127,7 @@ public class NifMeshBuilder
         /// Bind-pose vertex positions from the weight-1 companion NIF (<c>_1.nif</c>),
         /// snapshotted verbatim before <c>BlendWeightMorph</c> blends them into
         /// <see cref="BindPosePositions"/>. Same purpose as <see cref="Weight0BindPosePositions"/>:
-        /// gives <see cref="VM_CharacterViewer.ApplyMorphSet"/> the un-blended _1
+        /// gives <see cref="VM_CharacterViewer.ApplyShapeDeformer"/> the un-blended _1
         /// endpoint to lerp against. Null when no _0/_1 pair was loaded.
         /// </summary>
         public Vector3[]? Weight1BindPosePositions { get; set; }
@@ -405,9 +405,10 @@ public class NifMeshBuilder
     /// <summary>
     /// Pure C# representation of a nifly MatTransform, cached for fast per-vertex
     /// skinning without SWIG interop overhead in the inner loop.
-    /// Stores a 3x3 rotation matrix + translation + uniform scale.
+    /// Stores a 3x3 rotation matrix + translation + uniform scale. Public so hosts can
+    /// skin or inverse-map geometry the same way the viewer does (see <see cref="SkinningInfo.BoneTransforms"/>).
     /// </summary>
-    internal struct CachedSkinTransform
+    public struct CachedSkinTransform
     {
         public float R00, R01, R02;
         public float R10, R11, R12;
@@ -452,15 +453,16 @@ public class NifMeshBuilder
 
     /// <summary>
     /// Stores pre-computed skinning data for a mesh, enabling re-skinning after
-    /// BodySlide deformation without re-reading the NIF.
+    /// a CPU deformation without re-reading the NIF.
     /// </summary>
     public class SkinningInfo
     {
-        /// <summary>Pre-computed skinning matrices (boneWorld * inverseBindPose) per bone, in NIF Z-up space.</summary>
-        internal CachedSkinTransform[] BoneTransforms { get; init; } = Array.Empty<CachedSkinTransform>();
+        /// <summary>Pre-computed skinning matrices (boneWorld * inverseBindPose) per bone, in NIF Z-up space.
+        /// Indexed by the entries of <see cref="VertBoneIndices"/>. Treat as read-only.</summary>
+        public CachedSkinTransform[] BoneTransforms { get; init; } = Array.Empty<CachedSkinTransform>();
 
         /// <summary>Per-vertex bone indices, 4 per vertex, stored flat [v0_b0, v0_b1, v0_b2, v0_b3, v1_b0, ...].
-        /// Public so cross-assembly consumers (the bone-transition criterion in SynthEBD) can read them.</summary>
+        /// Public so hosts can read them.</summary>
         public int[] VertBoneIndices { get; init; } = Array.Empty<int>();
 
         /// <summary>Per-vertex bone weights, 4 per vertex, stored flat (same layout as VertBoneIndices).
@@ -2858,8 +2860,8 @@ public class NifMeshBuilder
     /// Skins a position <b>offset</b> at vertex <paramref name="vertexIndex"/>: the change that
     /// <see cref="ApplySkinning"/> makes to that vertex's output when <paramref name="offsetYUp"/> is
     /// added to its input. Linear blend skinning is affine per vertex, so
-    /// skin(p + d) = skin(p) + SkinOffset(d), and a slider's morph offsets can be skinned once and
-    /// then scaled and summed per preset (see <see cref="HeadlessBodyDeformer"/>). Mirrors
+    /// skin(p + d) = skin(p) + SkinOffset(d), and a morph's offsets can be skinned once and
+    /// then scaled and summed per application. Mirrors
     /// <see cref="ApplySkinning"/> exactly: same Y-up/Z-up conversion, same weight normalisation, and
     /// the same identity cases (no skinning when the positions are shorter than the skinned vertex
     /// count, an index past it, or a vertex with no positive bone weight).
@@ -2960,6 +2962,63 @@ public class NifMeshBuilder
     {
         const float eps = 0.0001f;
         return Math.Abs(v.x) < eps && Math.Abs(v.y) < eps && Math.Abs(v.z) < eps;
+    }
+
+    /// <summary>
+    /// Recalculates vertex normals after a CPU deformation: area-weighted sums of the
+    /// triangle face normals, normalized (degenerate vertices get +Y). Used by
+    /// <see cref="VM_CharacterViewer.ApplyShapeDeformer"/>; public so hosts that deform
+    /// geometry themselves get identical normals.
+    /// </summary>
+    public static void RecalculateNormals(Vector3[] positions, int[] indices, Vector3[] normals)
+    {
+        if (positions == null || indices == null || normals == null)
+        {
+            return;
+        }
+
+        int vertCount = positions.Length;
+
+        // Zero out all normals
+        for (int i = 0; i < vertCount; i++)
+        {
+            normals[i] = Vector3.Zero;
+        }
+
+        // Accumulate face normals (area-weighted via cross product magnitude)
+        for (int i = 0; i + 2 < indices.Length; i += 3)
+        {
+            int i0 = indices[i];
+            int i1 = indices[i + 1];
+            int i2 = indices[i + 2];
+
+            if (i0 >= vertCount || i1 >= vertCount || i2 >= vertCount)
+            {
+                continue;
+            }
+
+            Vector3 v0 = positions[i0];
+            Vector3 v1 = positions[i1];
+            Vector3 v2 = positions[i2];
+
+            Vector3 edge1 = v1 - v0;
+            Vector3 edge2 = v2 - v0;
+            Vector3 faceNormal = Vector3.Cross(edge1, edge2);
+
+            // The cross product magnitude is proportional to triangle area,
+            // giving natural area-weighted normals
+            normals[i0] += faceNormal;
+            normals[i1] += faceNormal;
+            normals[i2] += faceNormal;
+        }
+
+        // Normalize
+        for (int i = 0; i < vertCount; i++)
+        {
+            Vector3 n = normals[i];
+            float length = n.Length();
+            normals[i] = length > 1e-8f ? n / length : Vector3.UnitY;
+        }
     }
 
     private static bool AreNormalsAllZero(Vector3[] normals)

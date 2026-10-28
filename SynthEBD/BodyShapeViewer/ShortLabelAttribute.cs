@@ -1,6 +1,6 @@
 using System;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>Short, human-friendly label for an enum field — paired with the long-form
 /// [Description] tooltip. Defined as a custom attribute because <see cref="System.ComponentModel.DisplayNameAttribute"/>

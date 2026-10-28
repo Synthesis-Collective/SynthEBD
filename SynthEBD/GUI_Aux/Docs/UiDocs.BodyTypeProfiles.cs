@@ -346,7 +346,7 @@ public static partial class UiDocs
 
         Add("AutoAnnotationSliders.ShowMovedVertices",
             layperson: "Paints, on the 3D preview, the body vertices the picked slider moves, as a heatmap from blue (barely moved) to red (moved most). Pick the slider in the 'Slider' box or by clicking a row in the slider list.",
-            technical: "VM_CharacterViewer.HighlightSliderMorph on the editor's viewer for ActiveHighlightSlider (the picker's slider, or the clicked readout row), rebuilt on every BodySlideApplied so it follows preset, weight and edit changes; ClearSliderHighlight otherwise.",
+            technical: "BodyShapeViewerExtension.HighlightSliderMorph on the editor's viewer for ActiveHighlightSlider (the picker's slider, or the clicked readout row), rebuilt on every BodySlideApplied so it follows preset, weight and edit changes; ClearSliderHighlight otherwise.",
             motivation: "Slider names don't always map obviously to a body region; seeing exactly what a slider moves turns rule authoring from guesswork into inspection.");
 
         Add("AutoAnnotationSliders.PresetList",

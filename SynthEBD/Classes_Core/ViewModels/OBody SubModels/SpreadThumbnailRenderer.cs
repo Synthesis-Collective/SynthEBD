@@ -198,8 +198,6 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
             OverrideHeadMeshAbsolutePath = _scene.OverrideHeadMeshAbsolutePath,
             TextureOverrides = _scene.TextureOverrides,
             MeshOverrides = _scene.MeshOverrides,
-            Morphs = SynthEbdViewerHostState.ToMorphSet(preset),
-            MorphWeight = key.Weight,
             Width = width,
             Height = height,
             Lighting = LightingForAzimuth(key.Azimuth),
@@ -235,7 +233,10 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
             EnableBloom = vm.EnableBloom,
             BloomIntensity = vm.BloomIntensity,
             MissingMeshPathsOut = new List<string>(),
-            BeforeDraw = key.Overlay.Length == 0 ? null : BuildMeasurementOverlayHook(key.Overlay.Split('\u001f'), overlayDiag),
+            // The preset is applied on the offscreen viewer through its body-shape extension, then the
+            // measurement overlay (if any) is computed from that deformed geometry.
+            BeforeDraw = WithPresetMorph(SynthEbdViewerHostState.ToMorphSet(preset), key.Weight,
+                key.Overlay.Length == 0 ? null : BuildMeasurementOverlayHook(key.Overlay.Split('\u001f'), overlayDiag)),
         };
 
         var sw = Stopwatch.StartNew();
@@ -293,6 +294,16 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
     /// <para><paramref name="diag"/> receives a one-line summary (specs found, each vertex ref's
     /// resolution, segment count, region tints, loaded shapes -- or the exception) for the caller to
     /// log on the UI thread, so an overlay that renders nothing says why.</para></summary>
+    /// <summary>The render's BeforeDraw: applies <paramref name="morphs"/> at <paramref name="weight"/> (immediate
+    /// on the offscreen viewer, whose scene is built), then runs <paramref name="overlay"/> against the deformed
+    /// geometry.</summary>
+    private static Action<VM_CharacterViewer> WithPresetMorph(MorphSet morphs, int weight, Action<VM_CharacterViewer>? overlay)
+        => vm =>
+        {
+            vm.BodyShape().ApplyMorphSet(morphs, weight);
+            overlay?.Invoke(vm);
+        };
+
     private Action<VM_CharacterViewer> BuildMeasurementOverlayHook(IReadOnlyList<string> measurementNames,
         System.Runtime.CompilerServices.StrongBox<string?> diag)
     {
@@ -315,7 +326,7 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
                         shape => vm.GetShapePositions(shape),
                         shape => vm.GetShapeBoneInfo(shape),
                         regions,
-                        shape => vm.GetZeroedShapePositions(shape, 0),
+                        shape => vm.BodyShape().GetZeroedShapePositions(shape, 0),
                         out var pos)
                         ? pos
                         : null;
@@ -341,11 +352,11 @@ internal sealed class SpreadThumbnailRenderer : IDisposable
                     VM_BodyTypeProfile.AppendMeasurementOverlay(spec, "", allSpecs, Resolve, (_, _, _) => "", AppendGirth,
                         s => VM_BodyTypeProfile.CollectMeasurementRegionNames(s, keyVerts), null, name, segments, regionTints);
                 }
-                vm.SetMeasurementLines(segments);
+                vm.BodyShape().SetMeasurementLines(segments);
 
                 var tintResults = new List<string>();
                 var tint = VM_BodyTypeProfile.BuildMeasurementRegionTint(vm, regions, regionTints, tintResults);
-                vm.SetMeasurementRegionTint(tint.Triangles, tint.Ranges);
+                vm.BodyShape().SetMeasurementRegionTint(tint.Triangles, tint.Ranges);
 
                 diag.Value = $"{specs.Count}/{measurementNames.Count} measurement(s) have line specs; "
                     + $"refs [{string.Join(", ", refResults.Distinct())}]; {segments.Count} segment(s); "

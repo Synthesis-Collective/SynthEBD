@@ -82,7 +82,7 @@ internal sealed class SynthEbdViewerHostState
     //  ApplyBodySlide
     // ───────────────────────────────────────────────────────────────────
 
-    /// <summary>SynthEBD wrapper around <see cref="VM_CharacterViewer.ApplyMorphSet"/>.
+    /// <summary>SynthEBD wrapper around <see cref="BodyShapeViewerExtension.ApplyMorphSet"/>.
     /// Loads the OSD context for the preset's SliderGroup (a SynthEBD concern that
     /// walks PatcherState.OBodySettings.BodyTypeRegistry — see <see cref="SynthEbdOsdLoader"/>),
     /// translates the preset to a neutral <see cref="MorphSet"/>, and applies it.
@@ -94,7 +94,7 @@ internal sealed class SynthEbdViewerHostState
         // the software fallback (RenderingUnavailable), where the GL scene never commits and
         // SceneCommitted never fires, so queuing here would strand the morph forever. There we
         // fall through and apply directly: SetMorphContext + ApplyMorphSet below retain the
-        // morph on the VM (see VM_CharacterViewer._lastRequestedMorphSet) so the offscreen
+        // morph on the VM (its retained shape deformer, see VM_CharacterViewer.ApplyShapeDeformer) so the offscreen
         // fallback preview reproduces the deformation via the body's sibling .tri.
         if (!_vm.IsSceneReady && !_vm.RenderingUnavailable
             && !VM_CharacterViewer.ForceRenderingUnavailableForTesting)
@@ -110,7 +110,7 @@ internal sealed class SynthEbdViewerHostState
             // can't tell ahead of time whether it'll succeed, so we always
             // load OSDs and let the deformer prefer .tri when available.
             var osd = LoadOsdFor(preset, MorphOsdOverride);
-            if (osd != null) _vm.SetMorphContext(osd);
+            if (osd != null) _vm.BodyShape().SetMorphContext(osd);
         }
         catch (Exception ex)
         {
@@ -120,7 +120,7 @@ internal sealed class SynthEbdViewerHostState
 
         // A source mesh (MorphOsdOverride) isn't a BodySlide build, so BodySlide's value rules (set
         // defaults for unlisted sliders, hidden sliders, inversion) are applied here instead.
-        _vm.ApplyMorphSet(BodySlideBuildRules.Apply(ToMorphSet(preset), MorphOsdOverride?.Sliders), weight);
+        _vm.BodyShape().ApplyMorphSet(BodySlideBuildRules.Apply(ToMorphSet(preset), MorphOsdOverride?.Sliders), weight);
     }
 
     /// <summary>True while <see cref="ApplyBodySlide"/> is parked waiting for the scene to commit.</summary>
@@ -130,10 +130,10 @@ internal sealed class SynthEbdViewerHostState
     /// scene for a batch of <paramref name="presets"/>. When the body has no sibling .tri, the OSD context
     /// <see cref="ApplyBodySlide"/> would load is prepared once per distinct slider group (source key =
     /// <see cref="HeadlessOsdKey"/>). Null when the viewer can't supply one (see
-    /// <see cref="VM_CharacterViewer.CreateHeadlessBodyDeformer"/>).</summary>
+    /// <see cref="BodyShapeViewerExtension.CreateHeadlessBodyDeformer"/>).</summary>
     internal HeadlessBodyDeformer? CreateHeadlessDeformer(IEnumerable<string> shapeNames, IEnumerable<BodySlideSetting> presets)
     {
-        var deformer = _vm.CreateHeadlessBodyDeformer(shapeNames);
+        var deformer = _vm.BodyShape().CreateHeadlessBodyDeformer(shapeNames);
         if (deformer == null || deformer.UsesTri) return deformer;
         foreach (var group in presets.Select(p => p?.SliderGroup).Where(g => g != null).Distinct(StringComparer.Ordinal))
         {
@@ -158,7 +158,7 @@ internal sealed class SynthEbdViewerHostState
     // ───────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// SynthEBD wrapper around <see cref="VM_CharacterViewer.LoadGuestAsync"/>: resolves the
+    /// SynthEBD wrapper around <see cref="BodyShapeViewerExtension.LoadGuestAsync"/>: resolves the
     /// OSD morph context for <paramref name="preset"/>, translates it to a neutral
     /// <see cref="MorphSet"/>, and asks the viewer to overlay <paramref name="npcFormKey"/>
     /// on top of its current scene.
@@ -189,7 +189,7 @@ internal sealed class SynthEbdViewerHostState
         }
 
         var identity = new NpcIdentity(npcFormKey.ToString(), npcFormKey.ToString());
-        return _vm.LoadGuestAsync(identity,
+        return _vm.BodyShape().LoadGuestAsync(identity,
             preset != null ? BodySlideBuildRules.Apply(ToMorphSet(preset), osdOverride?.Sliders) : null,
             weight, osdFiles, bodyReplacement);
     }

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>
 /// Neutral morph-application payload that <see cref="BodySlideDeformer"/> consumes

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>
 /// Applies BodySlide slider deformations to mesh vertex positions using OSD
@@ -271,61 +271,6 @@ public class BodySlideDeformer
     }
 
     /// <summary>
-    /// Recalculates face normals after deformation. Computes area-weighted
-    /// vertex normals from triangle face normals.
-    /// </summary>
-    public static void RecalculateNormals(Vector3[] positions, int[] indices, Vector3[] normals)
-    {
-        if (positions == null || indices == null || normals == null)
-        {
-            return;
-        }
-
-        int vertCount = positions.Length;
-
-        // Zero out all normals
-        for (int i = 0; i < vertCount; i++)
-        {
-            normals[i] = Vector3.Zero;
-        }
-
-        // Accumulate face normals (area-weighted via cross product magnitude)
-        for (int i = 0; i + 2 < indices.Length; i += 3)
-        {
-            int i0 = indices[i];
-            int i1 = indices[i + 1];
-            int i2 = indices[i + 2];
-
-            if (i0 >= vertCount || i1 >= vertCount || i2 >= vertCount)
-            {
-                continue;
-            }
-
-            Vector3 v0 = positions[i0];
-            Vector3 v1 = positions[i1];
-            Vector3 v2 = positions[i2];
-
-            Vector3 edge1 = v1 - v0;
-            Vector3 edge2 = v2 - v0;
-            Vector3 faceNormal = Vector3.Cross(edge1, edge2);
-
-            // The cross product magnitude is proportional to triangle area,
-            // giving natural area-weighted normals
-            normals[i0] += faceNormal;
-            normals[i1] += faceNormal;
-            normals[i2] += faceNormal;
-        }
-
-        // Normalize
-        for (int i = 0; i < vertCount; i++)
-        {
-            Vector3 n = normals[i];
-            float length = n.Length();
-            normals[i] = length > 1e-8f ? n / length : Vector3.UnitY;
-        }
-    }
-
-    /// <summary>
     /// Builds a combined lookup of slider data name → vertex deltas from all
     /// matching OSD files. OSD files are matched by ShapeName if specified.
     /// Uses case-insensitive key matching for slider names.
@@ -342,7 +287,7 @@ public class BodySlideDeformer
     /// source carries the slider for the shape. Direction-agnostic: this is the one geometric morph
     /// shape the Big/Small scalars scale, so the affected-vertex set (the dictionary keys) is the
     /// same regardless of weight. Consumed by the Label-by-Sliders vertex highlight
-    /// (VM_CharacterViewer.HighlightSliderMorph) — which only needs the keys and |delta| magnitudes,
+    /// (BodyShapeViewerExtension.HighlightSliderMorph) — which only needs the keys and |delta| magnitudes,
     /// so the NIF-vs-Y-up delta orientation is irrelevant to that caller.
     /// </summary>
     public IReadOnlyDictionary<ushort, Vector3>? TryGetSliderDeltas(

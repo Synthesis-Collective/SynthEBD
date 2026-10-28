@@ -45,14 +45,6 @@ public sealed class OffscreenRenderRequest
     /// <see cref="MeshOverrideWarningsOut"/>.</summary>
     public IEnumerable<MeshOverride>? MeshOverrides { get; init; }
 
-    /// <summary>BodySlide-style morph deformation to apply to body shapes.
-    /// Optional — null leaves the body at its bind pose.</summary>
-    public MorphSet? Morphs { get; init; }
-
-    /// <summary>NPC weight (0–100) used to interpolate the morph deltas.
-    /// Ignored when <see cref="Morphs"/> is null.</summary>
-    public int MorphWeight { get; init; } = 50;
-
     /// <summary>Output framebuffer width in pixels.</summary>
     public required int Width { get; init; }
 
@@ -91,11 +83,12 @@ public sealed class OffscreenRenderRequest
 
     /// <summary>Optional host hook invoked on the render thread against the
     /// per-request <see cref="VM_CharacterViewer"/> once the scene is fully
-    /// built — after mesh load, texture / mesh overrides and <see cref="Morphs"/>
-    /// — and before the camera is configured and the frame drawn. Lets a host
-    /// add overlays computed from the deformed geometry, e.g. measurement lines
-    /// via <see cref="VM_CharacterViewer.SetMeasurementLines"/> built from
-    /// <see cref="VM_CharacterViewer.GetShapePositions"/>. The VM is created per
+    /// built — after mesh load and texture / mesh overrides — and before the camera
+    /// is configured and the frame drawn. Lets a host deform the body shapes
+    /// (<see cref="VM_CharacterViewer.ApplyShapeDeformer"/>, which applies immediately
+    /// here) and add overlays computed from the deformed geometry (an
+    /// <see cref="IRenderOverlay"/> in <see cref="GlRenderer.Overlays"/>, built from
+    /// <see cref="VM_CharacterViewer.GetShapePositions"/>). The VM is created per
     /// request, so nothing the hook sets carries into the next render. Must not
     /// touch WPF objects (it isn't on the dispatcher thread). An exception is
     /// logged and the frame still renders without the overlay.</summary>

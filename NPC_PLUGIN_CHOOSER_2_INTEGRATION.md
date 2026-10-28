@@ -185,9 +185,6 @@ builder.RegisterType<WpfDispatcherMarshaller>().As<IRenderThreadMarshaller>().Si
 // CharacterViewer.Rendering leaves
 builder.RegisterType<CharacterViewerLogGate>().AsSelf().SingleInstance();
 builder.RegisterType<GameAssetResolver>().AsSelf().SingleInstance();
-builder.RegisterType<BsdFileParser>().AsSelf().SingleInstance();
-builder.RegisterType<BodyTriFileParser>().AsSelf().SingleInstance();
-builder.RegisterType<BodySlideDeformer>().AsSelf().SingleInstance();
 builder.RegisterType<CharacterPreviewCache>().AsSelf().SingleInstance();
 builder.RegisterType<VM_CharacterViewer>().AsSelf();  // transient — one per preview window
 
@@ -196,9 +193,6 @@ builder.RegisterType<VM_CharacterViewer>().AsSelf();  // transient — one per p
 // container; the host disposes it on shutdown.
 builder.Register(c => OffscreenRendererFactory.Create(
         c.Resolve<CharacterPreviewCache>(),
-        c.Resolve<BodySlideDeformer>(),
-        c.Resolve<BsdFileParser>(),
-        c.Resolve<BodyTriFileParser>(),
         c.Resolve<GameAssetResolver>(),
         c.Resolve<ICharacterViewerSettings>(),
         c.Resolve<CharacterViewerLogGate>(),

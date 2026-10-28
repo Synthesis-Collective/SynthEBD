@@ -140,7 +140,22 @@ public class MainModule : Autofac.Module
         // Shared NIF parse + NpcMeshPaths cache; survives viewer disposal so
         // BodySlide preset switches don't pay the parse/resolve cost twice.
         builder.RegisterType<CharacterPreviewCache>().AsSelf().SingleInstance();
-        builder.RegisterType<VM_CharacterViewer>().AsSelf();
+        // Every viewer SynthEBD creates gets the body-shape tooling (BodySlide morphs, key-vertex
+        // picking, measurement overlays) attached at construction, so its views can bind to it
+        // through HostData from the first frame.
+        builder.RegisterType<VM_CharacterViewer>().AsSelf()
+            .OnActivated(e => BodyShapeViewerExtension.Attach(e.Instance,
+                e.Context.Resolve<BodySlideDeformer>(),
+                e.Context.Resolve<BodyTriFileParser>(),
+                e.Context.Resolve<ICharacterViewerLogger>(),
+                e.Context.Resolve<CharacterViewerLogGate>()));
+        // Lazy attachment for viewers built outside the container (the offscreen renderer's
+        // per-request viewers, reached from OffscreenRenderRequest.BeforeDraw).
+        builder.RegisterBuildCallback(c => BodyShapeViewerExtension.Configure(
+            () => c.Resolve<BodySlideDeformer>(),
+            () => c.Resolve<BodyTriFileParser>(),
+            () => c.Resolve<ICharacterViewerLogger>(),
+            () => c.Resolve<CharacterViewerLogGate>()));
 
         // BodySlide Compare window VM. Transient (NOT SingleInstance): each Compare window
         // owns two live VM_CharacterViewer instances with their own GL contexts and disposes
@@ -171,9 +186,6 @@ public class MainModule : Autofac.Module
         builder.RegisterBuildCallback(c => FallbackPreviewControllerRegistry.Configure(
             () => CharacterViewer.Rendering.Offscreen.OffscreenRendererFactory.Create(
                 c.Resolve<CharacterPreviewCache>(),
-                c.Resolve<BodySlideDeformer>(),
-                c.Resolve<BsdFileParser>(),
-                c.Resolve<BodyTriFileParser>(),
                 c.Resolve<GameAssetResolver>(),
                 c.Resolve<ICharacterViewerSettings>(),
                 c.Resolve<CharacterViewerLogGate>(),

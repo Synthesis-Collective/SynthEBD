@@ -2,7 +2,7 @@
 
 An offscreen OpenGL 3D renderer for Skyrim NPC head/body previews ("mugshots"),
 extracted from [SynthEBD](https://github.com/Synthesis-Collective/SynthEBD). It
-loads NIF meshes, applies textures/tints/BodySlide morphs, and renders a framed
+loads NIF meshes, applies textures/tints and host shape deformations, and renders a framed
 PNG (or raw BGRA32 pixels) entirely offscreen.
 
 It is **host-agnostic**: the library takes no dependency on Mutagen.Bethesda or
@@ -16,7 +16,8 @@ so the renderer can pull the data it needs:
 - `ICharacterViewerLogger`, `ICharacterViewerSettings` — logging and settings.
 
 Requests are described with Mutagen-free POCOs (`OffscreenRenderRequest`,
-`ResolvedNpcMeshPaths`, `TextureOverride`, `MeshOverride`, `MorphSet`, …).
+`ResolvedNpcMeshPaths`, `TextureOverride`, `MeshOverride`, …). Body shapes can be
+deformed on the CPU through a host-supplied `IShapeDeformer`.
 
 ## Platform
 

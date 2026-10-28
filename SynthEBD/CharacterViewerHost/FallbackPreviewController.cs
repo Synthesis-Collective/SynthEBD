@@ -64,6 +64,8 @@ public sealed class FallbackPreviewController
 
     // Render loop: single render in flight, latest wins.
     private OffscreenRenderRequest? _pending;
+    /// <summary>The morph <see cref="_pending"/> applies (from its BeforeDraw hook), for the diagnostics.</summary>
+    private (MorphSet Morphs, int Weight)? _pendingMorph;
     private CancellationTokenSource? _pendingCts;
     private CancellationTokenSource? _inFlightCts;
     private bool _running;
@@ -175,10 +177,11 @@ public sealed class FallbackPreviewController
 
         var cts = new CancellationTokenSource();
         _pending = BuildRequest(snap, width, height, lowRes, cts.Token);
+        _pendingMorph = BodyShapeViewerExtension.RequestedMorphOf(snap);
         _pendingCts = cts;
         _inFlightCts?.Cancel();     // supersede the in-flight render — latest wins
 
-        _vm.LogViewerDiagnostic($"FallbackPreview: scheduled morph=[{snap.Morphs?.Label ?? "none"}]"
+        _vm.LogViewerDiagnostic($"FallbackPreview: scheduled morph=[{_pendingMorph?.Morphs.Label ?? "none"}]"
             + $" running={_running} attached={_attached} {width}x{height}");
         if (!_running) _ = PumpAsync();
     }
@@ -192,6 +195,7 @@ public sealed class FallbackPreviewController
             while (_pending != null)
             {
                 var req = _pending;
+                var reqMorph = _pendingMorph;
                 _pending = null;
                 _inFlightCts = _pendingCts;
 
@@ -212,7 +216,7 @@ public sealed class FallbackPreviewController
                     ? $"az={os.Azimuth:F0} el={os.Elevation:F0} dist={os.Distance:F0} tgt=({os.TargetX:F0},{os.TargetY:F0},{os.TargetZ:F0})"
                     : req.Camera.GetType().Name;
                 _vm.LogViewerDiagnostic($"FallbackPreview: rendering {req.Width}x{req.Height} cam[{camDesc}]"
-                    + $" morph=[{req.Morphs?.Label ?? "none"}]@w{req.MorphWeight} sliders={req.Morphs?.Sliders?.Count ?? 0}"
+                    + $" morph=[{reqMorph?.Morphs.Label ?? "none"}]@w{reqMorph?.Weight ?? 50} sliders={reqMorph?.Morphs.Sliders?.Count ?? 0}"
                     + $" texOv={(req.TextureOverrides != null)}");
 
                 byte[] bgra;
@@ -275,8 +279,11 @@ public sealed class FallbackPreviewController
             OverrideHeadMeshAbsolutePath = snap.OverrideHeadMeshAbsolutePath,
             TextureOverrides = snap.TextureOverrides,
             MeshOverrides = snap.MeshOverrides,
-            Morphs = snap.Morphs,
-            MorphWeight = snap.MorphWeight,
+            // The retained morph is applied on the offscreen viewer through its body-shape
+            // extension, after the overrides -- the order the request's morph used to run in.
+            BeforeDraw = BodyShapeViewerExtension.RequestedMorphOf(snap) is { } morph
+                ? vm => vm.BodyShape().ApplyMorphSet(morph.Morphs, morph.Weight)
+                : null,
             Width = rw,
             Height = rh,
             Lighting = snap.Lighting,

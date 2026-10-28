@@ -36,7 +36,7 @@ public class VM_AutoAnnotationSliders : VM
         SaveAsCommand = new RelayCommand(canExecute: _ => WorkingCopy != null, execute: _ => SaveAs());
         RevertCommand = new RelayCommand(canExecute: _ => IsDirty, execute: _ => Revert());
 
-        _editor.CharacterViewer.BodySlideApplied += ApplyOrClearHighlight;
+        _editor.CharacterViewer.BodyShape().BodySlideApplied += ApplyOrClearHighlight;
 
         // Live morph: collapse per-keystroke edits into one apply.
         Observable.FromEvent(h => WorkingCopyEdited += h, h => WorkingCopyEdited -= h)
@@ -403,17 +403,17 @@ public class VM_AutoAnnotationSliders : VM
         var viewer = _editor.CharacterViewer;
         if (ShowMovedVertices && _source != null && !string.IsNullOrWhiteSpace(ActiveHighlightSlider))
         {
-            viewer.HighlightSliderMorph(ActiveHighlightSlider);
+            viewer.BodyShape().HighlightSliderMorph(ActiveHighlightSlider);
         }
         else
         {
-            viewer.ClearSliderHighlight();
+            viewer.BodyShape().ClearSliderHighlight();
         }
     }
 
     public override void Dispose()
     {
-        _editor.CharacterViewer.BodySlideApplied -= ApplyOrClearHighlight;
+        _editor.CharacterViewer.BodyShape().BodySlideApplied -= ApplyOrClearHighlight;
         base.Dispose();
     }
 }

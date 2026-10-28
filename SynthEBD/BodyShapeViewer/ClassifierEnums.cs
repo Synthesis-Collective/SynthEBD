@@ -1,14 +1,14 @@
 using System.ComponentModel;
 
-namespace CharacterViewer.Rendering;
+namespace SynthEBD.BodyShapeViewer;
 
 /// <summary>World-axis symmetry lock applied to a bounding-box region while it
 /// is being authored in the viewer's BB-pick mode. Flag combinations encode
 /// the set of axes mirrored about 0 (e.g., <c>X | Y</c> locks both X and Y
 /// sides). Authoring-time UX only — never persisted on a saved key vertex.
 ///
-/// Lives in the rendering tier (alongside <see cref="BoxCriterionSelection"/>)
-/// because <see cref="VM_CharacterViewer"/>'s BB-pick state references it.
+/// Lives beside <see cref="BoxCriterionSelection"/> because
+/// <see cref="BodyShapeViewerExtension"/>'s BB-pick state references it.
 /// SynthEBD's BodyTypeProfile classifier system is the only consumer that
 /// persists the corresponding final box criteria; the SymmetryAxes value
 /// itself is in-flight UI state.</summary>

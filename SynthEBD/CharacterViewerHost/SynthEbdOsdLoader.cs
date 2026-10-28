@@ -15,7 +15,7 @@ namespace SynthEBD;
 /// Extracted from <c>VM_CharacterViewer.LoadOsdFilesForGroup</c> (Phase B2c.2)
 /// so the viewer no longer needs PatcherState or IEnvironmentStateProvider in
 /// its constructor. The SynthEBD viewer-host extension methods consume this
-/// before calling <see cref="VM_CharacterViewer.SetMorphContext"/>.
+/// before calling <see cref="BodyShapeViewerExtension.SetMorphContext"/>.
 /// </summary>
 public sealed class SynthEbdOsdLoader
 {

@@ -93,7 +93,7 @@ public static class CharacterViewerSynthEbdExtensions
     /// <summary>SynthEBD-facing BodySlide application. Loads the OSD context for
     /// the preset's SliderGroup via <see cref="SynthEbdOsdLoader"/>, translates
     /// the preset to a neutral <see cref="MorphSet"/>, and calls
-    /// <see cref="VM_CharacterViewer.ApplyMorphSet"/>. Per-viewer queue state
+    /// <see cref="BodyShapeViewerExtension.ApplyMorphSet"/>. Per-viewer queue state
     /// (for the not-yet-ready scene case) lives in
     /// <see cref="SynthEbdViewerHostState"/>, which subscribes to
     /// <see cref="VM_CharacterViewer.SceneCommitted"/> and replays the queued
@@ -111,9 +111,9 @@ public static class CharacterViewerSynthEbdExtensions
     /// wait for).</summary>
     internal static bool IsBodySlideApplied(this VM_CharacterViewer viewer, BodySlideSetting preset, int weight)
     {
-        if (VM_CharacterViewer.BodySlideDisabled) return true;
-        if (SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).HasPendingBodySlide || viewer.HasPendingMorphSet) return false;
-        return viewer.CurrentSceneMorph is { } m
+        if (BodyShapeViewerExtension.BodySlideDisabled) return true;
+        if (SynthEbdViewerHostStateRegistry.GetOrCreate(viewer).HasPendingBodySlide || viewer.BodyShape().HasPendingMorphSet) return false;
+        return viewer.BodyShape().CurrentSceneMorph is { } m
             && m.Weight == weight
             && string.Equals(m.Label, preset?.Label ?? "", StringComparison.Ordinal); // ToMorphSet's label
     }

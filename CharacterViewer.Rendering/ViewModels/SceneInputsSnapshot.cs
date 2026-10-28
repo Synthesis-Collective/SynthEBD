@@ -5,7 +5,7 @@ namespace CharacterViewer.Rendering;
 /// <summary>
 /// Immutable, GL-free snapshot of the neutral scene inputs the live
 /// <see cref="VM_CharacterViewer"/> last received (mesh paths, head override,
-/// texture / mesh overrides, morph + weight, lighting, background, and the
+/// texture / mesh overrides, shape deformer + weight, lighting, background, and the
 /// asset-resolution scoping). Produced by
 /// <see cref="VM_CharacterViewer.TryGetSceneInputsSnapshot"/> so a host can
 /// re-express the same inputs as an
@@ -25,8 +25,8 @@ public sealed record SceneInputsSnapshot(
     string? OverrideHeadMeshAbsolutePath,
     IReadOnlyList<TextureOverride>? TextureOverrides,
     IReadOnlyList<MeshOverride>? MeshOverrides,
-    MorphSet? Morphs,
-    int MorphWeight,
+    IShapeDeformer? ShapeDeformer,
+    int ShapeDeformWeight,
     CharacterViewerLightingLayout? Lighting,
     CharacterViewerLightingColorScheme? Colors,
     (byte R, byte G, byte B) BackgroundRgb,

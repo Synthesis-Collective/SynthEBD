@@ -386,7 +386,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
         // restores the prior values on dispose. The VM's LoadAsync pushes the
         // same values internally — this outer push is defense-in-depth so any
         // resolver call made before LoadAsync (or inside the post-load
-        // ApplyTextureOverrides / ApplyMorphSet paths) still sees the right
+        // ApplyTextureOverrides / ApplyShapeDeformer paths) still sees the right
         // scope chain. AdditionalScopes (1.2.0+) overrides AdditionalDataFolders
         // (1.1.0) when both are provided.
         using var scopes = _assets.PushScopes(
