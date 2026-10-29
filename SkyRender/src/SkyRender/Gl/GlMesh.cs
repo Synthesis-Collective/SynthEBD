@@ -47,6 +47,23 @@ public class GlMesh : IDisposable
     /// <summary>Terrain LOD only: GL handle of the LOD landscape noise texture (0 = no noise term).</summary>
     public int LodNoiseTexture { get; set; }
 
+    /// <summary>Near-field grass (<see cref="World.GlWorldFactory.CreateGrass"/>): drawn once per
+    /// instance in <see cref="InstanceVbo"/> with the engine's grass shading (RENDERING_PIPELINE.md,
+    /// "Grass"). It receives sun shadows but casts none, and it is left out of the depth prepass and
+    /// the wireframe overlay.</summary>
+    public bool IsGrass { get; set; }
+    /// <summary>Grass only: the per-instance buffer (attribute locations 8-11), or 0.</summary>
+    public int InstanceVbo { get; private set; }
+    /// <summary>Grass only: how many instances <see cref="InstanceVbo"/> holds.</summary>
+    public int InstanceCount { get; private set; }
+    /// <summary>Grass only: lit with the mesh's own (instance-rotated) normals, the GRAS "Vertex
+    /// Lighting" flag; otherwise with each instance's up axis.</summary>
+    public bool GrassVertexLit { get; set; }
+    /// <summary>Grass only: camera distance where the fade starts, and its range
+    /// (<c>fGrassStartFadeDistance</c>, <c>fGrassFadeRange</c>).</summary>
+    public float GrassFadeStart { get; set; } = 7000f;
+    public float GrassFadeRange { get; set; } = 1000f;
+
     /// <summary>Draws as a water surface: the vertex colour is the body colour (lit like any
     /// surface), and the reflection is mixed over the lit result from the live camera with the
     /// engine's Fresnel and distance blend (RENDERING_PIPELINE.md, "Water").</summary>
@@ -555,6 +572,29 @@ public class GlMesh : IDisposable
     }
 
     /// <summary>
+    /// Grass only: uploads per-instance data (<see cref="World.GrassInstanceData"/>, 16 floats per
+    /// instance) into a buffer on this mesh's VAO, as four vec4 attributes at locations 8-11 that
+    /// advance once per instance. Call after <see cref="Upload"/>.
+    /// </summary>
+    public void UploadInstances(float[] data)
+    {
+        const int perInstance = World.GrassInstanceData.FloatsPerInstance;
+        if (InstanceVbo == 0) InstanceVbo = GL.GenBuffer();
+        GL.BindVertexArray(Vao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, InstanceVbo);
+        GL.BufferData(BufferTarget.ArrayBuffer, data.Length * sizeof(float), data, BufferUsageHint.StaticDraw);
+        int stride = perInstance * sizeof(float);
+        for (int k = 0; k < 4; k++)
+        {
+            GL.VertexAttribPointer(8 + k, 4, VertexAttribPointerType.Float, false, stride, k * 4 * sizeof(float));
+            GL.EnableVertexAttribArray(8 + k);
+            GL.VertexAttribDivisor(8 + k, 1);
+        }
+        GL.BindVertexArray(0);
+        InstanceCount = data.Length / perInstance;
+    }
+
+    /// <summary>
     /// Re-uploads vertex data (e.g. after a CPU-side deformation). Preserves the same VAO/VBO.
     /// </summary>
     public void UpdateVertexData(float[] vertexData)
@@ -572,6 +612,7 @@ public class GlMesh : IDisposable
             GL.DeleteBuffer(Vbo);
             GL.DeleteBuffer(Ebo);
             if (LayerWeightVbo != 0) GL.DeleteBuffer(LayerWeightVbo);
+            if (InstanceVbo != 0) GL.DeleteBuffer(InstanceVbo);
             _disposed = true;
         }
     }

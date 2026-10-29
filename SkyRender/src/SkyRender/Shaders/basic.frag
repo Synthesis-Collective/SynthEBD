@@ -23,6 +23,7 @@ in vec4 v_layerWeights0;
 in vec4 v_layerWeights1;
 in vec4 v_waterReflection;
 uniform bool u_isWater;
+in vec2 v_grass;        // grass only: (instance brightness, distance fade), from basic.vert
 in vec2 v_waterTerms;   // water only: (Fresnel, distance factor), from basic.vert
 // Water, per-pixel depth (GlMesh.WaterSceneDepth): the engine's depth terms from the opaque scene's
 // depth (the depth prepass on u_ssaoDepthTex), after Community Shaders' Water.hlsl. See waterRayDepth
@@ -116,6 +117,9 @@ vec3 engineImageSpace(vec3 a) {
 // shading. Dead branches are eliminated by the GLSL compiler since the value is
 // a const, so there's no runtime cost.
 const bool DEBUG_DIFFUSE_ONLY = false;
+// Grass diagnostic: drop the sun term on grass (ambient only), to compare a frame against the game's
+// grass brightness. Off: the engine's FlatL lighting (sun N.L on the instance up axis + ambient).
+const bool DEBUG_GRASS_AMBIENT_ONLY = false;
 
 // TEMP DEBUG: when true, ignores all lighting and outputs the mesh's world-space
 // normal as RGB color (normal * 0.5 + 0.5). Used to diagnose a 90-degree offset
@@ -257,6 +261,12 @@ uniform bool u_projectedHasDiffuse;    // false = flat colour path (diffuse/norm
 // Distant LOD (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees, 4 water. Terrain LOD's noise
 // texture is bound on the projected-noise unit (texture_projected_noise).
 uniform int u_lodKind;
+// Near-field grass (GlMesh.IsGrass; the engine's RunGrass shader, FlatL / VertexL techniques): the
+// diffuse times the vertex colour times the instance brightness, lit by the sun (N.L on the instance's
+// up axis, or the vertex normal with the Vertex Lighting flag) under its shadow plus the ambient; no
+// specular and no point lights (the engine's grass techniques are directional-only). The distance fade
+// scales the texture alpha before the alpha test.
+uniform bool u_grass;
 uniform bool u_lodHasNoise;
 
 // TEMP DEBUG: when true, a projected mesh outputs its coverage weight as grey (white = fully
@@ -900,6 +910,11 @@ void main()
     // blending off, so the framebuffer ignores this channel there.
     baseColor.a *= material_alpha;
 
+    if (u_grass) {
+        baseColor.rgb *= v_grass.x;
+        baseColor.a *= v_grass.y;
+    }
+
     if (use_alpha_test && baseColor.a < alpha_threshold) {
         discard;
     }
@@ -1210,6 +1225,8 @@ void main()
             float diffuseStrength;
             if (DEBUG_DIFFUSE_ONLY) {
                 diffuseStrength = max(NdotL, 0.0);
+            } else if (u_grass && DEBUG_GRASS_AMBIENT_ONLY) {
+                diffuseStrength = 0.0;
             } else if (u_lodKind == 3) {
                 // Tree LOD (the engine's DistantTree.hlsl): half the sun, no N.L term.
                 diffuseStrength = 0.5;
@@ -1382,7 +1399,7 @@ void main()
     // Point lights: Lambert diffuse with the engine's falloff, over the albedo (no AO, which the
     // engine keeps to the ambient). Shadowed by its cube map when it casts shadows; no specular.
     for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
-        if (i >= u_pointLightCount) break;
+        if (i >= u_pointLightCount || u_grass) break;
         vec3 toLight = u_pointLightPos[i].xyz - v_viewSpacePos;
         float d = length(toLight);
         float r = u_pointLightPos[i].w;

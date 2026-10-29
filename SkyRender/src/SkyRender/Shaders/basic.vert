@@ -11,6 +11,13 @@ layout (location = 5) in vec3 aBitangent;
 // Other meshes never enable these arrays; the fragment shader reads them only for terrain.
 layout (location = 6) in vec4 aLayerWeights0;
 layout (location = 7) in vec4 aLayerWeights1;
+// Grass instances (GlMesh.UploadInstances, World.GrassInstanceData): three rows of a 3x4
+// transform (model Y-up to world Y-up) and (up axis xyz, brightness), once per instance.
+// Only grass meshes enable these arrays, and only u_grass reads them.
+layout (location = 8) in vec4 aInstRow0;
+layout (location = 9) in vec4 aInstRow1;
+layout (location = 10) in vec4 aInstRow2;
+layout (location = 11) in vec4 aInstUpShade;
 
 // === OUTPUTS ===
 out vec3 v_viewSpacePos;
@@ -32,6 +39,8 @@ out vec4 v_layerWeights1;
 out vec4 v_waterReflection;
 // Water only: (Fresnel, distance factor) separately, for the per-pixel depth path in basic.frag.
 out vec2 v_waterTerms;
+// Grass only: (instance brightness, distance fade).
+out vec2 v_grass;
 
 // === UNIFORMS ===
 uniform mat4 u_model;
@@ -71,9 +80,35 @@ uniform float u_waterFresnel;
 uniform float u_waterNoiseFalloff;
 uniform vec3 u_waterReflected;
 
+// Near-field grass (GlMesh.IsGrass; the engine's RunGrass vertex shader): each instance places the
+// model with its own transform. Flat-lit grass (no GRAS Vertex Lighting flag) is lit with the
+// instance's up axis instead of the vertex normals. The distance fade is
+// 1 - saturate((distance - fGrassStartFadeDistance) / fGrassFadeRange), which the fragment shader
+// multiplies into the texture alpha before the alpha test. No wind: a still frame.
+uniform bool u_grass;
+uniform bool u_grassVertexLit;
+uniform vec2 u_grassFade;   // (start, range)
+
 void main()
 {
-    vec4 pos_worldSpace = u_model * vec4(aPos, 1.0);
+    vec3 inPos = aPos, inNormal = aNormal, inTangent = aTangent, inBitangent = aBitangent;
+    v_grass = vec2(1.0);
+    if (u_grass) {
+        mat3 inst = transpose(mat3(aInstRow0.xyz, aInstRow1.xyz, aInstRow2.xyz));
+        inPos = inst * aPos + vec3(aInstRow0.w, aInstRow1.w, aInstRow2.w);
+        if (u_grassVertexLit) {
+            inNormal = inst * aNormal;
+        } else {
+            inNormal = aInstUpShade.xyz;
+        }
+        // A tangent frame around the normal, so the fragment shader's TBN is valid (grass has no
+        // normal map; only the third column is used).
+        vec3 n = normalize(inNormal);
+        vec3 a = abs(n.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        inTangent = normalize(cross(a, n));
+        inBitangent = cross(n, inTangent);
+    }
+    vec4 pos_worldSpace = u_model * vec4(inPos, 1.0);
 
     vec4 pos_viewSpace = u_view * pos_worldSpace;
     if (u_depthBias != 0.0)
@@ -82,6 +117,9 @@ void main()
     if (u_lodKind == 1)
         gl_Position.z += min(1.0, 1e-4 * max(0.0, -pos_viewSpace.z - 70000.0)) * 0.5 * 2.0;
     gl_ClipDistance[0] = dot(pos_worldSpace, u_clipPlane);
+    if (u_grass)
+        v_grass = vec2(aInstUpShade.w,
+                       1.0 - clamp((length(pos_viewSpace.xyz) - u_grassFade.x) / u_grassFade.y, 0.0, 1.0));
     v_viewSpacePos = vec3(u_view * pos_worldSpace);
     v_worldPos = pos_worldSpace.xyz;
 
@@ -91,13 +129,13 @@ void main()
     v_modelToViewNormalMatrix = normalMatrix_modelToView;
 
     // TBN matrix for tangent-space normal maps
-    vec3 T_viewSpace = normalize(normalMatrix_modelToView * aTangent);
-    vec3 B_viewSpace = normalize(normalMatrix_modelToView * aBitangent);
-    vec3 N_viewSpace = normalize(normalMatrix_modelToView * aNormal);
+    vec3 T_viewSpace = normalize(normalMatrix_modelToView * inTangent);
+    vec3 B_viewSpace = normalize(normalMatrix_modelToView * inBitangent);
+    vec3 N_viewSpace = normalize(normalMatrix_modelToView * inNormal);
     v_tangentToViewMatrix = mat3(T_viewSpace, B_viewSpace, N_viewSpace);
 
     // TEMP DEBUG: world-space normal for DEBUG_VIZ_WORLD_NORMAL visualization.
-    v_worldNormal = normalize(normalMatrix_modelToWorld * aNormal);
+    v_worldNormal = normalize(normalMatrix_modelToWorld * inNormal);
 
     TexCoords = aTexCoords * u_uvScale + u_uvOffset;
     vertexColor = aColor;

@@ -49,6 +49,33 @@ public sealed class GlDistantLod : IDisposable
 }
 
 /// <summary>
+/// The GPU form of a <see cref="GrassPlacement"/>: one instanced <see cref="GlMesh"/> per grass type
+/// and model shape. Owned like <see cref="GlTerrainCell"/>: add <see cref="Meshes"/> to a renderer (or
+/// call <see cref="GlWorldFactory.AddTo(GlGrass, GlRenderer)"/>), dispose it on the GL thread.
+/// </summary>
+public sealed class GlGrass : IDisposable
+{
+    internal GlGrass(GrassPlacement placement, IReadOnlyList<GlMesh> meshes, IReadOnlyList<GrassType> missingModels)
+    {
+        Placement = placement;
+        Meshes = meshes;
+        MissingModels = missingModels;
+    }
+
+    public GrassPlacement Placement { get; }
+    public IReadOnlyList<GlMesh> Meshes { get; }
+    /// <summary>Grass types with instances whose model the host could not provide (not drawn).</summary>
+    public IReadOnlyList<GrassType> MissingModels { get; }
+    /// <summary>Instances drawn: each type's instances counted once, however many shapes its model has.</summary>
+    public int InstancesDrawn { get; internal set; }
+
+    public void Dispose()
+    {
+        foreach (var m in Meshes) m.Dispose();
+    }
+}
+
+/// <summary>
 /// Creates terrain and water meshes from <see cref="TerrainCell"/> / <see cref="WaterSurface"/>
 /// data. Requires a current GL context. Texture loading goes through the caller's delegate, so a
 /// host keeps its own texture caching and accounting; it returns a GL handle, or null when the
@@ -329,6 +356,79 @@ public static class GlWorldFactory
         mesh.UseAlphaTest = part.AlphaTest;
         mesh.AlphaThreshold = part.AlphaThreshold;
         mesh.IsDoubleSided = part.DoubleSided || part.Kind == LodKind.Terrain;
+    }
+
+    /// <summary>
+    /// Uploads placed grass (<see cref="GrassPlacer.Place"/>). Grass models are NIF content, which the
+    /// host loads: <paramref name="createShapes"/> returns, for a grass type, fresh meshes for each shape
+    /// of its model, uploaded in the model's own Y-up space (as <see cref="NifMeshBuilder"/> emits it,
+    /// not placed) with their material applied (diffuse, alpha test, vertex colours), or null when the
+    /// model can't be found. Each shape becomes one instanced mesh carrying all of that type's
+    /// instances (<see cref="UploadGrassInstances"/>) and the grass shading (<see cref="ApplyGrassMaterial"/>).
+    /// </summary>
+    public static GlGrass CreateGrass(GrassPlacement placement, Func<GrassType, IReadOnlyList<GlMesh>?> createShapes)
+    {
+        var meshes = new List<GlMesh>();
+        var missing = new List<GrassType>();
+        int drawn = 0;
+        foreach (var t in placement.Types)
+        {
+            if (t.Instances.Count == 0) continue;
+            var shapes = createShapes(t.Type);
+            if (shapes is not { Count: > 0 }) { missing.Add(t.Type); continue; }
+            var data = GrassInstanceData.Build(t.Type, t.Instances);
+            foreach (var mesh in shapes)
+            {
+                UploadGrassInstances(mesh, data);
+                ApplyGrassMaterial(mesh, t.Type, placement.Settings);
+                meshes.Add(mesh);
+            }
+            drawn += t.Instances.Count;
+        }
+        return new GlGrass(placement, meshes, missing) { InstancesDrawn = drawn };
+    }
+
+    /// <summary>Uploads a grass type's instances into <paramref name="mesh"/> (already uploaded with
+    /// the model shape) and sets its CPU positions to the instance origins, for bounds.</summary>
+    public static void UploadGrassInstances(GlMesh mesh, GrassInstanceData data)
+    {
+        mesh.UploadInstances(data.Data);
+        mesh.CpuPositions = data.Positions;
+        mesh.CpuIndices = null;
+    }
+
+    /// <summary>
+    /// Sets the grass shading on a model shape (RENDERING_PIPELINE.md, "Grass"): instanced, alpha-tested
+    /// after the distance fade (<see cref="GrassSettings.StartFadeDistance"/>,
+    /// <see cref="GrassSettings.FadeRange"/>), the vertex alpha read as the wind weight, no specular;
+    /// flat-lit with the instance's up axis unless the type has <see cref="GrassFlags.VertexLighting"/>.
+    /// The diffuse texture, alpha threshold and two-sidedness the host set (from the model) are kept.
+    /// </summary>
+    public static void ApplyGrassMaterial(GlMesh mesh, GrassType type, GrassSettings settings)
+    {
+        mesh.IsGrass = true;
+        mesh.GrassVertexLit = (type.Flags & GrassFlags.VertexLighting) != 0;
+        mesh.GrassFadeStart = settings.StartFadeDistance;
+        mesh.GrassFadeRange = settings.FadeRange;
+        mesh.UseAlphaTest = true;
+        mesh.HasAlphaBlend = false;
+        mesh.DepthWrite = true;
+        mesh.VertexAlphaIsWindWeight = true;
+        mesh.HasSpecular = false;
+        mesh.HasNormalMap = false;
+        mesh.HasEnvironmentMap = false;
+    }
+
+    /// <summary>Adds grass meshes to a renderer.</summary>
+    public static void AddTo(this GlGrass grass, GlRenderer renderer)
+    {
+        foreach (var m in grass.Meshes) renderer.AddMesh(m);
+    }
+
+    /// <summary>Removes grass meshes from a renderer (without disposing them).</summary>
+    public static void RemoveFrom(this GlGrass grass, GlRenderer renderer)
+    {
+        foreach (var m in grass.Meshes) renderer.RemoveMesh(m);
     }
 
     /// <summary>Adds a terrain cell's meshes to a renderer.</summary>

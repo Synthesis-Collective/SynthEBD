@@ -122,7 +122,12 @@ public sealed class TerrainQuadrant
 }
 
 /// <summary>A landscape texture set: game-relative paths (e.g. <c>textures\landscape\dirt02.dds</c>).</summary>
-public sealed record TerrainTexture(string DiffusePath, string? NormalPath = null);
+public sealed record TerrainTexture(string DiffusePath, string? NormalPath = null)
+{
+    /// <summary>The grasses that grow where this texture is painted (LTEX GNAM), in record order.
+    /// Read by <see cref="GrassPlacer"/>; the terrain mesh ignores them.</summary>
+    public IReadOnlyList<GrassType>? Grasses { get; init; }
+}
 
 /// <summary>
 /// One alpha layer over a quadrant: its texture and its 17×17 per-vertex opacity (0..1),

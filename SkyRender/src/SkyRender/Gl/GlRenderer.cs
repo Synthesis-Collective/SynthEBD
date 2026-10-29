@@ -2108,6 +2108,8 @@ public class GlRenderer : IDisposable
             if (mesh.IsEye) continue;
             // Effect shapes (flames, smoke, light shafts) cast no shadow in the engine.
             if (mesh.IsEffectShader) continue;
+            // Grass receives sun shadows but casts none in the engine.
+            if (mesh.IsGrass) continue;
             // Strategy A: optionally drop hair as a caster so bangs don't
             // throw a hard shadow onto the forehead.
             if (ExcludeHairShadowCaster && mesh.IsHairTintShader) continue;
@@ -2545,6 +2547,8 @@ public class GlRenderer : IDisposable
             // Effect shapes are not surfaces: they neither occlude ambient light nor give a soft
             // effect a depth to fade against (that depth is what this prepass provides).
             if (mesh.IsEffectShader) continue;
+            // Grass draws instanced, which this prepass's shader does not do.
+            if (mesh.IsGrass) continue;
             // Skip every transparent mesh (alpha-blend AND alpha-test).
             //
             // Alpha-blend: cumulative transparency makes any depth value misleading.
@@ -2690,7 +2694,7 @@ public class GlRenderer : IDisposable
         bool any = false;
         for (int i = 0; i < _meshes.Count; i++)
         {
-            if (!_meshes[i].ShouldRender) continue;
+            if (!_meshes[i].ShouldRender || _meshes[i].IsGrass) continue;
             if (_meshes[i].ShowWireframe || _meshes[i].RenderAsWireframeFallback)
             { any = true; break; }
         }
@@ -2721,7 +2725,7 @@ public class GlRenderer : IDisposable
 
         foreach (var mesh in _meshes)
         {
-            if (!mesh.ShouldRender) continue;
+            if (!mesh.ShouldRender || mesh.IsGrass) continue;   // instanced: not drawn by the wireframe shader
             bool wantFallback = mesh.RenderAsWireframeFallback;
             bool wantOverlay = mesh.ShowWireframe;
             if (!wantFallback && !wantOverlay) continue;
@@ -3267,6 +3271,14 @@ public class GlRenderer : IDisposable
         // projected-noise unit (no LOD mesh is projected or terrain).
         int lodKind = mesh.DistantLod is { } lk ? (int)lk + 1 : 0;
         _shader.SetInt("u_lodKind", lodKind);
+        // Near-field grass (GlMesh.IsGrass): instanced, with the engine's grass shading and distance fade.
+        bool grass = mesh.IsGrass && mesh.InstanceVbo != 0;
+        _shader.SetBool("u_grass", grass);
+        if (grass)
+        {
+            _shader.SetBool("u_grassVertexLit", mesh.GrassVertexLit);
+            _shader.SetVector2("u_grassFade", mesh.GrassFadeStart, Math.Max(mesh.GrassFadeRange, 1e-3f));
+        }
         bool lodNoise = lodKind == 1 && !projected && !mesh.IsTerrain && mesh.LodNoiseTexture != 0 && _terrainLayerNormalSlots >= 1;
         _shader.SetBool("u_lodHasNoise", lodNoise);
         if (lodNoise)
@@ -3389,8 +3401,15 @@ public class GlRenderer : IDisposable
         // Draw
         ApplyMeshModel(_shader!, mesh, _frameModel);
         GL.BindVertexArray(mesh.Vao);
-        GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
-            DrawElementsType.UnsignedInt, 0);
+        if (mesh.IsGrass && mesh.InstanceVbo != 0)
+        {
+            if (mesh.InstanceCount > 0)
+                GL.DrawElementsInstanced(PrimitiveType.Triangles, mesh.IndexCount,
+                    DrawElementsType.UnsignedInt, IntPtr.Zero, mesh.InstanceCount);
+        }
+        else
+            GL.DrawElements(PrimitiveType.Triangles, mesh.IndexCount,
+                DrawElementsType.UnsignedInt, 0);
         GL.BindVertexArray(0);
 
         // Restore culling default
