@@ -197,6 +197,14 @@ public static class WorldMeshBuilder
                 float depth = groundZ is { } gz ? surface.Height - gz : band;
                 if (depth > 0f) submerged++;
                 float t = Math.Clamp(depth / band, 0f, 1f);
+                float alpha = shore + (1f - shore) * t;
+                if (m.DepthFog is { } fog)
+                {
+                    // No ground counts as deep, as above.
+                    float d = groundZ is not null ? depth : fog.Far;
+                    t = fog.DeepFraction(d);
+                    alpha = fog.Opacity(d);
+                }
                 var body = Vector3.Lerp(m.ShallowColor, m.DeepColor, t);
 
                 var p = ToYUp(new Vector3(x, y, surface.Height));
@@ -206,7 +214,7 @@ public static class WorldMeshBuilder
                 vertices[o + 3] = normal.X; vertices[o + 4] = normal.Y; vertices[o + 5] = normal.Z;
                 vertices[o + 6] = x / uvScale; vertices[o + 7] = y / uvScale;
                 vertices[o + 8] = body.X; vertices[o + 9] = body.Y; vertices[o + 10] = body.Z;
-                vertices[o + 11] = shore + (1f - shore) * t;
+                vertices[o + 11] = alpha;
                 vertices[o + 12] = tangent.X; vertices[o + 13] = tangent.Y; vertices[o + 14] = tangent.Z;
                 vertices[o + 15] = bitangent.X; vertices[o + 16] = bitangent.Y; vertices[o + 17] = bitangent.Z;
             }

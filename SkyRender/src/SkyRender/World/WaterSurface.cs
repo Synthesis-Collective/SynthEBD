@@ -41,4 +41,42 @@ public sealed record WaterMaterial(
     /// <summary>Grid squares per side. The body colour follows depth to the ground at the grid
     /// vertices, so a shoreline needs vertices along it.</summary>
     public int GridResolution { get; init; } = 48;
+
+    /// <summary>The reflection is the renderer's sky colour (<c>GlRenderer.SkyColor</c>, else its
+    /// clear colour), as the engine's water shader reflects the sky when water reflections are on.
+    /// Off (the default) reflects <see cref="ReflectionColor"/> times <see cref="Reflectivity"/>,
+    /// the engine's term when reflections are off.</summary>
+    public bool ReflectsSky { get; init; }
+
+    /// <summary>The water type's noise falloff distance (world units). The engine blends the
+    /// reflection over the body by Fresnel near the camera and by 1 (a mirror) far away, ramping
+    /// between this distance and 8192. 0 (the default) keeps the Fresnel blend at every distance.</summary>
+    public float NoiseFalloff { get; init; }
+
+    /// <summary>The water type's above-water depth fog, or null. When set it replaces
+    /// <see cref="ShallowBand"/> and <see cref="ShoreAlpha"/>: the body colour fades shallow to deep
+    /// over the fog's far distance, and the surface's opacity follows the engine's refraction weight,
+    /// so ground under shallow water shows through.</summary>
+    public WaterDepthFog? DepthFog { get; init; }
+}
+
+/// <summary>A water type's above-water fog (WATR fog near / far / amount): how fast the water
+/// closes up with depth. Distances are world units of water the view passes through.</summary>
+public sealed record WaterDepthFog(float Near, float Far, float Amount)
+{
+    /// <summary>The engine's refraction weight for <paramref name="depth"/> units of water: 0 shows
+    /// the ground under the water, 1 shows the water alone. <c>1 - saturate((far - min(depth, far)) /
+    /// (far - near)) ^ amount</c> (Community Shaders' Water.hlsl, which keeps the vanilla shader's
+    /// form; its fog range is read here as far - near).</summary>
+    public float Opacity(float depth)
+    {
+        if (Far <= 0f) return 1f;
+        float range = Far - Near;
+        if (range <= 1e-3f) return depth >= Far ? 1f : 0f;
+        float x = Math.Clamp((Far - Math.Min(Math.Max(depth, 0f), Far)) / range, 0f, 1f);
+        return 1f - MathF.Pow(x, Math.Max(Amount, 0f));
+    }
+
+    /// <summary>How far shallow has faded to deep at <paramref name="depth"/>: depth over the far distance.</summary>
+    public float DeepFraction(float depth) => Far > 0f ? Math.Clamp(depth / Far, 0f, 1f) : 1f;
 }

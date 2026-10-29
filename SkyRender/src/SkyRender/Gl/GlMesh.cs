@@ -40,11 +40,19 @@ public class GlMesh : IDisposable
     /// <summary>Terrain only: <see cref="NormalTexture"/> is the base texture's normal map.</summary>
     public bool TerrainHasBaseNormal { get; set; }
 
-    /// <summary>Draws as a water surface: the vertex colour is the body colour, and the sky
-    /// reflection is mixed in per vertex from the live camera (Schlick Fresnel).</summary>
+    /// <summary>Draws as a water surface: the vertex colour is the body colour (lit like any
+    /// surface), and the reflection is mixed over the lit result from the live camera with the
+    /// engine's Fresnel and distance blend (RENDERING_PIPELINE.md, "Water").</summary>
     public bool IsWater { get; set; }
-    /// <summary>Water only: the water type's reflection colour (multiplied by the renderer's sky colour).</summary>
+    /// <summary>Water only: the water type's reflection colour, used (times
+    /// <see cref="WaterReflectivity"/>) when <see cref="WaterReflectsSky"/> is off.</summary>
     public System.Numerics.Vector3 WaterReflectionColor { get; set; } = System.Numerics.Vector3.One;
+    /// <summary>Water only: the reflection is the renderer's sky colour, as the engine's water shader
+    /// reflects its sky when water reflections are on.</summary>
+    public bool WaterReflectsSky { get; set; }
+    /// <summary>Water only: the water type's noise falloff distance (world units), which the engine's
+    /// reflection distance blend ramps against 8192. 0 turns the blend off (Fresnel everywhere).</summary>
+    public float WaterNoiseFalloff { get; set; }
     /// <summary>Water only: reflectivity (0..1).</summary>
     public float WaterReflectivity { get; set; }
     /// <summary>Water only: Fresnel F0 (0..1).</summary>

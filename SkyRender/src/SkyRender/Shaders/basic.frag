@@ -19,6 +19,14 @@ in vec3 v_worldNormal;
 in vec3 v_worldPos;
 in vec4 v_layerWeights0;
 in vec4 v_layerWeights1;
+in vec4 v_waterReflection;
+uniform bool u_isWater;
+// Distance fog (GlRenderer.Fog, DistanceFog.cs), the engine's form:
+// f = min(max, saturate(d * y - x) ^ power), u_fogParam = (near/range, 1/range, power, max).
+uniform bool u_fogEnabled;
+uniform vec3 u_fogNearColor;
+uniform vec3 u_fogFarColor;
+uniform vec4 u_fogParam;
 
 #define MAX_LIGHTS 5
 
@@ -1277,6 +1285,15 @@ void main()
             emittance *= texture(texture_glow, TexCoords).rgb;
         }
         finalColor += emittance * baseColor.rgb;
+    }
+
+    // Water: the reflection over the lit body colour (basic.vert works out the fraction).
+    if (u_isWater) finalColor = mix(finalColor, v_waterReflection.rgb, v_waterReflection.a);
+
+    // Distance fog, over the lit (and reflected) colour, as the engine applies it last.
+    if (u_fogEnabled) {
+        float fogF = min(u_fogParam.w, pow(clamp(length(v_viewSpacePos) * u_fogParam.y - u_fogParam.x, 0.0, 1.0), u_fogParam.z));
+        finalColor = mix(finalColor, mix(u_fogNearColor, u_fogFarColor, fogF), fogF);
     }
 
     // --- 6. TONE-MAPPING & COLOR GRADE (since 2.5.9) ---

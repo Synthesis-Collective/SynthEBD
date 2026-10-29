@@ -230,6 +230,23 @@ public class WorldMeshBuilderTests
     }
 
     [Fact]
+    public void Water_DepthFogSetsBodyAndOpacityByTheEngineRefractionWeight()
+    {
+        var ground = new TerrainHeightField(new[] { FlatCell(z: 0f) });
+        var fog = new WaterDepthFog(Near: -10f, Far: 150f, Amount: 0.7f);
+        var mat = new WaterMaterial(Vector3.One, Vector3.Zero, Vector3.One, 0f, 0f) { DepthFog = fog };
+        var d = WorldMeshBuilder.BuildWater(new WaterSurface(75f, 0f, 0f, 4096f, 4096f, mat), ground);
+        // 1 - ((150 - 75) / 160) ^ 0.7, and shallow -> deep by 75 / 150.
+        Color(d, 0).W.Should().BeApproximately(1f - MathF.Pow(75f / 160f, 0.7f), 1e-5f);
+        Color(d, 0).X.Should().BeApproximately(0.5f, 1e-5f);
+        fog.Opacity(150f).Should().Be(1f);
+        fog.Opacity(400f).Should().Be(1f);
+        // No ground under the water counts as deep: opaque.
+        var off = WorldMeshBuilder.BuildWater(new WaterSurface(0f, 0f, 0f, 4096f, 4096f, mat), (TerrainHeightField?)null);
+        Color(off, 0).W.Should().Be(1f);
+    }
+
+    [Fact]
     public void Water_TrianglesFaceUpAndUvFollowsTheNoiseScale()
     {
         var mat = new WaterMaterial(Vector3.One, Vector3.Zero, Vector3.One, 0f, 0f) { NoiseUvScale = 512f };

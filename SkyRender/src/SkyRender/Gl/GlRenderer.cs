@@ -852,6 +852,11 @@ public class GlRenderer : IDisposable
     /// (the default) uses <see cref="ClearColor"/>, the scene's sky.</summary>
     public Vector3? SkyColor { get; set; }
 
+    /// <summary>Distance fog over every lit surface, or null (the default) for none. A host
+    /// supplies it from its scene (for Skyrim exteriors, the weather's fog colours and distances).
+    /// See RENDERING_PIPELINE.md, "Distance fog".</summary>
+    public DistanceFog? Fog { get; set; }
+
     // Texture units for terrain layers 0-7: the 2D units of samplers a terrain draw never reads
     // (skin, specular, face tint, detail, env mask, 2D env, glow), then 13. basic.frag declares
     // texture_layer0..7 to match.
@@ -1251,6 +1256,15 @@ public class GlRenderer : IDisposable
 
         _shader.Use();
         _shader.SetBool("u_enableToneMapping", EnableToneMapping);
+        _shader.SetBool("u_fogEnabled", Fog is not null);
+        if (Fog is { } fog)
+        {
+            _shader.SetVector3("u_fogNearColor", fog.NearColor.X, fog.NearColor.Y, fog.NearColor.Z);
+            _shader.SetVector3("u_fogFarColor", fog.FarColor.X, fog.FarColor.Y, fog.FarColor.Z);
+            // The engine's FogParam: x = near / (far - near), y = 1 / (far - near), z = power, w = max.
+            float range = MathF.Max(fog.Far - fog.Near, 1e-3f);
+            _shader.SetVector4("u_fogParam", fog.Near / range, 1f / range, fog.Power, fog.Max);
+        }
         _shader.SetBool("u_enableShadows", EnableShadows);
         _shader.SetBool("u_softenShadowEdges", SoftenShadowEdges);
         _shader.SetFloat("u_shadowPcfRadius", ShadowPcfRadius);
@@ -2896,10 +2910,11 @@ public class GlRenderer : IDisposable
         if (mesh.IsWater)
         {
             var sky = SkyColor ?? ClearColor;
-            var refl = mesh.WaterReflectionColor;
-            _shader.SetVector3("u_waterReflected", sky.X * refl.X, sky.Y * refl.Y, sky.Z * refl.Z);
+            var refl = mesh.WaterReflectionColor * mesh.WaterReflectivity;
+            if (mesh.WaterReflectsSky) _shader.SetVector3("u_waterReflected", sky.X, sky.Y, sky.Z);
+            else _shader.SetVector3("u_waterReflected", refl.X, refl.Y, refl.Z);
             _shader.SetFloat("u_waterFresnel", mesh.WaterFresnel);
-            _shader.SetFloat("u_waterReflectivity", mesh.WaterReflectivity);
+            _shader.SetFloat("u_waterNoiseFalloff", mesh.WaterNoiseFalloff);
         }
 
         // Projected material (snow/ash/moss from a host's material object). Its two textures ride

@@ -27,6 +27,9 @@ out vec3 v_worldNormal;
 out vec3 v_worldPos;
 out vec4 v_layerWeights0;
 out vec4 v_layerWeights1;
+// Water only: the reflection colour (rgb) and the fraction of it (a) that the fragment
+// shader mixes over the lit body colour.
+out vec4 v_waterReflection;
 
 // === UNIFORMS ===
 uniform mat4 u_model;
@@ -48,13 +51,16 @@ uniform vec4 u_clipPlane;
 // farther from the camera. 0 leaves gl_Position exactly as before.
 uniform float u_depthBias;
 
-// Water (GlMesh.IsWater): the vertex colour arrives as the body colour; the sky reflection is
-// mixed in here from the live camera with Schlick's Fresnel, F0 = the water type's Fresnel.
-// Up is +Y. u_waterReflected = sky colour x the water type's reflection colour.
+// Water (GlMesh.IsWater): the vertex colour arrives as the body colour (lit in the fragment
+// shader like any surface). The reflection fraction is worked out here from the live camera,
+// as Community Shaders' Water.hlsl does it: Schlick Fresnel with F0 = the water type's Fresnel,
+// and a distance blend between that Fresnel (near) and 1, a mirror (far), ramping between the
+// water type's noise falloff distance and 8192 units. Up is +Y. u_waterReflected = the
+// reflection colour: the sky, or the water type's reflection colour x reflectivity.
 uniform bool u_isWater;
 uniform vec3 u_cameraPos;
 uniform float u_waterFresnel;
-uniform float u_waterReflectivity;
+uniform float u_waterNoiseFalloff;
 uniform vec3 u_waterReflected;
 
 void main()
@@ -88,12 +94,19 @@ void main()
     v_layerWeights0 = aLayerWeights0;
     v_layerWeights1 = aLayerWeights1;
 
+    v_waterReflection = vec4(0.0);
     if (u_isWater) {
-        vec3 toEye = normalize(u_cameraPos - pos_worldSpace.xyz);
-        float cosI = max(toEye.y, 0.0);
+        vec3 toEye = u_cameraPos - pos_worldSpace.xyz;
+        float dist = length(toEye);
+        float cosI = max(toEye.y / max(dist, 1e-4), 0.0);
         float f0 = clamp(u_waterFresnel, 0.0, 1.0);
         float fres = f0 + (1.0 - f0) * pow(1.0 - cosI, 5.0);
-        vertexColor.rgb = mix(aColor.rgb, u_waterReflected,
-                              clamp(fres * u_waterReflectivity * 4.0, 0.0, 1.0));
+        // distanceFactor = saturate(lerp(w, 1, (d - 8192) / (falloff - 8192))), with the
+        // frame flag w taken as 0 (an in-game aerial reads as a sky mirror at this range).
+        float distanceFactor = 1.0;
+        if (u_waterNoiseFalloff > 0.0 && abs(u_waterNoiseFalloff - 8192.0) > 1.0)
+            distanceFactor = clamp((dist - 8192.0) / (u_waterNoiseFalloff - 8192.0), 0.0, 1.0);
+        // specularFraction = lerp(1, fresnel, distanceFactor)
+        v_waterReflection = vec4(u_waterReflected, mix(1.0, fres, distanceFactor));
     }
 }

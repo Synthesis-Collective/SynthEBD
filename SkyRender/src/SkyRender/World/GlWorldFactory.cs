@@ -164,7 +164,7 @@ public static class GlWorldFactory
         mesh.NormalTexture = noiseTexture ?? 0;
         mesh.HasNormalMap = noiseTexture is not null;
         mesh.HasVertexColors = true;
-        bool opaque = material.ShoreAlpha >= 0.999f;
+        bool opaque = material.ShoreAlpha >= 0.999f && material.DepthFog is null;
         mesh.HasAlphaBlend = !opaque;
         mesh.SrcBlendIndex = 6;   // SRC_ALPHA
         mesh.DstBlendIndex = 7;   // ONE_MINUS_SRC_ALPHA
@@ -176,6 +176,8 @@ public static class GlWorldFactory
         mesh.WaterReflectionColor = material.ReflectionColor;
         mesh.WaterReflectivity = material.Reflectivity;
         mesh.WaterFresnel = material.Fresnel;
+        mesh.WaterReflectsSky = material.ReflectsSky;
+        mesh.WaterNoiseFalloff = material.NoiseFalloff;
     }
 
     /// <summary>Adds a terrain cell's meshes to a renderer.</summary>
