@@ -44,6 +44,13 @@ public class GlRenderer : IDisposable
     private const int ShadowMapSize = 2048;
     private int _shadowFbo = -1;
     private int _shadowDepthTex = -1;
+    // Point-light shadow cube maps (PointLight.CastsShadow): one depth cube-map array, a layer per
+    // shadowed light, rendered face by face through _pointShadowFbo. Created lazily.
+    private int _pointShadowFbo = -1;
+    private int _pointShadowTex = -1;
+    private const int PointShadowSize = 1024;
+    private const int PointShadowUnit = 22;
+    private const float PointShadowNear = 1f;
     private Matrix4 _lightViewProj = Matrix4.Identity;
 
     // SSAO resources (since 2.5.11). The pipeline:
@@ -861,6 +868,18 @@ public class GlRenderer : IDisposable
     /// and RENDERING_PIPELINE.md, "Water".</summary>
     public SkyGradient? SkyGradient { get; set; }
 
+    /// <summary>Point lights over every lit surface (diffuse only), or empty (the default). The
+    /// shader takes the first <see cref="MaxPointLights"/>; a host orders them (for example nearest
+    /// first). The engine gives each object its own few nearest lights; here every light reaches
+    /// every surface within its radius. See RENDERING_PIPELINE.md, "Point lights".</summary>
+    public List<PointLight> PointLights { get; } = new();
+
+    /// <summary>The most point lights the shader reads.</summary>
+    public const int MaxPointLights = 32;
+
+    /// <summary>The most point lights that cast shadows (PointLight.CastsShadow) in one frame.</summary>
+    public const int MaxShadowedPointLights = 4;
+
     /// <summary>Distance fog over every lit surface, or null (the default) for none. A host
     /// supplies it from its scene (for Skyrim exteriors, the weather's fog colours and distances).
     /// See RENDERING_PIPELINE.md, "Distance fog".</summary>
@@ -988,6 +1007,7 @@ public class GlRenderer : IDisposable
         _shader.SetInt("texture_envmap_2d", 10);
         _shader.SetInt("texture_envmask", 7);
         _shader.SetInt("u_shadowMap", 8);
+        _shader.SetInt("u_pointShadowMaps", PointShadowUnit);
         // Unit 12: glow map (units 8/9/11 are shadow / SSAO blur / depth prepass).
         _shader.SetInt("texture_glow", 12);
         // Terrain layer diffuses reuse the 2D units terrain never samples, plus unit 13.
@@ -1231,7 +1251,10 @@ public class GlRenderer : IDisposable
         bool waterDepth = false;
         foreach (var m in _meshes)
             if (m.IsWater && m.WaterSceneDepth && m.ShouldRender) { waterDepth = true; break; }
-        bool needsHostFboRestore = EnableShadows || EnableAmbientOcclusion || waterDepth;
+        bool pointShadows = false;
+        for (int i = 0; i < Math.Min(PointLights.Count, MaxPointLights); i++)
+            if (PointLights[i].CastsShadow) { pointShadows = true; break; }
+        bool needsHostFboRestore = EnableShadows || EnableAmbientOcclusion || waterDepth || pointShadows;
         int hostFbo = 0;
         if (needsHostFboRestore)
         {
@@ -1244,6 +1267,8 @@ public class GlRenderer : IDisposable
             ComputeLightViewProj();
             RenderShadowDepthPass(ref modelMat);
         }
+        // Point-light shadow cube maps (PointLight.CastsShadow).
+        RenderPointShadowPasses(ref modelMat);
 
         // SSAO depth pre-pass + post-process. Two passes: first renders
         // depth from the camera POV (so basic.frag's screen-space SSAO
@@ -1371,6 +1396,29 @@ public class GlRenderer : IDisposable
         // World up (+Y) in view space, for the sky gradient's elevation (row 1 of the row-vector view matrix).
         var skyUpView = Vector3.Normalize(new Vector3(view.M21, view.M22, view.M23));
         _shader.SetVector3("u_skyUpView", skyUpView.X, skyUpView.Y, skyUpView.Z);
+        // Point lights (PointLights): view-space positions, once per frame.
+        int pointCount = Math.Min(PointLights.Count, MaxPointLights);
+        _shader.SetInt("u_pointLightCount", pointCount);
+        if (pointCount > 0)
+        {
+            var modelView = model * view;
+            for (int i = 0; i < pointCount; i++)
+            {
+                var pl = PointLights[i];
+                var pv = Vector3.TransformPosition(pl.Position, modelView);
+                _shader.SetVector4($"u_pointLightPos[{i}]", pv.X, pv.Y, pv.Z, pl.Radius * ModelScale);
+                _shader.SetVector3($"u_pointLightColor[{i}]", pl.Color.X, pl.Color.Y, pl.Color.Z);
+                // Shadow cube layer (RenderPointShadowPasses), or -1; xyz = the light in world space.
+                var pw = Vector3.TransformPosition(pl.Position, model);
+                _shader.SetVector4($"u_pointLightShadow[{i}]", pw.X, pw.Y, pw.Z, _pointShadowLayer[i]);
+            }
+        }
+        if (_pointShadowTex != -1 && _pointShadowCount > 0)
+        {
+            GL.ActiveTexture(TextureUnit.Texture0 + PointShadowUnit);
+            GL.BindTexture(TextureTarget.TextureCubeMapArray, _pointShadowTex);
+            GL.ActiveTexture(TextureUnit.Texture0);
+        }
         _shader.SetMatrix4("u_projection", ref projection);
         // Inverse projection reconstructs view-space depth from the prepass
         // depth texture for the hair AO gap test (u_ssaoDepthTex, unit 11).
@@ -1851,6 +1899,73 @@ public class GlRenderer : IDisposable
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
     }
 
+    // Per point light (index into PointLights): its shadow cube layer, or -1.
+    private readonly float[] _pointShadowLayer = Enumerable.Repeat(-1f, MaxPointLights).ToArray();
+    // A count, not a GL handle (byte keeps it out of the GL-handle disposal checks).
+    private byte _pointShadowCount;
+
+    private void EnsurePointShadowFbo()
+    {
+        if (_pointShadowFbo != -1) return;
+        _pointShadowTex = GL.GenTexture();
+        GL.BindTexture(TextureTarget.TextureCubeMapArray, _pointShadowTex);
+        GL.TexImage3D(TextureTarget.TextureCubeMapArray, 0, PixelInternalFormat.DepthComponent24,
+            PointShadowSize, PointShadowSize, 6 * MaxShadowedPointLights, 0,
+            PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+        GL.TexParameter(TextureTarget.TextureCubeMapArray, TextureParameterName.TextureCompareFunc, (int)All.Lequal);
+        _pointShadowFbo = GL.GenFramebuffer();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _pointShadowFbo);
+        GL.FramebufferTextureLayer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, _pointShadowTex, 0, 0);
+        GL.DrawBuffer(DrawBufferMode.None);
+        GL.ReadBuffer(ReadBufferMode.None);
+        var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (status != FramebufferErrorCode.FramebufferComplete)
+            throw new InvalidOperationException("Point shadow FBO incomplete: " + status);
+    }
+
+    /// <summary>Renders a depth cube map per shadow-casting point light (up to
+    /// <see cref="MaxShadowedPointLights"/>): six 90-degree perspective faces from the light, out to
+    /// its radius, with the sun shadow's caster rules (<see cref="DrawShadowCasters"/>). The faces
+    /// follow the GL cube-map orientation. Caller restores the framebuffer and viewport.</summary>
+    private void RenderPointShadowPasses(ref Matrix4 model)
+    {
+        _pointShadowCount = 0;
+        Array.Fill(_pointShadowLayer, -1f);
+        if (_shadowShader == null) return;
+        int n = Math.Min(PointLights.Count, MaxPointLights);
+        bool any = false;
+        for (int i = 0; i < n; i++) if (PointLights[i].CastsShadow && PointLights[i].Radius > 0f) { any = true; break; }
+        if (!any) return;
+        if (GL.GetInteger(GetPName.MaxTextureImageUnits) <= PointShadowUnit) return;   // no unit for the cube array
+        EnsurePointShadowFbo();
+        GL.BindFramebuffer(FramebufferTarget.Framebuffer, _pointShadowFbo);
+        GL.Viewport(0, 0, PointShadowSize, PointShadowSize);
+        var dirs = new[] { Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ };
+        var ups = new[] { -Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ, -Vector3.UnitY, -Vector3.UnitY };
+        for (int i = 0; i < n && _pointShadowCount < MaxShadowedPointLights; i++)
+        {
+            var pl = PointLights[i];
+            if (!pl.CastsShadow || pl.Radius <= 0f) continue;
+            int layer = _pointShadowCount++;
+            _pointShadowLayer[i] = layer;
+            var pos = Vector3.TransformPosition(pl.Position, model);
+            var proj = Matrix4.CreatePerspectiveFieldOfView(MathF.PI / 2f, 1f, PointShadowNear, MathF.Max(pl.Radius * ModelScale, PointShadowNear * 2f));
+            for (int f = 0; f < 6; f++)
+            {
+                GL.FramebufferTextureLayer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, _pointShadowTex, 0, layer * 6 + f);
+                GL.Clear(ClearBufferMask.DepthBufferBit);
+                var vp = Matrix4.LookAt(pos, pos + dirs[f], ups[f]) * proj;
+                DrawShadowCasters(ref model, ref vp);
+            }
+        }
+    }
+
     /// <summary>Computes the orthographic light-space view-projection matrix
     /// for the key directional light. Uses a fixed scene radius (300 world
     /// units around the camera target, or <see cref="ShadowBounds"/> when set). The
@@ -1911,6 +2026,14 @@ public class GlRenderer : IDisposable
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, _shadowFbo);
         GL.Viewport(0, 0, ShadowMapSize, ShadowMapSize);
         GL.Clear(ClearBufferMask.DepthBufferBit);
+        DrawShadowCasters(ref model, ref _lightViewProj);
+    }
+
+    /// <summary>Draws every shadow caster's depth with <paramref name="lightViewProj"/> into the bound
+    /// depth target (the sun's map or one point-light cube face).</summary>
+    private void DrawShadowCasters(ref Matrix4 model, ref Matrix4 lightViewProj)
+    {
+        if (_shadowShader == null) return;
 
         // Front-face culling reduces self-shadowing acne (the back face of
         // the geometry casts the shadow, so the front face's depth is
@@ -1920,7 +2043,7 @@ public class GlRenderer : IDisposable
 
         _shadowShader.Use();
         _shadowShader.SetMatrix4("u_model", ref model);
-        _shadowShader.SetMatrix4("u_lightViewProj", ref _lightViewProj);
+        _shadowShader.SetMatrix4("u_lightViewProj", ref lightViewProj);
         BeginClipPass(_shadowShader);
 
         foreach (var mesh in _meshes)
@@ -3351,6 +3474,9 @@ public class GlRenderer : IDisposable
             // Shadow FBO + depth texture (created lazily by EnsureShadowFbo).
             if (_shadowDepthTex != -1) GL.DeleteTexture(_shadowDepthTex);
             if (_shadowFbo != -1) GL.DeleteFramebuffer(_shadowFbo);
+            // Point-light shadow cube-map array + its FBO (EnsurePointShadowFbo).
+            if (_pointShadowTex != -1) GL.DeleteTexture(_pointShadowTex);
+            if (_pointShadowFbo != -1) GL.DeleteFramebuffer(_pointShadowFbo);
 
             // Viewport-sized SSAO / depth-prepass FBOs + the once-created noise tex.
             DestroySsaoFbos();
@@ -3382,6 +3508,8 @@ public class GlRenderer : IDisposable
         _shadowShader = null;
         _shadowFbo = -1;
         _shadowDepthTex = -1;
+        _pointShadowFbo = -1;
+        _pointShadowTex = -1;
         _depthOnlyShader = null;
         _ssaoShader = null;
         _ssaoBlurShader = null;

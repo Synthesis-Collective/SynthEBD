@@ -1,4 +1,6 @@
 #version 330 core
+// Point-light shadow cube maps (samplerCubeArrayShadow); core from GL 4.0.
+#extension GL_ARB_texture_cube_map_array : require
 
 // Attribution: the face/skin tint composition (the Pegtop soft-light FaceTint blend, the
 // SkinTint / FaceGen RGB tint base colour and its colour-shift constant, and the engine-style
@@ -38,6 +40,30 @@ uniform vec3 u_waterSun;   // (sun specular power, sun specular magnitude, depth
 uniform int u_skyKeyCount;
 uniform vec4 u_skyKeys[MAX_SKY_KEYS];
 uniform vec3 u_skyUpView;
+// Point lights (GlRenderer.PointLights, PointLight.cs): xyz = view-space position, w = radius;
+// colour is linear and already faded. The engine's falloff: 1 - saturate(d / radius)^2.
+#define MAX_POINT_LIGHTS 32
+uniform int u_pointLightCount;
+uniform vec4 u_pointLightPos[MAX_POINT_LIGHTS];
+uniform vec3 u_pointLightColor[MAX_POINT_LIGHTS];
+// Shadow-casting point lights: xyz = the light in world space, w = its layer in u_pointShadowMaps
+// (-1 = unshadowed). Each layer is a depth cube rendered from the light with a 90-degree
+// perspective per face, near 1, far = the radius.
+uniform vec4 u_pointLightShadow[MAX_POINT_LIGHTS];
+uniform samplerCubeArrayShadow u_pointShadowMaps;
+
+float pointShadow(int i) {
+    float layer = u_pointLightShadow[i].w;
+    if (layer < 0.0) return 1.0;
+    vec3 v = v_worldPos - u_pointLightShadow[i].xyz;
+    float z = max(max(abs(v.x), abs(v.y)), abs(v.z));
+    float n = 1.0;
+    float f = max(u_pointLightPos[i].w, 2.0);
+    // The face's perspective depth of this point, then mapped to 0..1; a few units of bias.
+    float zb = max(z - 2.0, n);
+    float ndc = (f + n) / (f - n) - 2.0 * f * n / ((f - n) * zb);
+    return texture(u_pointShadowMaps, vec4(v, layer), ndc * 0.5 + 0.5);
+}
 
 vec3 skyGradientAt(float elevationDeg) {
     if (elevationDeg <= u_skyKeys[0].w) return u_skyKeys[0].rgb;
@@ -1296,6 +1322,22 @@ void main()
                 finalColor += catchSpec * lightColor * 1.5;
             }
         }
+    }
+
+    // Point lights: Lambert diffuse with the engine's falloff, over the albedo (no AO, which the
+    // engine keeps to the ambient). Shadowed by its cube map when it casts shadows; no specular.
+    for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
+        if (i >= u_pointLightCount) break;
+        vec3 toLight = u_pointLightPos[i].xyz - v_viewSpacePos;
+        float d = length(toLight);
+        float r = u_pointLightPos[i].w;
+        if (r <= 0.0 || d >= r) continue;
+        float f = clamp(d / r, 0.0, 1.0);
+        float atten = 1.0 - f * f;
+        float nl = dot(normal_viewSpace, toLight / max(d, 1.0e-4));
+        // Wrapped for soft-lit shapes, as the directional loop above does.
+        float ndl = has_soft_lighting ? nl * 0.5 + 0.5 : max(nl, 0.0);
+        finalColor += u_pointLightColor[i] * atten * ndl * pointShadow(i) * baseColor.rgb;
     }
 
     // --- 4. ENVIRONMENT MAPPING (cubemap, with 2D sphere-map fallback) ---
