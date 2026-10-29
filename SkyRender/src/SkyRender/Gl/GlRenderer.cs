@@ -857,6 +857,13 @@ public class GlRenderer : IDisposable
     /// See RENDERING_PIPELINE.md, "Distance fog".</summary>
     public DistanceFog? Fog { get; set; }
 
+    /// <summary>The engine's image-space finish (HDR tone map and cinematic grade) over every lit
+    /// surface and the clear colour, or null (the default) for the renderer's own path. When set it
+    /// replaces the ACES tone map, the sRGB framebuffer encode and bloom, since the engine's output
+    /// is already display-ready. A host supplies it from its scene (for Skyrim, the weather's or
+    /// cell's IMGS). See RENDERING_PIPELINE.md, "Image space".</summary>
+    public ImageSpaceFinish? ImageSpace { get; set; }
+
     // Texture units for terrain layers 0-7: the 2D units of samplers a terrain draw never reads
     // (skin, specular, face tint, detail, env mask, 2D env, glow), then 13. basic.frag declares
     // texture_layer0..7 to match.
@@ -1247,15 +1254,24 @@ public class GlRenderer : IDisposable
         // write. Without the framebuffer flag the linear output would
         // display too dark (mid-tones crushed). Pairing must be
         // deterministic - never enable one without the other.
-        if (EnableToneMapping) GL.Enable(EnableCap.FramebufferSrgb);
+        if (EnableToneMapping && ImageSpace is null) GL.Enable(EnableCap.FramebufferSrgb);
         else GL.Disable(EnableCap.FramebufferSrgb);
 
         GL.Viewport(0, 0, viewportWidth, viewportHeight);
-        GL.ClearColor(ClearColor.X, ClearColor.Y, ClearColor.Z, 1f);
+        // The image space finishes the whole frame in the engine, the sky included.
+        var clear = ImageSpace?.Apply(ClearColor) ?? ClearColor;
+        GL.ClearColor(clear.X, clear.Y, clear.Z, 1f);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
         _shader.Use();
         _shader.SetBool("u_enableToneMapping", EnableToneMapping);
+        _shader.SetBool("u_imageSpaceEnabled", ImageSpace is not null);
+        if (ImageSpace is { } isf)
+        {
+            _shader.SetVector4("u_isParam", isf.ReinhardCoefficient, isf.ExposureRatio, isf.AdaptedLuminance, isf.OutputExponent);
+            _shader.SetVector4("u_isCinematic", isf.Saturation, isf.Brightness, isf.Contrast, 0f);
+            _shader.SetVector4("u_isTint", isf.TintColor.X, isf.TintColor.Y, isf.TintColor.Z, isf.TintAmount);
+        }
         _shader.SetBool("u_fogEnabled", Fog is not null);
         if (Fog is { } fog)
         {
@@ -1529,7 +1545,7 @@ public class GlRenderer : IDisposable
         // BEFORE the gizmo / marker / light-arrow overlays, so those stay
         // crisp. RenderBloom restores the bound FBO + depth/blend/sRGB state
         // for the overlay draws that follow.
-        if (EnableBloom && EnableToneMapping)
+        if (EnableBloom && EnableToneMapping && ImageSpace is null)
             RenderBloom(viewportWidth, viewportHeight);
 
         // Wireframe overlay: drawn after alpha-blend so its lines layer on top

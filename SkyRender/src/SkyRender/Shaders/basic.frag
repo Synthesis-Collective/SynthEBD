@@ -27,6 +27,26 @@ uniform bool u_fogEnabled;
 uniform vec3 u_fogNearColor;
 uniform vec3 u_fogFarColor;
 uniform vec4 u_fogParam;
+// Image space (GlRenderer.ImageSpace, ImageSpaceFinish.cs): the engine's HDR tone map and cinematic
+// grade, the retail ISHDRTonemapBlendCinematic arithmetic (Reinhard branch, no bloom). It replaces
+// the ACES finish below when enabled.
+uniform bool u_imageSpaceEnabled;
+uniform vec4 u_isParam;     // (k = 1/(white*whiteScale)^2, exposure ratio, adapted luminance, output exponent)
+uniform vec4 u_isCinematic; // (saturation, brightness, contrast, unused)
+uniform vec4 u_isTint;      // (tint rgb, tint amount)
+
+vec3 engineImageSpace(vec3 a) {
+    const vec3 L = vec3(0.2125, 0.7154, 0.0721);
+    float y = max(dot(a, L), 0.00001);
+    float z = y * u_isParam.y;
+    float q = z * (1.0 + u_isParam.x * z) / (1.0 + z);
+    vec3 rgb = a * (q / y);
+    float k = dot(rgb, L);
+    vec3 g = mix(vec3(k), rgb, u_isCinematic.x);
+    g = mix(g, k * u_isTint.rgb, u_isTint.a);
+    vec3 c = vec3(u_isParam.z) + u_isCinematic.z * (u_isCinematic.y * g - vec3(u_isParam.z));
+    return pow(clamp(c, 0.0, 1.0), vec3(u_isParam.w));
+}
 
 #define MAX_LIGHTS 5
 
@@ -636,7 +656,9 @@ vec4 shadeEffect() {
 
 
     // Same finishing as stage 6 (no fresnel contour: an effect has no surface to darken).
-    // Kept in step with that block by hand.
+    // Kept in step with that block by hand. The image space, when on, grades the fragment before
+    // blending (the engine grades the blended frame; an 8-bit target leaves no other place).
+    if (u_imageSpaceEnabled) return vec4(engineImageSpace(rgb), alpha);
     if (u_enableToneMapping) {
         vec3 c = rgb * 0.6 * u_exposure;
         c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
@@ -1307,7 +1329,10 @@ void main()
     // Mild saturation boost (1.10x) afterwards gives skin tones a touch
     // more warmth without looking gaudy. Skip both when the toggle is
     // off so the legacy linear pipeline is reproducible bit-for-bit.
-    if (u_enableToneMapping) {
+    if (u_imageSpaceEnabled) {
+        // The engine's image space instead (see engineImageSpace above).
+        finalColor = engineImageSpace(finalColor);
+    } else if (u_enableToneMapping) {
         // Fresnel contour darkening (2.5.13+). Subtle ~15% darkening
         // at silhouette edges where the surface normal is nearly
         // perpendicular to the view direction. Defines the silhouette,
