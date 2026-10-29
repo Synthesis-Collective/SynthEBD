@@ -95,7 +95,11 @@ uniform vec4 u_isParam;     // (k = 1/(white*whiteScale)^2, exposure ratio, adap
 uniform vec4 u_isCinematic; // (saturation, brightness, contrast, unused)
 uniform vec4 u_isTint;      // (tint rgb, tint amount)
 
+// Diagnostic: write the frame's linear colour x 0.25 instead of the image-space finish, to read
+// light levels off a frame (only when a host sets an image space). Off.
+const bool DEBUG_LINEAR_FRAME = false;
 vec3 engineImageSpace(vec3 a) {
+    if (DEBUG_LINEAR_FRAME) return clamp(a * 0.25, 0.0, 1.0);
     const vec3 L = vec3(0.2125, 0.7154, 0.0721);
     float y = max(dot(a, L), 0.00001);
     float z = y * u_isParam.y;
@@ -120,6 +124,10 @@ const bool DEBUG_DIFFUSE_ONLY = false;
 // Grass diagnostic: drop the sun term on grass (ambient only), to compare a frame against the game's
 // grass brightness. Off: the engine's FlatL lighting (sun N.L on the instance up axis + ambient).
 const bool DEBUG_GRASS_AMBIENT_ONLY = false;
+// Grass diagnostic: light grass like every other mesh again (the key light times its intensity, the
+// image space's sunlight scale, with the daylight boost, plus the fill and rim slots). Off: the
+// engine's grass constants, the sun's plain colour and no other directional light.
+const bool DEBUG_GRASS_SCALED_SUN = false;
 
 // TEMP DEBUG: when true, ignores all lighting and outputs the mesh's world-space
 // normal as RGB color (normal * 0.5 + 0.5). Used to diagnose a 90-degree offset
@@ -264,7 +272,9 @@ uniform int u_lodKind;
 // Near-field grass (GlMesh.IsGrass; the engine's RunGrass shader, FlatL / VertexL techniques): the
 // diffuse times the vertex colour times the instance brightness, lit by the sun (N.L on the instance's
 // up axis, or the vertex normal with the Vertex Lighting flag) under its shadow plus the ambient; no
-// specular and no point lights (the engine's grass techniques are directional-only). The distance fade
+// specular and no point lights (the engine's grass techniques are directional-only). The sun is the
+// key light's colour without its intensity (the image space's sunlight scale, which the engine leaves
+// off grass) and the only directional light grass takes. The distance fade
 // scales the texture alpha before the alpha test.
 uniform bool u_grass;
 uniform bool u_lodHasNoise;
@@ -1192,6 +1202,15 @@ void main()
     for (int i = 0; i < MAX_LIGHTS; i++) {
         if (lights[i].type == 0) continue;
         vec3 lightColor = lights[i].color * lights[i].intensity;
+        // Grass (the engine's RunGrass constants, Nukem9 BSGrassShader::SetupGeometry): one
+        // directional light, the sun, whose colour is the sun light's plain diffuse colour. The
+        // lighting shader multiplies that colour by the image space's sunlight scale (and the
+        // light's dimmer); the grass setup does not. The key light's intensity is that scale (see
+        // SceneEnvironment.SunIntensity), so grass takes the key light's colour alone, without the
+        // daylight boost, and no fill or rim light.
+        bool grassSun = u_grass && !DEBUG_GRASS_SCALED_SUN && lights[i].type == 2;
+        if (grassSun && i != 1) continue;
+        if (grassSun) lightColor = lights[i].color;
 
         if (lights[i].type == 1) {
             // Ambient - the canonical AO target. Crevices that block
@@ -1206,7 +1225,7 @@ void main()
             // directional lights only (ambient is left alone), so blonde
             // hair reads blonde without hand-tuning the Key arrow. On by
             // default -- this scales the lit terms, not the ambient fill.
-            if (u_daylightBoost) {
+            if (u_daylightBoost && !grassSun) {
                 lightColor *= u_daylightBoostIntensity * vec3(1.0, 0.97, 0.90);
             }
             vec3 lightDir = normalize(lights[i].direction);
