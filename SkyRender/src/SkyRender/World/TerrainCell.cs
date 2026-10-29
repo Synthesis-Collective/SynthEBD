@@ -114,6 +114,9 @@ public sealed class TerrainQuadrant
     /// <summary>Maximum alpha layers drawn per quadrant; later layers are ignored.</summary>
     public const int MaxLayers = 8;
 
+    /// <summary>The base texture, or null to draw the base white. The host picks the fallback: Skyrim draws its
+    /// default landscape texture (<c>textures\landscape\dirt02.dds</c>) for a quadrant with no base layer or a
+    /// base layer whose texture reference is zero.</summary>
     public TerrainTexture? Base { get; init; }
     public IReadOnlyList<TerrainLayer> Layers { get; init; } = Array.Empty<TerrainLayer>();
 }
