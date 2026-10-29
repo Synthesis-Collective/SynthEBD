@@ -3246,6 +3246,14 @@ public class GlRenderer : IDisposable
                 _shader.SetVector3("u_waterSun", mesh.WaterSunSpecularPower, mesh.WaterSunSpecularMagnitude,
                     mesh.WaterDepthSpecularLighting);
             }
+            else if (mesh.DistantLod == World.LodKind.Water)
+            {
+                // LOD water (GlWorldFactory.ApplyLodWaterMaterial): the body colour's two ends and the
+                // sun specular, for the LOD technique's per-pixel terms in basic.frag (u_lodKind 4).
+                _shader.SetVector3("u_waterShallow", mesh.WaterShallowColor.X, mesh.WaterShallowColor.Y, mesh.WaterShallowColor.Z);
+                _shader.SetVector3("u_waterDeep", mesh.WaterDeepColor.X, mesh.WaterDeepColor.Y, mesh.WaterDeepColor.Z);
+                _shader.SetVector3("u_waterSun", mesh.WaterSunSpecularPower, mesh.WaterSunSpecularMagnitude, 0f);
+            }
         }
         else _shader.SetBool("u_waterSceneDepth", false);
 
@@ -3255,7 +3263,7 @@ public class GlRenderer : IDisposable
         bool projected = mesh.HasProjectedMaterial && !mesh.IsTerrain && mesh.ProjectedNoiseTexture != 0
                          && _terrainLayerNormalSlots >= 2;
         _shader.SetBool("u_hasProjected", projected);
-        // Distant LOD: 0 none, 1 terrain, 2 objects, 3 trees. Terrain LOD's noise texture rides the
+        // Distant LOD: 0 none, 1 terrain, 2 objects, 3 trees, 4 water. Terrain LOD's noise texture rides the
         // projected-noise unit (no LOD mesh is projected or terrain).
         int lodKind = mesh.DistantLod is { } lk ? (int)lk + 1 : 0;
         _shader.SetInt("u_lodKind", lodKind);

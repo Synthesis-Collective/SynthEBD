@@ -242,6 +242,106 @@ public class DistantLodTests
         part.Cut.Should().Be(2);
     }
 
+    [Fact]
+    public void Water_LivesInTheTerrainBlocksAndUsesTheirReach()
+    {
+        LodKinds.All.HasFlag(LodKinds.Water).Should().BeTrue();
+        new LodBlock(LodKind.Water, 4, 4, -12).MeshPath("Tamriel").Should().Be(@"meshes\terrain\Tamriel\Tamriel.4.4.-12.btr");
+        var d = new LodDistances();
+        for (int i = 0; i < 4; i++) d.Reach(LodKind.Water, i).Should().Be(d.Reach(LodKind.Terrain, i));
+        var eye = new Vector2(17224f, -47204f);
+        LodSelector.Select(LodKind.Water, Tamriel, d, eye).Should().Equal(
+            LodSelector.Select(LodKind.Terrain, Tamriel, d, eye).Select(b => b with { Kind = LodKind.Water }));
+    }
+
+    // Level-4 LOD water as the vanilla files store it: one flat quad per cell with water, local to the
+    // block's south-west corner, in a BSSubIndexTriShape whose segment k is cell (k / 4, k % 4).
+    private static LodShape WaterQuads(params (int Cx, int Cy, float Z)[] cells)
+    {
+        var pos = new List<Vector3>();
+        var idx = new List<int>();
+        var segs = new List<(int, int)>();
+        var byCell = cells.ToDictionary(c => (c.Cx, c.Cy), c => c.Z);
+        for (int k = 0; k < 16; k++)
+        {
+            int first = idx.Count / 3;
+            if (byCell.TryGetValue((k / 4, k % 4), out float z))
+            {
+                float x0 = k / 4 * Cell, y0 = k % 4 * Cell;
+                int b = pos.Count;
+                pos.Add(new Vector3(x0, y0, z)); pos.Add(new Vector3(x0 + Cell, y0, z));
+                pos.Add(new Vector3(x0, y0 + Cell, z)); pos.Add(new Vector3(x0 + Cell, y0 + Cell, z));
+                idx.AddRange(new[] { b, b + 1, b + 2, b + 1, b + 3, b + 2 });
+            }
+            segs.Add((first, idx.Count / 3 - first));
+        }
+        return new LodShape { Name = "", Positions = pos.ToArray(), Uvs = new Vector2[pos.Count], Indices = idx.ToArray(),
+            Scale = 4f, Segments = segs, IsWater = true };
+    }
+
+    [Fact]
+    public void Water_PlacedAtItsBlockAtEachQuadsOwnHeight()
+    {
+        var block = new LodBlock(LodKind.Terrain, 4, 4, -12);
+        var part = LodMeshBuilder.BuildWater(block, WaterQuads((0, 0, -250f), (2, 3, -6070f)), null)!;
+        part.Kind.Should().Be(LodKind.Water);
+        part.Cut.Should().Be(0);
+        part.Data.Indices.Length.Should().Be(4 * 3);
+        var sk = SkyrimPositions(part.Data).ToList();
+        sk.Min(p => p.X).Should().BeApproximately(4 * Cell, 0.01f);
+        sk.Min(p => p.Y).Should().BeApproximately(-12 * Cell, 0.01f);
+        sk.Select(p => p.Z).Distinct().Should().BeEquivalentTo(new[] { -250f, -6070f });
+        // UVs are world XY (the GL side divides by the water type's noise scale); the normal is up.
+        int o = 0;
+        part.Data.Vertices[o + 6].Should().BeApproximately(sk[0].X, 0.01f);
+        part.Data.Vertices[o + 7].Should().BeApproximately(sk[0].Y, 0.01f);
+        new Vector3(part.Data.Vertices[o + 3], part.Data.Vertices[o + 4], part.Data.Vertices[o + 5]).Y.Should().BeApproximately(1f, 1e-5f);
+        // Every kept triangle faces up (Y-up: the cross product of its edges points +Y).
+        var yup = part.Data.Positions;
+        for (int t = 0; t < part.Data.Indices.Length; t += 3)
+        {
+            var a = yup[part.Data.Indices[t]]; var b = yup[part.Data.Indices[t + 1]]; var c = yup[part.Data.Indices[t + 2]];
+            Vector3.Cross(b - a, c - a).Y.Should().BeGreaterThan(0f);
+        }
+    }
+
+    [Fact]
+    public void Water_DropsTheSegmentsOfLoadedCells()
+    {
+        var block = new LodBlock(LodKind.Terrain, 4, 8, -12);
+        var shape = WaterQuads((0, 0, 0f), (1, 2, 0f), (3, 3, 0f));
+        var part = LodMeshBuilder.BuildWater(block, shape, new LoadedCells(new[] { (9, -10) }))!;   // block cell (1, 2)
+        part.Cut.Should().Be(2);
+        var cells = SkyrimPositions(part.Data).Select(p => ((int)MathF.Floor(p.X / Cell + 1e-4f), (int)MathF.Floor(p.Y / Cell + 1e-4f))).ToHashSet();
+        cells.Should().Contain((8, -12)).And.Contain((11, -9)).And.NotContain((9, -10));
+        LodMeshBuilder.BuildWater(block, WaterQuads((1, 2, 0f)), new LoadedCells(new[] { (9, -10) })).Should().BeNull();
+    }
+
+    [Fact]
+    public void Objects_KeepVertexColoursButNotTheirAlphaOnLodShapes()
+    {
+        var shape = SegmentedObjects();
+        var colors = Enumerable.Repeat(new Vector4(0.5f, 0.6f, 0.7f, 0.25f), shape.Positions.Length).ToArray();
+        LodShape With(uint flags2) => new()
+        {
+            Name = "objHD", Positions = shape.Positions, Uvs = shape.Uvs, Indices = shape.Indices, Scale = 4f,
+            Segments = shape.Segments, ShaderFlags2 = flags2, Colors = colors,
+        };
+        var block = new LodBlock(LodKind.Objects, 4, 0, 0);
+        // SLSF2_Vertex_Colors | SLSF2_HD_LOD_Objects: rgb kept, alpha 1 (the engine skips vertex alpha on LOD objects).
+        var hd = LodMeshBuilder.BuildObjects(block, With(0x80000021u), null)!;
+        hd.HasVertexColors.Should().BeTrue();
+        hd.Data.Vertices[8].Should().BeApproximately(0.5f, 1e-6f);
+        hd.Data.Vertices[10].Should().BeApproximately(0.7f, 1e-6f);
+        hd.Data.Vertices[11].Should().Be(1f);
+        // A shape without LOD flags (DynDOLOD grass LOD: SLSF2_Vertex_Colors only) keeps the alpha.
+        LodMeshBuilder.BuildObjects(block, With(0x21u), null)!.Data.Vertices[11].Should().BeApproximately(0.25f, 1e-6f);
+        // Without SLSF2_Vertex_Colors the colours are white.
+        var plain = LodMeshBuilder.BuildObjects(block, With(0x5u), null)!;
+        plain.HasVertexColors.Should().BeFalse();
+        plain.Data.Vertices[8].Should().Be(1f);
+    }
+
     private static byte[] TreeList(params TreeLodType[] types)
     {
         using var ms = new MemoryStream();

@@ -18,6 +18,9 @@ public sealed class LodMeshPart
     public float AlphaThreshold { get; init; }
     public bool DoubleSided { get; init; }
     public bool HasSpecular { get; init; }
+    /// <summary>The vertex colours are the shape's own (<c>SLSF2_Vertex_Colors</c>) and multiply the
+    /// diffuse; otherwise they are white.</summary>
+    public bool HasVertexColors { get; init; }
     /// <summary>Triangles (or, for trees, instances) left out because full-detail cells cover them.</summary>
     public int Cut { get; init; }
     /// <summary>Terrain only: vertices lowered under the loaded cells (see <see cref="LodMeshBuilder.TerrainSink"/>).</summary>
@@ -39,6 +42,10 @@ public sealed class LodMeshPart
 /// the cell their segment names, the rest being large objects that cross cells.) Higher levels have
 /// one segment; there, a triangle is dropped when the cell its centre is in is loaded.</item>
 /// <item>Trees: an instance standing in a loaded cell is dropped (the cell draws the full tree).</item>
+/// <item>Water: level-4 LOD water is a BSSubIndexTriShape whose segment k holds the quads of cell
+/// (k / 4, k % 4), as for objects (every triangle of all 1444 vanilla level-4 water shapes lies in
+/// the cell its segment names); the loaded cells' segments are dropped, and the cells draw their
+/// own water. Higher levels have no segments; a triangle is dropped when its centre's cell is loaded.</item>
 /// </list>
 /// </summary>
 public static class LodMeshBuilder
@@ -101,31 +108,7 @@ public static class LodMeshBuilder
         int n = world.Length;
         int triCount = shape.Indices.Length / 3;
 
-        var dropTri = new bool[triCount];
-        int cut = 0;
-        if (loaded is { Count: > 0 } && loaded.AnyIn(block.X, block.Y, block.X + block.Level - 1, block.Y + block.Level - 1))
-        {
-            bool bySegment = block.Level == 4 && shape.Segments.Count > 0 && shape.Segments.Count <= 16;
-            if (bySegment)
-            {
-                for (int k = 0; k < shape.Segments.Count; k++)
-                {
-                    if (!loaded.Contains(block.X + k / 4, block.Y + k % 4)) continue;
-                    var (first, count) = shape.Segments[k];
-                    for (int t = Math.Max(0, first); t < Math.Min(triCount, first + count); t++)
-                        if (!dropTri[t]) { dropTri[t] = true; cut++; }
-                }
-            }
-            else
-            {
-                for (int t = 0; t < triCount; t++)
-                {
-                    var c = (world[shape.Indices[t * 3]] + world[shape.Indices[t * 3 + 1]] + world[shape.Indices[t * 3 + 2]]) / 3f;
-                    if (loaded.Contains((int)MathF.Floor(c.X / TerrainCell.CellSize), (int)MathF.Floor(c.Y / TerrainCell.CellSize)))
-                    { dropTri[t] = true; cut++; }
-                }
-            }
-        }
+        var dropTri = CutByCell(block, world, shape.Indices, shape.Segments, loaded, out int cut);
 
         var keep = new List<int>(shape.Indices.Length);
         for (int t = 0; t < triCount; t++)
@@ -136,8 +119,19 @@ public static class LodMeshBuilder
         if (keep.Count == 0) return null;
 
         var normals = shape.Normals ?? SmoothNormals(world, shape.Indices);
+        // SLSF2_Vertex_Colors: the colour multiplies the diffuse (Community Shaders Lighting.hlsl,
+        // color.xyz *= vertexColor). Vanilla's HD object LOD (objHD / objsnowHD, the mountains) carries
+        // them, as does DynDOLOD's object and grass LOD. The alpha is not applied to LOD objects
+        // (Lighting.hlsl skips alpha *= vertex alpha for LODOBJECTS and LODOBJECTSHD), so it is
+        // written as 1 for shapes with SLSF2_LOD_Objects or SLSF2_HD_LOD_Objects.
+        var colors = shape.HasVertexColors ? shape.Colors : null;
+        if (colors is not null && (shape.ShaderFlags2 & 0x80000004u) != 0)
+        {
+            colors = (System.Numerics.Vector4[])colors.Clone();
+            for (int i = 0; i < colors.Length; i++) colors[i].W = 1f;
+        }
         var data = Pack($"lod-objects:{block.Level}.{block.X}.{block.Y}:{shape.Name}", world, normals, shape.Uvs,
-            shape.Tangents, shape.Bitangents, keep);
+            shape.Tangents, shape.Bitangents, keep, colors);
         return new LodMeshPart
         {
             Block = block, Data = data,
@@ -146,8 +140,88 @@ public static class LodMeshBuilder
             AlphaTest = shape.AlphaTest, AlphaThreshold = shape.AlphaThreshold,
             DoubleSided = shape.DoubleSided,
             HasSpecular = shape.HasSpecular,
+            HasVertexColors = colors is not null,
             Cut = cut,
         };
+    }
+
+    /// <summary>
+    /// A terrain block's LOD water quads (<see cref="LodShape.IsWater"/>), placed at the block (their
+    /// vertices are local to its south-west corner, like the terrain's) and cut under the loaded cells.
+    /// The quads keep their own heights: the generator writes each cell's water height (the cell's,
+    /// else the worldspace default), so one block can hold several. Each vertex's UV is its world XY
+    /// (divide by the water type's noise scale for the wave normal map, as
+    /// <see cref="GlWorldFactory.CreateDistantLod(DistantLodData, Func{string, int?}, int, WaterMaterial?)"/> does);
+    /// the normal is up. Null when nothing is left.
+    /// </summary>
+    public static LodMeshPart? BuildWater(LodBlock block, LodShape shape, LoadedCells? loaded)
+    {
+        var origin = new Vector3(block.OriginX, block.OriginY, 0f);
+        int n = shape.Positions.Length;
+        var world = new Vector3[n];
+        for (int i = 0; i < n; i++) world[i] = shape.Positions[i] + origin;
+        int triCount = shape.Indices.Length / 3;
+        var dropTri = CutByCell(block, world, shape.Indices, shape.Segments, loaded, out int cut);
+        var keep = new List<int>(shape.Indices.Length);
+        for (int t = 0; t < triCount; t++)
+        {
+            if (dropTri[t]) continue;
+            int a = shape.Indices[t * 3], b = shape.Indices[t * 3 + 1], c = shape.Indices[t * 3 + 2];
+            // Wound so the face points up, whichever way the file winds it.
+            if (Vector3.Cross(world[b] - world[a], world[c] - world[a]).Z < 0f) (b, c) = (c, b);
+            keep.Add(a); keep.Add(b); keep.Add(c);
+        }
+        if (keep.Count == 0) return null;
+        var normals = new Vector3[n];
+        var tangents = new Vector3[n];
+        var bitangents = new Vector3[n];
+        var uvs = new Vector2[n];
+        for (int i = 0; i < n; i++)
+        {
+            normals[i] = Vector3.UnitZ; tangents[i] = Vector3.UnitX; bitangents[i] = Vector3.UnitY;
+            uvs[i] = new Vector2(world[i].X, world[i].Y);
+        }
+        var data = Pack($"lod-water:{block.Level}.{block.X}.{block.Y}:{shape.Name}", world, normals, uvs,
+            tangents, bitangents, keep);
+        return new LodMeshPart
+        {
+            Block = block with { Kind = LodKind.Water }, Data = data,
+            DoubleSided = true,
+            Cut = cut,
+        };
+    }
+
+    // Which triangles lie under loaded cells: by segment in a level-4 BSSubIndexTriShape (segment k =
+    // the block's cell (k / 4, k % 4)), otherwise by the cell of the triangle's centre.
+    private static bool[] CutByCell(LodBlock block, Vector3[] world, int[] indices,
+        IReadOnlyList<(int FirstTriangle, int TriangleCount)> segments, LoadedCells? loaded, out int cut)
+    {
+        int triCount = indices.Length / 3;
+        var dropTri = new bool[triCount];
+        cut = 0;
+        if (loaded is not { Count: > 0 } || !loaded.AnyIn(block.X, block.Y, block.X + block.Level - 1, block.Y + block.Level - 1))
+            return dropTri;
+        bool bySegment = block.Level == 4 && segments.Count > 0 && segments.Count <= 16;
+        if (bySegment)
+        {
+            for (int k = 0; k < segments.Count; k++)
+            {
+                if (!loaded.Contains(block.X + k / 4, block.Y + k % 4)) continue;
+                var (first, count) = segments[k];
+                for (int t = Math.Max(0, first); t < Math.Min(triCount, first + count); t++)
+                    if (!dropTri[t]) { dropTri[t] = true; cut++; }
+            }
+        }
+        else
+        {
+            for (int t = 0; t < triCount; t++)
+            {
+                var c = (world[indices[t * 3]] + world[indices[t * 3 + 1]] + world[indices[t * 3 + 2]]) / 3f;
+                if (loaded.Contains((int)MathF.Floor(c.X / TerrainCell.CellSize), (int)MathF.Floor(c.Y / TerrainCell.CellSize)))
+                { dropTri[t] = true; cut++; }
+            }
+        }
+        return dropTri;
     }
 
     /// <summary>Alpha threshold for tree billboards: 128/255, the alpha threshold xEdit's LOD
@@ -237,7 +311,7 @@ public static class LodMeshBuilder
     // Interleaves Z-up data into the renderer's Y-up vertex layout, keeping only the vertices the
     // kept triangles use.
     private static WorldMeshData Pack(string name, Vector3[] positions, Vector3[] normals, Vector2[] uvs,
-        Vector3[]? tangents, Vector3[]? bitangents, List<int> keptIndices)
+        Vector3[]? tangents, Vector3[]? bitangents, List<int> keptIndices, Vector4[]? colors = null)
     {
         var remap = new int[positions.Length];
         Array.Fill(remap, -1);
@@ -264,7 +338,8 @@ public static class LodMeshBuilder
             vertices[o + 0] = p.X; vertices[o + 1] = p.Y; vertices[o + 2] = p.Z;
             vertices[o + 3] = nn.X; vertices[o + 4] = nn.Y; vertices[o + 5] = nn.Z;
             vertices[o + 6] = uv.X; vertices[o + 7] = uv.Y;
-            vertices[o + 8] = 1f; vertices[o + 9] = 1f; vertices[o + 10] = 1f; vertices[o + 11] = 1f;
+            var col = colors is not null && v < colors.Length ? colors[v] : Vector4.One;
+            vertices[o + 8] = col.X; vertices[o + 9] = col.Y; vertices[o + 10] = col.Z; vertices[o + 11] = col.W;
             vertices[o + 12] = t.X; vertices[o + 13] = t.Y; vertices[o + 14] = t.Z;
             vertices[o + 15] = b.X; vertices[o + 16] = b.Y; vertices[o + 17] = b.Z;
         }

@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace SkyRender.World;
 
-/// <summary>The three kinds of distant LOD a worldspace ships.</summary>
+/// <summary>The kinds of distant LOD a worldspace ships.</summary>
 public enum LodKind
 {
     /// <summary>Terrain LOD: <c>.btr</c> meshes with a diffuse and a model-space normal texture per block.</summary>
@@ -13,6 +13,9 @@ public enum LodKind
     Objects = 1,
     /// <summary>Tree LOD: <c>.btt</c> instance lists drawn as billboards from the tree atlas.</summary>
     Trees = 2,
+    /// <summary>LOD water: the flat quads under the <c>WATER</c> node of each terrain LOD block
+    /// (<c>.btr</c>), drawn with the worldspace's LOD water type.</summary>
+    Water = 3,
 }
 
 /// <summary>A set of <see cref="LodKind"/>s.</summary>
@@ -23,7 +26,8 @@ public enum LodKinds
     Terrain = 1,
     Objects = 2,
     Trees = 4,
-    All = Terrain | Objects | Trees,
+    Water = 8,
+    All = Terrain | Objects | Trees | Water,
 }
 
 /// <summary>
@@ -84,7 +88,7 @@ public sealed record LodDistances
     public float Reach(LodKind kind, int levelIndex) => kind switch
     {
         LodKind.Trees => levelIndex == 0 ? TreeLoadDistance : 0f,
-        LodKind.Terrain => levelIndex switch
+        LodKind.Terrain or LodKind.Water => levelIndex switch
         {
             0 => Level0Distance * SplitDistanceMult,
             1 => Level1Distance * SplitDistanceMult,
@@ -112,10 +116,11 @@ public readonly record struct LodBlock(LodKind Kind, int Level, int X, int Y)
     public float Size => Level * TerrainCell.CellSize;
 
     /// <summary>The block's game-relative file: <c>meshes\terrain\&lt;w&gt;\&lt;w&gt;.L.X.Y.btr</c>, the
-    /// same under <c>objects\</c> with <c>.bto</c> and under <c>trees\</c> with <c>.btt</c>.</summary>
+    /// same under <c>objects\</c> with <c>.bto</c> and under <c>trees\</c> with <c>.btt</c>. LOD water lives in
+    /// the terrain block's file.</summary>
     public string MeshPath(string worldspace) => Kind switch
     {
-        LodKind.Terrain => $@"meshes\terrain\{worldspace}\{worldspace}.{Level}.{X}.{Y}.btr",
+        LodKind.Terrain or LodKind.Water => $@"meshes\terrain\{worldspace}\{worldspace}.{Level}.{X}.{Y}.btr",
         LodKind.Objects => $@"meshes\terrain\{worldspace}\objects\{worldspace}.{Level}.{X}.{Y}.bto",
         _ => $@"meshes\terrain\{worldspace}\trees\{worldspace}.{Level}.{X}.{Y}.btt",
     };
@@ -226,7 +231,8 @@ public sealed class LoadedCells
 public static class LodSelector
 {
     /// <summary>The blocks of one LOD kind to draw for a camera at <paramref name="eye"/> (world XY).
-    /// Object LOD stops at level 16 and tree LOD has only the lowest level; terrain uses every level.</summary>
+    /// Object LOD stops at level 16 and tree LOD has only the lowest level; terrain uses every level,
+    /// and so does LOD water, which is part of the terrain blocks.</summary>
     public static List<LodBlock> Select(LodKind kind, LodSettings settings, LodDistances distances, Vector2 eye,
         float maxDistance = float.PositiveInfinity)
     {

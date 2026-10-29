@@ -53,7 +53,7 @@ uniform vec4 u_clipPlane;
 // farther from the camera. 0 leaves gl_Position exactly as before.
 uniform float u_depthBias;
 
-// Distant LOD kind (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees. Terrain LOD gets the
+// Distant LOD kind (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees, 4 water. Terrain LOD gets the
 // engine's far depth bias (Community Shaders LodLandscape.hlsli, AdjustLodLandscapeVertexPositionCS):
 // D3D clip z += min(1, 1e-4 * max(0, z - 70000)) * 0.5, which pushes terrain LOD behind object LOD
 // in the distance. GL's depth range is twice D3D's, so the same depth offset is twice the clip value.

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using nifly;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
+using Vector4 = System.Numerics.Vector4;
 
 namespace SkyRender.World;
 
@@ -21,6 +22,10 @@ public sealed class LodShape
     public Vector3[]? Normals { get; init; }
     public Vector3[]? Tangents { get; init; }
     public Vector3[]? Bitangents { get; init; }
+    /// <summary>Vertex colours (RGBA, 0..1), read only when the shader has
+    /// <c>SLSF2_Vertex_Colors</c>; null otherwise. In vanilla object LOD the HD shapes (objHD,
+    /// objsnowHD: 612 of 1743 Tamriel shapes) carry them; so does DynDOLOD's object and grass LOD.</summary>
+    public Vector4[]? Colors { get; init; }
     public required Vector2[] Uvs { get; init; }
     /// <summary>Triangle list, three indices per triangle.</summary>
     public required int[] Indices { get; init; }
@@ -35,6 +40,10 @@ public sealed class LodShape
     public bool ModelSpaceNormals => (ShaderFlags1 & 0x1000u) != 0;     // SLSF1_Model_Space_Normals
     public bool DoubleSided => (ShaderFlags2 & 0x10u) != 0;            // SLSF2_Double_Sided
     public bool HasSpecular => (ShaderFlags1 & 0x1u) != 0;             // SLSF1_Specular
+    public bool HasVertexColors => (ShaderFlags2 & 0x20u) != 0;        // SLSF2_Vertex_Colors
+    /// <summary>A LOD water quad set: a shape under a terrain block's <c>WATER</c> node, with no
+    /// shader property (the engine draws it with the worldspace's LOD water type).</summary>
+    public bool IsWater { get; init; }
     public bool AlphaTest { get; init; }
     public float AlphaThreshold { get; init; }
     /// <summary>A BSSubIndexTriShape's segments as (first triangle, triangle count), in segment order;
@@ -44,11 +53,14 @@ public sealed class LodShape
 }
 
 /// <summary>Reads the shapes of a <c>.btr</c> / <c>.bto</c> file (they are NIFs) through niflysharp.
-/// Shapes with no shader property are skipped: in terrain LOD those are the flat LOD water quads,
-/// which this reader does not draw.</summary>
+/// Shapes with no shader property are skipped, except, with <c>includeWater</c>, the flat LOD water
+/// quads under a terrain block's <c>WATER</c> node (<see cref="LodShape.IsWater"/>).</summary>
 public static class LodNifReader
 {
-    public static List<LodShape> Read(string diskPath)
+    /// <summary>The node a terrain LOD block keeps its LOD water quads under.</summary>
+    public const string WaterNodeName = "WATER";
+
+    public static List<LodShape> Read(string diskPath, bool includeWater = false)
     {
         var shapesOut = new List<LodShape>();
         using var nif = new NifFile();
@@ -59,9 +71,15 @@ public static class LodNifReader
         {
             // The typed block (GetShader returns the base type, which hides the lighting fields).
             var shaderRef = shape.ShaderPropertyRef();
-            if (shaderRef is null || shaderRef.IsEmpty()) continue;
-            var shaderObj = header.GetBlockById(shaderRef.index);
-            if (shaderObj is null) continue;
+            var shaderObj = shaderRef is null || shaderRef.IsEmpty() ? null : header.GetBlockById(shaderRef.index);
+            bool isWater = false;
+            if (shaderObj is null)
+            {
+                // LOD water: no shader; the engine applies the worldspace's LOD water type.
+                if (!includeWater || !string.Equals(nif.GetParentNode(shape)?.name?.get(), WaterNodeName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                isWater = true;
+            }
             using var verts = nif.GetVertsForShape(shape);
             using var tris = new vectorTriangle();
             if (verts is null || verts.Count == 0 || !shape.GetTriangles(tris) || tris.Count == 0) continue;
@@ -94,7 +112,16 @@ public static class LodNifReader
                 f1 = bslsp.shaderFlags1;
                 f2 = bslsp.shaderFlags2;
             }
-            string? diffuse = Texture(nif, shape, 0), normal = Texture(nif, shape, 1);
+            string? diffuse = isWater ? null : Texture(nif, shape, 0), normal = isWater ? null : Texture(nif, shape, 1);
+
+            Vector4[]? colors = null;
+            if ((f2 & 0x20u) != 0)   // SLSF2_Vertex_Colors
+                using (var nc = new vectorColor4())
+                    if (nif.GetColorsForShape(shape, nc) && nc.Count == n)
+                    {
+                        colors = new Vector4[n];
+                        for (int i = 0; i < n; i++) colors[i] = new Vector4(nc[i].r, nc[i].g, nc[i].b, nc[i].a);
+                    }
 
             bool alphaTest = false;
             float threshold = 0f;
@@ -123,6 +150,7 @@ public static class LodNifReader
                 Normals = normals,
                 Tangents = tangents,
                 Bitangents = bitangents,
+                Colors = colors,
                 Uvs = uvs,
                 Indices = idx,
                 Scale = xf.Scale,
@@ -134,6 +162,7 @@ public static class LodNifReader
                 AlphaTest = alphaTest,
                 AlphaThreshold = threshold,
                 Segments = segments,
+                IsWater = isWater,
             });
         }
         return shapesOut;

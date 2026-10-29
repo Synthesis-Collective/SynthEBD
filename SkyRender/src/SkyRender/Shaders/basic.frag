@@ -32,6 +32,9 @@ uniform vec3 u_waterShallow;
 uniform vec3 u_waterDeep;
 uniform vec3 u_waterFog;   // (above-water fog near, far, amount)
 uniform vec3 u_waterSun;   // (sun specular power, sun specular magnitude, depth specular-lighting factor)
+// Shared with basic.vert: the water type's Fresnel F0 and noise falloff, for LOD water's per-pixel terms.
+uniform float u_waterFresnel;
+uniform float u_waterNoiseFalloff;
 // Sky gradient (GlRenderer.SkyGradient, SkyGradient.cs): water that reflects the sky reflects the
 // gradient's colour at the elevation of the reflected view ray, per pixel. Keys: rgb = colour,
 // w = elevation in degrees, sorted ascending; u_skyKeyCount 0 = off (the per-vertex reflection colour).
@@ -251,7 +254,7 @@ uniform vec4 u_projectedParams;        // ProjectedUVParams: x noise weight, z n
 uniform vec3 u_projectedColor;         // ProjectedUVParams2
 uniform float u_projectedDiffuseTiling; // fProjectedUVDiffuseNormalTilingScale
 uniform bool u_projectedHasDiffuse;    // false = flat colour path (diffuse/normals disabled)
-// Distant LOD (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees. Terrain LOD's noise
+// Distant LOD (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees, 4 water. Terrain LOD's noise
 // texture is bound on the projected-noise unit (texture_projected_noise).
 uniform int u_lodKind;
 uniform bool u_lodHasNoise;
@@ -867,6 +870,21 @@ void main()
     // (Water.hlsl refractionDiffuseColor = lerp(shallow, deep, distanceMul.y)), lit below like any
     // surface.
     float waterDepth = 0.0;
+    // LOD water (u_lodKind 4; Community Shaders Water.hlsl, LOD technique). Its quads span whole cells
+    // or more, so the Fresnel and distance terms are taken per pixel here rather than per vertex. No
+    // refraction: the body colour is lerp(shallow, deep, fresnel) (GetWaterDiffuseColor without
+    // REFRACTIONS), lit below like any surface. Fresnel is on the flat surface, as for other water.
+    float lodWaterFresnel = 0.0, lodWaterDistance = 1.0;   // 1 with no falloff, as in basic.vert
+    if (u_isWater && u_lodKind == 4) {
+        vec3 V = normalize(v_viewSpacePos);
+        float va = 1.0 - clamp(dot(-V, normalize(u_skyUpView)), 0.0, 1.0);
+        float f0 = clamp(u_waterFresnel, 0.0, 1.0);
+        lodWaterFresnel = (1.0 - f0) * pow(va, 5.0) + f0;
+        float dist = length(v_viewSpacePos);
+        if (u_waterNoiseFalloff > 0.0 && abs(u_waterNoiseFalloff - 8192.0) > 1.0)
+            lodWaterDistance = clamp((dist - 8192.0) / (u_waterNoiseFalloff - 8192.0), 0.0, 1.0);
+        baseColor.rgb = mix(u_waterShallow, u_waterDeep, lodWaterFresnel);
+    }
     if (u_isWater && u_waterSceneDepth) {
         waterDepth = waterRayDepth();
         float dm = u_waterFog.y > 0.0 ? clamp(waterDepth / u_waterFog.y, 0.0, 1.0) : 1.0;
@@ -1520,7 +1538,17 @@ void main()
         finalColor = baseColor.a > 1.0e-4 ? overBed / baseColor.a : vec3(0.0);
     } else {
         // Water: the reflection over the lit body colour (basic.vert works out the fraction).
-        if (u_isWater) finalColor = mix(finalColor, waterReflected, v_waterReflection.a);
+        if (u_isWater && u_lodKind == 4) {
+            // LOD water: specularFraction = lerp(1, fresnel, distanceFactor), then the sun specular
+            // (GetSunColor, as in the per-pixel path; the LOD technique has no depth, so depthControl.w
+            // is 1). Far away (distanceFactor 0) the surface is all reflection plus the sun.
+            finalColor = mix(finalColor, waterReflected, mix(1.0, lodWaterFresnel, lodWaterDistance));
+            if (lights[1].type == 2 && u_waterSun.x > 0.0) {
+                vec3 r = reflect(normalize(v_viewSpacePos), normal_viewSpace);
+                float rl = clamp(dot(r, normalize(lights[1].direction)), 0.0, 1.0);
+                finalColor += pow(rl, u_waterSun.x) * lights[1].color * lights[1].intensity * u_waterSun.y;
+            }
+        } else if (u_isWater) finalColor = mix(finalColor, waterReflected, v_waterReflection.a);
 
         // Distance fog, over the lit (and reflected) colour, as the engine applies it last.
         if (u_fogEnabled) {

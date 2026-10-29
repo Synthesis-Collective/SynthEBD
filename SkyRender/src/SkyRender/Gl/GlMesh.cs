@@ -42,7 +42,7 @@ public class GlMesh : IDisposable
 
     /// <summary>Distant LOD (<see cref="World.GlWorldFactory.CreateDistantLod"/>): which kind, for
     /// the engine's LOD shading terms (terrain LOD's noise modulation, tree LOD's half-strength sun
-    /// with no N·L). Null for every other mesh.</summary>
+    /// with no N·L, LOD water's per-pixel Fresnel and sun specular). Null for every other mesh.</summary>
     public World.LodKind? DistantLod { get; set; }
     /// <summary>Terrain LOD only: GL handle of the LOD landscape noise texture (0 = no noise term).</summary>
     public int LodNoiseTexture { get; set; }

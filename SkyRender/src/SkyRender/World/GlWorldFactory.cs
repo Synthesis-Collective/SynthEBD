@@ -226,14 +226,34 @@ public static class GlWorldFactory
     /// map; tree LOD the tree atlas, alpha-tested and double-sided. All of it is lit, fogged and
     /// finished like any scene mesh. A part whose diffuse can't be found draws on
     /// <paramref name="whiteTexture"/>.
+    /// <para>LOD water is drawn with <paramref name="lodWater"/>, the worldspace's LOD water type
+    /// (WRLD NAM3), through the water path as the engine's LOD water technique: opaque, no depth or
+    /// refraction, one noise layer, the sky reflection and the sun specular
+    /// (<see cref="ApplyLodWaterMaterial"/>). With no <paramref name="lodWater"/> the water parts are
+    /// not drawn (the engine always has a water type to draw them with; the renderer has no default).</para>
     /// </summary>
-    public static GlDistantLod CreateDistantLod(DistantLodData data, Func<string, int?> loadTexture, int whiteTexture)
+    public static GlDistantLod CreateDistantLod(DistantLodData data, Func<string, int?> loadTexture, int whiteTexture,
+        WaterMaterial? lodWater = null)
     {
         var meshes = new List<GlMesh>(data.Parts.Count);
-        int? noise = null;
-        bool noiseTried = false;
+        int? noise = null, waterNoise = null;
+        bool noiseTried = false, waterNoiseTried = false;
         foreach (var part in data.Parts)
         {
+            if (part.Kind == LodKind.Water)
+            {
+                if (lodWater is null) continue;
+                if (!waterNoiseTried)
+                {
+                    waterNoise = lodWater.NoiseTexturePath is { Length: > 0 } wp ? loadTexture(wp) : null;
+                    waterNoiseTried = true;
+                }
+                var wm = new GlMesh();
+                UploadLodWater(wm, part.Data, lodWater);
+                ApplyLodWaterMaterial(wm, lodWater, whiteTexture, waterNoise);
+                meshes.Add(wm);
+                continue;
+            }
             if (part.Kind == LodKind.Terrain && !noiseTried) { noise = loadTexture(LodPaths.TerrainNoise); noiseTried = true; }
             var mesh = new GlMesh();
             UploadLod(mesh, part.Data);
@@ -246,9 +266,9 @@ public static class GlWorldFactory
         return new GlDistantLod(data, meshes);
     }
 
-    /// <inheritdoc cref="CreateDistantLod(DistantLodData, Func{string, int?}, int)"/>
-    public static GlDistantLod CreateDistantLod(DistantLodData data, GlTextureManager textures)
-        => CreateDistantLod(data, LoaderFor(textures), textures.WhiteTexture);
+    /// <inheritdoc cref="CreateDistantLod(DistantLodData, Func{string, int?}, int, WaterMaterial?)"/>
+    public static GlDistantLod CreateDistantLod(DistantLodData data, GlTextureManager textures, WaterMaterial? lodWater = null)
+        => CreateDistantLod(data, LoaderFor(textures), textures.WhiteTexture, lodWater);
 
     /// <summary>Uploads one LOD part's geometry into <paramref name="mesh"/>, a fresh <see cref="GlMesh"/>.</summary>
     public static void UploadLod(GlMesh mesh, WorldMeshData data)
@@ -259,7 +279,43 @@ public static class GlWorldFactory
         mesh.CpuIndices = data.Indices;
     }
 
-    /// <summary>Sets one LOD part's material (see <see cref="CreateDistantLod(DistantLodData, Func{string, int?}, int)"/>).</summary>
+    /// <summary>Uploads a LOD water part (<see cref="LodMeshBuilder.BuildWater"/>) into
+    /// <paramref name="mesh"/>, with its UVs (world XY) scaled to <paramref name="material"/>'s noise
+    /// repeat. The input data is not changed.</summary>
+    public static void UploadLodWater(GlMesh mesh, WorldMeshData data, WaterMaterial material)
+    {
+        const int stride = 18;
+        float uvScale = material.NoiseUvScale > 1e-3f ? material.NoiseUvScale : 1024f;
+        var v = (float[])data.Vertices.Clone();
+        for (int o = 0; o + stride <= v.Length; o += stride) { v[o + 6] /= uvScale; v[o + 7] /= uvScale; }
+        mesh.Upload(v, data.Indices);
+        mesh.ShapeName = data.Name;
+        mesh.CpuPositions = data.Positions;
+        mesh.CpuIndices = data.Indices;
+    }
+
+    /// <summary>
+    /// Sets the LOD water material: the water path (<see cref="ApplyWaterMaterial"/>) as the engine's
+    /// LOD water technique draws it (Community Shaders <c>Water.hlsl</c> with <c>LOD</c>): opaque,
+    /// no depth fog, refraction or depth prepass; one noise layer; the body colour is
+    /// <c>lerp(shallow, deep, fresnel)</c>; the reflection (the sky, or the sky gradient, with
+    /// <see cref="WaterMaterial.ReflectsSky"/>) is mixed over it by <c>lerp(1, fresnel, distanceFactor)</c>,
+    /// per pixel; the water type's sun specular is added; then the distance fog. The renderer's Blinn
+    /// term is off.
+    /// </summary>
+    public static void ApplyLodWaterMaterial(GlMesh mesh, WaterMaterial material, int whiteTexture, int? noiseTexture)
+    {
+        ApplyWaterMaterial(mesh, material with { DepthFog = null, PerPixelDepth = false, ShoreAlpha = 1f }, whiteTexture, noiseTexture);
+        mesh.DistantLod = LodKind.Water;
+        mesh.MaterialSpecularStrength = 0f;
+        mesh.WaterShallowColor = material.ShallowColor;
+        mesh.WaterDeepColor = material.DeepColor;
+        mesh.WaterSunSpecularPower = material.SunSpecularPower;
+        mesh.WaterSunSpecularMagnitude = material.SunSpecularMagnitude;
+        mesh.WaterDepthSpecularLighting = 0f;   // the LOD technique has no depth: full sun specular
+    }
+
+    /// <summary>Sets one LOD part's material (see <see cref="CreateDistantLod(DistantLodData, Func{string, int?}, int, WaterMaterial?)"/>).</summary>
     public static void ApplyLodMaterial(GlMesh mesh, LodMeshPart part, int diffuse, int? normal, int? noise)
     {
         mesh.DistantLod = part.Kind;
@@ -268,7 +324,7 @@ public static class GlWorldFactory
         mesh.HasNormalMap = normal is not null;
         mesh.IsModelSpace = part.ModelSpaceNormals && normal is not null;
         mesh.LodNoiseTexture = noise ?? 0;
-        mesh.HasVertexColors = false;
+        mesh.HasVertexColors = part.HasVertexColors;
         mesh.HasSpecular = part.HasSpecular;
         mesh.UseAlphaTest = part.AlphaTest;
         mesh.AlphaThreshold = part.AlphaThreshold;

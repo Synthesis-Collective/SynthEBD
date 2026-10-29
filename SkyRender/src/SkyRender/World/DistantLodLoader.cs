@@ -31,7 +31,8 @@ public sealed class DistantLodData
     public List<LodMeshPart> Parts { get; } = new();
     /// <summary>Blocks the selector picked, per kind.</summary>
     public Dictionary<LodKind, int> BlocksSelected { get; } = new();
-    /// <summary>Blocks whose file was found, per kind (a missing block draws nothing, as in the engine).</summary>
+    /// <summary>Blocks whose file was found, per kind (a missing block draws nothing, as in the engine).
+    /// For <see cref="LodKind.Water"/>: terrain blocks that hold LOD water quads.</summary>
     public Dictionary<LodKind, int> BlocksFound { get; } = new();
     /// <summary>Files that were found but could not be read, with the reason.</summary>
     public List<string> Errors { get; } = new();
@@ -45,7 +46,7 @@ public sealed class DistantLodData
 /// <summary>
 /// Loads a worldspace's distant LOD for a camera, GL-free: reads the <c>lodsettings</c> file, selects
 /// the blocks (<see cref="LodSelector"/>), reads each block's file and builds its meshes
-/// (<see cref="LodMeshBuilder"/>). Files are found through the host's resolver, which maps a
+/// (<see cref="LodMeshBuilder"/>). LOD water comes out of the terrain blocks' files. Files are found through the host's resolver, which maps a
 /// game-relative path to a file on disk (loose or extracted from an archive), or null when no
 /// active source has it; <see cref="GameAssetResolver.ResolveAssetPath"/> is one. Upload the result
 /// with <see cref="GlWorldFactory.CreateDistantLod"/>.
@@ -81,13 +82,17 @@ public static class DistantLodLoader
             }
         }
 
+        bool terrain = (request.Kinds & LodKinds.Terrain) != 0, water = (request.Kinds & LodKinds.Water) != 0;
         foreach (LodKind kind in new[] { LodKind.Terrain, LodKind.Objects, LodKind.Trees })
         {
-            if ((request.Kinds & (LodKinds)(1 << (int)kind)) == 0) continue;
+            // LOD water is part of the terrain blocks: one pass over the .btr files reads both.
+            bool wanted = kind == LodKind.Terrain ? terrain || water : (request.Kinds & (LodKinds)(1 << (int)kind)) != 0;
+            if (!wanted) continue;
             if (kind == LodKind.Trees && treeTypes is null) continue;
             var blocks = LodSelector.Select(kind, settings, request.Distances, eye, request.MaxDistance);
-            data.BlocksSelected[kind] = blocks.Count;
-            int found = 0;
+            if (kind != LodKind.Terrain || terrain) data.BlocksSelected[kind] = blocks.Count;
+            if (kind == LodKind.Terrain && water) data.BlocksSelected[LodKind.Water] = blocks.Count;
+            int found = 0, withWater = 0;
             foreach (var block in blocks)
             {
                 string game = block.MeshPath(w);
@@ -103,17 +108,21 @@ public static class DistantLodLoader
                             data.Parts.Add(tp);
                         continue;
                     }
-                    foreach (var shape in LodNifReader.Read(disk))
+                    bool blockWater = false;
+                    foreach (var shape in LodNifReader.Read(disk, includeWater: kind == LodKind.Terrain && water))
                     {
-                        var part = kind == LodKind.Terrain
-                            ? LodMeshBuilder.BuildTerrain(block, shape, loaded)
-                            : LodMeshBuilder.BuildObjects(block, shape, loaded);
+                        LodMeshPart? part;
+                        if (shape.IsWater) { blockWater = true; part = LodMeshBuilder.BuildWater(block, shape, loaded); }
+                        else if (kind == LodKind.Terrain) part = terrain ? LodMeshBuilder.BuildTerrain(block, shape, loaded) : null;
+                        else part = LodMeshBuilder.BuildObjects(block, shape, loaded);
                         if (part is not null) data.Parts.Add(part);
                     }
+                    if (blockWater) withWater++;
                 }
                 catch (Exception ex) { data.Errors.Add($"{game}: {ex.Message}"); }
             }
-            data.BlocksFound[kind] = found;
+            if (kind != LodKind.Terrain || terrain) data.BlocksFound[kind] = found;
+            if (kind == LodKind.Terrain && water) data.BlocksFound[LodKind.Water] = withWater;
         }
         data.Elapsed = sw.Elapsed;
         return data;
