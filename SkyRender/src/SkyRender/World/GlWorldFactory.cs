@@ -56,9 +56,11 @@ public static class GlWorldFactory
         {
             var quad = cell.Quadrants[q];
             int baseHandle = quad?.Base is { } b && loadTexture(b.DiffusePath) is { } h ? h : whiteTexture;
+            int? baseNormal = quad?.Base?.NormalPath is { Length: > 0 } bn ? loadTexture(bn) : null;
 
             var layers = new List<TerrainLayer>();
             var layerHandles = new List<int>();
+            var layerNormals = new List<int?>();
             if (quad != null)
             {
                 foreach (var layer in quad.Layers)
@@ -67,13 +69,14 @@ public static class GlWorldFactory
                     if (loadTexture(layer.Texture.DiffusePath) is not { } lh) continue;
                     layers.Add(layer);
                     layerHandles.Add(lh);
+                    layerNormals.Add(layer.Texture.NormalPath is { Length: > 0 } np ? loadTexture(np) : null);
                 }
             }
 
             var data = WorldMeshBuilder.BuildTerrainQuadrant(cell, (TerrainQuadrantIndex)q, layers, options);
             var mesh = new GlMesh();
             UploadTerrain(mesh, data);
-            ApplyTerrainMaterial(mesh, baseHandle, layerHandles);
+            ApplyTerrainMaterial(mesh, baseHandle, layerHandles, options?.Blend ?? TerrainBlendMode.Over, baseNormal, layerNormals);
             meshes.Add(mesh);
         }
         return new GlTerrainCell(cell, meshes);
@@ -121,7 +124,7 @@ public static class GlWorldFactory
     /// <summary>Sets the terrain material: the base texture and the layer textures, in the same
     /// order as the layers the mesh's weights were built from.</summary>
     public static void ApplyTerrainMaterial(GlMesh mesh, int baseTexture, IReadOnlyList<int> layerTextures,
-        TerrainBlendMode blend = TerrainBlendMode.OverWithTextureAlpha)
+        TerrainBlendMode blend = TerrainBlendMode.Over, int? baseNormal = null, IReadOnlyList<int?>? layerNormals = null)
     {
         if (layerTextures.Count > TerrainQuadrant.MaxLayers)
             throw new ArgumentException($"at most {TerrainQuadrant.MaxLayers} layers", nameof(layerTextures));
@@ -133,6 +136,16 @@ public static class GlWorldFactory
         mesh.TerrainBlend = blend;
         Array.Clear(mesh.TerrainLayerTextures);
         for (int i = 0; i < layerTextures.Count; i++) mesh.TerrainLayerTextures[i] = layerTextures[i];
+        // Normal maps: the base's goes in the ordinary normal slot, the layers' in their own. Any
+        // normal map turns on the normal-map path; a missing one is a flat normal in the blend.
+        Array.Clear(mesh.TerrainLayerNormalTextures);
+        bool anyLayerNormal = false;
+        if (layerNormals != null)
+            for (int i = 0; i < Math.Min(layerNormals.Count, layerTextures.Count); i++)
+                if (layerNormals[i] is { } ln) { mesh.TerrainLayerNormalTextures[i] = ln; anyLayerNormal = true; }
+        mesh.TerrainHasBaseNormal = baseNormal is not null;
+        mesh.NormalTexture = baseNormal ?? 0;
+        mesh.HasNormalMap = baseNormal is not null || anyLayerNormal;
     }
 
     /// <summary>Uploads water geometry into <paramref name="mesh"/>, a fresh <see cref="GlMesh"/>.</summary>

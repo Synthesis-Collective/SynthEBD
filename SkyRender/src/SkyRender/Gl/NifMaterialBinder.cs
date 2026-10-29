@@ -181,6 +181,10 @@ public static class NifMaterialBinder
         glMesh.HasHairSoftLighting = (built.ShaderFlags1 & (1u << 18)) != 0; // SLSF1_Hair_Soft_Lighting
         glMesh.HasSoftLighting = (built.ShaderFlags2 & (1u << 25)) != 0; // SLSF2_Soft_Lighting
         glMesh.HasRimLighting = (built.ShaderFlags2 & (1u << 26)) != 0; // SLSF2_Rim_Lighting
+        // SLSF2_Tree_Anim: the vertex colour's alpha is the wind-sway weight (the engine's vertex
+        // shader scales the sway by it), not opacity. Multiplying it into the alpha test cut most
+        // leaf cards away, leaving trees as bare trunks.
+        glMesh.VertexAlphaIsWindWeight = (built.ShaderFlags2 & (1u << 29)) != 0;
 
         // Skin tint for the skin-tint shader type (production behavior) and the face-tint type
         // (debug path). Face shapes always receive the colour, but its application stays gated

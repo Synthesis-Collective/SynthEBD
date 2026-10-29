@@ -27,12 +27,18 @@ public sealed class WorldMeshData
 /// <summary>Options for <see cref="WorldMeshBuilder.BuildTerrainQuadrant"/>.</summary>
 public sealed record TerrainBuildOptions
 {
-    /// <summary>World units per texture repeat (UV = world XY / this).</summary>
-    public float TextureRepeat { get; init; } = 256f;
+    /// <summary>World units per texture repeat (UV = world XY / this). The default, 12 repeats per
+    /// quadrant (2048 / 12), matched the game's ground-texture scale in a side-by-side in-game
+    /// comparison; it is not a documented engine constant.</summary>
+    public float TextureRepeat { get; init; } = 2048f / 12f;
 
     /// <summary>Opacity at or below which a layer counts as unpainted. A grid square whose four
     /// corners are all unpainted takes no contribution from that layer.</summary>
     public float PaintedThreshold { get; init; } = 0.004f;
+
+    /// <summary>How the layers combine (used by <see cref="GlWorldFactory.CreateTerrain(TerrainCell, Func{string, int?}, int, TerrainBuildOptions?)"/>).
+    /// <see cref="TerrainBlendMode.Over"/> matched the game in a side-by-side in-game comparison.</summary>
+    public TerrainBlendMode Blend { get; init; } = TerrainBlendMode.Over;
 }
 
 /// <summary>Builds terrain and water geometry from <see cref="TerrainCell"/> / <see cref="WaterSurface"/> data.</summary>
@@ -127,21 +133,12 @@ public static class WorldMeshBuilder
             vertices[o + 6] = p.X / options.TextureRepeat; vertices[o + 7] = p.Y / options.TextureRepeat;
             var col = cell.Colors is { } colors ? colors[grid.Y * TerrainCell.Side + grid.X] : Vector3.One;
             vertices[o + 8] = col.X; vertices[o + 9] = col.Y; vertices[o + 10] = col.Z; vertices[o + 11] = 1f;
-            if (cell.Normals is null)
-            {
-                // Flat shading carries the face normal in the tangent frame too (no normal map).
-                vertices[o + 12] = normalYUp.X; vertices[o + 13] = normalYUp.Y; vertices[o + 14] = normalYUp.Z;
-                vertices[o + 15] = normalYUp.X; vertices[o + 16] = normalYUp.Y; vertices[o + 17] = normalYUp.Z;
-            }
-            else
-            {
-                // Tangent frame for tangent-space normal maps: UV runs along world +X / +Y, so the
-                // tangent is +X and the bitangent +Y, each made perpendicular to the normal.
-                var t = Orthogonal(ToYUp(Vector3.UnitX), normalYUp);
-                var b = Orthogonal(ToYUp(Vector3.UnitY), normalYUp);
-                vertices[o + 12] = t.X; vertices[o + 13] = t.Y; vertices[o + 14] = t.Z;
-                vertices[o + 15] = b.X; vertices[o + 16] = b.Y; vertices[o + 17] = b.Z;
-            }
+            // Tangent frame for tangent-space normal maps: UV runs along world +X / +Y, so the
+            // tangent is +X and the bitangent +Y, each made perpendicular to the normal.
+            var t = Orthogonal(ToYUp(Vector3.UnitX), normalYUp);
+            var b = Orthogonal(ToYUp(Vector3.UnitY), normalYUp);
+            vertices[o + 12] = t.X; vertices[o + 13] = t.Y; vertices[o + 14] = t.Z;
+            vertices[o + 15] = b.X; vertices[o + 16] = b.Y; vertices[o + 17] = b.Z;
             for (int li = 0; li < layers.Count; li++)
                 weights[v * TerrainQuadrant.MaxLayers + li] = squareWeights[li * 4 + corner];
             v++;

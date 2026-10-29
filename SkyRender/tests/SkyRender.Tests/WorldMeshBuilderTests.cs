@@ -83,7 +83,8 @@ public class WorldMeshBuilderTests
         // First vertex: grid (16, 16) of cell (2, -3), Skyrim (x, y, z) -> Y-up (x, z, -y).
         float sx = 2 * 4096f + 16 * 128f, sy = -3 * 4096f + 16 * 128f;
         Pos(d, 0).Should().Be(new Vector3(sx, 100f, -sy));
-        Uv(d, 0).Should().Be(new Vector2(sx / 256f, sy / 256f));
+        float rep = 2048f / 12f;
+        Uv(d, 0).Should().Be(new Vector2(sx / rep, sy / rep));
         Normal(d, 0).X.Should().BeApproximately(0f, 1e-6f);
         Normal(d, 0).Y.Should().BeApproximately(1f, 1e-6f);
         Color(d, 0).Should().Be(Vector4.One);

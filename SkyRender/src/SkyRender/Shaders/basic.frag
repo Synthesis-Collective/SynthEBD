@@ -117,6 +117,8 @@ uniform sampler2D texture_layer5;
 uniform sampler2D texture_layer6;
 uniform sampler2D texture_layer7;
 uniform bool u_isTerrain;
+// SLSF2_Tree_Anim: vertex alpha is the wind-sway weight, not opacity (GlMesh.VertexAlphaIsWindWeight).
+uniform bool vertex_alpha_is_wind;
 uniform int u_terrainLayerCount;
 // TerrainBlendMode: 0 over, weighted by opacity x texture alpha; 1 over, by opacity;
 // 2 base weight 1 plus layer opacities, normalised by their sum.
@@ -129,6 +131,56 @@ vec3 terrainLayer(vec3 albedo, sampler2D layer, float weight) {
     vec4 t = texture(layer, TexCoords);
     float w = (u_terrainBlendMode == 0) ? weight * t.a : weight;
     return mix(albedo, t.rgb, clamp(w, 0.0, 1.0));
+}
+
+// Terrain layer normal maps (tangent space), on units 14-21 when the context has them.
+uniform sampler2D texture_layer_normal0;
+uniform sampler2D texture_layer_normal1;
+uniform sampler2D texture_layer_normal2;
+uniform sampler2D texture_layer_normal3;
+uniform sampler2D texture_layer_normal4;
+uniform sampler2D texture_layer_normal5;
+uniform sampler2D texture_layer_normal6;
+uniform sampler2D texture_layer_normal7;
+uniform int u_terrainLayerNormalMask;   // bit i: layer i has a normal map bound
+uniform bool u_terrainBaseNormal;      // the base texture has a normal map (texture_normal)
+
+vec3 terrainLayerNormal(sampler2D s, int i) {
+    return ((u_terrainLayerNormalMask >> i) & 1) != 0 ? texture(s, TexCoords).rgb : vec3(0.5, 0.5, 1.0);
+}
+
+// A layer's weight in the "over" chain, matching terrainLayer() for the albedo.
+float terrainChainWeight(sampler2D layer, float weight) {
+    float w = (u_terrainBlendMode == 0) ? weight * texture(layer, TexCoords).a : weight;
+    return clamp(w, 0.0, 1.0);
+}
+
+// The terrain's blended normal-map sample (0..1 encoded), weighted exactly like its albedo:
+// a layer without a normal map contributes a flat normal.
+vec3 terrainNormalSample() {
+    vec3 n = u_terrainBaseNormal ? texture(texture_normal, TexCoords).rgb : vec3(0.5, 0.5, 1.0);
+    if (u_terrainBlendMode == 2) {
+        vec3 sum = n;
+        float total = 1.0;
+        if (u_terrainLayerCount > 0 && v_layerWeights0.x > 0.0) { sum += terrainLayerNormal(texture_layer_normal0, 0) * v_layerWeights0.x; total += v_layerWeights0.x; }
+        if (u_terrainLayerCount > 1 && v_layerWeights0.y > 0.0) { sum += terrainLayerNormal(texture_layer_normal1, 1) * v_layerWeights0.y; total += v_layerWeights0.y; }
+        if (u_terrainLayerCount > 2 && v_layerWeights0.z > 0.0) { sum += terrainLayerNormal(texture_layer_normal2, 2) * v_layerWeights0.z; total += v_layerWeights0.z; }
+        if (u_terrainLayerCount > 3 && v_layerWeights0.w > 0.0) { sum += terrainLayerNormal(texture_layer_normal3, 3) * v_layerWeights0.w; total += v_layerWeights0.w; }
+        if (u_terrainLayerCount > 4 && v_layerWeights1.x > 0.0) { sum += terrainLayerNormal(texture_layer_normal4, 4) * v_layerWeights1.x; total += v_layerWeights1.x; }
+        if (u_terrainLayerCount > 5 && v_layerWeights1.y > 0.0) { sum += terrainLayerNormal(texture_layer_normal5, 5) * v_layerWeights1.y; total += v_layerWeights1.y; }
+        if (u_terrainLayerCount > 6 && v_layerWeights1.z > 0.0) { sum += terrainLayerNormal(texture_layer_normal6, 6) * v_layerWeights1.z; total += v_layerWeights1.z; }
+        if (u_terrainLayerCount > 7 && v_layerWeights1.w > 0.0) { sum += terrainLayerNormal(texture_layer_normal7, 7) * v_layerWeights1.w; total += v_layerWeights1.w; }
+        return sum / total;
+    }
+        if (u_terrainLayerCount > 0) n = mix(n, terrainLayerNormal(texture_layer_normal0, 0), terrainChainWeight(texture_layer0, v_layerWeights0.x));
+        if (u_terrainLayerCount > 1) n = mix(n, terrainLayerNormal(texture_layer_normal1, 1), terrainChainWeight(texture_layer1, v_layerWeights0.y));
+        if (u_terrainLayerCount > 2) n = mix(n, terrainLayerNormal(texture_layer_normal2, 2), terrainChainWeight(texture_layer2, v_layerWeights0.z));
+        if (u_terrainLayerCount > 3) n = mix(n, terrainLayerNormal(texture_layer_normal3, 3), terrainChainWeight(texture_layer3, v_layerWeights0.w));
+        if (u_terrainLayerCount > 4) n = mix(n, terrainLayerNormal(texture_layer_normal4, 4), terrainChainWeight(texture_layer4, v_layerWeights1.x));
+        if (u_terrainLayerCount > 5) n = mix(n, terrainLayerNormal(texture_layer_normal5, 5), terrainChainWeight(texture_layer5, v_layerWeights1.y));
+        if (u_terrainLayerCount > 6) n = mix(n, terrainLayerNormal(texture_layer_normal6, 6), terrainChainWeight(texture_layer6, v_layerWeights1.z));
+        if (u_terrainLayerCount > 7) n = mix(n, terrainLayerNormal(texture_layer_normal7, 7), terrainChainWeight(texture_layer7, v_layerWeights1.w));
+    return n;
 }
 
 // Normalised-sum accumulation for one layer (u_terrainBlendMode == 2).
@@ -517,7 +569,7 @@ void main()
             ? vertexColor.rgb / max(max(max(vertexColor.r, vertexColor.g), vertexColor.b), 1e-5)
             : vertexColor.rgb;
         baseColor.rgb *= vc;
-        baseColor.a *= vertexColor.a;
+        if (!vertex_alpha_is_wind) baseColor.a *= vertexColor.a;
     }
 
     // Material alpha scales the whole alpha, matching NifSkope's sk_default /
@@ -690,7 +742,8 @@ void main()
             normal_viewSpace = normalize(v_modelToViewNormalMatrix * normal_modelSpace);
         }
         else if (tbnIsValid) {
-            vec3 normal_tangentSpace = texture(texture_normal, TexCoords).rgb * 2.0 - 1.0;
+            vec3 normal_tangentSpace = (u_isTerrain ? terrainNormalSample()
+                                                    : texture(texture_normal, TexCoords).rgb) * 2.0 - 1.0;
             normal_tangentSpace.g *= -1.0;
             normal_viewSpace = normalize(v_tangentToViewMatrix * normal_tangentSpace);
         }

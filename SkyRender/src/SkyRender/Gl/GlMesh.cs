@@ -35,6 +35,10 @@ public class GlMesh : IDisposable
     public int TerrainLayerCount { get; set; }
     /// <summary>Terrain only: how the layers combine with the base.</summary>
     public World.TerrainBlendMode TerrainBlend { get; set; }
+    /// <summary>Terrain only: GL handles of the layer normal maps (0 = none), in blend order.</summary>
+    public int[] TerrainLayerNormalTextures { get; } = new int[World.TerrainQuadrant.MaxLayers];
+    /// <summary>Terrain only: <see cref="NormalTexture"/> is the base texture's normal map.</summary>
+    public bool TerrainHasBaseNormal { get; set; }
 
     /// <summary>Draws as a water surface: the vertex colour is the body colour, and the sky
     /// reflection is mixed in per vertex from the live camera (Schlick Fresnel).</summary>
@@ -87,6 +91,9 @@ public class GlMesh : IDisposable
     /// fragments writing depth cuts rotation-dependent holes in overlapping
     /// blended shapes.</summary>
     public bool IsDecal { get; set; }
+    /// <summary>The vertex colour's alpha is a tree's wind-sway weight (SLSF2_Tree_Anim), not
+    /// opacity: the shader keeps the vertex RGB but leaves alpha to the texture.</summary>
+    public bool VertexAlphaIsWindWeight { get; set; }
 
     /// <summary>Material alpha (BSLightingShaderProperty.alpha). &lt; 1 marks a
     /// genuinely translucent material, which keeps depth-write off in the blend

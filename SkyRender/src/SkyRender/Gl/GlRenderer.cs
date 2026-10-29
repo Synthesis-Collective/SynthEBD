@@ -856,6 +856,9 @@ public class GlRenderer : IDisposable
     // (skin, specular, face tint, detail, env mask, 2D env, glow), then 13. basic.frag declares
     // texture_layer0..7 to match.
     private static readonly int[] TerrainLayerUnits = { 2, 3, 4, 5, 7, 10, 12, 13 };
+    private const int TerrainLayerNormalFirstUnit = 14;
+    // A count, not a GL handle (byte keeps it out of the GL-handle disposal checks).
+    private byte _terrainLayerNormalSlots;
 
     /// <summary>Uniform scale applied to the world-space mesh geometry via the
     /// model matrix — 1.0 is identity; 1.1 makes the scene 10% larger (the
@@ -969,6 +972,12 @@ public class GlRenderer : IDisposable
         // Terrain layer diffuses reuse the 2D units terrain never samples, plus unit 13.
         for (int i = 0; i < TerrainLayerUnits.Length; i++)
             _shader.SetInt("texture_layer" + i, TerrainLayerUnits[i]);
+        // Terrain layer normal maps on units 14-21, as many as the context has (GL 3.3 guarantees
+        // only 16; most GPUs report 32). Layers past the limit draw with the base normal only.
+        int maxUnits = GL.GetInteger(GetPName.MaxTextureImageUnits);
+        _terrainLayerNormalSlots = (byte)Math.Clamp(maxUnits - TerrainLayerNormalFirstUnit, 0, World.TerrainQuadrant.MaxLayers);
+        for (int i = 0; i < World.TerrainQuadrant.MaxLayers; i++)
+            _shader.SetInt("texture_layer_normal" + i, i < _terrainLayerNormalSlots ? TerrainLayerNormalFirstUnit + i : 0);
 
         GL.Enable(EnableCap.DepthTest);
         // LEQUAL, not the GL default LESS: hair ships as two coincident copies
@@ -2858,6 +2867,17 @@ public class GlRenderer : IDisposable
         int layerCount = mesh.IsTerrain ? Math.Min(mesh.TerrainLayerCount, TerrainLayerUnits.Length) : 0;
         _shader.SetInt("u_terrainLayerCount", layerCount);
         _shader.SetInt("u_terrainBlendMode", mesh.IsTerrain ? (int)mesh.TerrainBlend : 0);
+        _shader.SetBool("u_terrainBaseNormal", mesh.IsTerrain && mesh.TerrainHasBaseNormal);
+        int normalMask = 0;
+        for (int i = 0; i < Math.Min(layerCount, _terrainLayerNormalSlots); i++)
+        {
+            int h = mesh.TerrainLayerNormalTextures[i];
+            if (h == 0) continue;
+            normalMask |= 1 << i;
+            GL.ActiveTexture(TextureUnit.Texture0 + TerrainLayerNormalFirstUnit + i);
+            GL.BindTexture(TextureTarget.Texture2D, h);
+        }
+        _shader.SetInt("u_terrainLayerNormalMask", normalMask);
         for (int i = 0; i < layerCount; i++)
         {
             GL.ActiveTexture(TextureUnit.Texture0 + TerrainLayerUnits[i]);
@@ -2891,6 +2911,7 @@ public class GlRenderer : IDisposable
         _shader.SetBool("has_soft_lighting", mesh.HasSoftLighting);
         _shader.SetBool("has_rim_lighting", mesh.HasRimLighting);
         _shader.SetBool("has_vertex_colors", mesh.HasVertexColors);
+        _shader.SetBool("vertex_alpha_is_wind", mesh.VertexAlphaIsWindWeight);
         _shader.SetBool("has_environment_map", mesh.HasEnvironmentMap);
         _shader.SetBool("has_env_mask", mesh.HasEnvMask);
         _shader.SetBool("is_env_map_2d", mesh.IsEnvMap2D);
