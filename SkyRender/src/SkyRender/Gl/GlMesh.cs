@@ -164,9 +164,21 @@ public class GlMesh : IDisposable
     public bool EffectDepthTest { get; set; } = true;
     /// <summary>Effect only: the shape sits under an <c>NiBillboardNode</c>, which the engine turns
     /// toward the camera each frame. 0 = none, 1 = faces the camera, 2 = turns about the up axis
-    /// only. The geometry stays in its authored pose; the falloff is evaluated as if it were
-    /// turned (|N.V| = 1, or the view direction's horizontal length about the up axis).</summary>
+    /// only. Used when the shape is drawn in its authored pose (no <see cref="BillboardFrame"/>, or
+    /// <c>GlRenderer.Billboards</c> off): the falloff is then evaluated as if it were turned
+    /// (|N.V| = 1, or the view direction's horizontal length about the up axis) and the shape is
+    /// never culled.</summary>
     public int EffectBillboard { get; set; }
+
+    /// <summary>The <c>NiBillboardNode.billboardMode</c> the shape sits under (0-5, 9), or -1.</summary>
+    public int BillboardMode { get; set; } = -1;
+
+    /// <summary>The billboard node's frame in this mesh's vertex space (row i = the node's local
+    /// axis i with its scale, row 3 = its origin; OpenTK row-vector convention), or null. With it,
+    /// and <c>GlRenderer.Billboards</c> on, the renderer turns the shape about the node's origin
+    /// toward the camera every draw, as the engine does (RENDERING_PIPELINE.md, "Billboards").
+    /// A host that bakes a placement into the vertices composes the frame with that placement.</summary>
+    public OpenTK.Mathematics.Matrix4? BillboardFrame { get; set; }
 
     public int IndexCount { get; private set; }
 

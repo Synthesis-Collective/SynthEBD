@@ -57,7 +57,7 @@ public partial class VM_CharacterViewer : ViewerVm
     private CancellationTokenSource? _loadCts;
 
     // GL rendering objects — created once, reused across NPC loads
-    public GlRenderer Renderer { get; } = new();
+    public GlRenderer Renderer { get; } = new(RenderProfile.Character);
     public GlTextureManager? TextureManager { get; private set; }
     public OrbitCamera Camera { get; } = new();
 

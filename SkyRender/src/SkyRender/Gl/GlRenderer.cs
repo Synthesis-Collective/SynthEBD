@@ -880,6 +880,12 @@ public class GlRenderer : IDisposable
     /// <summary>The most point lights that cast shadows (PointLight.CastsShadow) in one frame.</summary>
     public const int MaxShadowedPointLights = 4;
 
+    /// <summary>Turn shapes under an <c>NiBillboardNode</c> toward the camera every draw, as the
+    /// engine does (only meshes carrying <see cref="GlMesh.BillboardFrame"/>, which the effect-shader
+    /// binding sets). On by default; off draws them in their authored pose. See RENDERING_PIPELINE.md,
+    /// "Billboards".</summary>
+    public bool Billboards { get; set; } = true;
+
     /// <summary>Distance fog over every lit surface, or null (the default) for none. A host
     /// supplies it from its scene (for Skyrim exteriors, the weather's fog colours and distances).
     /// See RENDERING_PIPELINE.md, "Distance fog".</summary>
@@ -968,13 +974,47 @@ public class GlRenderer : IDisposable
         GL.Disable(EnableCap.ClipDistance0);
     }
 
-    public GlRenderer()
+    /// <summary>
+    /// Creates a renderer set up for <paramref name="profile"/>. <see cref="RenderProfile.Scene"/>
+    /// (the default) draws at full detail and starts from <see cref="SceneEnvironment.VanillaClearDay"/>
+    /// (sky gradient, sun, ambient, distance fog and image space), which a host's own values
+    /// override; <see cref="RenderProfile.Character"/> keeps the studio rig the character tier
+    /// uses. See RENDERING_PIPELINE.md, "Scene defaults".
+    /// </summary>
+    public GlRenderer(RenderProfile profile = RenderProfile.Scene)
     {
+        Profile = profile;
         // Default lighting: ambient + key + fill + rim
         Lights[0] = new LightData { Type = 1, Color = Vector3.One, Intensity = 0.2f };
         Lights[1] = new LightData { Type = 2, Direction = new Vector3(-0.4f, -0.7f, 0.6f), Color = Vector3.One, Intensity = 1.0f };
         Lights[2] = new LightData { Type = 2, Direction = new Vector3(0.5f, 0.3f, 1.0f), Color = Vector3.One, Intensity = 0.38f };
         Lights[3] = new LightData { Type = 2, Direction = new Vector3(0f, 0.5f, -1.0f), Color = Vector3.One, Intensity = 0.25f };
+        if (profile == RenderProfile.Scene)
+            ApplyEnvironment(SceneEnvironment.VanillaClearDay);
+    }
+
+    /// <summary>The profile this renderer was created for (see <see cref="RenderProfile"/>).</summary>
+    public RenderProfile Profile { get; }
+
+    /// <summary>
+    /// Sets the scene-supplied parts of the frame from <paramref name="environment"/>: the clear
+    /// colour, the sky colour and gradient water reflects, the sun (key light: direction, colour x
+    /// intensity), the ambient (colour, intensity 1), distance fog and the image-space finish. The
+    /// fill light is turned off (the engine has none); the rim slot is left as it is. Any of these
+    /// can be set again afterwards, one property at a time.
+    /// </summary>
+    public void ApplyEnvironment(SceneEnvironment environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        ClearColor = environment.Background;
+        SkyColor = environment.SkyColor;
+        SkyGradient = environment.SkyGradient;
+        Lights[0].Color = environment.AmbientColor;
+        Lights[0].Intensity = 1f;
+        SetKeyLight(environment.SunAzimuthDegrees, environment.SunElevationDegrees, environment.SunIntensity, environment.SunColor);
+        SetFillLight(315f, 20f, 0f, Vector3.One);
+        Fog = environment.Fog;
+        ImageSpace = environment.ImageSpace;
     }
 
     /// <summary>
@@ -1243,6 +1283,16 @@ public class GlRenderer : IDisposable
         float aspectPre = (float)viewportWidth / viewportHeight;
         var viewMatPre = camera.GetViewMatrix();
         var projMatPre = camera.GetProjectionMatrix(aspectPre);
+        // The camera's position and axes for billboards: rows of the inverse view matrix (OpenTK
+        // row vectors; the camera looks down its -Z).
+        try
+        {
+            var camToWorld = viewMatPre.Inverted();
+            _billboardEye = camToWorld.Row3.Xyz;
+            _billboardUp = camToWorld.Row1.Xyz;
+            _billboardBack = camToWorld.Row2.Xyz;
+        }
+        catch (InvalidOperationException) { }
 
         // Pre-passes (shadow + SSAO) run BEFORE the main FBO is rebound,
         // so we capture the host's bound FBO once and restore at the end.
@@ -2960,7 +3010,14 @@ public class GlRenderer : IDisposable
     /// </summary>
     private void ApplyMeshModel(GlShaderProgram shader, GlMesh mesh, Matrix4 shared)
     {
-        if (mesh.ModelTransform is { } placement)
+        if (IsBillboarded(mesh))
+        {
+            var placed = mesh.ModelTransform is { } bp ? bp * shared : shared;
+            var m = BillboardTurn(mesh.BillboardFrame!.Value, mesh.BillboardMode, placed, _billboardEye, _billboardUp, _billboardBack) * placed;
+            shader.SetMatrix4("u_model", ref m);
+            _modelOverriddenOn = shader;
+        }
+        else if (mesh.ModelTransform is { } placement)
         {
             var m = placement * shared;
             shader.SetMatrix4("u_model", ref m);
@@ -2972,6 +3029,84 @@ public class GlRenderer : IDisposable
             _modelOverriddenOn = null;
         }
     }
+    /// <summary>Whether <paramref name="mesh"/> is turned toward the camera this frame: it carries a
+    /// billboard node's frame (<see cref="GlMesh.BillboardFrame"/>) and <see cref="Billboards"/> is on.</summary>
+    private bool IsBillboarded(GlMesh mesh) => Billboards && mesh.BillboardFrame is not null && mesh.BillboardMode >= 0;
+
+    /// <summary>
+    /// The vertex-space matrix that turns a billboarded shape about its node's origin: the node's
+    /// authored frame K is replaced by K', the same origin and axis lengths with axes chosen from
+    /// the camera, so a vertex goes p -> p K^-1 K'. The camera (its position, up and backward
+    /// axes, world space) is taken into the mesh's vertex space through
+    /// <paramref name="placed"/>. Gamebryo's convention: the node's local Z faces the camera and
+    /// local Y is up (NifSkope draws every billboard with the view rotation reset, so local X, Y,
+    /// Z = screen right, up, toward the viewer). Per mode (nif.xml BillboardMode; the roll and
+    /// about-up rules follow OpenMW's NiBillboardNode port, components/nifosg/autotransform.cpp):
+    /// 0 ALWAYS_FACE_CAMERA: Z against the view direction, Y the authored Y kept as upright as it
+    /// can be; 2 RIGID_FACE_CAMERA: Z against the view direction, Y the camera's up; 3 / 4
+    /// ALWAYS / RIGID_FACE_CENTER: the same with Z toward the camera's position; 1 / 9
+    /// ROTATE_ABOUT_UP: turned about the authored Y only, Z toward the camera's position;
+    /// 5 BSROTATE_ABOUT_UP: turned about the authored Z only (nif.xml; vanilla torch sprites lie
+    /// in their local XZ plane), with -Y toward the camera's position (the facing sign is not
+    /// sourced; it keeps local X on screen right, so the sprite is not mirrored).
+    /// </summary>
+    internal static Matrix4 BillboardTurn(Matrix4 k, int mode, Matrix4 placed, Vector3 cameraEye, Vector3 cameraUp, Vector3 cameraBack)
+    {
+        Matrix4 toVertex;
+        try { toVertex = placed.Inverted(); }
+        catch (InvalidOperationException) { return Matrix4.Identity; }
+        var eye = Vector3.TransformPosition(cameraEye, toVertex);
+        var camUp = SafeUnit(Vector3.TransformVector(cameraUp, toVertex), Vector3.UnitY);
+        var toViewer = SafeUnit(Vector3.TransformVector(cameraBack, toVertex), Vector3.UnitZ);
+
+        var o = k.Row3.Xyz;
+        Vector3 ax = k.Row0.Xyz, ay = k.Row1.Xyz, az = k.Row2.Xyz;
+        float sx = ax.Length, sy = ay.Length, sz = az.Length;
+        if (sx < 1e-8f || sy < 1e-8f || sz < 1e-8f) return Matrix4.Identity;
+        Vector3 bx = ax / sx, by = ay / sy, bz = az / sz;
+        var toEye = SafeUnit(eye - o, toViewer);
+
+        Vector3 x, y, z;
+        switch (mode)
+        {
+            case 1 or 9:   // ROTATE_ABOUT_UP: about the authored Y
+                y = by;
+                z = SafeUnit(toEye - Vector3.Dot(toEye, by) * by, bz);
+                x = Vector3.Cross(y, z);
+                break;
+            case 5:        // BSROTATE_ABOUT_UP: about the authored Z, -Y faces the camera
+            {
+                z = bz;
+                var f = SafeUnit(toEye - Vector3.Dot(toEye, bz) * bz, -by);
+                y = -f;
+                x = Vector3.Cross(y, z);
+                break;
+            }
+            default:       // 0 / 2: view direction; 3 / 4: camera position
+            {
+                z = mode is 3 or 4 ? toEye : toViewer;
+                var upRef = mode is 2 or 4 ? camUp : by;
+                y = SafeUnit(upRef - Vector3.Dot(upRef, z) * z, SafeUnit(camUp - Vector3.Dot(camUp, z) * z, bx));
+                x = Vector3.Cross(y, z);
+                break;
+            }
+        }
+        var turned = new Matrix4(new Vector4(x * sx, 0f), new Vector4(y * sy, 0f), new Vector4(z * sz, 0f), new Vector4(o, 1f));
+        Matrix4 kInv;
+        try { kInv = k.Inverted(); }
+        catch (InvalidOperationException) { return Matrix4.Identity; }
+        return kInv * turned;
+    }
+
+    private static Vector3 SafeUnit(Vector3 v, Vector3 fallback)
+    {
+        float l = v.Length;
+        return l > 1e-6f ? v / l : fallback;
+    }
+
+    // The camera this frame, in world space, for billboards (set at the top of Render()).
+    private Vector3 _billboardEye, _billboardUp = Vector3.UnitY, _billboardBack = Vector3.UnitZ;
+
     // Non-owning marker of which program currently holds a per-mesh u_model (not a GL handle
     // this renderer owns, hence object rather than GlShaderProgram).
     private object? _modelOverriddenOn;
@@ -3218,14 +3353,16 @@ public class GlRenderer : IDisposable
             _shader.SetFloat("u_effectSoftDepth", mesh.EffectSoftFalloffDepth);
             _shader.SetBool("u_effectClampS", mesh.EffectClampS);
             _shader.SetBool("u_effectClampT", mesh.EffectClampT);
-            _shader.SetInt("u_effectBillboard", mesh.EffectBillboard);
+            // A shape really turned toward the camera evaluates its falloff on its own normal.
+            _shader.SetInt("u_effectBillboard", IsBillboarded(mesh) ? 0 : mesh.EffectBillboard);
         }
         // SLSF1_ZBuffer_Test clear (effect shapes only): no depth comparison for this draw.
         bool noDepthTest = mesh.IsEffectShader && !mesh.EffectDepthTest;
         if (noDepthTest) GL.Disable(EnableCap.DepthTest);
 
-        // Double-sided meshes (brow, eyelash, hair) need face culling disabled
-        if (mesh.IsDoubleSided)
+        // Double-sided meshes (brow, eyelash, hair) need face culling disabled, and so does a
+        // billboard left in its authored pose (its frame known but Billboards off).
+        if (mesh.IsDoubleSided || (mesh.EffectBillboard != 0 && !IsBillboarded(mesh)))
             GL.Disable(EnableCap.CullFace);
         else
             GL.Enable(EnableCap.CullFace);

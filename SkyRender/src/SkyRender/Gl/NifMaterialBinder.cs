@@ -52,10 +52,10 @@ public sealed class MaterialBindOptions
     /// <summary>
     /// Shade effect-shader shapes (<see cref="NifMeshBuilder.BuiltMesh.HasEffectShader"/>: fire,
     /// smoke, mist, light shafts) with the engine's effect shading
-    /// (<see cref="NifMaterialBinder.ApplyEffectMaterial"/>). Off by default, which binds them
-    /// through the lighting-shader rules exactly as before.
+    /// (<see cref="NifMaterialBinder.ApplyEffectMaterial"/>). On by default; false binds them
+    /// through the lighting-shader rules (the behaviour before the effect path existed).
     /// </summary>
-    public bool ShadeEffectShaders { get; init; }
+    public bool ShadeEffectShaders { get; init; } = true;
 }
 
 /// <summary>
@@ -458,8 +458,9 @@ public static class NifMaterialBinder
         glMesh.EffectClampT = clamp == 0 || clamp == 2;
 
         glMesh.DepthWrite = (f2 & EffectF2ZBufferWrite) != 0;
-        // A billboard always shows the camera its front, so the engine never culls it whatever
-        // the flag says. Drawn in its authored pose, it must not be culled either: flame sprites
+        // A billboard always shows the camera its front. With its node's frame the renderer turns
+        // it toward the camera (GlRenderer.Billboards) and the shape's own two-sided flag applies.
+        // Without one it is drawn in its authored pose and must not be culled: flame sprites
         // authored facing away from the view would otherwise vanish.
         glMesh.EffectBillboard = built.BillboardMode switch
         {
@@ -467,7 +468,13 @@ public static class NifMaterialBinder
             1 or 5 or 9 => 2,   // ROTATE_ABOUT_UP, BSROTATE_ABOUT_UP, ROTATE_ABOUT_UP2
             _ => 1,
         };
-        glMesh.IsDoubleSided = (f2 & EffectF2DoubleSided) != 0 || glMesh.EffectBillboard != 0;
+        glMesh.BillboardMode = built.BillboardMode;
+        glMesh.BillboardFrame = built.BillboardMode >= 0 && built.BillboardFrame is { } bf
+            ? new OpenTK.Mathematics.Matrix4(bf.M11, bf.M12, bf.M13, bf.M14, bf.M21, bf.M22, bf.M23, bf.M24,
+                                             bf.M31, bf.M32, bf.M33, bf.M34, bf.M41, bf.M42, bf.M43, bf.M44)
+            : null;
+        glMesh.IsDoubleSided = (f2 & EffectF2DoubleSided) != 0
+                               || (glMesh.EffectBillboard != 0 && glMesh.BillboardFrame is null);
         glMesh.HasVertexColors = built.HasVertexColors;
         glMesh.VertexAlphaIsWindWeight = false;
         glMesh.UvScale = built.EffectUvScale;

@@ -63,9 +63,10 @@ public sealed record WaterMaterial(
     /// against the renderer's depth prepass of the opaque scene, as the engine does, instead of
     /// vertically at the grid vertices. The body colour, the refraction weight and the bed's share
     /// of the pixel then follow that depth, and far away (past the noise falloff) the surface is all
-    /// reflection. Costs one depth prepass per frame while such water is drawn. Off (the default)
-    /// keeps the per-vertex path.</summary>
-    public bool PerPixelDepth { get; init; }
+    /// reflection, with the water type's sun specular (<see cref="SunSpecularPower"/>). Costs one
+    /// depth prepass per frame while such water is drawn. On by default; false keeps the per-vertex
+    /// path.</summary>
+    public bool PerPixelDepth { get; init; } = true;
 
     /// <summary>The water type's sun specular power (the exponent on the reflected view ray against
     /// the sun direction); 0 (the default) draws no sun specular. Used with <see cref="PerPixelDepth"/>.</summary>

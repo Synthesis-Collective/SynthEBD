@@ -416,6 +416,17 @@ public class NifMeshBuilder
         /// </summary>
         public int BillboardMode { get; init; } = -1;
 
+        /// <summary>
+        /// The frame of that billboard node in the builder's output space (NIF root space, Y up):
+        /// row i is the image of the node's local axis i (with the node's scale), row 4 its
+        /// origin, so <c>Vector3.Transform(local, BillboardFrame)</c> maps a point in the node's
+        /// own coordinates to the emitted positions. The renderer turns the shape about this frame
+        /// each frame (<c>GlRenderer.Billboards</c>). Null when the shape has no billboard ancestor,
+        /// or when its vertices did not go through the node's plain transform chain (skinned shapes,
+        /// FaceGen accessory placement), which leaves such a shape in its authored pose.
+        /// </summary>
+        public Matrix4x4? BillboardFrame { get; init; }
+
         /// <summary>NIF-side <c>BSLightingShaderProperty.skinTintAlpha</c>.
         /// Always 0.0 in the vanilla / modder-authored sample we surveyed,
         /// but read so the SkinTintAlpha-weighted operator in the debug
@@ -1242,6 +1253,7 @@ public class NifMeshBuilder
         EffectUvOffset = b.EffectUvOffset,
         EffectTextureClampMode = b.EffectTextureClampMode,
         BillboardMode = b.BillboardMode,
+        BillboardFrame = b.BillboardFrame,
         SkinTintAlpha = b.SkinTintAlpha,
     };
 
@@ -1460,6 +1472,38 @@ public class NifMeshBuilder
         }
         catch { }
         return -1;
+    }
+
+    /// <summary>The nearest billboard ancestor's frame in NIF root space, converted to the builder's
+    /// Y-up output space (see <see cref="BuiltMesh.BillboardFrame"/>), or null.</summary>
+    private Matrix4x4? ReadBillboardFrame(NifFile nif, NiShape shape)
+    {
+        try
+        {
+            var header = nif.GetHeader();
+            var parent = nif.GetParentNode(shape);
+            for (int depth = 0; parent != null && depth < 64; depth++)
+            {
+                if (header.GetBlockById(header.GetBlockID(parent)) is NiBillboardNode)
+                {
+                    var t = GetTransformToGlobal(nif, parent);
+                    // Z-up -> Y-up, the swap every emitted position takes: (x, y, z) -> (x, z, -y).
+                    static Vector3 Up(float x, float y, float z) => new(x, z, -y);
+                    Vector3 Axis(float x, float y, float z)
+                    {
+                        ApplyRotation(t.rotation, x * t.scale, y * t.scale, z * t.scale, out var rx, out var ry, out var rz);
+                        return Up(rx, ry, rz);
+                    }
+                    var ax = Axis(1, 0, 0); var ay = Axis(0, 1, 0); var az = Axis(0, 0, 1);
+                    var o = Up(t.translation.x, t.translation.y, t.translation.z);
+                    return new Matrix4x4(ax.X, ax.Y, ax.Z, 0f, ay.X, ay.Y, ay.Z, 0f,
+                                         az.X, az.Y, az.Z, 0f, o.X, o.Y, o.Z, 1f);
+                }
+                parent = nif.GetParentNode(parent);
+            }
+        }
+        catch { }
+        return null;
     }
 
     private static IReadOnlyList<ushort>? ReadDismemberPartitions(NiHeader header, NiShape shape)
@@ -2309,6 +2353,7 @@ public class NifMeshBuilder
             LogShapeBoundsDiagnostic(nif, shape, skinning != null, positions, positions.Length);
         }
 
+        int billboardMode = ReadBillboardMode(nif, shape);
         return new BuiltMesh
         {
             Positions = positions,
@@ -2372,7 +2417,9 @@ public class NifMeshBuilder
             EffectUvScale = effectUvScale,
             EffectUvOffset = effectUvOffset,
             EffectTextureClampMode = effectClampMode,
-            BillboardMode = ReadBillboardMode(nif, shape),
+            BillboardMode = billboardMode,
+            BillboardFrame = billboardMode >= 0 && skinning == null && accessoryOffset == null
+                ? ReadBillboardFrame(nif, shape) : null,
             SkinTintAlpha = skinTintAlpha,
         };
     }
