@@ -145,6 +145,22 @@ uniform sampler2D texture_layer_normal7;
 uniform int u_terrainLayerNormalMask;   // bit i: layer i has a normal map bound
 uniform bool u_terrainBaseNormal;      // the base texture has a normal map (texture_normal)
 
+// Projected material (GlMesh.HasProjectedMaterial): the engine's single-pass PROJECTED_UV path,
+// snow / ash / moss over a static's own diffuse. Its two textures ride the first two layer-normal
+// units: a projected mesh is never terrain, so those samplers are free (GlRenderer.DrawMesh).
+#define texture_projected_noise   texture_layer_normal0
+#define texture_projected_diffuse texture_layer_normal1
+uniform bool u_hasProjected;
+uniform vec3 u_projectedDir;           // world (Y-up) direction a covered surface faces
+uniform vec4 u_projectedParams;        // ProjectedUVParams: x noise weight, z noise per unit, w threshold
+uniform vec3 u_projectedColor;         // ProjectedUVParams2
+uniform float u_projectedDiffuseTiling; // fProjectedUVDiffuseNormalTilingScale
+uniform bool u_projectedHasDiffuse;    // false = flat colour path (diffuse/normals disabled)
+
+// TEMP DEBUG: when true, a projected mesh outputs its coverage weight as grey (white = fully
+// covered) instead of shading, to check the coverage pattern against a game capture.
+const bool DEBUG_VIZ_PROJECTED_WEIGHT = false;
+
 vec3 terrainLayerNormal(sampler2D s, int i) {
     return ((u_terrainLayerNormalMask >> i) & 1) != 0 ? texture(s, TexCoords).rgb : vec3(0.5, 0.5, 1.0);
 }
@@ -755,6 +771,37 @@ void main()
             normal_viewSpace = normalize(v_tangentToViewMatrix[2]);
         } else {
             normal_viewSpace = normalize(v_modelToViewNormalMatrix * vec3(0.0, 0.0, 1.0));
+        }
+    }
+
+    // --- 2b. PROJECTED MATERIAL ---
+    // The engine's single-pass PROJECTED_UV path (decompiled vanilla SE lighting shader; Community
+    // Shaders keeps the same weight). Coverage is per PIXEL against the normal-mapped normal, so
+    // the material settles into the base texture's own relief, and a tiling noise breaks the edge:
+    //   w = dot(N, dir) * vertexAlpha - params.w - params.x * noise
+    // with noise and diffuse planar in world X/Y (Skyrim's horizontal plane). The covered albedo
+    // replaces the base before the vertex colour, which the engine applies afterwards; lighting
+    // keeps the base normal (vanilla lerps the projected normal into a buffer lighting never reads).
+    if (u_hasProjected) {
+        vec3 n_world = normalize(transpose(mat3(u_view)) * normal_viewSpace);
+        vec2 projUv = vec2(v_worldPos.x, -v_worldPos.z) * u_projectedParams.z;
+        float projNoise = texture(texture_projected_noise, projUv).r;
+        float projAlpha = vertex_alpha_is_wind ? 1.0 : vertexColor.a;
+        float projW = dot(n_world, normalize(u_projectedDir)) * projAlpha
+                    - u_projectedParams.w - u_projectedParams.x * projNoise;
+        vec3 projAlbedo = u_projectedColor;
+        float projMix;
+        if (u_projectedHasDiffuse) {
+            projAlbedo *= texture(texture_projected_diffuse, projUv * u_projectedDiffuseTiling).rgb;
+            projMix = smoothstep(-0.1, 0.1, projW);
+        } else {
+            projMix = projW > 0.0 ? 1.0 : 0.0;
+        }
+        if (applyVertexColors) projAlbedo *= vertexColor.rgb;
+        baseColor.rgb = mix(baseColor.rgb, projAlbedo, projMix);
+        if (DEBUG_VIZ_PROJECTED_WEIGHT) {
+            FragColor = vec4(vec3(projMix), 1.0);
+            return;
         }
     }
 

@@ -2894,6 +2894,28 @@ public class GlRenderer : IDisposable
             _shader.SetFloat("u_waterFresnel", mesh.WaterFresnel);
             _shader.SetFloat("u_waterReflectivity", mesh.WaterReflectivity);
         }
+
+        // Projected material (snow/ash/moss from a host's material object). Its two textures ride
+        // the first two terrain layer-normal units, which no non-terrain draw samples, so the
+        // shader's sampler count does not grow. Needs those units to exist on this context.
+        bool projected = mesh.HasProjectedMaterial && !mesh.IsTerrain && mesh.ProjectedNoiseTexture != 0
+                         && _terrainLayerNormalSlots >= 2;
+        _shader.SetBool("u_hasProjected", projected);
+        if (projected)
+        {
+            GL.ActiveTexture(TextureUnit.Texture0 + TerrainLayerNormalFirstUnit);
+            GL.BindTexture(TextureTarget.Texture2D, mesh.ProjectedNoiseTexture);
+            GL.ActiveTexture(TextureUnit.Texture0 + TerrainLayerNormalFirstUnit + 1);
+            GL.BindTexture(TextureTarget.Texture2D, mesh.ProjectedDiffuseTexture);
+            var pd = mesh.ProjectedDirection;
+            _shader.SetVector3("u_projectedDir", pd.X, pd.Y, pd.Z);
+            var pp = mesh.ProjectedParams;
+            _shader.SetVector4("u_projectedParams", pp.X, pp.Y, pp.Z, pp.W);
+            var pc = mesh.ProjectedColor;
+            _shader.SetVector3("u_projectedColor", pc.X, pc.Y, pc.Z);
+            _shader.SetFloat("u_projectedDiffuseTiling", mesh.ProjectedDiffuseTiling);
+            _shader.SetBool("u_projectedHasDiffuse", mesh.ProjectedDiffuseTexture != 0);
+        }
         GL.ActiveTexture(TextureUnit.Texture0);
 
         // Set material flags

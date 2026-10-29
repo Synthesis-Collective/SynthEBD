@@ -49,6 +49,42 @@ public class GlMesh : IDisposable
     public float WaterReflectivity { get; set; }
     /// <summary>Water only: Fresnel F0 (0..1).</summary>
     public float WaterFresnel { get; set; }
+
+    // ---- Projected material (the engine's PROJECTED_UV path) ----
+
+    /// <summary>Covers this shape's own diffuse with a single-pass projected material (the snow,
+    /// ash or moss a host derives from a material object) per pixel, the way the engine's lighting
+    /// shader does. NIF data never sets it; off means the shape draws exactly as before. Requires
+    /// <see cref="ProjectedNoiseTexture"/>. See RENDERING_PIPELINE.md, "Projected materials".</summary>
+    public bool HasProjectedMaterial { get; set; }
+    /// <summary>Projected only: the direction a covered surface faces, in world (viewer Y-up)
+    /// space. The default is up.</summary>
+    public Vector3 ProjectedDirection { get; set; } = Vector3.UnitY;
+    /// <summary>Projected only: the engine's ProjectedUVParams constant. X = noise weight,
+    /// Z = noise coordinates per world unit, W = coverage threshold (Y unused). Build it with
+    /// <see cref="ProjectedParamsFor"/>.</summary>
+    public Vector4 ProjectedParams { get; set; }
+    /// <summary>Projected only: the material colour (the engine's ProjectedUVParams2), 0..1.</summary>
+    public Vector3 ProjectedColor { get; set; } = Vector3.One;
+    /// <summary>Projected only: the projected diffuse's tiling relative to the noise coordinates
+    /// (the engine's fProjectedUVDiffuseNormalTilingScale).</summary>
+    public float ProjectedDiffuseTiling { get; set; } = 1f;
+    /// <summary>Projected only: GL handle of the coverage noise (red channel), or 0.</summary>
+    public int ProjectedNoiseTexture { get; set; }
+    /// <summary>Projected only: GL handle of the projected diffuse, or 0 for the engine's flat
+    /// colour path (bEnableProjecteUVDiffuseNormals off): a hard edge in the plain colour.</summary>
+    public int ProjectedDiffuseTexture { get; set; }
+
+    /// <summary>The engine's ProjectedUVParams for a single-pass material: the material's falloff
+    /// scale, falloff bias and noise UV scale, and the placing record's max angle in degrees. A
+    /// pixel is covered where dot(normal, direction) * vertexAlpha exceeds
+    /// cos + (1 - cos) * (bias + scale * noise).</summary>
+    public static Vector4 ProjectedParamsFor(float falloffScale, float falloffBias, float noiseUvScale, float maxAngleDegrees)
+    {
+        float c = MathF.Cos(MathF.Min(MathF.Max(maxAngleDegrees, 0f), 180f) * MathF.PI / 180f);
+        float inv = noiseUvScale > 1e-6f ? 1f / noiseUvScale : 0f;
+        return new Vector4((1f - c) * falloffScale, 0f, inv, (1f - c) * falloffBias + c);
+    }
     public int IndexCount { get; private set; }
 
     // Material texture handles (GL texture IDs)
