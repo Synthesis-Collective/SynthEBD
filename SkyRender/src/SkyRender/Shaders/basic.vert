@@ -53,6 +53,12 @@ uniform vec4 u_clipPlane;
 // farther from the camera. 0 leaves gl_Position exactly as before.
 uniform float u_depthBias;
 
+// Distant LOD kind (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees. Terrain LOD gets the
+// engine's far depth bias (Community Shaders LodLandscape.hlsli, AdjustLodLandscapeVertexPositionCS):
+// D3D clip z += min(1, 1e-4 * max(0, z - 70000)) * 0.5, which pushes terrain LOD behind object LOD
+// in the distance. GL's depth range is twice D3D's, so the same depth offset is twice the clip value.
+uniform int u_lodKind;
+
 // Water (GlMesh.IsWater): the vertex colour arrives as the body colour (lit in the fragment
 // shader like any surface). The reflection fraction is worked out here from the live camera,
 // as Community Shaders' Water.hlsl does it: Schlick Fresnel with F0 = the water type's Fresnel,
@@ -73,6 +79,8 @@ void main()
     if (u_depthBias != 0.0)
         pos_viewSpace.xyz += normalize(pos_viewSpace.xyz) * u_depthBias;
     gl_Position = u_projection * pos_viewSpace;
+    if (u_lodKind == 1)
+        gl_Position.z += min(1.0, 1e-4 * max(0.0, -pos_viewSpace.z - 70000.0)) * 0.5 * 2.0;
     gl_ClipDistance[0] = dot(pos_worldSpace, u_clipPlane);
     v_viewSpacePos = vec3(u_view * pos_worldSpace);
     v_worldPos = pos_worldSpace.xyz;

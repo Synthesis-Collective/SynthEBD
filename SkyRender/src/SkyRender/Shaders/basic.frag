@@ -251,6 +251,10 @@ uniform vec4 u_projectedParams;        // ProjectedUVParams: x noise weight, z n
 uniform vec3 u_projectedColor;         // ProjectedUVParams2
 uniform float u_projectedDiffuseTiling; // fProjectedUVDiffuseNormalTilingScale
 uniform bool u_projectedHasDiffuse;    // false = flat colour path (diffuse/normals disabled)
+// Distant LOD (GlMesh.DistantLod): 0 none, 1 terrain, 2 objects, 3 trees. Terrain LOD's noise
+// texture is bound on the projected-noise unit (texture_projected_noise).
+uniform int u_lodKind;
+uniform bool u_lodHasNoise;
 
 // TEMP DEBUG: when true, a projected mesh outputs its coverage weight as grey (white = fully
 // covered) instead of shading, to check the coverage pattern against a game capture.
@@ -827,6 +831,19 @@ void main()
         baseColor = vec4(0.8, 0.8, 0.8, 1.0); // neutral gray fallback
     }
 
+    // Terrain LOD (the engine's LODLANDNOISE path, Community Shaders Lighting.hlsl): opaque, and the
+    // diffuse is modulated by a noise texture tiled 3x over the block, weighted by how bright the
+    // texel is (GetLodLandBlendParameter / GetLodLandBlendMultiplier).
+    if (u_lodKind == 1) {
+        baseColor.a = 1.0;
+        if (u_lodHasNoise && u_enableDiffuse) {
+            float lodParam = clamp(1.6666666 * (dot(baseColor.rgb, vec3(0.55)) - 0.4), 0.0, 1.0);
+            lodParam = lodParam * lodParam * (3.0 - lodParam * 2.0) * 0.8;
+            float lodNoise = texture(texture_projected_noise, TexCoords * 3.0).r;
+            baseColor.rgb *= 0.8333333 * (lodParam * (0.37 - lodNoise) + lodNoise) + 0.37;
+        }
+    }
+
     // Vertex-color multiply with debug override.
     // 0 (auto) -- use the per-shape has_vertex_colors flag.
     // 1 (force on) -- always multiply (visually inert for shapes
@@ -1175,6 +1192,9 @@ void main()
             float diffuseStrength;
             if (DEBUG_DIFFUSE_ONLY) {
                 diffuseStrength = max(NdotL, 0.0);
+            } else if (u_lodKind == 3) {
+                // Tree LOD (the engine's DistantTree.hlsl): half the sun, no N.L term.
+                diffuseStrength = 0.5;
             } else if (has_soft_lighting) {
                 diffuseStrength = NdotL * 0.5 + 0.5; // wrap lighting
             } else {

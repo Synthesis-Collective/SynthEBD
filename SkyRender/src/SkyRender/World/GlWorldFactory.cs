@@ -27,6 +27,28 @@ public sealed class GlTerrainCell : IDisposable
 }
 
 /// <summary>
+/// The GPU form of <see cref="DistantLodData"/>: one <see cref="GlMesh"/> per LOD part. Owned like
+/// <see cref="GlTerrainCell"/>: add <see cref="Meshes"/> to a renderer (or call
+/// <see cref="GlWorldFactory.AddTo(GlDistantLod, GlRenderer)"/>), dispose it on the GL thread.
+/// </summary>
+public sealed class GlDistantLod : IDisposable
+{
+    internal GlDistantLod(DistantLodData data, IReadOnlyList<GlMesh> meshes)
+    {
+        Data = data;
+        Meshes = meshes;
+    }
+
+    public DistantLodData Data { get; }
+    public IReadOnlyList<GlMesh> Meshes { get; }
+
+    public void Dispose()
+    {
+        foreach (var m in Meshes) m.Dispose();
+    }
+}
+
+/// <summary>
 /// Creates terrain and water meshes from <see cref="TerrainCell"/> / <see cref="WaterSurface"/>
 /// data. Requires a current GL context. Texture loading goes through the caller's delegate, so a
 /// host keeps its own texture caching and accounting; it returns a GL handle, or null when the
@@ -197,6 +219,62 @@ public static class GlWorldFactory
         }
     }
 
+    /// <summary>
+    /// Uploads distant LOD built by <see cref="DistantLodLoader.Load"/>. Terrain LOD draws its block's
+    /// diffuse with its model-space normal texture and the engine's LOD noise term
+    /// (<see cref="LodPaths.TerrainNoise"/>, when it resolves); object LOD its atlas with its normal
+    /// map; tree LOD the tree atlas, alpha-tested and double-sided. All of it is lit, fogged and
+    /// finished like any scene mesh. A part whose diffuse can't be found draws on
+    /// <paramref name="whiteTexture"/>.
+    /// </summary>
+    public static GlDistantLod CreateDistantLod(DistantLodData data, Func<string, int?> loadTexture, int whiteTexture)
+    {
+        var meshes = new List<GlMesh>(data.Parts.Count);
+        int? noise = null;
+        bool noiseTried = false;
+        foreach (var part in data.Parts)
+        {
+            if (part.Kind == LodKind.Terrain && !noiseTried) { noise = loadTexture(LodPaths.TerrainNoise); noiseTried = true; }
+            var mesh = new GlMesh();
+            UploadLod(mesh, part.Data);
+            ApplyLodMaterial(mesh, part,
+                part.DiffusePath is { Length: > 0 } d && loadTexture(d) is { } dh ? dh : whiteTexture,
+                part.NormalPath is { Length: > 0 } np ? loadTexture(np) : null,
+                part.Kind == LodKind.Terrain ? noise : null);
+            meshes.Add(mesh);
+        }
+        return new GlDistantLod(data, meshes);
+    }
+
+    /// <inheritdoc cref="CreateDistantLod(DistantLodData, Func{string, int?}, int)"/>
+    public static GlDistantLod CreateDistantLod(DistantLodData data, GlTextureManager textures)
+        => CreateDistantLod(data, LoaderFor(textures), textures.WhiteTexture);
+
+    /// <summary>Uploads one LOD part's geometry into <paramref name="mesh"/>, a fresh <see cref="GlMesh"/>.</summary>
+    public static void UploadLod(GlMesh mesh, WorldMeshData data)
+    {
+        mesh.Upload(data.Vertices, data.Indices);
+        mesh.ShapeName = data.Name;
+        mesh.CpuPositions = data.Positions;
+        mesh.CpuIndices = data.Indices;
+    }
+
+    /// <summary>Sets one LOD part's material (see <see cref="CreateDistantLod(DistantLodData, Func{string, int?}, int)"/>).</summary>
+    public static void ApplyLodMaterial(GlMesh mesh, LodMeshPart part, int diffuse, int? normal, int? noise)
+    {
+        mesh.DistantLod = part.Kind;
+        mesh.DiffuseTexture = diffuse;
+        mesh.NormalTexture = normal ?? 0;
+        mesh.HasNormalMap = normal is not null;
+        mesh.IsModelSpace = part.ModelSpaceNormals && normal is not null;
+        mesh.LodNoiseTexture = noise ?? 0;
+        mesh.HasVertexColors = false;
+        mesh.HasSpecular = part.HasSpecular;
+        mesh.UseAlphaTest = part.AlphaTest;
+        mesh.AlphaThreshold = part.AlphaThreshold;
+        mesh.IsDoubleSided = part.DoubleSided || part.Kind == LodKind.Terrain;
+    }
+
     /// <summary>Adds a terrain cell's meshes to a renderer.</summary>
     public static void AddTo(this GlTerrainCell terrain, GlRenderer renderer)
     {
@@ -207,5 +285,17 @@ public static class GlWorldFactory
     public static void RemoveFrom(this GlTerrainCell terrain, GlRenderer renderer)
     {
         foreach (var m in terrain.Meshes) renderer.RemoveMesh(m);
+    }
+
+    /// <summary>Adds distant LOD meshes to a renderer.</summary>
+    public static void AddTo(this GlDistantLod lod, GlRenderer renderer)
+    {
+        foreach (var m in lod.Meshes) renderer.AddMesh(m);
+    }
+
+    /// <summary>Removes distant LOD meshes from a renderer (without disposing them).</summary>
+    public static void RemoveFrom(this GlDistantLod lod, GlRenderer renderer)
+    {
+        foreach (var m in lod.Meshes) renderer.RemoveMesh(m);
     }
 }

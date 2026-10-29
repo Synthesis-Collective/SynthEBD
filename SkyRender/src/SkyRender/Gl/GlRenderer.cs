@@ -3255,6 +3255,17 @@ public class GlRenderer : IDisposable
         bool projected = mesh.HasProjectedMaterial && !mesh.IsTerrain && mesh.ProjectedNoiseTexture != 0
                          && _terrainLayerNormalSlots >= 2;
         _shader.SetBool("u_hasProjected", projected);
+        // Distant LOD: 0 none, 1 terrain, 2 objects, 3 trees. Terrain LOD's noise texture rides the
+        // projected-noise unit (no LOD mesh is projected or terrain).
+        int lodKind = mesh.DistantLod is { } lk ? (int)lk + 1 : 0;
+        _shader.SetInt("u_lodKind", lodKind);
+        bool lodNoise = lodKind == 1 && !projected && !mesh.IsTerrain && mesh.LodNoiseTexture != 0 && _terrainLayerNormalSlots >= 1;
+        _shader.SetBool("u_lodHasNoise", lodNoise);
+        if (lodNoise)
+        {
+            GL.ActiveTexture(TextureUnit.Texture0 + TerrainLayerNormalFirstUnit);
+            GL.BindTexture(TextureTarget.Texture2D, mesh.LodNoiseTexture);
+        }
         if (projected)
         {
             GL.ActiveTexture(TextureUnit.Texture0 + TerrainLayerNormalFirstUnit);

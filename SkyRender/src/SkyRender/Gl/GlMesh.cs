@@ -40,6 +40,13 @@ public class GlMesh : IDisposable
     /// <summary>Terrain only: <see cref="NormalTexture"/> is the base texture's normal map.</summary>
     public bool TerrainHasBaseNormal { get; set; }
 
+    /// <summary>Distant LOD (<see cref="World.GlWorldFactory.CreateDistantLod"/>): which kind, for
+    /// the engine's LOD shading terms (terrain LOD's noise modulation, tree LOD's half-strength sun
+    /// with no N·L). Null for every other mesh.</summary>
+    public World.LodKind? DistantLod { get; set; }
+    /// <summary>Terrain LOD only: GL handle of the LOD landscape noise texture (0 = no noise term).</summary>
+    public int LodNoiseTexture { get; set; }
+
     /// <summary>Draws as a water surface: the vertex colour is the body colour (lit like any
     /// surface), and the reflection is mixed over the lit result from the live camera with the
     /// engine's Fresnel and distance blend (RENDERING_PIPELINE.md, "Water").</summary>
