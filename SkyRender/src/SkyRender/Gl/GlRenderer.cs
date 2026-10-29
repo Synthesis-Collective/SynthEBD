@@ -990,7 +990,14 @@ public class GlRenderer : IDisposable
         Lights[2] = new LightData { Type = 2, Direction = new Vector3(0.5f, 0.3f, 1.0f), Color = Vector3.One, Intensity = 0.38f };
         Lights[3] = new LightData { Type = 2, Direction = new Vector3(0f, 0.5f, -1.0f), Color = Vector3.One, Intensity = 0.25f };
         if (profile == RenderProfile.Scene)
+        {
             ApplyEnvironment(SceneEnvironment.VanillaClearDay);
+            // The engine's lighting shader takes one directional light, the sun, with no studio
+            // gain: a scene has no rim light and no daylight boost (RENDERING_PIPELINE.md, "Scene
+            // defaults", for the in-game comparison). A host can turn either back on.
+            Lights[3].Type = 0;
+            DaylightBoost = false;
+        }
     }
 
     /// <summary>The profile this renderer was created for (see <see cref="RenderProfile"/>).</summary>

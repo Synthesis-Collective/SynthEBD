@@ -108,6 +108,8 @@ public class BillboardAndSceneDefaultsTests
         scene.SkyGradient.Should().NotBeNull();
         scene.Lights[1].Intensity.Should().Be(2.8f);
         scene.Lights[2].Intensity.Should().Be(0f);
+        scene.Lights[3].Type.Should().Be(0);          // no rim light: the engine has one sun
+        scene.DaylightBoost.Should().BeFalse();
         scene.Billboards.Should().BeTrue();
 
         var character = new GlRenderer(RenderProfile.Character);
@@ -118,6 +120,9 @@ public class BillboardAndSceneDefaultsTests
         character.ClearColor.Should().Be(new Vector3(0.41f, 0.41f, 0.41f));
         character.Lights[0].Intensity.Should().Be(0.2f);
         character.Lights[2].Intensity.Should().Be(0.38f);
+        character.Lights[3].Type.Should().Be(2);
+        character.Lights[3].Intensity.Should().Be(0.25f);
+        character.DaylightBoost.Should().BeTrue();
     }
 
     [Fact]
