@@ -46,18 +46,6 @@ public sealed record SceneEnvironment(
     private const float ClearFogMax = 0.85f;
     private const float ClearSkyScale = 0.05f;   // ISSkyrimClearDAY HDR sky scale
 
-    /// <summary>The vanilla sky dome's blend masks by elevation (degrees above its rim): the vertex
-    /// colours of <c>meshes\sky\atmosphere.nif</c> (Skyrim - Meshes0.bsa) averaged per ring. They
-    /// weight the horizon, sky-lower and sky-upper colours, which the engine's sky shader sums per
-    /// vertex (Community Shaders Sky.hlsl, the vanilla shader's port).</summary>
-    private static readonly (float El, float H, float L, float U)[] DomeMasks =
-    {
-        (0f, 1f, 0f, 0f), (2.1f, 1f, 0f, 0f), (3.6f, 0.933f, 0.071f, 0f), (5.6f, 0.804f, 0.220f, 0f),
-        (9.7f, 0.490f, 0.573f, 0f), (14.5f, 0.157f, 0.910f, 0f), (18.0f, 0.020f, 1f, 0.016f),
-        (26.8f, 0f, 0.769f, 0.306f), (34.9f, 0f, 0.471f, 0.584f), (47.0f, 0f, 0.184f, 0.831f),
-        (59.1f, 0f, 0.063f, 0.941f), (74.0f, 0f, 0.012f, 0.984f), (90f, 0f, 0f, 1f),
-    };
-
     /// <summary>
     /// A clear summer noon in vanilla Skyrim, for a scene drawn without weather or cell data:
     /// Update.esm's SkyrimClear weather (day slot), its image space ISSkyrimClearDAY, and the sun of
@@ -81,17 +69,35 @@ public sealed record SceneEnvironment(
     /// </summary>
     public static SceneEnvironment VanillaClearDay { get; } = BuildVanillaClearDay();
 
+    /// <summary>
+    /// The sun's direction at <paramref name="hour"/> under a climate's sunrise and sunset times
+    /// (hours, as the CLMT record's timing gives them), as azimuth and elevation in
+    /// <see cref="GlRenderer.SetKeyLight"/>'s convention, or null when the times leave no day.
+    /// The vanilla sun path as Community Shaders reproduces it: sunrise is the mean of the sunrise
+    /// begin and end less a quarter hour, sunset the mean of the sunset begin and end plus a quarter
+    /// hour, <c>phi = pi (hour - sunrise) / (sunset - sunrise)</c>, and the direction
+    /// <c>(cos phi, -sin phi cos 95, sin phi sin 95)</c> in Skyrim axes: east at sunrise and 5
+    /// degrees off the zenith toward north at noon. <see cref="VanillaClearDay"/>'s sun is this at
+    /// 12:00 for a sunrise of 7:30 and a sunset of 18:30.
+    /// </summary>
+    public static (float AzimuthDegrees, float ElevationDegrees)? SunDirection(
+        float sunriseBegin, float sunriseEnd, float sunsetBegin, float sunsetEnd, float hour)
+    {
+        float rise = (sunriseBegin + sunriseEnd) * 0.5f - 0.25f, set = (sunsetBegin + sunsetEnd) * 0.5f + 0.25f;
+        if (!(set > rise)) return null;
+        double phi = Math.PI * (hour - rise) / (set - rise);
+        double tilt = 95.0 * Math.PI / 180.0;
+        double x = Math.Cos(phi), y = -Math.Sin(phi) * Math.Cos(tilt), z = Math.Sin(phi) * Math.Sin(tilt);
+        double len = Math.Sqrt(x * x + y * y + z * z);
+        x /= len; y /= len; z /= len;
+        float elevation = (float)(Math.Asin(z) * 180.0 / Math.PI);
+        float azimuth = (float)(Math.Atan2(x, -y) * 180.0 / Math.PI);
+        return (azimuth, elevation);
+    }
+
     private static SceneEnvironment BuildVanillaClearDay()
     {
-        var keys = new SkyGradientKey[DomeMasks.Length];
-        for (int i = 0; i < DomeMasks.Length; i++)
-        {
-            var m = DomeMasks[i];
-            var dome = ClearHorizon * m.H + ClearSkyLower * m.L + ClearSkyUpper * m.U;
-            var c = dome * (1f - ClearFogMax) + ClearFogFar * ClearFogMax;
-            keys[i] = new SkyGradientKey(m.El, c + new Vector3(ClearSkyScale));
-        }
-        var gradient = new SkyGradient(keys);
+        var gradient = SkyGradient.FromSkyDome(ClearHorizon, ClearSkyLower, ClearSkyUpper, ClearFogFar, ClearFogMax, ClearSkyScale);
         return new SceneEnvironment(
             Background: gradient.At(20f),
             SkyColor: ClearSkyUpper,
