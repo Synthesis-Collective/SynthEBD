@@ -1872,6 +1872,8 @@ public class GlRenderer : IDisposable
             // Eyes are inside the head — their cast shadow would always be
             // self-occluding noise. Skip.
             if (mesh.IsEye) continue;
+            // Effect shapes (flames, smoke, light shafts) cast no shadow in the engine.
+            if (mesh.IsEffectShader) continue;
             // Strategy A: optionally drop hair as a caster so bangs don't
             // throw a hard shadow onto the forehead.
             if (ExcludeHairShadowCaster && mesh.IsHairTintShader) continue;
@@ -2306,6 +2308,9 @@ public class GlRenderer : IDisposable
         {
             if (!mesh.ShouldRender) continue;
             if (mesh.RenderAsWireframeFallback) continue;
+            // Effect shapes are not surfaces: they neither occlude ambient light nor give a soft
+            // effect a depth to fade against (that depth is what this prepass provides).
+            if (mesh.IsEffectShader) continue;
             // Skip every transparent mesh (alpha-blend AND alpha-test).
             //
             // Alpha-blend: cumulative transparency makes any depth value misleading.
@@ -2858,7 +2863,9 @@ public class GlRenderer : IDisposable
         else
             GL.BindTexture(TextureTarget.Texture2D, 0);
         GL.ActiveTexture(TextureUnit.Texture12);
-        GL.BindTexture(TextureTarget.Texture2D, mesh.HasGlowMap ? mesh.GlowTexture : 0);
+        // Unit 12 is the glow map, or an effect shape's greyscale palette (never both).
+        GL.BindTexture(TextureTarget.Texture2D, mesh.IsEffectShader ? mesh.EffectGreyscaleTexture
+                                               : mesh.HasGlowMap ? mesh.GlowTexture : 0);
         GL.ActiveTexture(TextureUnit.Texture13);
         GL.BindTexture(TextureTarget.Texture2D, 0);
 
@@ -2979,6 +2986,32 @@ public class GlRenderer : IDisposable
         _shader.SetVector2("u_uvScale", mesh.UvScale.X, mesh.UvScale.Y);
         _shader.SetVector2("u_uvOffset", mesh.UvOffset.X, mesh.UvOffset.Y);
 
+        // Effect shader (BSEffectShaderProperty). Pushed for every mesh so the flag never leaks
+        // from a previous draw; the rest only for effect shapes.
+        _shader.SetBool("u_isEffect", mesh.IsEffectShader);
+        if (mesh.IsEffectShader)
+        {
+            var ebc = mesh.EffectBaseColor;
+            _shader.SetVector4("u_effectBaseColor", ebc.X, ebc.Y, ebc.Z, ebc.W);
+            _shader.SetFloat("u_effectBaseColorScale", mesh.EffectBaseColorScale);
+            _shader.SetFloat("u_effectLightingInfluence", mesh.EffectLightingInfluence);
+            _shader.SetBool("u_effectLit", mesh.EffectLit);
+            _shader.SetBool("u_effectHasTexture", mesh.EffectHasSourceTexture);
+            bool palette = mesh.EffectGreyscaleTexture != 0;
+            _shader.SetBool("u_effectGreyscaleColor", palette && mesh.EffectGreyscaleToColor);
+            _shader.SetBool("u_effectGreyscaleAlpha", palette && mesh.EffectGreyscaleToAlpha);
+            _shader.SetBool("u_effectFalloff", mesh.EffectUseFalloff);
+            var efd = mesh.EffectFalloff;
+            _shader.SetVector4("u_effectFalloffData", efd.X, efd.Y, efd.Z, efd.W);
+            _shader.SetFloat("u_effectSoftDepth", mesh.EffectSoftFalloffDepth);
+            _shader.SetBool("u_effectClampS", mesh.EffectClampS);
+            _shader.SetBool("u_effectClampT", mesh.EffectClampT);
+            _shader.SetInt("u_effectBillboard", mesh.EffectBillboard);
+        }
+        // SLSF1_ZBuffer_Test clear (effect shapes only): no depth comparison for this draw.
+        bool noDepthTest = mesh.IsEffectShader && !mesh.EffectDepthTest;
+        if (noDepthTest) GL.Disable(EnableCap.DepthTest);
+
         // Double-sided meshes (brow, eyelash, hair) need face culling disabled
         if (mesh.IsDoubleSided)
             GL.Disable(EnableCap.CullFace);
@@ -2995,6 +3028,7 @@ public class GlRenderer : IDisposable
         // Restore culling default
         if (mesh.IsDoubleSided)
             GL.Enable(EnableCap.CullFace);
+        if (noDepthTest) GL.Enable(EnableCap.DepthTest);
     }
 
     // Once-per-render-lifetime guard so the diagnostic dump doesn't spam every

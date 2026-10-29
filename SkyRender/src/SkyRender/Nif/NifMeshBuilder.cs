@@ -329,13 +329,13 @@ public class NifMeshBuilder
         /// True when this shape's shader property is a <c>BSEffectShaderProperty</c> rather than
         /// a <c>BSLightingShaderProperty</c> — the EFFECT pipeline: fire, smoke, mist, refraction
         /// warps, light cones, usually animated by a <c>BSEffectShaderPropertyFloatController</c>.
-        /// <para>This builder reads material values off BSLightingShaderProperty ONLY, so an
-        /// effect-shader shape arrives with every shader field at its default — opaque, unflagged,
-        /// fully lit — and therefore draws as solid geometry instead of the additive, scrolling
-        /// thing the engine draws. That is not a value a host can compensate for after the fact:
-        /// the material was never read. A host that cannot shade effects should SKIP these shapes
-        /// rather than draw them wrong. Reported, never acted on here — the normal render path is
-        /// unchanged.</para>
+        /// <para>The lighting-shader fields stay at their defaults on such a shape (opaque,
+        /// unflagged, fully lit), so drawn through the lighting path it comes out as solid
+        /// geometry instead of the additive thing the engine draws. Its own material is in the
+        /// <c>Effect*</c> fields; <see cref="NifMaterialBinder.ApplyEffectMaterial"/> (or
+        /// <see cref="MaterialBindOptions.ShadeEffectShaders"/>) shades it with the engine's
+        /// effect path. A host that does neither should skip these shapes rather than draw them
+        /// wrong. Reported only; the builder itself changes nothing for them.</para>
         /// <para>Per SHAPE, not per file: a burning-fireplace NIF is typically part solid
         /// (logs, coals, ash on lighting shaders) and part effect (flames, smoke, heat warp), so
         /// the distinction cannot be made at the file level without deleting real geometry.</para>
@@ -364,6 +364,57 @@ public class NifMeshBuilder
 
         /// <inheritdoc cref="EffectBaseColor"/>
         public float EffectBaseColorAlpha { get; init; } = 1f;
+
+        /// <summary>
+        /// <c>BSEffectShaderProperty.shaderFlags1</c> / <c>.shaderFlags2</c> (same SLSF bit layout as
+        /// the lighting shader). Kept apart from <see cref="ShaderFlags1"/> / <see cref="ShaderFlags2"/>,
+        /// which stay zero on an effect shape as they always have, so no existing consumer's reading
+        /// of a lighting-shader bit moves. The effect path uses Greyscale_To_PaletteColor (1:4),
+        /// Greyscale_To_PaletteAlpha (1:5), Use_Falloff (1:6), Soft_Effect (1:30), ZBuffer_Test
+        /// (1:31), ZBuffer_Write (2:0), Double_Sided (2:4) and Effect_Lighting (2:30).
+        /// Meaningful only when <see cref="HasEffectShader"/> is true.
+        /// </summary>
+        public uint EffectShaderFlags1 { get; init; }
+
+        /// <inheritdoc cref="EffectShaderFlags1"/>
+        public uint EffectShaderFlags2 { get; init; }
+
+        /// <summary><c>BSEffectShaderProperty.greyscaleTexture</c>: the palette the
+        /// greyscale-to-palette flags look colour and alpha up in. Null when empty.</summary>
+        public string? EffectGreyscaleTexture { get; init; }
+
+        /// <summary>
+        /// Falloff (SLSF1_Use_Falloff): (startAngle, stopAngle, startOpacity, stopOpacity) as stored,
+        /// the angles being cosines of the view angle. The engine's <c>FalloffData</c> constant.
+        /// </summary>
+        public Vector4 EffectFalloff { get; init; } = new(1f, 1f, 1f, 1f);
+
+        /// <summary><c>BSEffectShaderProperty.softFalloffDepth</c>: the depth range (game units)
+        /// over which a soft effect (SLSF1_Soft_Effect) fades out where it meets geometry.</summary>
+        public float EffectSoftFalloffDepth { get; init; }
+
+        /// <summary><c>BSEffectShaderProperty.lightingInfluence</c> as 0..1: how far the scene
+        /// light multiplies the effect's colour (0 = fully self-lit, the usual flame).</summary>
+        public float EffectLightingInfluence { get; init; }
+
+        /// <summary><c>BSEffectShaderProperty.uvScale</c> / <c>.uvOffset</c>. Separate from
+        /// <see cref="UvScale"/> / <see cref="UvOffset"/> for the same reason as the flags.</summary>
+        public Vector2 EffectUvScale { get; init; } = Vector2.One;
+
+        /// <inheritdoc cref="EffectUvScale"/>
+        public Vector2 EffectUvOffset { get; init; }
+
+        /// <summary><c>BSEffectShaderProperty</c> texture clamp mode: 0 clamp S and T, 1 clamp S
+        /// wrap T, 2 wrap S clamp T, 3 wrap both (the default).</summary>
+        public uint EffectTextureClampMode { get; init; } = 3;
+
+        /// <summary>
+        /// <c>NiBillboardNode.billboardMode</c> of the nearest billboard ancestor, or -1 when the
+        /// shape has none. The engine turns a billboard toward the camera every frame (flame and
+        /// glow sprites are commonly authored this way), so the geometry this builder emits is only
+        /// its authored, unturned pose. Reported for any shape; read by the effect path.
+        /// </summary>
+        public int BillboardMode { get; init; } = -1;
 
         /// <summary>NIF-side <c>BSLightingShaderProperty.skinTintAlpha</c>.
         /// Always 0.0 in the vanilla / modder-authored sample we surveyed,
@@ -1181,6 +1232,16 @@ public class NifMeshBuilder
         EffectBaseColor = b.EffectBaseColor,
         EffectBaseColorScale = b.EffectBaseColorScale,
         EffectBaseColorAlpha = b.EffectBaseColorAlpha,
+        EffectShaderFlags1 = b.EffectShaderFlags1,
+        EffectShaderFlags2 = b.EffectShaderFlags2,
+        EffectGreyscaleTexture = b.EffectGreyscaleTexture,
+        EffectFalloff = b.EffectFalloff,
+        EffectSoftFalloffDepth = b.EffectSoftFalloffDepth,
+        EffectLightingInfluence = b.EffectLightingInfluence,
+        EffectUvScale = b.EffectUvScale,
+        EffectUvOffset = b.EffectUvOffset,
+        EffectTextureClampMode = b.EffectTextureClampMode,
+        BillboardMode = b.BillboardMode,
         SkinTintAlpha = b.SkinTintAlpha,
     };
 
@@ -1381,6 +1442,26 @@ public class NifMeshBuilder
     /// <c>NiSkinInstance</c>) — callers treat that as "no filter info,
     /// keep the shape." Returns an empty list when the dismember instance
     /// exists but has no partitions, which is also treated as keep.</summary>
+    /// <summary>The billboard mode of the shape's nearest <c>NiBillboardNode</c> ancestor, or -1.</summary>
+    private static int ReadBillboardMode(NifFile nif, NiShape shape)
+    {
+        try
+        {
+            // GetParentNode hands back a plain NiNode wrapper; the block fetched by id carries the
+            // real type.
+            var header = nif.GetHeader();
+            var parent = nif.GetParentNode(shape);
+            for (int depth = 0; parent != null && depth < 64; depth++)
+            {
+                if (header.GetBlockById(header.GetBlockID(parent)) is NiBillboardNode bb)
+                    return (int)bb.billboardMode;
+                parent = nif.GetParentNode(parent);
+            }
+        }
+        catch { }
+        return -1;
+    }
+
     private static IReadOnlyList<ushort>? ReadDismemberPartitions(NiHeader header, NiShape shape)
     {
         var skinRef = shape.SkinInstanceRef();
@@ -1869,6 +1950,12 @@ public class NifMeshBuilder
         bool hasEffectShader = false;
         Vector3 effectBaseColor = Vector3.One;
         float effectBaseColorScale = 1f, effectBaseColorAlpha = 1f;
+        uint effectFlags1 = 0, effectFlags2 = 0;
+        Vector4 effectFalloff = new(1f, 1f, 1f, 1f);
+        float effectSoftFalloffDepth = 0f, effectLightingInfluence = 0f;
+        Vector2 effectUvScale = Vector2.One, effectUvOffset = Vector2.Zero;
+        string? effectGreyscaleTexture = null;
+        uint effectClampMode = 3;
         bool isHairTintShader = false;
         (float R, float G, float B)? hairTintColor = null;
         float glossiness = 80f;
@@ -1909,6 +1996,40 @@ public class NifMeshBuilder
                             effectBaseColorAlpha = bc.a;
                         }
                         effectBaseColorScale = besp.baseColorScale;
+                    }
+                    catch { }
+                    // The rest of the effect material, read the same way: each field on its own so
+                    // one failed accessor cannot drop the others.
+                    try { effectFlags1 = besp.shaderFlags1; effectFlags2 = besp.shaderFlags2; } catch { }
+                    try
+                    {
+                        effectFalloff = new Vector4(besp.falloffStartAngle, besp.falloffStopAngle,
+                                                    besp.falloffStartOpacity, besp.falloffStopOpacity);
+                    }
+                    catch { }
+                    try { effectSoftFalloffDepth = besp.softFalloffDepth; } catch { }
+                    // nifly reads the four bytes nif.xml lists after the source texture (Texture
+                    // Clamp Mode, Lighting Influence, Env Map Min LOD, unused) as ONE little-endian
+                    // uint32 named textureClampMode, so lighting influence is its second byte.
+                    try
+                    {
+                        uint packed = besp.textureClampMode;
+                        effectClampMode = packed & 0xFF;
+                        effectLightingInfluence = ((packed >> 8) & 0xFF) / 255f;
+                    }
+                    catch { }
+                    try
+                    {
+                        var euvs = besp.uvScale;
+                        if (euvs != null) effectUvScale = new Vector2(euvs.u, euvs.v);
+                        var euvo = besp.uvOffset;
+                        if (euvo != null) effectUvOffset = new Vector2(euvo.u, euvo.v);
+                    }
+                    catch { }
+                    try
+                    {
+                        string? g = besp.greyscaleTexture?.get();
+                        if (!string.IsNullOrWhiteSpace(g)) effectGreyscaleTexture = g;
                     }
                     catch { }
                 }
@@ -2242,6 +2363,16 @@ public class NifMeshBuilder
             EffectBaseColor = effectBaseColor,
             EffectBaseColorScale = effectBaseColorScale,
             EffectBaseColorAlpha = effectBaseColorAlpha,
+            EffectShaderFlags1 = effectFlags1,
+            EffectShaderFlags2 = effectFlags2,
+            EffectGreyscaleTexture = effectGreyscaleTexture,
+            EffectFalloff = effectFalloff,
+            EffectSoftFalloffDepth = effectSoftFalloffDepth,
+            EffectLightingInfluence = effectLightingInfluence,
+            EffectUvScale = effectUvScale,
+            EffectUvOffset = effectUvOffset,
+            EffectTextureClampMode = effectClampMode,
+            BillboardMode = ReadBillboardMode(nif, shape),
             SkinTintAlpha = skinTintAlpha,
         };
     }

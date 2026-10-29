@@ -85,6 +85,55 @@ public class GlMesh : IDisposable
         float inv = noiseUvScale > 1e-6f ? 1f / noiseUvScale : 0f;
         return new Vector4((1f - c) * falloffScale, 0f, inv, (1f - c) * falloffBias + c);
     }
+    // ---- Effect shader (BSEffectShaderProperty) ----
+
+    /// <summary>Shades this shape with the engine's effect shader (fire, smoke, mist, light
+    /// shafts, glows) instead of the lighting shader: source texture x base colour, optional
+    /// greyscale palette, view-angle falloff and soft depth fade, unlit unless the material's
+    /// lighting influence says otherwise. NIF data never sets it by itself; a host opts in
+    /// (<see cref="NifMaterialBinder.ApplyEffectMaterial"/>). Off means the shape draws exactly as
+    /// before. Effect shapes never cast shadows and stay out of the ambient-occlusion prepass.
+    /// See RENDERING_PIPELINE.md, "Effect shaders".</summary>
+    public bool IsEffectShader { get; set; }
+    /// <summary>Effect only: <c>baseColor</c> (RGB, alpha) the source texture is multiplied by.</summary>
+    public System.Numerics.Vector4 EffectBaseColor { get; set; } = System.Numerics.Vector4.One;
+    /// <summary>Effect only: <c>baseColorScale</c>. The engine applies it to the palette colour
+    /// (greyscale-to-palette) only.</summary>
+    public float EffectBaseColorScale { get; set; } = 1f;
+    /// <summary>Effect only: lighting influence, 0..1.</summary>
+    public float EffectLightingInfluence { get; set; }
+    /// <summary>Effect only: SLSF2_Effect_Lighting, the engine's lit effect permutation: the
+    /// lighting influence mixes in the scene light. Without it the light is a white constant.</summary>
+    public bool EffectLit { get; set; }
+    /// <summary>Effect only: whether a source texture is bound (the engine's TEXTURE permutation).
+    /// Without one the base is white.</summary>
+    public bool EffectHasSourceTexture { get; set; } = true;
+    /// <summary>Effect only: GL handle of the greyscale palette, or 0.</summary>
+    public int EffectGreyscaleTexture { get; set; }
+    /// <summary>Effect only: SLSF1_Greyscale_To_PaletteColor; needs <see cref="EffectGreyscaleTexture"/>.</summary>
+    public bool EffectGreyscaleToColor { get; set; }
+    /// <summary>Effect only: SLSF1_Greyscale_To_PaletteAlpha; needs <see cref="EffectGreyscaleTexture"/>.</summary>
+    public bool EffectGreyscaleToAlpha { get; set; }
+    /// <summary>Effect only: SLSF1_Use_Falloff.</summary>
+    public bool EffectUseFalloff { get; set; }
+    /// <summary>Effect only: (startAngle, stopAngle, startOpacity, stopOpacity), angles as cosines.</summary>
+    public System.Numerics.Vector4 EffectFalloff { get; set; } = System.Numerics.Vector4.One;
+    /// <summary>Effect only: SLSF1_Soft_Effect depth range in game units (0 = hard). Needs the
+    /// ambient-occlusion depth prepass; without it the effect draws hard-edged.</summary>
+    public float EffectSoftFalloffDepth { get; set; }
+    /// <summary>Effect only: clamp the source texture coordinates per axis (texture clamp mode
+    /// 0-2), as the engine's sampler does.</summary>
+    public bool EffectClampS { get; set; }
+    /// <inheritdoc cref="EffectClampS"/>
+    public bool EffectClampT { get; set; }
+    /// <summary>Effect only: SLSF1_ZBuffer_Test. False draws the shape without a depth test.</summary>
+    public bool EffectDepthTest { get; set; } = true;
+    /// <summary>Effect only: the shape sits under an <c>NiBillboardNode</c>, which the engine turns
+    /// toward the camera each frame. 0 = none, 1 = faces the camera, 2 = turns about the up axis
+    /// only. The geometry stays in its authored pose; the falloff is evaluated as if it were
+    /// turned (|N.V| = 1, or the view direction's horizontal length about the up axis).</summary>
+    public int EffectBillboard { get; set; }
+
     public int IndexCount { get; private set; }
 
     // Material texture handles (GL texture IDs)

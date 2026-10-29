@@ -48,6 +48,14 @@ public sealed class MaterialBindOptions
 
     /// <summary>Receives verbose diagnostic lines. Null discards them.</summary>
     public Action<string>? LogVerbose { get; init; }
+
+    /// <summary>
+    /// Shade effect-shader shapes (<see cref="NifMeshBuilder.BuiltMesh.HasEffectShader"/>: fire,
+    /// smoke, mist, light shafts) with the engine's effect shading
+    /// (<see cref="NifMaterialBinder.ApplyEffectMaterial"/>). Off by default, which binds them
+    /// through the lighting-shader rules exactly as before.
+    /// </summary>
+    public bool ShadeEffectShaders { get; init; }
 }
 
 /// <summary>
@@ -70,6 +78,12 @@ public static class NifMaterialBinder
     {
         var ct = options.Cancellation;
         ct.ThrowIfCancellationRequested();
+
+        if (built.HasEffectShader && options.ShadeEffectShaders)
+        {
+            BindEffect(textures, assets, glMesh, built, effectiveTextures);
+            return;
+        }
 
         // Diffuse (slot 0). A host binder runs first; otherwise the slot binds as authored.
         if (options.BindDiffuse == null || !options.BindDiffuse(glMesh, built, effectiveTextures))
@@ -369,6 +383,118 @@ public static class NifMaterialBinder
 
         glMesh.IsHairTintShader = built.IsHairTintShader;
         glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;
+    }
+
+    private static void BindEffect(GlTextureManager textures, GameAssetResolver? assets,
+        GlMesh glMesh, NifMeshBuilder.BuiltMesh built, IReadOnlyDictionary<int, string> effectiveTextures)
+    {
+        // nifly maps texture slot 0 of an effect shape to BSEffectShaderProperty.sourceTexture.
+        int source = 0;
+        if (effectiveTextures.TryGetValue(0, out string? sourcePath))
+        {
+            source = textures.LoadTexture(sourcePath);
+            RecordTextureSource(assets, glMesh, "Effect Source", sourcePath);
+        }
+        int palette = 0;
+        if (built.EffectGreyscaleTexture is { } greyPath)
+        {
+            palette = textures.LoadTexture(greyPath);
+            if (palette == textures.WhiteTexture) palette = 0;
+            RecordTextureSource(assets, glMesh, "Effect Greyscale", greyPath);
+        }
+        glMesh.NormalTexture = textures.WhiteTexture;
+        glMesh.SkinTexture = textures.WhiteTexture;
+        glMesh.SpecularTexture = textures.WhiteTexture;
+        glMesh.FaceTintTexture = textures.WhiteTexture;
+        ApplyEffectMaterial(glMesh, built, source == 0 ? textures.WhiteTexture : source,
+                            source != 0 && source != textures.WhiteTexture, palette);
+        glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;
+    }
+
+    // SLSF bits the effect path reads (same layout on BSEffectShaderProperty).
+    private const uint EffectF1GreyscaleToColor = 1u << 4;
+    private const uint EffectF1GreyscaleToAlpha = 1u << 5;
+    private const uint EffectF1UseFalloff       = 1u << 6;
+    private const uint EffectF1SoftEffect       = 1u << 30;
+    private const uint EffectF1ZBufferTest      = 1u << 31;
+    private const uint EffectF2ZBufferWrite     = 1u << 0;
+    private const uint EffectF2DoubleSided      = 1u << 4;
+    private const uint EffectF2EffectLighting   = 1u << 30;
+
+    /// <summary>
+    /// Sets a mesh up for the engine's effect shading from an effect-shader shape's material
+    /// (<see cref="NifMeshBuilder.BuiltMesh.HasEffectShader"/>): base colour and scale, lighting
+    /// influence, palette flags, falloff, soft depth, texture clamp, depth test/write, culling,
+    /// UV transform and the NiAlphaProperty test/blend. Textures are the caller's: pass the GL
+    /// handle of the source texture (slot 0) and of the greyscale palette (0 = none), so a host
+    /// with its own texture cache can use this without <see cref="Bind"/>. A shape without an
+    /// effect shader is left untouched apart from clearing <see cref="GlMesh.IsEffectShader"/>.
+    /// </summary>
+    public static void ApplyEffectMaterial(GlMesh glMesh, NifMeshBuilder.BuiltMesh built,
+        int sourceTexture, bool hasSourceTexture, int greyscaleTexture)
+    {
+        glMesh.IsEffectShader = built.HasEffectShader;
+        if (!built.HasEffectShader) return;
+
+        uint f1 = built.EffectShaderFlags1, f2 = built.EffectShaderFlags2;
+        glMesh.DiffuseTexture = sourceTexture;
+        glMesh.EffectHasSourceTexture = hasSourceTexture;
+        glMesh.EffectGreyscaleTexture = greyscaleTexture;
+        glMesh.EffectBaseColor = new System.Numerics.Vector4(built.EffectBaseColor, built.EffectBaseColorAlpha);
+        glMesh.EffectBaseColorScale = built.EffectBaseColorScale;
+        glMesh.EffectLightingInfluence = built.EffectLightingInfluence;
+        glMesh.EffectLit = (f2 & EffectF2EffectLighting) != 0;
+        glMesh.EffectGreyscaleToColor = (f1 & EffectF1GreyscaleToColor) != 0;
+        glMesh.EffectGreyscaleToAlpha = (f1 & EffectF1GreyscaleToAlpha) != 0;
+        glMesh.EffectUseFalloff = (f1 & EffectF1UseFalloff) != 0;
+        glMesh.EffectFalloff = built.EffectFalloff;
+        // A soft effect with a zero range still takes the soft path (its discard of near-zero
+        // alpha); the epsilon keeps the shader's division finite.
+        glMesh.EffectSoftFalloffDepth = (f1 & EffectF1SoftEffect) != 0
+            ? Math.Max(built.EffectSoftFalloffDepth, 1e-3f) : 0f;
+        glMesh.EffectDepthTest = (f1 & EffectF1ZBufferTest) != 0;
+        uint clamp = built.EffectTextureClampMode & 3;
+        glMesh.EffectClampS = clamp == 0 || clamp == 1;
+        glMesh.EffectClampT = clamp == 0 || clamp == 2;
+
+        glMesh.DepthWrite = (f2 & EffectF2ZBufferWrite) != 0;
+        // A billboard always shows the camera its front, so the engine never culls it whatever
+        // the flag says. Drawn in its authored pose, it must not be culled either: flame sprites
+        // authored facing away from the view would otherwise vanish.
+        glMesh.EffectBillboard = built.BillboardMode switch
+        {
+            < 0 => 0,
+            1 or 5 or 9 => 2,   // ROTATE_ABOUT_UP, BSROTATE_ABOUT_UP, ROTATE_ABOUT_UP2
+            _ => 1,
+        };
+        glMesh.IsDoubleSided = (f2 & EffectF2DoubleSided) != 0 || glMesh.EffectBillboard != 0;
+        glMesh.HasVertexColors = built.HasVertexColors;
+        glMesh.VertexAlphaIsWindWeight = false;
+        glMesh.UvScale = built.EffectUvScale;
+        glMesh.UvOffset = built.EffectUvOffset;
+
+        // Alpha: the NiAlphaProperty decides test and blend exactly as for any shape. The effect's
+        // own alpha (base colour alpha, falloff, palette) is computed in the shader, so the
+        // lighting-shader material alpha stays neutral.
+        glMesh.MaterialAlpha = 1f;
+        glMesh.UseAlphaTest = built.HasAlphaTest;
+        glMesh.HasAlphaBlend = built.HasAlphaBlend;
+        glMesh.AlphaThreshold = built.AlphaThreshold;
+        glMesh.SrcBlendIndex = built.SrcBlendIndex;
+        glMesh.DstBlendIndex = built.DstBlendIndex;
+        glMesh.IsDecal = false;
+
+        // None of the lighting-shader terms apply.
+        glMesh.HasNormalMap = false;
+        glMesh.HasSkinMap = false;
+        glMesh.HasSpecular = false;
+        glMesh.HasSpecularMap = false;
+        glMesh.HasEmissive = false;
+        glMesh.HasGlowMap = false;
+        glMesh.HasEnvironmentMap = false;
+        glMesh.HasDetailMap = false;
+        glMesh.HasGreyscaleToPalette = false;
+        glMesh.HasTintColor = false;
     }
 
     /// <summary>

@@ -498,6 +498,149 @@ float sampleShadowPCF(vec3 worldPos, vec3 normal_view, vec3 lightDir_view)
     return sum / 9.0;
 }
 
+// --- EFFECT SHADER (GlMesh.IsEffectShader) ---
+// BSEffectShaderProperty shapes: fire, smoke, mist, light shafts, magic glows. A port of the
+// static (non-animated, non-membrane, non-particle) path of the engine's effect pixel shader,
+// after Community Shaders' Effect.hlsl with its linear-lighting option off:
+//   base   = sourceTexture (alpha forced to 1 under greyscale-to-alpha)
+//   mul    = baseColor * vertexColor
+//   base.a *= falloff            (SLSF1_Use_Falloff, smoothstep over |N.V|)
+//   base   = mul * base; base.a *= soft depth fade (SLSF1_Soft_Effect)
+//   alpha  = greyscale-to-alpha ? palette(base.a_tex, alpha).a : base.a
+//   rgb    = greyscale-to-color ? baseColorScale * palette(tex.g, mul.r).rgb : base.rgb
+//   rgb    = mix(rgb, light * rgb, lightingInfluence)
+// baseColorScale only ever scales the palette colour. Blending (additive or "over") comes from
+// the NiAlphaProperty factors like any other shape. "light" is the engine's PropertyColor: with
+// SLSF2_Effect_Lighting it is the unshadowed ambient + directional light at the object
+// (GetLightingColor's DLightColor), approximated here by the scene's summed lights; without the
+// flag it is a per-object constant this renderer treats as white, so a self-lit flame with
+// lightingInfluence 1 stays self-lit. Not modelled: UV/alpha animation controllers, membrane and
+// blood variants, fog, point lights.
+uniform bool u_isEffect;
+uniform vec4 u_effectBaseColor;
+uniform float u_effectBaseColorScale;
+uniform float u_effectLightingInfluence;
+uniform bool u_effectLit;              // SLSF2_Effect_Lighting
+uniform bool u_effectHasTexture;
+uniform bool u_effectGreyscaleColor;
+uniform bool u_effectGreyscaleAlpha;
+uniform bool u_effectFalloff;
+// FalloffData: (startAngle, stopAngle, startOpacity, stopOpacity), angles as cosines.
+uniform vec4 u_effectFalloffData;
+// Soft-effect depth range in game units; 0 = not a soft effect.
+uniform float u_effectSoftDepth;
+uniform bool u_effectClampS;
+uniform bool u_effectClampT;
+// GlMesh.EffectBillboard: 0 none, 1 faces the camera, 2 turns about the up axis.
+uniform int u_effectBillboard;
+// TEMP DEBUG: effect-shader stage visualisation. 0 = off; 1 = source texture rgb; 2 = palette
+// colour; 3 = final alpha as grey; 4 = vertex colour alpha as grey. Output alpha is 1, so an
+// additive shape shows the value directly.
+const int DEBUG_VIZ_EFFECT = 0;
+
+// The greyscale palette rides the glow unit: an effect shape never has a glow map.
+#define texture_effect_greyscale texture_glow
+
+// Engine smoothstep falloff, from Effect.hlsl's vertex shader (here per pixel). Exposed as a
+// function so the behaviour is in one place.
+float effectFalloff(vec3 worldNormal, vec3 toEye, vec4 fd) {
+    vec3 v = normalize(toEye);
+    // A billboard is drawn in its authored pose, but the engine evaluates falloff on the turned
+    // sprite, whose normal points at the camera (or at it in the horizontal plane).
+    float d = u_effectBillboard == 1 ? 1.0
+            : u_effectBillboard == 2 ? length(v.xz)
+            : abs(dot(normalize(worldNormal), v));
+    float span = fd.y - fd.x;
+    float f = abs(span) > 1e-6 ? clamp((d - fd.x) / span, 0.0, 1.0) : (d >= fd.x ? 1.0 : 0.0);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(fd.z, fd.w, f);
+}
+
+// Palette lookup with clamp-to-edge coordinates: palettes are thin gradient strips, and a
+// repeating sampler would blend the far end into a coordinate of exactly 1.0 (a white core).
+vec4 effectPalette(vec2 uv) {
+    vec2 h = 0.5 / vec2(textureSize(texture_effect_greyscale, 0));
+    return textureLod(texture_effect_greyscale, clamp(uv, h, vec2(1.0) - h), 0.0);
+}
+
+vec4 shadeEffect() {
+    if (DEBUG_VIZ_EFFECT == 4) return vec4(vec3(has_vertex_colors ? vertexColor.a : 1.0), 1.0);
+    if (DEBUG_VIZ_EFFECT == 7) return vec4(u_effectFalloff ? 1.0 : 0.0, u_effectGreyscaleAlpha ? 1.0 : 0.0, u_effectSoftDepth > 0.0 ? 1.0 : 0.0, 1.0);
+    if (DEBUG_VIZ_EFFECT == 6) {
+        if (!u_effectFalloff) discard;
+        return vec4(vec3(effectFalloff(v_worldNormal, u_cameraPos - v_worldPos, u_effectFalloffData)), 1.0);
+    }
+    if (DEBUG_VIZ_EFFECT == 5) return vec4(vec3(abs(dot(normalize(v_worldNormal), normalize(u_cameraPos - v_worldPos)))), 1.0);
+    vec2 uv = TexCoords;
+    if (u_effectClampS || u_effectClampT) {
+        vec2 h = 0.5 / vec2(textureSize(texture_diffuse, 0));
+        if (u_effectClampS) uv.x = clamp(uv.x, h.x, 1.0 - h.x);
+        if (u_effectClampT) uv.y = clamp(uv.y, h.y, 1.0 - h.y);
+    }
+    vec4 baseTex = vec4(1.0);
+    vec4 base = vec4(1.0);
+    if (u_effectHasTexture || u_effectGreyscaleColor || u_effectGreyscaleAlpha) {
+        baseTex = u_enableDiffuse ? texture(texture_diffuse, uv) : vec4(0.8, 0.8, 0.8, 1.0);
+        base = baseTex;
+        if (u_effectGreyscaleAlpha) base.a = 1.0;
+    }
+
+    vec4 mulc = u_effectBaseColor;
+    if (has_vertex_colors) mulc *= vertexColor;
+
+    if (u_effectFalloff)
+        base.a *= effectFalloff(v_worldNormal, u_cameraPos - v_worldPos, u_effectFalloffData);
+
+    base = mulc * base;
+
+    // Soft effect: fade over u_effectSoftDepth as the scene surface behind comes close. Needs the
+    // ambient-occlusion depth prepass (opaque geometry); without it the fade is skipped.
+    if (u_effectSoftDepth > 0.0) {
+        if (u_enableAO) {
+            vec2 suv = gl_FragCoord.xy / u_screenSize;
+            vec4 sceneView = u_invProjection * vec4(suv * 2.0 - 1.0, texture(u_ssaoDepthTex, suv).r * 2.0 - 1.0, 1.0);
+            vec4 fragView = u_invProjection * vec4(suv * 2.0 - 1.0, gl_FragCoord.z * 2.0 - 1.0, 1.0);
+            float gap = fragView.z / fragView.w - sceneView.z / sceneView.w;
+            base.a *= clamp(gap / u_effectSoftDepth, 0.0, 1.0);
+        }
+        if (base.a < 0.003) discard;
+    }
+
+    float alpha = base.a;
+    if (u_effectGreyscaleAlpha)
+        alpha = effectPalette(vec2(baseTex.a, alpha)).a;
+    if (u_effectGreyscaleColor)
+        base.rgb = u_effectBaseColorScale * effectPalette(vec2(baseTex.g, mulc.r)).rgb;
+
+    vec3 rgb = base.rgb;
+    if (u_effectLit && u_effectLightingInfluence > 0.0) {
+        vec3 sceneLight = vec3(0.0);
+        for (int i = 0; i < MAX_LIGHTS; i++)
+            if (lights[i].type != 0) sceneLight += lights[i].color * lights[i].intensity;
+        rgb = mix(rgb, sceneLight * rgb, u_effectLightingInfluence);
+    }
+
+    if (DEBUG_VIZ_EFFECT == 1) return vec4(baseTex.rgb, 1.0);
+    if (DEBUG_VIZ_EFFECT == 2) return vec4(effectPalette(vec2(baseTex.g, mulc.r)).rgb, 1.0);
+    if (DEBUG_VIZ_EFFECT == 3) return vec4(vec3(alpha), 1.0);
+
+    if (use_alpha_test && alpha < alpha_threshold) discard;
+
+
+    // Same finishing as stage 6 (no fresnel contour: an effect has no surface to darken).
+    // Kept in step with that block by hand.
+    if (u_enableToneMapping) {
+        vec3 c = rgb * 0.6 * u_exposure;
+        c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
+        float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        c = mix(vec3(lum), c, 1.10);
+        vec2 vc = (gl_FragCoord.xy / u_screenSize) * 2.0 - 1.0;
+        c *= 1.0 - smoothstep(u_vignetteRadius, 1.4142136, length(vc)) * u_vignetteIntensity;
+        rgb = clamp(c, 0.0, 1.0);
+    }
+    return vec4(rgb, alpha);
+}
+
 void main()
 {
     // TEMP DEBUG: short-circuit to visualize world-space mesh normals as color.
@@ -529,6 +672,12 @@ void main()
             n = normalize(v_worldNormal);
         }
         FragColor = vec4(n * 0.5 + 0.5, 1.0);
+        return;
+    }
+
+    // Effect shaders take their own path end to end (see shadeEffect).
+    if (u_isEffect) {
+        FragColor = shadeEffect();
         return;
     }
 
