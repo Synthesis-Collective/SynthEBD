@@ -5,8 +5,8 @@ namespace SkyRender;
 /// <summary>
 /// BSA enumeration + extraction surface used by <see cref="GameAssetResolver"/>
 /// to satisfy lookups that miss the loose-files check. The interface deliberately
-/// works in disk paths only — no Mutagen archive types leak into the viewer
-/// subsystem — so other host apps can implement it against their own BSA stack.
+/// works in disk paths only — no Mutagen archive types leak into the renderer
+/// — so other host apps can implement it against their own BSA stack.
 ///
 /// A host adapts its own BSA reader behind this interface.
 /// </summary>

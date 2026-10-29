@@ -9,7 +9,7 @@ namespace SkyRender;
 /// Colors are supplied separately by a <see cref="LightingColorScheme"/>
 /// so the two can be combined orthogonally in the UI.
 ///
-/// Convention: azimuth=180° places the light in front of the character (camera side),
+/// Convention: azimuth=180° places the light in front of the model (camera side),
 /// elevation positive places the light above.
 /// </summary>
 public class LightingLayout
@@ -105,7 +105,7 @@ public class LightingColorScheme
 }
 
 /// <summary>
-/// Built-in layouts and color schemes for the character viewer's lighting controls.
+/// Built-in layouts and color schemes for a host's lighting controls.
 /// The default pair ("Mugshot Natural" + "Cinematic Warm") targets the Natural
 /// Lighting Mugshots reference look.
 /// </summary>

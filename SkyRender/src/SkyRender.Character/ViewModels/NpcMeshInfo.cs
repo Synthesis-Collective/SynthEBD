@@ -4,7 +4,7 @@ namespace SkyRender.Character;
 /// Slot-occupancy bookkeeping the character viewer attaches to each of its meshes (through
 /// <see cref="GlMesh.HostData"/>). Each rendered shape carries the biped-object slots it occupies,
 /// so "headgear hides hair" / "clothing hides body" visibility resolves from slot collisions rather
-/// than from body-part strings. See the mesh-override section of docs/RENDERING_PIPELINE.md. Base shapes get
+/// than from body-part strings. See the mesh-override section of docs/CHARACTER_PIPELINE.md. Base shapes get
 /// their slots from their body-part label at install time; mesh-override shapes from
 /// <see cref="MeshOverride.BipedSlots"/>.
 /// </summary>

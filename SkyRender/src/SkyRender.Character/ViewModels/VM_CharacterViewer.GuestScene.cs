@@ -240,7 +240,7 @@ public partial class VM_CharacterViewer
     /// <summary>
     /// Removes the guest overlay and forgets its retained request. Safe to call when no
     /// overlay is showing. GL deletes go through the render-thread marshaller so they land
-    /// in this viewer's context (see Part 5 of RENDERING_PIPELINE.md).
+    /// in this viewer's context (see the concurrent-viewers section of CHARACTER_PIPELINE.md).
     /// </summary>
     public void ClearGuestScene()
     {

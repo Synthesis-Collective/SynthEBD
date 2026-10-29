@@ -6,7 +6,7 @@ namespace SkyRender;
 /// <summary>
 /// The nine per-shape texture toggles a <see cref="GlMesh"/> carries — its <c>*Enabled</c>
 /// flags, pushed to basic.frag as the <c>u_enable*</c> uniforms — as flags, so a set of slots
-/// is a single value. Names follow the viewer's right-click menu.
+/// is a single value. Names follow the character viewer's right-click menu.
 /// </summary>
 [Flags]
 public enum TextureSlots
@@ -28,7 +28,7 @@ public enum TextureSlots
 public static class GlMeshTextureSlotExtensions
 {
     /// <summary>
-    /// The slots this mesh actually has — the ones the viewer's right-click menu offers.
+    /// The slots this mesh actually has — the ones a host's slot menu should offer.
     /// Toggling a slot the mesh lacks is either invisible (the shader also gates on the
     /// matching <c>has_*</c> flag) or wrong: Diffuse off draws flat grey whether or not the
     /// shape had a diffuse to hide.

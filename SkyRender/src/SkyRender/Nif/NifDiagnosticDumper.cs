@@ -15,7 +15,7 @@ namespace SkyRender;
 /// cross-check values quickly.
 ///
 /// Output flows through <see cref="IRenderLogger.LogMessage"/>, the
-/// same channel as the rest of the viewer's verbose logging.
+/// same channel as the rest of SkyRender's verbose logging.
 ///
 /// Gated by both <see cref="FULL_LOGGING"/> (compile-time, developer toggle)
 /// and <see cref="RenderLogGate.Verbose"/> (runtime checkbox). With

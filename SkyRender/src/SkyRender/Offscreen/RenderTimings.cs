@@ -38,15 +38,15 @@ public sealed class RenderTimings
     /// ResolveMs − ParseMs ≈ the clone + weight-morph cost.</summary>
     public double ParseMs { get; set; }
 
-    /// <summary>Native NifFile.Load (file parse) cost for this NPC's cache-missed
+    /// <summary>Native NifFile.Load (file parse) cost for this render's cache-missed
     /// parts, summed across the prewarm worker AND any render-thread re-parse. Unlike
     /// <see cref="ParseMs"/> (render-thread only) this captures the offloaded prewarm
-    /// parse, so for a fully-prewarmed render it is the real per-NPC parse cost. With
+    /// parse, so for a fully-prewarmed render it is the real per-render parse cost. With
     /// <see cref="BuildShapesMs"/> it splits parse into native-Load vs managed marshaling.</summary>
     public double LoadMs { get; set; }
 
     /// <summary>BuildAllShapes cost (C#-side per-vertex SWIG marshaling + CPU skinning)
-    /// for this NPC's cache-missed parts, summed across prewarm worker and render thread.
+    /// for this render's cache-missed parts, summed across prewarm worker and render thread.
     /// The companion to <see cref="LoadMs"/>; a high share here points at the managed
     /// interop / GC cost rather than the native file parse.</summary>
     public double BuildShapesMs { get; set; }
@@ -64,10 +64,10 @@ public sealed class RenderTimings
     public double DecodeMs { get; set; }
 
     /// <summary>DDS decode cost (2D + cubemap cache misses) paid on the prewarm
-    /// worker for this NPC, ahead of the render. Kept apart from
+    /// worker for this render, ahead of it. Kept apart from
     /// <see cref="DecodeMs"/> so InstallMs − DecodeMs still approximates the GL
     /// upload, and excluded from <see cref="TotalMs"/>, which is render-path
-    /// only. Off the render thread but still on each NPC's critical path, so a
+    /// only. Off the render thread but still on each render's critical path, so a
     /// high value means prewarm, not the GL thread, bounds throughput.</summary>
     public double PrewarmDecodeMs { get; set; }
 

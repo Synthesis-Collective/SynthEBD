@@ -7,7 +7,7 @@ namespace SkyRender;
 /// <summary>
 /// Render-context-owned cache of uploaded GL textures, keyed on resolved disk
 /// path and bounded by a VRAM byte budget. Lets the offscreen renderer share
-/// textures across its many short-lived per-render VMs — NPC after NPC
+/// textures across its many short-lived per-render scenes — render after render
 /// references the same vanilla and mod-shared diffuse/normal/skin/cubemap files,
 /// so they upload to the GPU once instead of per render. The profiler showed GL
 /// upload as the steady-state floor (~300 ms / 50-70% of a cached render); this

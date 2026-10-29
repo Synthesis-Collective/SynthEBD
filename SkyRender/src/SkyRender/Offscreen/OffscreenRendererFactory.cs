@@ -2,7 +2,7 @@ namespace SkyRender.Offscreen;
 
 /// <summary>
 /// Constructs <see cref="IOffscreenRenderer"/> instances. Hosts call this
-/// once at startup (or lazily on first mugshot request) and reuse the
+/// once at startup (or lazily on the first render request) and reuse the
 /// returned renderer across many requests.
 ///
 /// The factory exists as a separation point so future implementations

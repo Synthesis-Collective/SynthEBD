@@ -304,7 +304,7 @@ public static class NifMaterialBinder
                 //     1356 vertices on Ri'saad).
                 //   - basic.frag multiplies vertex alpha into texture alpha before the discard
                 //     test, so face fragments near the seam produce α ≈ 0.276 (below the 0.286
-                //     threshold) and discard. At ~750 px portrait resolution each discarded
+                //     threshold) and discard. At ~750 px output resolution each discarded
                 //     fragment spans a perceptible pixel-sized hole.
                 //   - In vanilla in-game Skyrim, Khajiit faces render solid; this discard
                 //     pattern does not appear there.

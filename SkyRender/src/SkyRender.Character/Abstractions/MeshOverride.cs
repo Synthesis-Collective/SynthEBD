@@ -7,7 +7,7 @@ namespace SkyRender.Character;
 /// defaults (skin tint, draw order, slot-hiding precedence) without the host
 /// having to spell each of them out. Skinning and tint are already generic
 /// (the renderer CPU-skins from the NIF's own bone weights and tints by NIF
-/// shader type - see RENDERING_PIPELINE.md "Override channels"); the kind only
+/// shader type - see CHARACTER_PIPELINE.md "Override channels"); the kind only
 /// nudges defaults:
 /// <list type="bullet">
 ///   <item><see cref="Skin"/> - lets the shader decide tint (an auxiliary skin

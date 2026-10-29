@@ -7,9 +7,9 @@ namespace SkyRender;
 /// <summary>
 /// Manages OpenGL texture loading from game assets. DDS decoding and asset-path
 /// resolution are delegated to <see cref="AssetCache"/> so the pixel
-/// payload is shared across viewer instances; this class is responsible for
+/// payload is shared across renderers; this class is responsible for
 /// per-context GL texture handles, face/hair tint blending, and caching of
-/// uploaded handles within a single viewer's GL context.
+/// uploaded handles within a single GL context.
 /// </summary>
 public class GlTextureManager : IDisposable
 {

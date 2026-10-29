@@ -4186,7 +4186,7 @@ public partial class VM_CharacterViewer : ViewerVm
             // is the SnowElfRace skin. This contradicts a fair amount of online "lore"
             // that says armor uses its own baked skin texture. There may be tertiary /
             // advanced engine behavior (per-armor skin swaps, skin-tone interactions,
-            // race-specific armatures) we are NOT modeling here. See RENDERING_PIPELINE.md
+            // race-specific armatures) we are NOT modeling here. See CHARACTER_PIPELINE.md
             // ("Armor skin inheritance").
             if (b.ShaderType == 5 && _cachedMeshPaths != null)
             {

@@ -7,6 +7,10 @@ layout (location = 2) in vec2 aTexCoords;
 layout (location = 3) in vec4 aColor;
 layout (location = 4) in vec3 aTangent;
 layout (location = 5) in vec3 aBitangent;
+// Terrain layer weights (GlMesh.UploadLayerWeights): eight per vertex, in blend order.
+// Other meshes never enable these arrays; the fragment shader reads them only for terrain.
+layout (location = 6) in vec4 aLayerWeights0;
+layout (location = 7) in vec4 aLayerWeights1;
 
 // === OUTPUTS ===
 out vec3 v_viewSpacePos;
@@ -21,6 +25,8 @@ out vec3 v_worldNormal;
 // World-space position of this vertex, used by the fragment shader to
 // transform into the key light's clip space for shadow-map sampling.
 out vec3 v_worldPos;
+out vec4 v_layerWeights0;
+out vec4 v_layerWeights1;
 
 // === UNIFORMS ===
 uniform mat4 u_model;
@@ -41,6 +47,15 @@ uniform vec4 u_clipPlane;
 // view ray, so its screen position is unchanged and only its depth moves. Positive =
 // farther from the camera. 0 leaves gl_Position exactly as before.
 uniform float u_depthBias;
+
+// Water (GlMesh.IsWater): the vertex colour arrives as the body colour; the sky reflection is
+// mixed in here from the live camera with Schlick's Fresnel, F0 = the water type's Fresnel.
+// Up is +Y. u_waterReflected = sky colour x the water type's reflection colour.
+uniform bool u_isWater;
+uniform vec3 u_cameraPos;
+uniform float u_waterFresnel;
+uniform float u_waterReflectivity;
+uniform vec3 u_waterReflected;
 
 void main()
 {
@@ -70,4 +85,15 @@ void main()
 
     TexCoords = aTexCoords * u_uvScale + u_uvOffset;
     vertexColor = aColor;
+    v_layerWeights0 = aLayerWeights0;
+    v_layerWeights1 = aLayerWeights1;
+
+    if (u_isWater) {
+        vec3 toEye = normalize(u_cameraPos - pos_worldSpace.xyz);
+        float cosI = max(toEye.y, 0.0);
+        float f0 = clamp(u_waterFresnel, 0.0, 1.0);
+        float fres = f0 + (1.0 - f0) * pow(1.0 - cosI, 5.0);
+        vertexColor.rgb = mix(aColor.rgb, u_waterReflected,
+                              clamp(fres * u_waterReflectivity * 4.0, 0.0, 1.0));
+    }
 }

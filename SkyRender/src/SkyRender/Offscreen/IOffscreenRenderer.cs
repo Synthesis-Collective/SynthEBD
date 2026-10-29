@@ -5,8 +5,8 @@ namespace SkyRender.Offscreen;
 
 /// <summary>
 /// Renders an <see cref="OffscreenRenderRequest"/> to a PNG (or raw BGRA32
-/// pixel buffer) without putting anything on screen. Useful for producing
-/// NPC portraits in-process.
+/// pixel buffer) without putting anything on screen: thumbnails, NPC portraits, scene
+/// captures and render-comparison tests, in-process.
 ///
 /// Implementations are expected to own their own GL context (a hidden
 /// <c>OpenTK.Windowing.Desktop.GameWindow</c> in the default
@@ -38,12 +38,12 @@ public interface IOffscreenRenderer : IAsyncDisposable
     void InvalidateCaches();
 
     /// <summary>Pre-warms the CPU-side caches (parsed NIFs + decoded DDS pixels)
-    /// for the request's NPC <em>without any GL work</em>, on a worker thread, so a
+    /// for the request's scene <em>without any GL work</em>, on a worker thread, so a
     /// subsequent <see cref="RenderToPngAsync"/> for the same request hits those
     /// caches and the serialized GL render thread only pays texture upload + draw +
     /// readback. Call this and await it just before the matching render: while this
-    /// NPC's NIF parse + texture decode run off-thread, the render thread is busy
-    /// with other NPCs, so the heaviest per-NPC CPU phases overlap the GL pipeline
+    /// scene's NIF parse + texture decode run off-thread, the render thread is busy
+    /// with other renders, so the heaviest per-render CPU phases overlap the GL pipeline
     /// instead of stalling it.
     ///
     /// <para>Best-effort: it uses the request's scopes for resolution, honors

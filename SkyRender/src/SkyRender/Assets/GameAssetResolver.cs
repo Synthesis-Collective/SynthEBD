@@ -80,7 +80,7 @@ public class GameAssetResolver
     /// <summary>
     /// Cache of loose-file resolutions and definitive misses so repeat texture
     /// lookups on the viewer hot path skip the <see cref="File.Exists"/> syscall
-    /// (and the BSA traversal for not-found) on every call. A single NPC load
+    /// (and the BSA traversal for not-found) on every call. A single character load
     /// requests ~20 unique paths across ~8 texture slots per mesh; preset
     /// switches re-request the exact same paths, so the hit rate is near-total
     /// on the second and subsequent loads.
@@ -146,8 +146,8 @@ public class GameAssetResolver
     /// <c>await</c> continuations and <c>Task.Run</c> for off-thread NIF parsing,
     /// while staying isolated between concurrent renders on different async
     /// flows. The earlier volatile-field design shared a single value across
-    /// every flow — a 3D preview opening mid-mugshot-batch could overwrite the
-    /// mugshot's scope chain mid-resolve, producing wrong textures or wireframes
+    /// every flow — a 3D preview opening in the middle of an offscreen batch could overwrite
+    /// that render's scope chain mid-resolve, producing wrong textures or wireframes
     /// that the path-keyed pixel cache then poisoned. AsyncLocal storage plus
     /// a per-render <see cref="PushScopes"/> bracket eliminates the race.</para>
     /// </summary>

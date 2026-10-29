@@ -33,7 +33,7 @@ public class OffscreenRenderRequest
     public LightingColorScheme? Colors { get; init; }
 
     /// <summary>Solid background color the framebuffer is cleared to before
-    /// the character is rendered. Defaults to a neutral mid-gray.</summary>
+    /// the scene is rendered. Defaults to a neutral mid-gray.</summary>
     public (byte R, byte G, byte B) BackgroundRgb { get; init; } = (105, 105, 105);
 
     /// <summary>Optional cancellation token. The renderer aborts at the next
@@ -233,10 +233,10 @@ public class OffscreenRenderRequest
     public bool RenderMissingTextureAsWireframe { get; init; } = true;
 
     /// <summary>
-    /// Portrait-quality tone-mapping toggle. When true, the final
+    /// Tone-mapping toggle. When true, the final
     /// fragment-shader stage applies an ACES filmic tone-mapper, sRGB
     /// framebuffer encoding, and a mild saturation boost — pushing the
-    /// output closer to a "looks-like-a-portrait" aesthetic and away from
+    /// output toward a photographic look and away from
     /// the flat linear "looks-like-a-render" look. Default false to keep
     /// hosts that don't opt in on the legacy pipeline.
     /// </summary>
@@ -307,8 +307,8 @@ public class OffscreenRenderRequest
     /// wrap parameter and adds a back-scatter / translucency term.
     /// This multiplier scales the visible SSS contribution; 0 disables
     /// it (matches pre-2.5.14 behavior at runtime), 1.0 is "honest"
-    /// SSS at the source values, 1.5-2.0 boosts toward professional
-    /// portrait reference. Default 0 for back-compat with hosts that
+    /// SSS at the source values, 1.5-2.0 boosts toward the stronger skin
+    /// translucency of studio photography. Default 0 for back-compat with hosts that
     /// don't opt in.</summary>
     public float SubsurfaceStrength { get; init; } = 0f;
 

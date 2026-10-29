@@ -20,6 +20,31 @@ public class GlMesh : IDisposable
     public int Vao { get; private set; }
     public int Vbo { get; private set; }
     public int Ebo { get; private set; }
+    /// <summary>Terrain only: the per-vertex layer-weight buffer (attribute locations 6-7), or 0.</summary>
+    public int LayerWeightVbo { get; private set; }
+
+    // ---- Terrain and water (SkyRender.World) ----
+
+    /// <summary>Draws as a terrain quadrant: the diffuse is the base texture and up to
+    /// <see cref="World.TerrainQuadrant.MaxLayers"/> layer textures are blended over it in order,
+    /// weighted by the per-vertex layer weights times each layer texture's alpha.</summary>
+    public bool IsTerrain { get; set; }
+    /// <summary>Terrain only: GL handles of the layer diffuse textures, in blend order.</summary>
+    public int[] TerrainLayerTextures { get; } = new int[World.TerrainQuadrant.MaxLayers];
+    /// <summary>Terrain only: how many entries of <see cref="TerrainLayerTextures"/> are used.</summary>
+    public int TerrainLayerCount { get; set; }
+    /// <summary>Terrain only: how the layers combine with the base.</summary>
+    public World.TerrainBlendMode TerrainBlend { get; set; }
+
+    /// <summary>Draws as a water surface: the vertex colour is the body colour, and the sky
+    /// reflection is mixed in per vertex from the live camera (Schlick Fresnel).</summary>
+    public bool IsWater { get; set; }
+    /// <summary>Water only: the water type's reflection colour (multiplied by the renderer's sky colour).</summary>
+    public System.Numerics.Vector3 WaterReflectionColor { get; set; } = System.Numerics.Vector3.One;
+    /// <summary>Water only: reflectivity (0..1).</summary>
+    public float WaterReflectivity { get; set; }
+    /// <summary>Water only: Fresnel F0 (0..1).</summary>
+    public float WaterFresnel { get; set; }
     public int IndexCount { get; private set; }
 
     // Material texture handles (GL texture IDs)
@@ -155,7 +180,8 @@ public class GlMesh : IDisposable
     public float AlphaThreshold { get; set; }
     public float GreyscaleToPaletteScale { get; set; } = 1f;
     public Vector3 TintColor { get; set; } = Vector3.One;
-    // Default glossiness / specular tuned for portrait skin. The
+    // Default glossiness / specular tuned for skin (the common case for a mesh whose NIF
+    // carries no explicit values). The
     // pre-2.5.9 defaults (80f / 1f) produced overly tight, plastic-looking
     // highlights on faces when the source NIF didn't carry explicit shader
     // values — most modded face NIFs DO provide their own values, so this
@@ -364,6 +390,26 @@ public class GlMesh : IDisposable
     }
 
     /// <summary>
+    /// Terrain only: uploads <see cref="World.TerrainQuadrant.MaxLayers"/> layer weights per vertex
+    /// into a second buffer on this mesh's VAO, as two vec4 attributes at locations 6 and 7. Call
+    /// after <see cref="Upload"/>.
+    /// </summary>
+    public void UploadLayerWeights(float[] weights)
+    {
+        const int perVertex = World.TerrainQuadrant.MaxLayers;
+        if (LayerWeightVbo == 0) LayerWeightVbo = GL.GenBuffer();
+        GL.BindVertexArray(Vao);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, LayerWeightVbo);
+        GL.BufferData(BufferTarget.ArrayBuffer, weights.Length * sizeof(float), weights, BufferUsageHint.StaticDraw);
+        int stride = perVertex * sizeof(float);
+        GL.VertexAttribPointer(6, 4, VertexAttribPointerType.Float, false, stride, 0);
+        GL.EnableVertexAttribArray(6);
+        GL.VertexAttribPointer(7, 4, VertexAttribPointerType.Float, false, stride, 4 * sizeof(float));
+        GL.EnableVertexAttribArray(7);
+        GL.BindVertexArray(0);
+    }
+
+    /// <summary>
     /// Re-uploads vertex data (e.g. after a CPU-side deformation). Preserves the same VAO/VBO.
     /// </summary>
     public void UpdateVertexData(float[] vertexData)
@@ -380,6 +426,7 @@ public class GlMesh : IDisposable
             GL.DeleteVertexArray(Vao);
             GL.DeleteBuffer(Vbo);
             GL.DeleteBuffer(Ebo);
+            if (LayerWeightVbo != 0) GL.DeleteBuffer(LayerWeightVbo);
             _disposed = true;
         }
     }

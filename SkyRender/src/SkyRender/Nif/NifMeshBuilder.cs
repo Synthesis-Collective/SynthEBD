@@ -13,7 +13,7 @@ namespace SkyRender;
 
 /// <summary>
 /// Converts NIF file mesh data (via niflysharp) into renderer geometry (Y-up)
-/// for 3D rendering in the character viewer.
+/// for 3D rendering.
 /// </summary>
 public class NifMeshBuilder
 {

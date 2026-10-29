@@ -203,7 +203,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
 
         var ct = request.Cancellation;
         // Run the GL-free parse + decode on the thread pool so it overlaps the GL
-        // render thread (busy with other NPCs). Push the request's resolution
+        // render thread (busy with other renders). Push the request's resolution
         // scopes on THIS worker flow first — the preview cache's resolves read them
         // off AsyncLocal, and the push covers the synchronous PrewarmNpc below.
         // Deliberately NOT passing ct to Task.Run: prewarm is best-effort and must
@@ -328,7 +328,7 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
                     // Do the GL work on this thread, then hand the read-back pixel
                     // buffer to the thread pool for the CPU-only PNG/BGRA encode so
                     // this thread starts the next queued render immediately instead
-                    // of blocking ~50-100 ms per NPC on encode. The job's Tcs is
+                    // of blocking ~50-100 ms per image on encode. The job's Tcs is
                     // completed from the encode task. Render-phase failures still
                     // throw here and are caught below; encode-phase failures are
                     // set on the Tcs inside DispatchEncode.
@@ -476,12 +476,11 @@ public sealed class GameWindowOffscreenRenderer : IOffscreenRenderer
             //   lives in the RGB blend, not in the PNG alpha channel — so
             //   hair silhouettes stay smooth.
             //
-            // Mugshots are tiles rendered against an opaque background, not
-            // transparent overlays, so the alpha channel carries no useful
+            // Offscreen images are rendered against an opaque background, not
+            // as transparent overlays, so the alpha channel carries no useful
             // information in the output PNG. If transparent-background
-            // mugshot exports are ever wanted (portrait stickers for
-            // external use), this stamp should become conditional on a
-            // request flag rather than unconditional.
+            // exports are ever wanted, this stamp should become conditional
+            // on a request flag rather than unconditional.
             for (int i = 3; i < pixels.Length; i += 4)
                 pixels[i] = 255;
 

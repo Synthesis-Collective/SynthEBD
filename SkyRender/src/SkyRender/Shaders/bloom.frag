@@ -1,6 +1,6 @@
 #version 330 core
 
-// Post-tonemap bloom for the character viewer (on by default; gated on the
+// Post-tonemap bloom (on by default; gated on the
 // Bloom + tone-mapping toggles). Reproduces the soft highlight glow
 // the Skyrim engine produces, which is a large part of why bright blonde hair
 // reads as blonde in-game but brunette in a flat studio render.

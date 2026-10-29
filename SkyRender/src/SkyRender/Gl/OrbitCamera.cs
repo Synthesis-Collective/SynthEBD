@@ -4,7 +4,7 @@ using OpenTK.Mathematics;
 namespace SkyRender;
 
 /// <summary>
-/// Mouse-driven orbit camera for the 3D character viewer.
+/// Mouse-driven orbit camera for interactive viewers and offscreen framing.
 /// Orbits around a target point with configurable distance, azimuth, and elevation.
 /// </summary>
 public class OrbitCamera
@@ -41,7 +41,7 @@ public class OrbitCamera
     private Vector3 _target = new Vector3(0, 85, 0); // roughly chest height
 
     /// <summary>Horizontal angle in degrees. 180 = camera placed at -Z looking toward
-    /// +Z, which shows the character's front (the character is oriented to face -Z_world
+    /// +Z, which shows a model's front (models are oriented to face -Z_world
     /// after the NIF Z-up to Y-up R_X(-90) conversion).</summary>
     public float Azimuth
     {
@@ -85,8 +85,9 @@ public class OrbitCamera
     private float _fieldOfView = 25f;
 
     /// <summary>Vertical field of view in degrees. Default 25° matches NPC
-    /// Portrait Creator, which gives a flatter, more natural perspective for
-    /// portrait framing than the wider 45° gameplay-style default.</summary>
+    /// Portrait Creator: a flatter, more natural perspective for framing a
+    /// single model than the wider 45° gameplay-style default. Scenes viewed
+    /// from inside (a room, a street) usually want a wider value.</summary>
     public float FieldOfView
     {
         get => _fieldOfView;
