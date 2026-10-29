@@ -58,6 +58,26 @@ public sealed record WaterMaterial(
     /// over the fog's far distance, and the surface's opacity follows the engine's refraction weight,
     /// so ground under shallow water shows through.</summary>
     public WaterDepthFog? DepthFog { get; init; }
+
+    /// <summary>With <see cref="DepthFog"/>: measure the water depth per pixel along the view ray,
+    /// against the renderer's depth prepass of the opaque scene, as the engine does, instead of
+    /// vertically at the grid vertices. The body colour, the refraction weight and the bed's share
+    /// of the pixel then follow that depth, and far away (past the noise falloff) the surface is all
+    /// reflection. Costs one depth prepass per frame while such water is drawn. Off (the default)
+    /// keeps the per-vertex path.</summary>
+    public bool PerPixelDepth { get; init; }
+
+    /// <summary>The water type's sun specular power (the exponent on the reflected view ray against
+    /// the sun direction); 0 (the default) draws no sun specular. Used with <see cref="PerPixelDepth"/>.</summary>
+    public float SunSpecularPower { get; init; }
+
+    /// <summary>The water type's sun specular magnitude. Used with <see cref="PerPixelDepth"/>.</summary>
+    public float SunSpecularMagnitude { get; init; }
+
+    /// <summary>The water type's depth specular-lighting factor (0..1): 1 fades the sun specular out
+    /// to nothing at zero depth, 0 leaves it at full strength everywhere. Used with
+    /// <see cref="PerPixelDepth"/>.</summary>
+    public float DepthSpecularLighting { get; init; }
 }
 
 /// <summary>A water type's above-water fog (WATR fog near / far / amount): how fast the water

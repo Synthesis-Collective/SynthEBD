@@ -57,6 +57,32 @@ public class GlMesh : IDisposable
     public float WaterReflectivity { get; set; }
     /// <summary>Water only: Fresnel F0 (0..1).</summary>
     public float WaterFresnel { get; set; }
+    /// <summary>Water only: the engine's per-pixel depth terms (RENDERING_PIPELINE.md, "Water",
+    /// per-pixel depth). The body colour, the refraction weight and the bed's share of the pixel
+    /// follow the water depth measured along each pixel's view ray against the renderer's depth
+    /// prepass of the opaque scene, rather than the vertex colour and alpha. Off (the default) keeps
+    /// the per-vertex path.</summary>
+    public bool WaterSceneDepth { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the water type's shallow colour (0..1).</summary>
+    public System.Numerics.Vector3 WaterShallowColor { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the water type's deep colour (0..1).</summary>
+    public System.Numerics.Vector3 WaterDeepColor { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the above-water fog near distance.</summary>
+    public float WaterFogNear { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the above-water fog far distance
+    /// (world units of water along the view ray at which the water is opaque).</summary>
+    public float WaterFogFar { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the above-water fog amount (the exponent
+    /// of the refraction weight).</summary>
+    public float WaterFogAmount { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the sun specular power (exponent of the
+    /// reflected view ray against the sun direction). 0 = no sun specular.</summary>
+    public float WaterSunSpecularPower { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the sun specular magnitude.</summary>
+    public float WaterSunSpecularMagnitude { get; set; }
+    /// <summary>Water only, <see cref="WaterSceneDepth"/>: the depth specular-lighting factor (0..1):
+    /// how far the sun specular fades out over shallow water.</summary>
+    public float WaterDepthSpecularLighting { get; set; }
 
     // ---- Projected material (the engine's PROJECTED_UV path) ----
 

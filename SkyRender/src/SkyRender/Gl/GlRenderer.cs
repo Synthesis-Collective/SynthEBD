@@ -114,6 +114,9 @@ public class GlRenderer : IDisposable
     // non-decals sorted back-to-front each frame, then decals in NIF block
     // order. Reused to avoid per-frame allocation.
     private readonly List<GlMesh> _blendDrawList = new();
+    // Water with GlMesh.WaterSceneDepth reads the opaque scene's depth (the SSAO depth prepass,
+    // run for it when ambient occlusion is off). True while that texture is bound for this frame.
+    private bool _waterDepthBound;
     private bool _initialized;
     private bool _disposed;
     // 1x1 black cubemap bound to texture unit 6 whenever the active mesh has
@@ -1217,7 +1220,12 @@ public class GlRenderer : IDisposable
 
         // Pre-passes (shadow + SSAO) run BEFORE the main FBO is rebound,
         // so we capture the host's bound FBO once and restore at the end.
-        bool needsHostFboRestore = EnableShadows || EnableAmbientOcclusion;
+        // Per-pixel water depth (GlMesh.WaterSceneDepth) needs the opaque scene's depth: the
+        // ambient-occlusion depth prepass provides it, so run that prepass for water too.
+        bool waterDepth = false;
+        foreach (var m in _meshes)
+            if (m.IsWater && m.WaterSceneDepth && m.ShouldRender) { waterDepth = true; break; }
+        bool needsHostFboRestore = EnableShadows || EnableAmbientOcclusion || waterDepth;
         int hostFbo = 0;
         if (needsHostFboRestore)
         {
@@ -1241,6 +1249,13 @@ public class GlRenderer : IDisposable
                 viewportWidth, viewportHeight);
             ComputeSsao(ref projMatPre, viewportWidth, viewportHeight);
             BlurSsao(ref projMatPre, viewportWidth, viewportHeight);
+        }
+        else if (waterDepth)
+        {
+            // Alpha-tested shapes count here: a cutout rock or riverbed under the water is what the
+            // water's depth is measured to (the SSAO prepass leaves them out for its own reasons).
+            RenderDepthPrepass(ref modelMat, ref viewMatPre, ref projMatPre,
+                viewportWidth, viewportHeight, includeAlphaTest: true);
         }
 
         if (needsHostFboRestore)
@@ -1327,6 +1342,13 @@ public class GlRenderer : IDisposable
             GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
             GL.ActiveTexture(TextureUnit.Texture0);
             _shader.SetFloat("u_ssaoHairGap", SsaoHairGap);
+        }
+        _waterDepthBound = waterDepth && _depthPrepassDepthTex != -1;
+        if (_waterDepthBound && !EnableAmbientOcclusion)
+        {
+            GL.ActiveTexture(TextureUnit.Texture11);
+            GL.BindTexture(TextureTarget.Texture2D, _depthPrepassDepthTex);
+            GL.ActiveTexture(TextureUnit.Texture0);
         }
 
         // Camera matrices
@@ -2303,7 +2325,7 @@ public class GlRenderer : IDisposable
     /// AO is consistent with the visible silhouette. Caller must
     /// restore the previously bound FBO + viewport.</summary>
     private void RenderDepthPrepass(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection,
-        int width, int height)
+        int width, int height, bool includeAlphaTest = false)
     {
         if (_depthOnlyShader == null) return;
         EnsureSsaoFbos(width, height);
@@ -2356,7 +2378,8 @@ public class GlRenderer : IDisposable
             //
             // Shadow and main color passes still include alpha-test geometry;
             // only this SSAO depth prepass excludes it.
-            if (mesh.HasAlphaBlend || mesh.UseAlphaTest) continue;
+            // (includeAlphaTest: the water-depth prepass keeps alpha-tested shapes, with their discard.)
+            if (mesh.HasAlphaBlend || (mesh.UseAlphaTest && !includeAlphaTest)) continue;
 
             _depthOnlyShader.SetBool("use_alpha_test", mesh.UseAlphaTest);
             _depthOnlyShader.SetFloat("alpha_threshold", mesh.AlphaThreshold);
@@ -2931,7 +2954,18 @@ public class GlRenderer : IDisposable
             else _shader.SetVector3("u_waterReflected", refl.X, refl.Y, refl.Z);
             _shader.SetFloat("u_waterFresnel", mesh.WaterFresnel);
             _shader.SetFloat("u_waterNoiseFalloff", mesh.WaterNoiseFalloff);
+            bool sceneDepth = mesh.WaterSceneDepth && _waterDepthBound;
+            _shader.SetBool("u_waterSceneDepth", sceneDepth);
+            if (sceneDepth)
+            {
+                _shader.SetVector3("u_waterShallow", mesh.WaterShallowColor.X, mesh.WaterShallowColor.Y, mesh.WaterShallowColor.Z);
+                _shader.SetVector3("u_waterDeep", mesh.WaterDeepColor.X, mesh.WaterDeepColor.Y, mesh.WaterDeepColor.Z);
+                _shader.SetVector3("u_waterFog", mesh.WaterFogNear, mesh.WaterFogFar, mesh.WaterFogAmount);
+                _shader.SetVector3("u_waterSun", mesh.WaterSunSpecularPower, mesh.WaterSunSpecularMagnitude,
+                    mesh.WaterDepthSpecularLighting);
+            }
         }
+        else _shader.SetBool("u_waterSceneDepth", false);
 
         // Projected material (snow/ash/moss from a host's material object). Its two textures ride
         // the first two terrain layer-normal units, which no non-terrain draw samples, so the

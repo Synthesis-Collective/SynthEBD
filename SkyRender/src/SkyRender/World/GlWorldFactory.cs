@@ -178,6 +178,23 @@ public static class GlWorldFactory
         mesh.WaterFresnel = material.Fresnel;
         mesh.WaterReflectsSky = material.ReflectsSky;
         mesh.WaterNoiseFalloff = material.NoiseFalloff;
+        mesh.WaterSceneDepth = material.PerPixelDepth && material.DepthFog is not null;
+        if (mesh.WaterSceneDepth)
+        {
+            // Blended over what lies behind, and never in the depth prepass it reads.
+            mesh.HasAlphaBlend = true;
+            mesh.DepthWrite = false;
+            // The engine's water has no Blinn term; its sun specular is the shader's own.
+            mesh.MaterialSpecularStrength = 0f;
+            mesh.WaterShallowColor = material.ShallowColor;
+            mesh.WaterDeepColor = material.DeepColor;
+            mesh.WaterFogNear = material.DepthFog!.Near;
+            mesh.WaterFogFar = material.DepthFog.Far;
+            mesh.WaterFogAmount = material.DepthFog.Amount;
+            mesh.WaterSunSpecularPower = material.SunSpecularPower;
+            mesh.WaterSunSpecularMagnitude = material.SunSpecularMagnitude;
+            mesh.WaterDepthSpecularLighting = material.DepthSpecularLighting;
+        }
     }
 
     /// <summary>Adds a terrain cell's meshes to a renderer.</summary>

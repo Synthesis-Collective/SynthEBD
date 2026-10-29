@@ -30,6 +30,8 @@ out vec4 v_layerWeights1;
 // Water only: the reflection colour (rgb) and the fraction of it (a) that the fragment
 // shader mixes over the lit body colour.
 out vec4 v_waterReflection;
+// Water only: (Fresnel, distance factor) separately, for the per-pixel depth path in basic.frag.
+out vec2 v_waterTerms;
 
 // === UNIFORMS ===
 uniform mat4 u_model;
@@ -95,6 +97,7 @@ void main()
     v_layerWeights1 = aLayerWeights1;
 
     v_waterReflection = vec4(0.0);
+    v_waterTerms = vec2(0.0);
     if (u_isWater) {
         vec3 toEye = u_cameraPos - pos_worldSpace.xyz;
         float dist = length(toEye);
@@ -108,5 +111,6 @@ void main()
             distanceFactor = clamp((dist - 8192.0) / (u_waterNoiseFalloff - 8192.0), 0.0, 1.0);
         // specularFraction = lerp(1, fresnel, distanceFactor)
         v_waterReflection = vec4(u_waterReflected, mix(1.0, fres, distanceFactor));
+        v_waterTerms = vec2(fres, distanceFactor);
     }
 }

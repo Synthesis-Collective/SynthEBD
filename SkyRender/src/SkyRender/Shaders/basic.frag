@@ -21,6 +21,15 @@ in vec4 v_layerWeights0;
 in vec4 v_layerWeights1;
 in vec4 v_waterReflection;
 uniform bool u_isWater;
+in vec2 v_waterTerms;   // water only: (Fresnel, distance factor), from basic.vert
+// Water, per-pixel depth (GlMesh.WaterSceneDepth): the engine's depth terms from the opaque scene's
+// depth (the depth prepass on u_ssaoDepthTex), after Community Shaders' Water.hlsl. See waterRayDepth
+// and the composition at the end of main.
+uniform bool u_waterSceneDepth;
+uniform vec3 u_waterShallow;
+uniform vec3 u_waterDeep;
+uniform vec3 u_waterFog;   // (above-water fog near, far, amount)
+uniform vec3 u_waterSun;   // (sun specular power, sun specular magnitude, depth specular-lighting factor)
 // Distance fog (GlRenderer.Fog, DistanceFog.cs), the engine's form:
 // f = min(max, saturate(d * y - x) ^ power), u_fogParam = (near/range, 1/range, power, max).
 uniform bool u_fogEnabled;
@@ -671,6 +680,18 @@ vec4 shadeEffect() {
     return vec4(rgb, alpha);
 }
 
+// Water depth along this pixel's view ray: the distance from the water surface to the opaque scene
+// behind it, as the engine measures it (Water.hlsl: the depth buffer's view position, the share of
+// the ray beyond the water plane, times its length). With one flat surface per pixel that is the
+// distance to the scene minus the distance to this fragment. Nothing behind (the sky) is deep.
+float waterRayDepth() {
+    vec2 suv = gl_FragCoord.xy / u_screenSize;
+    float z = texture(u_ssaoDepthTex, suv).r;
+    if (z >= 1.0) return 1.0e9;
+    vec4 scene = u_invProjection * vec4(suv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0);
+    return max(length(scene.xyz / scene.w) - length(v_viewSpacePos), 0.0);
+}
+
 void main()
 {
     // TEMP DEBUG: short-circuit to visualize world-space mesh normals as color.
@@ -765,6 +786,16 @@ void main()
             : vertexColor.rgb;
         baseColor.rgb *= vc;
         if (!vertex_alpha_is_wind) baseColor.a *= vertexColor.a;
+    }
+
+    // Water, per-pixel depth: the body colour is shallow to deep over the view-ray depth
+    // (Water.hlsl refractionDiffuseColor = lerp(shallow, deep, distanceMul.y)), lit below like any
+    // surface.
+    float waterDepth = 0.0;
+    if (u_isWater && u_waterSceneDepth) {
+        waterDepth = waterRayDepth();
+        float dm = u_waterFog.y > 0.0 ? clamp(waterDepth / u_waterFog.y, 0.0, 1.0) : 1.0;
+        baseColor.rgb = mix(u_waterShallow, u_waterDeep, dm);
     }
 
     // Material alpha scales the whole alpha, matching NifSkope's sk_default /
@@ -1309,13 +1340,52 @@ void main()
         finalColor += emittance * baseColor.rgb;
     }
 
-    // Water: the reflection over the lit body colour (basic.vert works out the fraction).
-    if (u_isWater) finalColor = mix(finalColor, v_waterReflection.rgb, v_waterReflection.a);
+    if (u_isWater && u_waterSceneDepth) {
+        // Water, per-pixel depth. Community Shaders' Water.hlsl (vertex-colour branch):
+        //   refractionMul = 1 - saturate((far - min(d, far)) / (far - near)) ^ amount
+        //   specularFraction = lerp(1, fresnel * refractionMul, distanceFactor)
+        //   preFog = lerp(lerp(bed, body, refractionMul), reflection, specularFraction) + sun
+        //   final = lerp(preFog, fogColor, fog)
+        // d is the view-ray depth; bed is what lies behind (already drawn; the engine's refraction
+        // texture, here the framebuffer under the blend). Far away (distanceFactor 0) the surface is
+        // all reflection and hides the bed. Written as colour + alpha over the bed:
+        // alpha = 1 - bed weight.
+        float far = u_waterFog.y;
+        float rm = 1.0;
+        if (far > 0.0) {
+            float range = max(far - u_waterFog.x, 1.0e-3);
+            rm = 1.0 - pow(clamp((far - min(waterDepth, far)) / range, 0.0, 1.0), max(u_waterFog.z, 0.0));
+        }
+        float sf = mix(1.0, v_waterTerms.x * rm, v_waterTerms.y);
+        // Sun specular (Water.hlsl GetSunColor; the vanilla SIMPLE technique's form):
+        // saturate(dot(reflect(view, normal), sunDir)) ^ power x sun colour x magnitude, faded over
+        // shallow water by the depth specular-lighting factor (depthControl.w). The key light is the sun.
+        vec3 sunSpec = vec3(0.0);
+        if (lights[1].type == 2 && u_waterSun.x > 0.0) {
+            vec3 r = reflect(normalize(v_viewSpacePos), normal_viewSpace);
+            float rl = clamp(dot(r, normalize(lights[1].direction)), 0.0, 1.0);
+            float dm = far > 0.0 ? clamp(waterDepth / far, 0.0, 1.0) : 1.0;
+            sunSpec = pow(rl, u_waterSun.x) * lights[1].color * lights[1].intensity * u_waterSun.y
+                    * (1.0 + u_waterSun.z * (dm - 1.0));
+        }
+        vec3 overBed = (1.0 - sf) * rm * finalColor + sf * v_waterReflection.rgb + sunSpec;
+        float bedWeight = (1.0 - sf) * (1.0 - rm);
+        if (u_fogEnabled) {
+            float fogF = min(u_fogParam.w, pow(clamp(length(v_viewSpacePos) * u_fogParam.y - u_fogParam.x, 0.0, 1.0), u_fogParam.z));
+            overBed = (1.0 - fogF) * overBed + fogF * mix(u_fogNearColor, u_fogFarColor, fogF);
+            bedWeight *= 1.0 - fogF;
+        }
+        baseColor.a = 1.0 - bedWeight;
+        finalColor = baseColor.a > 1.0e-4 ? overBed / baseColor.a : vec3(0.0);
+    } else {
+        // Water: the reflection over the lit body colour (basic.vert works out the fraction).
+        if (u_isWater) finalColor = mix(finalColor, v_waterReflection.rgb, v_waterReflection.a);
 
-    // Distance fog, over the lit (and reflected) colour, as the engine applies it last.
-    if (u_fogEnabled) {
-        float fogF = min(u_fogParam.w, pow(clamp(length(v_viewSpacePos) * u_fogParam.y - u_fogParam.x, 0.0, 1.0), u_fogParam.z));
-        finalColor = mix(finalColor, mix(u_fogNearColor, u_fogFarColor, fogF), fogF);
+        // Distance fog, over the lit (and reflected) colour, as the engine applies it last.
+        if (u_fogEnabled) {
+            float fogF = min(u_fogParam.w, pow(clamp(length(v_viewSpacePos) * u_fogParam.y - u_fogParam.x, 0.0, 1.0), u_fogParam.z));
+            finalColor = mix(finalColor, mix(u_fogNearColor, u_fogFarColor, fogF), fogF);
+        }
     }
 
     // --- 6. TONE-MAPPING & COLOR GRADE (since 2.5.9) ---
