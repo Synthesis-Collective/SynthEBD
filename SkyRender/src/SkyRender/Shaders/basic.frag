@@ -139,6 +139,17 @@ const bool DEBUG_VIZ_WORLD_NORMAL = false;
 // of the 90-degree lighting offset.
 const bool DEBUG_VIZ_MSN_NORMAL = false;
 
+// DEBUG: environment-map A/B switches (stage 4). DEBUG_ENV_UNLIT drops the
+// engine's irradiance modulation and adds the cube-map term at full strength
+// whatever the lighting (the pre-2026-10 behaviour). DEBUG_ENV_YUP_LOOKUP
+// samples the cube map with the renderer's Y-up reflection vector instead of
+// the game-world Z-up one (the old, rotated lookup). DEBUG_VIZ_ENV outputs the
+// stage-4 term alone (cube-map colour x mask x scale x irradiance) so a
+// reflection that is present but too dim to see can be told from a missing one.
+const bool DEBUG_ENV_UNLIT = false;
+const bool DEBUG_ENV_YUP_LOOKUP = false;
+const bool DEBUG_VIZ_ENV = false;
+
 // FaceTint blend mode selector.
 //
 // Background: NifSkope's source ships TWO Skyrim face shaders --
@@ -1064,6 +1075,10 @@ void main()
 
     // --- 3. DYNAMIC LIGHTING ---
     vec3 finalColor = vec3(0.0);
+    // Light reaching the surface (ambient + directional diffuse + point lights),
+    // before the albedo multiply. The engine scales the environment reflection by
+    // it (stage 4), so a cube map reads bright only where the surface is lit.
+    vec3 envIrradiance = vec3(0.0);
 
     // Sample the SSAO occlusion factor once per fragment (in [0, 1];
     // 1 = unoccluded, 0 = fully occluded). Used to darken the
@@ -1133,6 +1148,7 @@ void main()
             // sky / hemisphere light should darken proportionally to the
             // AO factor.
             finalColor += lightColor * baseColor.rgb * ao;
+            envIrradiance += lightColor;
         }
         else if (lights[i].type == 2) {
             // Directional
@@ -1165,6 +1181,7 @@ void main()
                 diffuseStrength = max(NdotL, 0.0);
             }
             vec3 diffuse = diffuseStrength * lightColor * shadow;
+            envIrradiance += diffuse;
 
             // Specular (Blinn-Phong)
             vec3 specular = vec3(0.0);
@@ -1337,7 +1354,9 @@ void main()
         float nl = dot(normal_viewSpace, toLight / max(d, 1.0e-4));
         // Wrapped for soft-lit shapes, as the directional loop above does.
         float ndl = has_soft_lighting ? nl * 0.5 + 0.5 : max(nl, 0.0);
-        finalColor += u_pointLightColor[i] * atten * ndl * pointShadow(i) * baseColor.rgb;
+        vec3 pointLit = u_pointLightColor[i] * atten * ndl * pointShadow(i);
+        finalColor += pointLit * baseColor.rgb;
+        envIrradiance += pointLit;
     }
 
     // --- 4. ENVIRONMENT MAPPING (cubemap, with 2D sphere-map fallback) ---
@@ -1361,10 +1380,29 @@ void main()
     // is its transpose; translation lives in the 4th column and drops out of
     // mat3(). The env MASK (slot 5) still only modulates reflection intensity;
     // the per-sequin sparkle comes from this bumped reflection direction.
+    //
+    // Engine-faithful strength (Community Shaders Lighting.hlsl, the ENVMAP /
+    // EYE path): envMask = envScale x (slot-5 mask .r when the shape has one,
+    // else the shape's glossiness -- the slot-7 specular map on model-space
+    // normal shapes, the normal map's alpha otherwise), and the sampled colour
+    // x envMask is added to the specular term scaled by the light reaching the
+    // surface (diffuse + ambient irradiance), not by the albedo. So a cube map
+    // reads bright on the lit side and fades into shadow; a mask-less shape
+    // reflects only where its normal alpha says it is glossy.
+    //
+    // Lookup axes: vanilla cube maps are authored in the game's Z-up world
+    // (the +Z face is the sky). The renderer works in Y-up after the NIF R_X(-90)
+    // conversion (x, y, z)_zup -> (x, z, -y)_yup, so the reflection vector is
+    // turned back to game axes, (x, y, z)_yup -> (x, -z, y)_zup, before sampling.
+    // Without that the sky face lands on a horizontal direction and the eye
+    // cube map's highlights sit in the wrong place.
     if (!DEBUG_DIFFUSE_ONLY && has_environment_map && u_enableEnvMap) {
         vec3 viewDirWorld = normalize(u_cameraPos - v_worldPos);
         vec3 nWorld       = normalize(transpose(mat3(u_view)) * normal_viewSpace);
         vec3 reflectWorld = reflect(-viewDirWorld, nWorld);
+        vec3 reflectGame  = DEBUG_ENV_YUP_LOOKUP
+            ? reflectWorld
+            : vec3(reflectWorld.x, -reflectWorld.z, reflectWorld.y);
         vec3 envColor;
         if (is_env_map_2d) {
             float m = 2.0 * sqrt(reflectWorld.x * reflectWorld.x
@@ -1373,10 +1411,23 @@ void main()
             vec2 envUV = vec2(reflectWorld.x / m + 0.5, reflectWorld.y / m + 0.5);
             envColor = texture(texture_envmap_2d, envUV).rgb;
         } else {
-            envColor = texture(texture_envmap, reflectWorld).rgb;
+            envColor = texture(texture_envmap, reflectGame).rgb;
         }
-        float envMask = has_env_mask ? texture(texture_envmask, TexCoords).r : 1.0;
-        finalColor += envColor * envMask * envMapScale;
+        float envMask = 1.0;
+        if (has_env_mask) {
+            envMask = texture(texture_envmask, TexCoords).r;
+        } else if (is_model_space && has_specular_map) {
+            envMask = texture(texture_specular, TexCoords).r;
+        } else if (has_normal_map && u_enableNormal) {
+            envMask = texture(texture_normal, TexCoords).a;
+        }
+        vec3 envLight = DEBUG_ENV_UNLIT ? vec3(1.0) : envIrradiance;
+        vec3 envTerm = envColor * envMask * envMapScale * envLight;
+        if (DEBUG_VIZ_ENV) {
+            FragColor = vec4(envTerm, 1.0);
+            return;
+        }
+        finalColor += envTerm;
     }
 
     // --- 5. EMISSIVE ---
