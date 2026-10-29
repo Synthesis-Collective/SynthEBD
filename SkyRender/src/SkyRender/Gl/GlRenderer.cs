@@ -855,6 +855,12 @@ public class GlRenderer : IDisposable
     /// (the default) uses <see cref="ClearColor"/>, the scene's sky.</summary>
     public Vector3? SkyColor { get; set; }
 
+    /// <summary>The sky's colour by elevation, for what sky-reflecting water reflects, or null (the
+    /// default) for the single <see cref="SkyColor"/>. When set, such water reflects the gradient at
+    /// the elevation of the reflected view ray, per pixel. See <see cref="SkyRender.SkyGradient"/>
+    /// and RENDERING_PIPELINE.md, "Water".</summary>
+    public SkyGradient? SkyGradient { get; set; }
+
     /// <summary>Distance fog over every lit surface, or null (the default) for none. A host
     /// supplies it from its scene (for Skyrim exteriors, the weather's fog colours and distances).
     /// See RENDERING_PIPELINE.md, "Distance fog".</summary>
@@ -1362,6 +1368,9 @@ public class GlRenderer : IDisposable
         _shader.SetMatrix4("u_model", ref model);
         _frameModel = model;
         _shader.SetMatrix4("u_view", ref view);
+        // World up (+Y) in view space, for the sky gradient's elevation (row 1 of the row-vector view matrix).
+        var skyUpView = Vector3.Normalize(new Vector3(view.M21, view.M22, view.M23));
+        _shader.SetVector3("u_skyUpView", skyUpView.X, skyUpView.Y, skyUpView.Z);
         _shader.SetMatrix4("u_projection", ref projection);
         // Inverse projection reconstructs view-space depth from the prepass
         // depth texture for the hair AO gap test (u_ssaoDepthTex, unit 11).
@@ -2952,6 +2961,21 @@ public class GlRenderer : IDisposable
             var refl = mesh.WaterReflectionColor * mesh.WaterReflectivity;
             if (mesh.WaterReflectsSky) _shader.SetVector3("u_waterReflected", sky.X, sky.Y, sky.Z);
             else _shader.SetVector3("u_waterReflected", refl.X, refl.Y, refl.Z);
+            // The sky gradient (GlRenderer.SkyGradient): per pixel in basic.frag, for water that
+            // reflects the sky. Keys are (colour, elevation in degrees); u_skyUpView (world up in view
+            // space) is set once per frame with the view matrix.
+            var grad = mesh.WaterReflectsSky ? SkyGradient : null;
+            var keys = grad?.ShaderKeys;
+            int keyCount = keys?.Count ?? 0;
+            _shader.SetInt("u_skyKeyCount", keyCount);
+            if (keyCount > 0)
+            {
+                for (int i = 0; i < keyCount; i++)
+                {
+                    var kc = keys![i].Color;
+                    _shader.SetVector4($"u_skyKeys[{i}]", kc.X, kc.Y, kc.Z, keys[i].ElevationDegrees);
+                }
+            }
             _shader.SetFloat("u_waterFresnel", mesh.WaterFresnel);
             _shader.SetFloat("u_waterNoiseFalloff", mesh.WaterNoiseFalloff);
             bool sceneDepth = mesh.WaterSceneDepth && _waterDepthBound;

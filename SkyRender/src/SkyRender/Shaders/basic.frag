@@ -30,6 +30,27 @@ uniform vec3 u_waterShallow;
 uniform vec3 u_waterDeep;
 uniform vec3 u_waterFog;   // (above-water fog near, far, amount)
 uniform vec3 u_waterSun;   // (sun specular power, sun specular magnitude, depth specular-lighting factor)
+// Sky gradient (GlRenderer.SkyGradient, SkyGradient.cs): water that reflects the sky reflects the
+// gradient's colour at the elevation of the reflected view ray, per pixel. Keys: rgb = colour,
+// w = elevation in degrees, sorted ascending; u_skyKeyCount 0 = off (the per-vertex reflection colour).
+// The reflecting normal is the flat surface's (world up), so the elevation is the view ray's depression.
+#define MAX_SKY_KEYS 16
+uniform int u_skyKeyCount;
+uniform vec4 u_skyKeys[MAX_SKY_KEYS];
+uniform vec3 u_skyUpView;
+
+vec3 skyGradientAt(float elevationDeg) {
+    if (elevationDeg <= u_skyKeys[0].w) return u_skyKeys[0].rgb;
+    for (int i = 1; i < MAX_SKY_KEYS; i++) {
+        if (i >= u_skyKeyCount) break;
+        if (elevationDeg <= u_skyKeys[i].w) {
+            float span = u_skyKeys[i].w - u_skyKeys[i - 1].w;
+            float t = span > 1.0e-6 ? (elevationDeg - u_skyKeys[i - 1].w) / span : 1.0;
+            return mix(u_skyKeys[i - 1].rgb, u_skyKeys[i].rgb, t);
+        }
+    }
+    return u_skyKeys[u_skyKeyCount - 1].rgb;
+}
 // Distance fog (GlRenderer.Fog, DistanceFog.cs), the engine's form:
 // f = min(max, saturate(d * y - x) ^ power), u_fogParam = (near/range, 1/range, power, max).
 uniform bool u_fogEnabled;
@@ -1340,6 +1361,13 @@ void main()
         finalColor += emittance * baseColor.rgb;
     }
 
+    // The water's reflection colour: per vertex (basic.vert), or the sky gradient per pixel.
+    vec3 waterReflected = v_waterReflection.rgb;
+    if (u_isWater && u_skyKeyCount > 0) {
+        float s = clamp(-dot(normalize(v_viewSpacePos), normalize(u_skyUpView)), -1.0, 1.0);
+        waterReflected = skyGradientAt(degrees(asin(s)));
+    }
+
     if (u_isWater && u_waterSceneDepth) {
         // Water, per-pixel depth. Community Shaders' Water.hlsl (vertex-colour branch):
         //   refractionMul = 1 - saturate((far - min(d, far)) / (far - near)) ^ amount
@@ -1368,7 +1396,7 @@ void main()
             sunSpec = pow(rl, u_waterSun.x) * lights[1].color * lights[1].intensity * u_waterSun.y
                     * (1.0 + u_waterSun.z * (dm - 1.0));
         }
-        vec3 overBed = (1.0 - sf) * rm * finalColor + sf * v_waterReflection.rgb + sunSpec;
+        vec3 overBed = (1.0 - sf) * rm * finalColor + sf * waterReflected + sunSpec;
         float bedWeight = (1.0 - sf) * (1.0 - rm);
         if (u_fogEnabled) {
             float fogF = min(u_fogParam.w, pow(clamp(length(v_viewSpacePos) * u_fogParam.y - u_fogParam.x, 0.0, 1.0), u_fogParam.z));
@@ -1379,7 +1407,7 @@ void main()
         finalColor = baseColor.a > 1.0e-4 ? overBed / baseColor.a : vec3(0.0);
     } else {
         // Water: the reflection over the lit body colour (basic.vert works out the fraction).
-        if (u_isWater) finalColor = mix(finalColor, v_waterReflection.rgb, v_waterReflection.a);
+        if (u_isWater) finalColor = mix(finalColor, waterReflected, v_waterReflection.a);
 
         // Distance fog, over the lit (and reflected) colour, as the engine applies it last.
         if (u_fogEnabled) {
