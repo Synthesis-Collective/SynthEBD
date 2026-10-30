@@ -146,7 +146,8 @@ public partial class VM_CharacterViewer : ViewerVm
         string LoadIdentityKey,
         string? HeadMeshOverride,
         Stopwatch? LoadStopwatch,
-        int TotalShapes)
+        int TotalShapes,
+        int LoadGeneration)
     {
         public int Installed { get; set; }
 
@@ -181,7 +182,9 @@ public partial class VM_CharacterViewer : ViewerVm
     /// Mirrors <see cref="_pendingTextureOverrides"/>: a call to
     /// <see cref="ApplyMeshOverrides"/> that arrives while a rebuild is in
     /// flight is queued here and drained by <see cref="ProcessPendingScene"/>
-    /// once the scene commits. A later call supersedes (replace semantics).</summary>
+    /// once the scene commits. A later call supersedes (replace semantics).
+    /// Like the other queues it waits for the newest load's scene: an older
+    /// scene finishing its install meanwhile leaves it queued.</summary>
     private List<MeshOverride>? _pendingMeshOverrides;
 
     /// <summary>The deformer (and the weight it was applied at) the <b>current scene's</b> body shapes carry: set
@@ -240,6 +243,16 @@ public partial class VM_CharacterViewer : ViewerVm
     /// <summary>Head-override path of the load whose results are queued in _pendingScene.
     /// Promoted to _currentHeadMeshOverride by ProcessPendingScene once the scene commits.</summary>
     private string? _pendingLoadHeadMeshOverride;
+
+    /// <summary>Counts the rebuilding loads: <see cref="LoadAsync"/> takes the next value when it
+    /// starts a real rebuild (not the same-NPC short-circuit). Each queued scene, and the install
+    /// made from it, carries the generation of the load that produced it, so the commit can tell
+    /// whether a newer load has started since.</summary>
+    private int _loadGeneration;
+
+    /// <summary>Generation of the load whose results are queued in _pendingScene; carried into
+    /// <see cref="SceneInstallState.LoadGeneration"/> with the other _pendingLoad* fields.</summary>
+    private int _pendingLoadGeneration;
 
     /// <summary>Stopwatch started at LoadNpcAsync entry and threaded through to
     /// ProcessPendingScene so the GL-upload checkpoint can report elapsed-from-initiation.
@@ -318,7 +331,13 @@ public partial class VM_CharacterViewer : ViewerVm
     /// the new scene is installed and any pending neutral overrides and shape
     /// deformations have drained. Hosts subscribe to drain their own queues that
     /// depend on scene-ready state (e.g. a deformation that needs
-    /// <see cref="CurrentBodyNifDiskPath"/>).</summary>
+    /// <see cref="CurrentBodyNifDiskPath"/>).
+    /// <para>It also fires for a scene that finished installing after a newer
+    /// <see cref="LoadAsync"/> started (another NPC picked while it uploaded). That
+    /// scene is superseded: nothing queued is drained into it, the rebuild stays
+    /// pending and <see cref="IsLoading"/> stays true, and the queued overrides go in
+    /// with the newer scene's own commit. Compare <see cref="CurrentLoadedIdentityKey"/>
+    /// with the NPC you loaded to tell the two apart.</para></summary>
     public event Action? SceneCommitted;
 
     /// <summary>Fired after a <see cref="ApplyMeshOverrides"/> set has actually
@@ -2612,7 +2631,8 @@ public partial class VM_CharacterViewer : ViewerVm
                 LoadIdentityKey: _pendingLoadIdentityKey,
                 HeadMeshOverride: _pendingLoadHeadMeshOverride,
                 LoadStopwatch: loadStopwatch,
-                TotalShapes: queue.Count);
+                TotalShapes: queue.Count,
+                LoadGeneration: _pendingLoadGeneration);
             _pendingLoadIdentityKey = "";
             _pendingLoadHeadMeshOverride = null;
 
@@ -2668,25 +2688,45 @@ public partial class VM_CharacterViewer : ViewerVm
         // ── 3. Queue drained: finalize. Promote pending identity into the
         //       currently-loaded fields, clear the rebuild gate, and drain any
         //       texture overrides / shape deformations that arrived during the install.
+        //
+        //       Unless the install is stale: a newer LoadAsync started after this
+        //       scene's load (another NPC picked while this one was uploading) and is
+        //       still in flight. Its rebuild gate stays up, and everything queued now
+        //       (that NPC's outfit, texture overrides, deformation) belongs to the newer
+        //       scene, which replaces this one when its models are read. Draining here
+        //       would attach it to this scene and lose it in the teardown. A newer load
+        //       that was cancelled or failed with no replacement has dropped the gate,
+        //       so this scene is then the current one and commits normally.
+        bool superseded = _sceneRebuildPending && install.LoadGeneration != _loadGeneration;
         LogLoadCheckpoint(install.LoadStopwatch,
             "Scene committed (" + install.TotalShapes +
-            " shapes -> " + Renderer.Meshes.Count + " GL meshes) — load complete");
+            " shapes -> " + Renderer.Meshes.Count + " GL meshes) — " +
+            (superseded ? "superseded by a newer load, queued updates left for it" : "load complete"));
         // Logged before the override drains below, which report their own batches.
         LogTextureLockTally(install.LockTally, "scene install");
+
+        _currentLoadedIdentityKey = install.LoadIdentityKey;
+        _currentHeadMeshOverride = install.HeadMeshOverride;
+        _sceneInstall = null;
+        _currentSceneShapeDeform = null; // the new meshes are at their base until a deformation is applied below or later
+
+        if (superseded)
+        {
+            // The newer load's status line and spinner stay up; hosts still hear that this
+            // scene went in (CurrentLoadedIdentityKey names it).
+            SceneCommitted?.Invoke();
+            LogMeshStateSnapshot();
+            return;
+        }
 
         StatusText = install.TotalShapes > 0
             ? $"Loaded {install.TotalShapes} shape(s) for NPC"
             : "No renderable shapes found for NPC";
 
-        _currentLoadedIdentityKey = install.LoadIdentityKey;
-        _currentHeadMeshOverride = install.HeadMeshOverride;
-        _sceneInstall = null;
-
         // Scene is now rebuilt — clear the rebuild flag before draining the
         // pending-override queue so ApplyTextureOverrides takes the direct path.
         _sceneRebuildPending = false;
         IsLoading = false;
-        _currentSceneShapeDeform = null; // the new meshes are at their base until a deformation is applied below or later
 
         if (_pendingTextureOverrides != null)
         {
@@ -3164,6 +3204,9 @@ public partial class VM_CharacterViewer : ViewerVm
         // between now and when ProcessPendingScene finishes are queued rather than
         // applied to the soon-to-be-destroyed current meshes.
         _sceneRebuildPending = true;
+        // A new generation: a scene still installing from an earlier load is now stale and
+        // leaves the queued updates for this one (ProcessPendingScene, step 3).
+        int loadGeneration = ++_loadGeneration;
 
         // Snapshot the host's resolution scoping into per-VM fields. Two
         // consumers of these snapshots:
@@ -3246,6 +3289,7 @@ public partial class VM_CharacterViewer : ViewerVm
                 _pendingScene = (loadResults, paths);
                 _pendingLoadIdentityKey = identity.CacheKey;
                 _pendingLoadHeadMeshOverride = overrideHeadMeshAbsolutePath;
+                _pendingLoadGeneration = loadGeneration;
                 // Hand the clock to the render thread — ProcessPendingScene will
                 // consume it on the next frame tick and log the GL-upload span.
                 _pendingLoadStopwatch = loadStopwatch;
@@ -3768,6 +3812,11 @@ public partial class VM_CharacterViewer : ViewerVm
     /// The offscreen renderer (inline marshaller, dedicated thread, single
     /// context) still applies synchronously, which is why
     /// <paramref name="ct"/> remains meaningful there.</para>
+    ///
+    /// <para><b>Switching NPCs.</b> A set queued while a load is in flight goes in
+    /// with the scene of the newest <see cref="LoadAsync"/>, whether it was queued
+    /// just before that call or after it: the previous NPC's scene finishing its
+    /// upload in between does not take it.</para>
     ///
     /// <para>Before the deferral this ran inline on the caller's thread. With
     /// two host preview popups open — private context each, both rendering from
