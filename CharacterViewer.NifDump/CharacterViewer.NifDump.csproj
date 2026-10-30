@@ -12,7 +12,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\SkyRender\src\SkyRender\SkyRender.csproj" />
+      <PackageReference Include="SkyRender" Version="3.0.1" />
     </ItemGroup>
 
 </Project>

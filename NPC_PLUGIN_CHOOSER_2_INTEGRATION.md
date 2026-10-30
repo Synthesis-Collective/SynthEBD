@@ -1,9 +1,9 @@
 # Integrating CharacterViewer.Rendering into NPC Plugin Chooser 2
 
 > **3.0.0 note.** The library has since been split into `SkyRender` (core) and `SkyRender.Character`
-> under `SkyRender/src/` (namespaces `SkyRender`, `SkyRender.Offscreen`, `SkyRender.Character`,
-> `SkyRender.Character.Offscreen`, `SkyRender.Character.Views`). NPC2 references
-> `SkyRender/src/SkyRender.Character/SkyRender.Character.csproj`; the NPC offscreen renderer is
+> and published as NuGet packages from the SkyRender repository (namespaces `SkyRender`, `SkyRender.Offscreen`, `SkyRender.Character`,
+> `SkyRender.Character.Offscreen`, `SkyRender.Character.Views`). NPC2 references the
+> `SkyRender.Character` package; the NPC offscreen renderer is
 > `NpcOffscreenRendererFactory.Create(...)` and requests are `NpcRenderRequest`. Renamed types:
 > `RenderLogGate`, `IRenderLogger`, `LightingLayout` / `LightingColorScheme` / `LightingPresets`,
 > `SkyRenderInfo`, `NpcGender` (`ResolvedNpcMeshPaths.Gender`). The rest of this document describes

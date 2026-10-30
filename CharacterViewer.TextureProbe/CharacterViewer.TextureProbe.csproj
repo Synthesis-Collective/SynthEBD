@@ -5,5 +5,5 @@
     <OutputType>Exe</OutputType><TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../SkyRender/src/SkyRender.Character/SkyRender.Character.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="SkyRender.Character" Version="3.0.1" /></ItemGroup>
 </Project>
