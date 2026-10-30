@@ -1281,6 +1281,10 @@ public class GlRenderer : IDisposable
         if (!_initialized || _shader == null) return;
         if (viewportWidth <= 0 || viewportHeight <= 0) return;
 
+        // Host partition hiding (GlMesh.HiddenPartitionSlots) is applied here, on the GL thread,
+        // before any pass draws. A no-op for every mesh whose mask did not change.
+        foreach (var mesh in _meshes) mesh.ApplyHiddenPartitionSlots();
+
         EmitGlStateDiagnostic(viewportWidth, viewportHeight);
         EmitDrawListDiagnostic();
 

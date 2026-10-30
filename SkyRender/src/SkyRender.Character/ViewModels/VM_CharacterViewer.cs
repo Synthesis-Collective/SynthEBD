@@ -4591,6 +4591,23 @@ public partial class VM_CharacterViewer : ViewerVm
                 }
             }
         }
+
+        // Partition hiding inside the shapes still drawn: a worn piece's dismember-partition
+        // triangles of a slot another piece covers (an armor skin's calves under boots). Only
+        // shapes split across two or more hideable partitions carry the per-triangle data; the
+        // renderer re-uploads a shape's index buffer when its mask changes.
+        foreach (var m in meshes)
+        {
+            if (m.TrianglePartitionSlots == null) continue;
+            int mask = m.IsHiddenByHost ? 0 : PartitionOcclusion.HiddenSlots(
+                m.Npc(), meshes.Where(o => !ReferenceEquals(o, m) && o.ShouldRender).Select(o => o.Npc()));
+            if (mask != m.HiddenPartitionSlots && mask != 0)
+            {
+                LogVerbose("SkyRender: [Partitions] '" + m.ShapeName + "' hides partition slot(s) "
+                    + string.Join(",", Enumerable.Range(30, 32).Where(s => (mask & (1 << (s - 30))) != 0)));
+            }
+            m.HiddenPartitionSlots = mask;
+        }
     }
 
     /// <summary>Slot-occupancy precedence for a mesh-override kind. Skin / Hair /

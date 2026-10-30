@@ -25,6 +25,8 @@ public static class GlMeshFactory
             built.Tangents, built.Bitangents, built.VertexColors);
 
         var glMesh = new GlMesh();
+        // Before Upload, which keeps the indices only for a shape with hideable partitions.
+        glMesh.TrianglePartitionSlots = built.TrianglePartitionSlots;
         glMesh.Upload(vertexData, built.Indices);
         glMesh.ShapeName = built.ShapeName;
         glMesh.IsPrimaryHeadShape = built.IsPrimaryHeadShape;

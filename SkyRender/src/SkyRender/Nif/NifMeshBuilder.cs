@@ -199,6 +199,18 @@ public class NifMeshBuilder
         public IReadOnlyList<ushort>? DismemberPartitions { get; init; }
 
         /// <summary>
+        /// Per-triangle biped slot (30-61) of the dismember partition each triangle belongs to,
+        /// aligned with <see cref="Indices"/> (entry <c>t</c> covers indices <c>3t..3t+2</c>);
+        /// 0 for a triangle whose partition maps to no hideable slot. Null unless the shape's
+        /// <see cref="BSDismemberSkinInstance"/> splits its triangles across two or more
+        /// hideable slots, e.g. an armor's skin shape carrying body (32), forearm (34) and calf
+        /// (38) partitions. Lets a host hide only the triangles of a slot another worn piece
+        /// covers (<see cref="GlMesh.HiddenPartitionSlots"/>), as the game does. See
+        /// <see cref="PartitionToHideableSlot"/> for which partition IDs map to a slot.
+        /// </summary>
+        public byte[]? TrianglePartitionSlots { get; init; }
+
+        /// <summary>
         /// This shape's ordinal among the source NIF's shape blocks, in file
         /// block order (the order nifly's <c>GetShapes()</c> returns), counting
         /// every shape — including ones the build later skips or fails. Used as
@@ -1210,6 +1222,7 @@ public class NifMeshBuilder
         PhysicsXmlPaths = b.PhysicsXmlPaths,
         IsPrimaryHeadShape = b.IsPrimaryHeadShape,
         DismemberPartitions = b.DismemberPartitions,
+        TrianglePartitionSlots = b.TrianglePartitionSlots,
         ShapeOrdinal = b.ShapeOrdinal,
         HasAlphaTest = b.HasAlphaTest,
         HasAlphaBlend = b.HasAlphaBlend,
@@ -1547,6 +1560,69 @@ public class NifMeshBuilder
         >= 130 and <= 161 => partId - 100,
         _ => partId,
     };
+
+    /// <summary>The biped slot (30-61) whose occupant hides a dismember partition's triangles, or 0
+    /// when the partition is never hidden that way. nif.xml's <c>BSDismemberBodyPartType</c> names
+    /// the IDs (SBP_32_BODY, SBP_34_FOREARMS, SBP_38_CALVES ...), the body-part data that
+    /// controls which triangles are visible. 30-61 map to themselves and the 130-161 duplicates
+    /// fold down by 100. The 230-range head IDs (SBP_230_HEAD, the usual face partition) map to
+    /// 0, so headgear never hides a face by partition; head sub-shapes keep the whole-shape rule.
+    /// Legacy Fallout-era IDs (below 30) and the section/torso caps map to 0 too.</summary>
+    public static int PartitionToHideableSlot(ushort partId) => partId switch
+    {
+        >= 30 and <= 61 => partId,
+        >= 130 and <= 161 => partId - 100,
+        _ => 0,
+    };
+
+    /// <summary>Per-triangle hideable slots for <see cref="BuiltMesh.TrianglePartitionSlots"/>, or
+    /// null when the shape has fewer than two distinct hideable slots (whole-shape slot logic
+    /// already covers it) or the partition data does not line up with the shape's triangles.
+    /// nifly's <c>GetShapePartitions</c> returns the skin instance's partition list and, per
+    /// shape triangle (in <c>GetTriangles</c> order, the order <see cref="BuiltMesh.Indices"/>
+    /// uses), the index of the partition holding it.</summary>
+    private byte[]? ReadTrianglePartitionSlots(NifFile nif, NiShape shape, int triangleCount)
+    {
+        try
+        {
+            using var info = new NiVectorBSDismemberSkinInstancePartitionInfo();
+            using var triParts = new vectorint();
+            if (!nif.GetShapePartitions(shape, info, triParts)) return null;
+            if (triParts.Count != triangleCount) return null;
+            using var items = info.items();
+            var slotOfPartition = new byte[items.Count];
+            for (int pi = 0; pi < items.Count; pi++)
+                slotOfPartition[pi] = (byte)PartitionToHideableSlot(items[pi].partID);
+            return MapTrianglePartitionSlots(slotOfPartition, triParts.ToArray());
+        }
+        catch (Exception ex)
+        {
+            LogVerbose("SkyRender: [Partitions] per-triangle partitions unreadable for '"
+                + (shape.name?.get() ?? "?") + "': " + ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>Maps each triangle's partition index onto that partition's hideable slot. Returns
+    /// null when fewer than two distinct non-zero slots occur, or when a partition index is out
+    /// of range (the data is not trusted then). Public for tests.</summary>
+    public static byte[]? MapTrianglePartitionSlots(byte[] slotOfPartition, int[] trianglePartition)
+    {
+        var slots = new byte[trianglePartition.Length];
+        int first = 0;
+        bool several = false;
+        for (int t = 0; t < trianglePartition.Length; t++)
+        {
+            int pi = trianglePartition[t];
+            if (pi < 0 || pi >= slotOfPartition.Length) return null;
+            byte s = slotOfPartition[pi];
+            slots[t] = s;
+            if (s == 0) continue;
+            if (first == 0) first = s;
+            else if (s != first) several = true;
+        }
+        return several ? slots : null;
+    }
 
     /// <summary>True when this NIF contains a node named
     /// <c>BSFaceGenNiNodeSkinned</c>. SSE FaceGen NIFs (the per-NPC
@@ -2317,6 +2393,9 @@ public class NifMeshBuilder
         // resolver can tag baked-in head sub-shapes (e.g. hair = partition 131)
         // by their real biped slot rather than the coarse "Head" group slot.
         var dismemberPartitions = ReadDismemberPartitions(nif.GetHeader(), shape);
+        var trianglePartitionSlots = dismemberPartitions is { Count: > 1 }
+            ? ReadTrianglePartitionSlots(nif, shape, nifTris.Count)
+            : null;
 
         bool isPrimaryHead = primaryHeadName != null && shapeName == primaryHeadName;
         bool isDoubleSided = (shaderFlags2 & SLSF2_DoubleSided) != 0;
@@ -2376,6 +2455,7 @@ public class NifMeshBuilder
                 ? bonesAbsentFromSkeleton : null,
             IsPrimaryHeadShape = isPrimaryHead,
             DismemberPartitions = dismemberPartitions,
+            TrianglePartitionSlots = trianglePartitionSlots,
             HasAlphaTest = hasAlphaTest,
             HasAlphaBlend = hasAlphaBlend,
             AlphaFlagsRaw = alphaFlagsRaw,

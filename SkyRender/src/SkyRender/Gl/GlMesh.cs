@@ -287,6 +287,65 @@ public class GlMesh : IDisposable
     /// (<see cref="IsHiddenByHost"/>).</summary>
     public bool ShouldRender => IsRendering && !IsHiddenByHost;
 
+    /// <summary>Per-triangle biped slot (30-61, 0 = none) of each triangle's dismember partition,
+    /// from <see cref="NifMeshBuilder.BuiltMesh.TrianglePartitionSlots"/>; null for shapes without
+    /// two or more hideable partitions. Read by <see cref="HiddenPartitionSlots"/>.</summary>
+    public byte[]? TrianglePartitionSlots { get; set; }
+
+    /// <summary>Host-owned partition hiding: a mask of biped slots, encoded like
+    /// BipedObjectFlag (<c>1 &lt;&lt; (slot - 30)</c>), whose dismember-partition triangles are
+    /// not drawn, as the game hides a worn piece's partition when another piece covers that slot
+    /// (an armor's calf partition under boots). Has no effect without
+    /// <see cref="TrianglePartitionSlots"/>. The renderer applies a change at the start of its next
+    /// frame by re-uploading the filtered index buffer, so 0 (the default) draws exactly the
+    /// original triangles in their original order.</summary>
+    public int HiddenPartitionSlots { get; set; }
+
+    private int _appliedHiddenPartitionSlots;
+    private int[]? _allIndices;
+
+    /// <summary>Triangles of the index buffer kept when <paramref name="hiddenSlots"/> are hidden,
+    /// in their original order. Public for tests.</summary>
+    public static int[] FilterIndicesByPartition(int[] indices, byte[] triangleSlots, int hiddenSlots)
+    {
+        int triCount = Math.Min(indices.Length / 3, triangleSlots.Length);
+        var kept = new System.Collections.Generic.List<int>(indices.Length);
+        for (int t = 0; t < triCount; t++)
+        {
+            int s = triangleSlots[t];
+            if (s >= 30 && s <= 61 && (hiddenSlots & (1 << (s - 30))) != 0) continue;
+            kept.Add(indices[t * 3]);
+            kept.Add(indices[t * 3 + 1]);
+            kept.Add(indices[t * 3 + 2]);
+        }
+        // Indices past the slot table (a mismatched table) are kept, never dropped.
+        for (int i = triCount * 3; i < indices.Length; i++) kept.Add(indices[i]);
+        return kept.ToArray();
+    }
+
+    /// <summary>Re-uploads the index buffer when <see cref="HiddenPartitionSlots"/> changed since
+    /// the last call. GL thread only; the renderer calls it for every mesh at the start of a frame.</summary>
+    public void ApplyHiddenPartitionSlots()
+    {
+        if (_disposed || HiddenPartitionSlots == _appliedHiddenPartitionSlots) return;
+        if (TrianglePartitionSlots == null || _allIndices == null)
+        {
+            _appliedHiddenPartitionSlots = HiddenPartitionSlots;
+            return;
+        }
+        var indices = HiddenPartitionSlots == 0
+            ? _allIndices
+            : FilterIndicesByPartition(_allIndices, TrianglePartitionSlots, HiddenPartitionSlots);
+        // The element buffer binding is VAO state: bind this mesh's VAO first.
+        GL.BindVertexArray(Vao);
+        GL.BindBuffer(BufferTarget.ElementArrayBuffer, Ebo);
+        GL.BufferData(BufferTarget.ElementArrayBuffer, Math.Max(indices.Length, 3) * sizeof(int),
+            indices.Length > 0 ? indices : new int[3], BufferUsageHint.StaticDraw);
+        GL.BindVertexArray(0);
+        IndexCount = indices.Length;
+        _appliedHiddenPartitionSlots = HiddenPartitionSlots;
+    }
+
     /// <summary>Opaque per-mesh data a host attaches (e.g. slot-occupancy bookkeeping). The
     /// renderer never reads it.</summary>
     public object? HostData { get; set; }
@@ -501,6 +560,8 @@ public class GlMesh : IDisposable
     public void Upload(float[] vertexData, int[] indices)
     {
         IndexCount = indices.Length;
+        // Kept (by reference) only for shapes whose partitions a host can hide.
+        _allIndices = TrianglePartitionSlots != null ? indices : null;
 
         Vao = GL.GenVertexArray();
         Vbo = GL.GenBuffer();
