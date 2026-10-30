@@ -12,7 +12,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="SkyRender" Version="3.0.1" />
+      <PackageReference Include="SkyRender" Version="$(SkyRenderVersion)" />
     </ItemGroup>
 
 </Project>

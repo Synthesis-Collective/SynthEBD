@@ -305,7 +305,7 @@
 
   <ItemGroup>
     <!-- SkyRender.Character brings the core SkyRender library transitively. -->
-    <PackageReference Include="SkyRender.Character" Version="3.0.1" />
+    <PackageReference Include="SkyRender.Character" Version="$(SkyRenderVersion)" />
   </ItemGroup>
 
   <!-- Treat the renderer's namespaces as global so the SynthEBD call sites (VM_CharacterViewer,

@@ -1,0 +1,8 @@
+<Project>
+  <!-- Version of the SkyRender / SkyRender.Character packages every project here references.
+       A build can override it (for example -p:SkyRenderVersion=3.0.2-beta.1 to test against a
+       prerelease from a local feed); a normal build restores this default. -->
+  <PropertyGroup>
+    <SkyRenderVersion Condition="'$(SkyRenderVersion)' == ''">3.0.1</SkyRenderVersion>
+  </PropertyGroup>
+</Project>

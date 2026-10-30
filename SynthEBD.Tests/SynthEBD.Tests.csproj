@@ -23,7 +23,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\SynthEBD\SynthEBD.csproj" />
-      <PackageReference Include="SkyRender.Character" Version="3.0.1" />
+      <PackageReference Include="SkyRender.Character" Version="$(SkyRenderVersion)" />
     </ItemGroup>
 
     <!-- Demo settings/config fixtures consumed by the integration harness. Copied next to the
